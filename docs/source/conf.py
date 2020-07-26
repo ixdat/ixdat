@@ -12,17 +12,18 @@
 #
 from pathlib import Path
 import sys
+
 src_dir = Path("../../src").absolute()
 sys.path.insert(0, str(src_dir))
 
 # -- Project information -----------------------------------------------------
 
-project = 'ixdat'
-copyright = '2020, Soren B. Scott, Kevin Krempl, Kenneth Nielsen'
-author = 'ixdat team'
+project = "ixdat"
+copyright = "2020, Soren B. Scott, Kevin Krempl, Kenneth Nielsen"
+author = "ixdat team"
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = "0.0.1"
 
 
 # -- General configuration ---------------------------------------------------
@@ -31,8 +32,11 @@ release = '0.0.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 import sphinx_rtd_theme
+
 extensions = [
-    'sphinx.ext.autodoc',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
+    "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
 ]
 
@@ -56,4 +60,4 @@ html_theme = "sphinx_rtd_theme"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
