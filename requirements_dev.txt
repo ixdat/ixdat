@@ -1,5 +1,0 @@
-black
-pytest
-Sphinx
-sphinx-rtd-theme
-EC_MS
