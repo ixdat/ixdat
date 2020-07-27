@@ -1,6 +1,6 @@
-=============================================
-``ixdat``: The In-situ Experimental Data Tool
-=============================================
+============
+Introduction
+============
 
 ``ixdat`` will provides a powerful **object-oriented** interface to experimental data, especially in-situ experimental data where it is of interest to combine data obtained simultaneously from multiple techniques.
 
@@ -12,7 +12,6 @@ In addition to a **pluggable** parser interface for importing your data format, 
 
 We will update this readme as features are added.
 
-We will document this project as we develop it here: https://ixdat.readthedocs.io/
-
 ``ixdat`` is free and open source software and we welcome input and new collaborators.
 
+The source is here: https://github.com/ixdat

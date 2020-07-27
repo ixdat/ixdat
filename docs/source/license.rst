@@ -1,5 +1,5 @@
-License for **ixdat**
-=====================
+License
+=======
 
 MIT License
 
@@ -25,4 +25,4 @@ SOFTWARE.
 
 Questions?
 ==========
-Contact the **ixdat** team at scott.soren@gmail.com
+Contact the **ixdat** team at https://github.com/ixdat

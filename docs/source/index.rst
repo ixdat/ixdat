@@ -5,17 +5,13 @@ Documentation for **ixdat**
 The in-situ experimental data tool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Just getting started...
-
-dataset module
-==============
-
-.. automodule:: ixdat.dataset
-    :members:
+We are just getting started with this project, please have patience.
 
 .. toctree::
     :maxdepth: 2
 
+    introduction
+    dataset
     license
 
 Indices and tables
