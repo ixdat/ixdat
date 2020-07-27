@@ -19,8 +19,12 @@ sys.path.insert(0, str(src_dir))
 # -- Project information -----------------------------------------------------
 
 project = "ixdat"
-copyright = "2020, Soren B. Scott, Kevin Krempl, Kenneth Nielsen"
+copyright = "2020, the ixdat team"
 author = "ixdat team"
+
+master_doc = "index"
+# default for readthedocs as of rtd 2.0 is "contents" as master doc,
+#   but it seems to still require an index.rst to show the page.
 
 # The full version, including alpha/beta/rc tags
 release = "0.0.1"
@@ -32,14 +36,15 @@ release = "0.0.1"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 import sphinx_rtd_theme
+# import sphinx_automodapi  # see https://github.com/astropy/
 
 extensions = [
     "sphinx.ext.autodoc",
+    # "sphinx_automodapi.automodapi",  # see https://github.com/astropy/
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
 ]
-
 
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = ['_templates']

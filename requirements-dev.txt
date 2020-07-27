@@ -1,0 +1,6 @@
+black
+pytest
+Sphinx
+sphinx-rtd-theme
+sphinx_automodapi
+EC_MS
