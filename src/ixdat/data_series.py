@@ -11,16 +11,23 @@ from .units import Unit
 from .exceptions import TimeError, AxisError
 
 
+class PlaceHolderSeries:
+    def __init__(self, i):
+        self.id = i
+
+    def get_series(self):
+        return DataSeries.open(self.id)
+
+
 class DataSeries(Saveable):
     """The DataSeries class"""
 
     table_name = "data_series"
     column_attrs = {"id": "i", "name": "name", "unit": "unit_name", "data": "data"}
 
-    def __init__(self, i, name, unit, data):
+    def __init__(self, name, unit, data):
         """initialize a data series"""
         super().__init__()
-        self.id = i
         self.name = name
         self.unit_name = unit
         self._data = data
@@ -50,8 +57,7 @@ class DataSeries(Saveable):
 
 class TimeSeries(DataSeries):
 
-    column_attrs = super().column_attrs  # why is this line necessary?
-    column_attrs.update({"tstamp": "tstamp"})
+    extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
 
     def __init__(self, i, name, unit, data, tstamp):
         super().__init__(i, name, unit, data)
@@ -60,8 +66,7 @@ class TimeSeries(DataSeries):
 
 class ValueSeries(DataSeries):
 
-    column_attrs = super().column_attrs
-    column_attrs.update({"t_id": "t_id"})
+    extra_linkers = {"value_time": ("data_series", {"t_ids": "t_ids"})}
 
     def __init__(self, i, name, unit, data, t_id=None, tseries=None):
         super().__init__(i, name, unit, data)
@@ -78,6 +83,10 @@ class ValueSeries(DataSeries):
         if self._tseries:
             return self._tseries.id
         return self._t_id
+
+    @property
+    def a_ids(self):
+        return [self.t_id]
 
     @property
     def tseries(self):
@@ -100,8 +109,7 @@ class ValueSeries(DataSeries):
 
 class Field(DataSeries):
 
-    column_attrs = super().column_attrs
-    column_attrs.update({"a_ids": "a_ids"})
+    extra_linkers = {"field_axes": ("data_series", {"a_ids": "a_ids"})}
 
     def __init__(self, i, name, unit, data, a_ids=None, axes_series=None):
         super().__init__(i, name, unit, data)

@@ -17,6 +17,23 @@ def name_from_path(path):
     return "".join(path.stem.split("_")[1:])
 
 
+class LocalBackend:
+    def __init__(self):
+        self.next_available_ids = {}
+
+    def get_next_available_id(self, table_name):
+        if table_name in self.next_available_ids:
+            i = self.next_available_ids[table_name]
+            self.next_available_ids[table_name] += 1
+        else:
+            i = 1
+            self.next_available_ids[table_name] = 2
+        return i
+
+
+local_backend = LocalBackend()
+
+
 class DirBackend:
     """A database backend that loads and saves .ix files from a directory"""
 
@@ -148,7 +165,9 @@ class DataBase:
         return self.backend.save(obj)
 
     def open(self, cls, i):
-        return self.backend.open(cls, i)
+        obj = self.backend.open(cls, i)
+        obj.backend_name = self.backend.name
+        return obj
 
     def load_obj_data(self, obj):
         return self.backend.get_obj_data(obj)
@@ -173,6 +192,8 @@ class Saveable:
     db = DB
     table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
+    extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
+    extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     data_objects = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
     def __init__(self, **self_as_dict):
@@ -180,11 +201,30 @@ class Saveable:
             setattr(self, attr, value)
         if self_as_dict and not self.column_attrs:
             self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
-        self.id = None  # THIS MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
-        self.name = None  # THIS MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
-        self.backend_name = self.db.backend.name
+        self.backend_name = "local"  # SHOULD BE SET AFTER __INIT__ FOR LOADED OBJECT
+        self._id = None  # SHOULD BE SET AFTER THE __INIT__ OF INHERITING CLASSES
+        self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
-    def as_dict(self):
+    def __repr__(self):
+        return f"{self.__class__}(id={self.id}, name={self.name})"
+
+    @property
+    def id(self):
+        if not self._id:
+            if self.backend_name == "local":
+                self._id = local_backend.get_next_available_id(self.table_name)
+            else:
+                raise DataBaseError(
+                    f"{self} comes from {self.backend_name} "
+                    f"but did not get an id from its backend."
+                )
+        return self._id
+
+    @id.setter
+    def id(self, i):
+        self._id = i
+
+    def get_main_dict(self):
         if self.column_attrs is None:
             raise DataBaseError(
                 f"{self} can't be seriealized because the class {self.__class__} "
@@ -193,6 +233,23 @@ class Saveable:
         self_as_dict = {
             column: getattr(self, attr) for column, attr in self.column_attrs.items()
         }
+        return self_as_dict
+
+    def as_dict(self):
+        main = self.get_main_dict()
+        self_as_dict = main
+        if self.extra_column_attrs:
+            aux_tables_dict = {
+                table_name: {column: getattr(self, attr) for column, attr in extras}
+                for table_name, extras in self.extra_column_attrs.items()
+            }
+            self_as_dict.update(**aux_dict for aux_dict in aux_tables_dict.values())
+        if self.extra_linkers:
+            linker_tables_dict = {
+                table_name: {column: getattr(self, attr) for column, attr in linkers}
+                for table_name, linkers in self.extra_linkers.items()
+            }
+            self_as_dict.update(**linker[1] for linker in linker_tables_dict.values())
         return self_as_dict
 
     def save(self):
