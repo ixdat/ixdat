@@ -6,20 +6,20 @@ variable corresponding to the rows of the array. The time variable itself is a s
 case, TimeSeries, which must know its absolute (unix) time.
 """
 
-from .db import DB
+from .db import Saveable
 from .units import Unit
 from .exceptions import TimeError, AxisError
 
 
-class DataSeries:
+class DataSeries(Saveable):
     """The DataSeries class"""
 
-    db = DB
     table_name = "data_series"
     column_attrs = {"id": "i", "name": "name", "unit": "unit_name", "data": "data"}
 
     def __init__(self, i, name, unit, data):
         """initialize a data series"""
+        super().__init__()
         self.id = i
         self.name = name
         self.unit_name = unit
@@ -34,31 +34,18 @@ class DataSeries:
         elif "a_ids" in obj_as_dict:
             return Field(**obj_as_dict)
 
-    @classmethod
-    def open(cls, i):
-        return cls.db.open(cls, i)
-
     def __repr__(self):
         return f"{self.__class__}(id={self.id}, name='{self.name}')"
 
     @property
     def data(self):
         if self._data is None:
-            self._data = self.db.get_obj_data(self)
+            self._data = self.load_data()
         return self._data
 
     @property
     def unit(self):
         return Unit(self.unit_name)
-
-    def as_dict(self):
-        self_as_dict = {
-            column: getattr(self, attr) for column, attr in self.column_attrs.items()
-        }
-        return self_as_dict
-
-    def save(self):
-        return self.db.save(self)
 
 
 class TimeSeries(DataSeries):
@@ -95,7 +82,7 @@ class ValueSeries(DataSeries):
     @property
     def tseries(self):
         if not self._tseries:
-            self._tseries = self.db.open(cls=TimeSeries, i=self.t_id)
+            self._tseries = TimeSeries.open(i=self.t_id)
         return self._tseries
 
     @property
@@ -131,9 +118,7 @@ class Field(DataSeries):
 
     def get_axis_series(self, axis_number):
         if not self._axes_series[axis_number]:
-            self._axes_series[axis_number] = self.db.open(
-                cls=DataSeries, i=self._a_ids[axis_number]
-            )
+            self._axes_series[axis_number] = DataSeries.open(i=self._a_ids[axis_number])
         return self._axes_series[axis_number]
 
     @property
@@ -167,7 +152,7 @@ class Field(DataSeries):
     @property
     def data(self):
         if self._data is None:
-            self._data = self.db.get_obj_data(self)
+            self._data = self.load_data()
             if len(self._data.shape) != self.N_dimensions:
                 raise AxisError(
                     f"{self} has {self.N_dimensions} axes but its data is "

@@ -3,6 +3,7 @@
 import json
 import numpy as np
 from .config import STANDARD_DATA_DIRECTORY
+from .exceptions import DataBaseError
 
 
 def id_from_path(path):
@@ -32,6 +33,10 @@ class DirBackend:
         return f"DirBackend({self.directory})"
 
     def save(self, obj):
+        if obj.data_objects:
+            # save any data objects first as this may change the references
+            for data_obj in obj.data_objects:
+                self.save_data_obj(data_obj)
         try:
             table_name = obj.table_name
         except AttributeError:
@@ -39,10 +44,6 @@ class DirBackend:
         obj_as_dict = obj.as_dict()
         obj.id = self.add_row(obj_as_dict, table_name=table_name)
         obj.backend_name = self.name
-
-        if hasattr(obj, "data_objects"):
-            for data_obj in obj.data_objects:
-                self.save_data_obj(data_obj)
         return obj.id
 
     def open(self, cls, i):
@@ -55,14 +56,13 @@ class DirBackend:
     def contains(self, table_name, i):
         return i in self.get_id_list(table_name)
 
-    def get_obj_data(self, obj):
-        if (not hasattr(obj, "data")) or (obj.data is not None):
+    def load_obj_data(self, obj):
+        if not hasattr(obj, "data"):
             # there's no data to be got or obj already has its data
             return
         path_to_row = self.get_path_to_row(obj.table_name, obj.id)
         try:
-            obj.data = np.load(path_to_row.with_suffix(self.data_suffix))
-            return obj
+            return np.load(path_to_row.with_suffix(self.data_suffix))
         except FileNotFoundError:
             # there's no data to be got.
             return
@@ -150,7 +150,7 @@ class DataBase:
     def open(self, cls, i):
         return self.backend.open(cls, i)
 
-    def get_obj_data(self, obj):
+    def load_obj_data(self, obj):
         return self.backend.get_obj_data(obj)
 
     def set_backend(self, db_kind, **db_kwargs):
@@ -169,12 +169,52 @@ class DataBase:
 DB = DataBase()
 
 
+class Saveable:
+    db = DB
+    table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
+    column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
+    data_objects = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
+
+    def __init__(self, **self_as_dict):
+        for attr, value in self_as_dict:
+            setattr(self, attr, value)
+        if self_as_dict and not self.column_attrs:
+            self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
+        self.id = None  # THIS MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
+        self.name = None  # THIS MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
+        self.backend_name = self.db.backend.name
+
+    def as_dict(self):
+        if self.column_attrs is None:
+            raise DataBaseError(
+                f"{self} can't be seriealized because the class {self.__class__} "
+                f"hasn't defined column_attrs"
+            )
+        self_as_dict = {
+            column: getattr(self, attr) for column, attr in self.column_attrs.items()
+        }
+        return self_as_dict
+
+    def save(self):
+        return self.db.save(self)
+
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        return cls(**obj_as_dict)
+
+    @classmethod
+    def open(cls, i):
+        return cls.db.open(cls, i)
+
+    def load_data(self):
+        return self.db.load_obj_data(self)
+
+
 # THIS is proposed as the main mechanism for changing backend, to make
 # the shared global nature of it explicit. And in any case, the user
 # will never have to deal with the db, except when changing it away
 # from the default. This function should probably be exposed in the
 # top name space.
-
 
 def change_database(db_kind, **db_kwargs):
     DB.set_backend(db_kind, **db_kwargs)
