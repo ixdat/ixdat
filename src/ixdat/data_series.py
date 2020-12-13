@@ -59,8 +59,8 @@ class TimeSeries(DataSeries):
 
     extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
 
-    def __init__(self, i, name, unit, data, tstamp):
-        super().__init__(i, name, unit, data)
+    def __init__(self, name, unit, data, tstamp):
+        super().__init__(name, unit, data)
         self.tstamp = tstamp
 
 
@@ -68,8 +68,8 @@ class ValueSeries(DataSeries):
 
     extra_linkers = {"value_time": ("data_series", {"t_ids": "t_ids"})}
 
-    def __init__(self, i, name, unit, data, t_id=None, tseries=None):
-        super().__init__(i, name, unit, data)
+    def __init__(self, name, unit, data, t_id=None, tseries=None):
+        super().__init__(name, unit, data)
         self._tseries = tseries
         self._t_id = t_id
         if tseries and t_id:
@@ -111,8 +111,8 @@ class Field(DataSeries):
 
     extra_linkers = {"field_axes": ("data_series", {"a_ids": "a_ids"})}
 
-    def __init__(self, i, name, unit, data, a_ids=None, axes_series=None):
-        super().__init__(i, name, unit, data)
+    def __init__(self, name, unit, data, a_ids=None, axes_series=None):
+        super().__init__(name, unit, data)
         N = len(a_ids) if a_ids is not None else len(axes_series)
         self.N_dimensions = N
         self._a_ids = a_ids if a_ids is not None else ([None] * N)
