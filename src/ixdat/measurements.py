@@ -7,13 +7,14 @@ number of technique-specific Dataset-derived classes.
 """
 import json
 import numpy as np
-from .db import Saveable
-from .data_series import PlaceHolderSeries, TimeSeries, ValueSeries
+from .db import Saveable, PlaceHolderObject
+from .data_series import DataSeries, TimeSeries, ValueSeries
 from .samples import Sample
 from .lablogs import LabLog
 from .plotters import ValuePlotter
 from .exporters import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError
+from .techniques import technique_classes
 
 
 class Measurement(Saveable):
@@ -23,18 +24,24 @@ class Measurement(Saveable):
     column_attrs = {
         "id": "i",
         "name": "name",
+        "technique": "technique",
         "metadata": "metadata_json",
         "sample": "sample_name",
     }
-    extra_linkers = {"measurement_series": ("data_series", {"s_ids": "s_ids"})}
+    extra_linkers = {
+        "measurement_series": ("data_series", {"s_ids": "s_ids"}),
+        "component_measurements": ("measurements", {"m_ids": "m_ids"}),
+    }
 
     def __init__(
         self,
-        i,
         name,
-        metadata,
+        technique=None,
+        metadata=None,
         s_ids=None,
         series_list=None,
+        m_ids=None,
+        component_measurements=None,
         plotter=None,
         exporter=None,
         sample=None,
@@ -42,11 +49,11 @@ class Measurement(Saveable):
     ):
         """initialize a measurement"""
         super().__init__()
-        self.id = i
         self.name = name
+        self.technique = technique
         if isinstance(metadata, str):
             metadata = json.loads(metadata)
-        self.metadata = metadata
+        self.metadata = metadata or {}
         self.plotter = plotter or ValuePlotter(measurement=self)
         self.exporter = exporter or CSVExporter(measurement=self)
         if isinstance(sample, str):
@@ -55,7 +62,18 @@ class Measurement(Saveable):
         if isinstance(lablog, str):
             lablog = LabLog.load_or_make(lablog)
         self.lablog = lablog
-        self._series_list = fill_series_list(series_list, s_ids)
+        self._series_list = fill_object_list(series_list, s_ids, cls=DataSeries)
+        self._component_measurements = fill_object_list(
+            component_measurements, m_ids, cls=Measurement
+        )
+
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        if obj_as_dict["technique"] in technique_classes:
+            technique_class = technique_classes[obj_as_dict["technique"]]
+        else:
+            technique_class = cls
+        return technique_class(**obj_as_dict)
 
     @property
     def metadata_json(self):
@@ -68,13 +86,24 @@ class Measurement(Saveable):
     @property
     def series_list(self):
         for i, s in enumerate(self._series_list):
-            if isinstance(s, PlaceHolderSeries):
-                self._series_list[i] = s.get_series()
+            if isinstance(s, PlaceHolderObject):
+                self._series_list[i] = s.get_object()
         return self._series_list
+
+    @property
+    def component_measurements(self):
+        for i, m in enumerate(self._component_measurements):
+            if isinstance(m, PlaceHolderObject):
+                self._component_measurements[i] = m.get_object()
+        return self._component_measurements
 
     @property
     def s_ids(self):
         return [series.id for series in self._series_list]
+
+    @property
+    def m_ids(self):
+        return [m.id for m in self._component_measurements]
 
     @property
     def series_dict(self):
@@ -125,7 +154,7 @@ class Measurement(Saveable):
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data
-        mask = np.logical_and(tspan[0] < t < tspan[-1])
+        mask = np.logical_and(tspan[0] < t, t < tspan[-1])
         return t[mask], v[mask]
 
     @property
@@ -141,6 +170,28 @@ class Measurement(Saveable):
         if exporter:
             return exporter.export_measurement(self, *args, **kwargs)
         return self.exporter.export(*args, **kwargs)
+
+    def __add__(self, other):
+        obj_as_dict = self.as_dict()
+        new_name = self.name + " AND " + other.name
+        new_technique = self.technique + " AND " + other.technique
+        if new_technique in technique_classes:
+            cls = technique_classes[new_technique]
+        elif self.__class__ is other.__class__:
+            cls = self.__class__
+        else:
+            cls = Measurement
+
+        new_series_list = self.series_list
+        new_series_list.append(other.series_list)
+        new_component_measurements = self.component_measurements
+        new_component_measurements.append(other.component_measurements)
+        obj_as_dict.update(
+            name=new_name,
+            series_list=new_series_list,
+            component_measurements=new_component_measurements,
+        )
+        return cls.from_dict(obj_as_dict)
 
 
 def append_vseries_by_time(series_list):
@@ -176,10 +227,13 @@ def append_tseries(series_list, tstamp=None):
     return tseries
 
 
-def fill_series_list(series_list, s_ids):
-    series_list = series_list or []
-    provided_series_ids = [s.id for s in series_list]
-    for i in s_ids:
+def fill_object_list(object_list, obj_ids, cls=None):
+    cls = cls or object_list[0].__class__
+    object_list = object_list or []
+    provided_series_ids = [s.id for s in object_list]
+    if not obj_ids:
+        return
+    for i in obj_ids:
         if i not in provided_series_ids:
-            series_list.append(PlaceHolderSeries(i))
-    return series_list
+            object_list.append(PlaceHolderObject(i=i, cls=cls))
+    return object_list

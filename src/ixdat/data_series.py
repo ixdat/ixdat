@@ -11,14 +11,6 @@ from .units import Unit
 from .exceptions import TimeError, AxisError
 
 
-class PlaceHolderSeries:
-    def __init__(self, i):
-        self.id = i
-
-    def get_series(self):
-        return DataSeries.open(self.id)
-
-
 class DataSeries(Saveable):
     """The DataSeries class"""
 

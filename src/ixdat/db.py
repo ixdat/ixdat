@@ -267,6 +267,15 @@ class Saveable:
         return self.db.load_obj_data(self)
 
 
+class PlaceHolderObject:
+    def __init__(self, i, cls):
+        self.id = i
+        self.cls = cls
+
+    def get_object(self):
+        return self.cls.open(self.id)
+
+
 # THIS is proposed as the main mechanism for changing backend, to make
 # the shared global nature of it explicit. And in any case, the user
 # will never have to deal with the db, except when changing it away
