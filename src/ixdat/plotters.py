@@ -1,14 +1,27 @@
+"""Classes for plotting measurement data"""
+
 from matplotlib import pyplot as plt
 
 
 class ValuePlotter:
+    """Default plotter. By default plots all of the VSeries vs time on a single axis"""
+
     def __init__(self, measurement=None):
         self.measurement = measurement
 
     def plot(self, *args, **kwargs):
+        """Plot the the exporter's measurement via plotter.plot_measurement()"""
         return self.plot_measurement(measurement=self.measurement, *args, **kwargs)
 
     def plot_measurement(self, measurement, v_list=None, tspan=None):
+        """Plot a measurement.
+
+        Args:
+            measurement (Measurement): The measurement to export
+            v_list (list of str): The names of the data series to include. Defaults to
+                names of all VSeries in the measurement.
+            tspan (timespan): The timespan to include in the file, defaults to all of it
+        """
         fig, ax = plt.subplots()
         v_list = v_list or measurement.value_names
 
