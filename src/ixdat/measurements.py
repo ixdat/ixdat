@@ -68,7 +68,7 @@ class Measurement(Saveable):
             sample (Sample): The sample being measured
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
-                visualization, data selection, and exporting.
+                data selection, visualization, and exporting.
         """
         super().__init__()
         self.name = name
@@ -92,6 +92,13 @@ class Measurement(Saveable):
 
     @classmethod
     def from_dict(cls, obj_as_dict):
+        """Return an object of the measurement class of the right technique
+
+        Args:
+              obj_as_dict (dict): The full serializaiton (rows from table and aux
+                tables) of the measurement. obj_as_dict["technique"] specifies the
+                technique class to use, from TECHNIQUE_CLASSES
+        """
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
         else:
@@ -100,14 +107,17 @@ class Measurement(Saveable):
 
     @property
     def metadata_json(self):
-        return json.dumps(self.metadata)
+        """Measurement metadata as a JSON-formatted string"""
+        return json.dumps(self.metadata, indent=4)
 
     @property
     def sample_name(self):
+        """Name of the sample on which the measurement was conducted"""
         return self.sample.name
 
     @property
     def series_list(self):
+        """List of the DataSeries containing the measurement's data"""
         for i, s in enumerate(self._series_list):
             if isinstance(s, PlaceHolderObject):
                 self._series_list[i] = s.get_object()
@@ -115,6 +125,12 @@ class Measurement(Saveable):
 
     @property
     def component_measurements(self):
+        """List of the component measurements of which this measurement is a combination
+
+        For a pure measurement (not a measurement set), this is None.
+        """
+        if not self._component_measurements:
+            return None
         for i, m in enumerate(self._component_measurements):
             if isinstance(m, PlaceHolderObject):
                 self._component_measurements[i] = m.get_object()
@@ -122,26 +138,34 @@ class Measurement(Saveable):
 
     @property
     def s_ids(self):
+        """List of the id's of the measurement's DataSeries"""
         return [series.id for series in self._series_list]
 
     @property
     def m_ids(self):
+        """List of the id's of a combined measurement's component measurements"""
+        if not self._component_measurements:
+            return None
         return [m.id for m in self._component_measurements]
 
     @property
     def series_dict(self):
+        """Dictionary mapping the id's of the measurement's series to the DataSeries"""
         return {s.id: s for s in self.series_list}
 
     @property
     def series_names(self):
+        """List of the names of the series in the measurement"""
         return [series.name for series in self.series_list]
 
     @property
     def value_names(self):
+        """List of the names of the VSeries among in the measurement's DataSeries"""
         return [vseries.name for vseries in self.value_series]
 
     @property
     def value_series(self):
+        """List of the VSeries among in the measurement's DataSeries"""
         return [
             series.name
             for series in self.series_list
@@ -150,35 +174,40 @@ class Measurement(Saveable):
 
     @property
     def time_series(self):
+        """List of the TSeries among in the measurement's DataSeries NOT timeshifted!"""
         return [
             series.name for series in self.series_list if isinstance(series, TimeSeries)
         ]
 
     def __getitem__(self, item):
+        """Return the built measurement DataSeries with the its name specified by item
+
+        The item is interpreted as the name of a series. VSeries names can have "-v"
+        or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
+        get instead its corresponding TSeries. In any case, if there are more than one
+        series with the name specified by item, they are appended. The timestamp is
+        always shifted to the measurement's tstamp
+
+        Args:
+            item (str): The name of a DataSeries (see above)
+        """
         ss = [s for s in self.series_list if s.name == item]
         if len(ss) == 1:
             s = ss[0]
         elif len(ss) > 1:
-            s = append_vseries_by_time(ss)
+            s = append_series(ss)
         elif item[-2:] in ["-t", "-x", "-v", "-y"]:
             ss = [s for s in self.series_list if s.name == item[:-2]]
             if len(ss) == 1:
                 s = ss[0]
             else:
-                s = append_vseries_by_time(ss)
-            if item[-2:] in ["-t", "-x"]:
-                s0 = s.tseries
-                s = TimeSeries(  # copy the timeseries but shifted to self.tstamp
-                    name=s0.name,
-                    unit=s0.unit,
-                    data=s0.data + s0.tstamp - self.tstamp,
-                    tstamp=self.tstamp,
-                )
+                s = append_series(ss)
         else:
             raise SeriesNotFoundError
-        return s
+        return time_shifted(s, self.tstamp)
 
     def get_t_and_v(self, item, tspan=None):
+        """Return the time and value vectors for a given VSeries name cut by tspan"""
         vseries = self[item]
         tseries = vseries.tseries
         v = vseries.data
@@ -188,19 +217,41 @@ class Measurement(Saveable):
 
     @property
     def data_cols(self):
+        """Return a set of the names of all of the measurement's VSeries and TSeries"""
         return set([s.name for s in (self.value_series + self.time_series)])
 
     def plot(self, plotter=None, *args, **kwargs):
+        """Plot the measurement using its plotter (see its Plotter for details)"""
         if plotter:
             return plotter.plot_measurement(self, *args, **kwargs)
         return self.plotter.plot(*args, **kwargs)
 
     def export(self, exporter=None, *args, **kwargs):
+        """Export the measurement using its exporter (see its Exporter for details)"""
         if exporter:
             return exporter.export_measurement(self, *args, **kwargs)
         return self.exporter.export(*args, **kwargs)
 
     def __add__(self, other):
+        """Addition of measurements appends the series and component measurements lists.
+
+        Adding results in a new Measurement. If the combination of the two measurements'
+        techniques is a recognized hyphenated technique, it returns an object of that
+        technique's measurement class. Otherwise it returns an object of Measurement.
+        metadata, sample, and logentry come from the first measurement.
+
+        An important point about addition is that it is almost but not quite associative
+        and transitiry i.e.
+        A + (B + C) == (A + B) + C == C + B + A   is not quite true
+        Each one results in the same series and component measurements. They will even
+        appear in the same order in A + (B + C) and (A + B) + C. However, the technique
+        might be different, as a new technique might be determined each time.
+
+        Not also that there is no difference between hyphenating (simultaneous EC and
+        MS datasets, for example) and appending (sequential EC datasets). Either way,
+        all the raw series (or their placeholders) are just stored in the lists.
+        TODO: Make sure with tests this is okay, differentiate using | operator if not.
+        """
         obj_as_dict = self.as_dict()
         new_name = self.name + " AND " + other.name
         new_technique = self.technique + " AND " + other.technique
@@ -213,8 +264,8 @@ class Measurement(Saveable):
 
         new_series_list = self.series_list
         new_series_list.append(other.series_list)
-        new_component_measurements = self.component_measurements
-        new_component_measurements.append(other.component_measurements)
+        new_component_measurements = self.component_measurements or [self]
+        new_component_measurements.append(other.component_measurements or [other])
         obj_as_dict.update(
             name=new_name,
             series_list=new_series_list,
@@ -223,7 +274,24 @@ class Measurement(Saveable):
         return cls.from_dict(obj_as_dict)
 
 
+#  ------- Now come a few module-level functions for series manipulation ---------
+#  TODO: move to a .build module or similar
+
+
+def append_series(series_list):
+    """Return series appending series_list relative to series_list[0].tseries.tstamp"""
+    s0 = series_list[0]
+    if isinstance(s0, TimeSeries):
+        return append_tseries(series_list)
+    elif isinstance(s0, TimeSeries):
+        return append_tseries(series_list)
+    raise BuildError(
+        f"An algorithm of append_series for series like {s0} is not yet implemented"
+    )
+
+
 def append_vseries_by_time(series_list):
+    """Return new series with the data in series_list appended"""
     name = series_list[0].name
     cls = series_list[0].__class__
     unit = series_list[0].unit
@@ -240,6 +308,7 @@ def append_vseries_by_time(series_list):
 
 
 def append_tseries(series_list, tstamp=None):
+    """Return new TSeries with the data appended relative to series_list[0].tstamp"""
     name = series_list[0].name
     cls = series_list[0].__class__
     unit = series_list[0].unit
@@ -249,14 +318,14 @@ def append_tseries(series_list, tstamp=None):
     for s in series_list:
         if not (s.name == name and s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
-        offset = s.tstamp - tstamp
-        data = np.append(data, s.data - offset)
+        data = np.append(data, s.data + s.tstamp - tstamp)
 
     tseries = cls(name=name, unit=unit, data=data, tstamp=tstamp)
     return tseries
 
 
 def fill_object_list(object_list, obj_ids, cls=None):
+    """Add PlaceHolderObjects to object_list for any unrepresented obj_ids"""
     cls = cls or object_list[0].__class__
     object_list = object_list or []
     provided_series_ids = [s.id for s in object_list]
@@ -266,3 +335,25 @@ def fill_object_list(object_list, obj_ids, cls=None):
         if i not in provided_series_ids:
             object_list.append(PlaceHolderObject(i=i, cls=cls))
     return object_list
+
+
+def time_shifted(series, tstamp=None):
+    """Return a series with the time shifted to be relative to tstamp"""
+    if not tstamp:
+        return series
+    cls = series.__class__
+    if isinstance(series, TimeSeries):
+        return cls(
+            name=series.name,
+            unit=series.unit,
+            data=series.data + series.tstamp - tstamp,
+            tstamp=tstamp
+        )
+    elif isinstance(series, ValueSeries):
+        series = cls(
+            name=series.name,
+            unit=series.unit,
+            data=series.data,
+            tseries=time_shifted(series.tseries, tstamp=tstamp),
+        )
+    return series
