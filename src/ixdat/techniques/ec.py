@@ -1,5 +1,7 @@
-from ..measurements import Measurement
+"""Module for representation and analysis of EC measurements"""
+
+from . import Measurement
 
 
 class ECMeasurement(Measurement):
-    pass
+    """Class implementing raw electrochemistry measurements"""

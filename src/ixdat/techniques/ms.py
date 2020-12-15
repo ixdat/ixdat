@@ -1,5 +1,7 @@
-from ..measurements import Measurement
+"""Module for representation and analysis of MS measurements"""
+
+from . import Measurement
 
 
 class MSMeasurement(Measurement):
-    pass
+    """Class implementing raw MS functionality"""
