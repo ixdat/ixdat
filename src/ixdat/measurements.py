@@ -124,6 +124,11 @@ class Measurement(Saveable):
         return self._series_list
 
     @property
+    def data_objects(self):
+        """This is what the DB backend knows to save separately, here the series"""
+        return self.series_list
+
+    @property
     def component_measurements(self):
         """List of the component measurements of which this measurement is a combination
 
@@ -347,7 +352,7 @@ def time_shifted(series, tstamp=None):
             name=series.name,
             unit=series.unit,
             data=series.data + series.tstamp - tstamp,
-            tstamp=tstamp
+            tstamp=tstamp,
         )
     elif isinstance(series, ValueSeries):
         series = cls(
