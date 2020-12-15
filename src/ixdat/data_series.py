@@ -14,22 +14,28 @@ from .exceptions import TimeError, AxisError
 class DataSeries(Saveable):
     """The base class for all numerical data representation in ixdat.
 
-    Its objects are saved and loaded as rows in the data_series table, with the
-    columns in ["id", "name", "unit", "data"]
+    These class's objects are saved and loaded as rows in the data_series table
     """
 
     table_name = "data_series"
     column_attrs = {"id": "i", "name": "name", "unit": "unit_name", "data": "data"}
 
-    def __init__(self, name, unit, data):
-        """initialize a data series"""
+    def __init__(self, name, unit_name, data):
+        """initialize a data series with its name, unit, and data (id handled by parent)
+
+        Args:
+            name (str): The name of the data series
+            unit_name (str): The name of unit in which the data is stored
+            data (np.array): The numerical data
+        """
         super().__init__()
         self.name = name
-        self.unit_name = unit
+        self.unit = Unit(unit_name)
         self._data = data
 
     @classmethod
     def from_dict(cls, obj_as_dict):
+        """Return the right type of DataSeries based on the info in its serialization"""
         if "tstamp" in obj_as_dict:
             return TimeSeries(**obj_as_dict)
         elif "t_id" in obj_as_dict:
@@ -42,31 +48,50 @@ class DataSeries(Saveable):
 
     @property
     def data(self):
-        """Return the data as a np.array, loading it if needed."""
+        """The data as a np.array, loading lazily."""
         if self._data is None:
-            self._data = self.load_data()
+            self._data = self.load_data()  # inherited from Saveable.
         return self._data
 
     @property
-    def unit(self):
-        return Unit(self.unit_name)
+    def unit_name(self):
+        """The name of the data series' unit"""
+        return self.unit.name
 
 
 class TimeSeries(DataSeries):
+    """Class to store time data. These are characterized by having a tstamp"""
 
     extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
 
-    def __init__(self, name, unit, data, tstamp):
-        super().__init__(name, unit, data)
+    def __init__(self, name, unit_name, data, tstamp):
+        """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)"""
+        super().__init__(name, unit_name, data)
         self.tstamp = tstamp
+
+    @property
+    def tseries(self):
+        """Trivially, a TimeSeries is its own TimeSeries"""
+        return self
 
 
 class ValueSeries(DataSeries):
+    """Class to store scalar values that are measured over time.
+
+    Characterized by a reference to the corresponding time series. This reference is
+    represented in relational databases as a row in an auxiliary linker table
+    """
 
     extra_linkers = {"value_time": ("data_series", {"t_ids": "t_ids"})}
 
-    def __init__(self, name, unit, data, t_id=None, tseries=None):
-        super().__init__(name, unit, data)
+    def __init__(self, name, unit_name, data, t_id=None, tseries=None):
+        """Initiate a ValueSeries with a TimeSeries or a reference thereto
+
+        Args (in addition to those of parent):
+            t_id (int): The id of the corresponding TimeSeries, if not given dierectly
+            tseries (TimeSeries): The corresponding TimeSeries, if available
+        """
+        super().__init__(name, unit_name, data)
         self._tseries = tseries
         self._t_id = t_id
         if tseries and t_id:
@@ -77,39 +102,58 @@ class ValueSeries(DataSeries):
 
     @property
     def t_id(self):
+        """int: the id of the TimeSeries"""
         if self._tseries:
             return self._tseries.id
         return self._t_id
 
     @property
-    def a_ids(self):
+    def t_ids(self):
+        """list: the id of the TimeSeries, in a list for consistent linker table def."""
         return [self.t_id]
 
     @property
     def tseries(self):
+        """The TimeSeries describing when the data in the ValueSeries was recorded"""
         if not self._tseries:
             self._tseries = TimeSeries.open(i=self.t_id)
         return self._tseries
 
     @property
     def v(self):
+        """The value as a 1-d np array"""
         return self.data
 
     @property
     def t(self):
+        """The measurement times as a 1-d np array"""
         return self.tseries.data
 
     @property
     def tstamp(self):
+        """The timestamp, from the TimeSeries of the ValueSeries"""
         return self.tseries.tstamp
 
 
 class Field(DataSeries):
+    """Class for storing multi-dimensional data spanning 'axes'
+
+    Characterized by a list of references to these axes, which are themselves also
+    DataSeries. This is represented in the extra linkers.
+    """
 
     extra_linkers = {"field_axes": ("data_series", {"a_ids": "a_ids"})}
 
-    def __init__(self, name, unit, data, a_ids=None, axes_series=None):
-        super().__init__(name, unit, data)
+    def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
+        """Initiate the Field and check that the supplied axes make sense.
+
+        Args (in addition to those of parent):
+            a_ids (list of int): The ids of the corresponding axes DataSeries, if not
+                the series are not given dierectly as `axes_series`
+            axes_series (list of DataSeries): The DataSeries describing the axes which
+                the field's data spans, if available
+        """
+        super().__init__(name, unit_name, data)
         N = len(a_ids) if a_ids is not None else len(axes_series)
         self.N_dimensions = N
         self._a_ids = a_ids if a_ids is not None else ([None] * N)
@@ -117,24 +161,29 @@ class Field(DataSeries):
         self._check_axes()  # raises an AxisError if something's wrong
 
     def get_axis_id(self, axis_number):
+        """Return the id of the `axis_number`'th axis of the data"""
         if self._axes_series[axis_number]:
             return self._axes_series[axis_number].id
         return self._a_ids[axis_number]
 
     def get_axis_series(self, axis_number):
+        """Return the DataSeries of the `axis_number`'th axis of the data"""
         if not self._axes_series[axis_number]:
             self._axes_series[axis_number] = DataSeries.open(i=self._a_ids[axis_number])
         return self._axes_series[axis_number]
 
     @property
     def a_ids(self):
+        """List of the id's of the axes spanned by the field"""
         return [self.get_axis_id(n) for n in range(self.N_dimensions)]
 
     @property
     def axes_series(self):
+        """List of the DataSeries defining the axes spanned by the field"""
         return [self.get_axis_series(n) for n in range(self.N_dimensions)]
 
     def _check_axes(self):
+        """Check that there are no contradictions in the Field's axes_series and id's"""
         N = self.N_dimensions
         if len(self._a_ids) != N:
             raise AxisError(
@@ -156,6 +205,7 @@ class Field(DataSeries):
 
     @property
     def data(self):
+        """When loading data, Field checks that its dimensions match its # of axes"""
         if self._data is None:
             self._data = self.load_data()
             if len(self._data.shape) != self.N_dimensions:
