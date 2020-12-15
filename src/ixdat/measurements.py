@@ -14,7 +14,7 @@ from .lablogs import LabLog
 from .plotters import ValuePlotter
 from .exporters import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError
-from .techniques import technique_classes
+from .techniques import TECHNIQUE_CLASSES
 
 
 class Measurement(Saveable):
@@ -69,8 +69,8 @@ class Measurement(Saveable):
 
     @classmethod
     def from_dict(cls, obj_as_dict):
-        if obj_as_dict["technique"] in technique_classes:
-            technique_class = technique_classes[obj_as_dict["technique"]]
+        if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
+            technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
         else:
             technique_class = cls
         return technique_class(**obj_as_dict)
@@ -175,8 +175,8 @@ class Measurement(Saveable):
         obj_as_dict = self.as_dict()
         new_name = self.name + " AND " + other.name
         new_technique = self.technique + " AND " + other.technique
-        if new_technique in technique_classes:
-            cls = technique_classes[new_technique]
+        if new_technique in TECHNIQUE_CLASSES:
+            cls = TECHNIQUE_CLASSES[new_technique]
         elif self.__class__ is other.__class__:
             cls = self.__class__
         else:

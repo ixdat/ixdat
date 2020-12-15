@@ -12,7 +12,11 @@ from .exceptions import TimeError, AxisError
 
 
 class DataSeries(Saveable):
-    """The DataSeries class"""
+    """The base class for all numerical data representation in ixdat.
+
+    Its objects are saved and loaded as rows in the data_series table, with the
+    columns in ["id", "name", "unit", "data"]
+    """
 
     table_name = "data_series"
     column_attrs = {"id": "i", "name": "name", "unit": "unit_name", "data": "data"}
@@ -38,6 +42,7 @@ class DataSeries(Saveable):
 
     @property
     def data(self):
+        """Return the data as a np.array, loading it if needed."""
         if self._data is None:
             self._data = self.load_data()
         return self._data
