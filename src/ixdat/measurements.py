@@ -27,6 +27,7 @@ class Measurement(Saveable):
         "technique": "technique",
         "metadata": "metadata_json",
         "sample": "sample_name",
+        "tstamp": "tstamp",
     }
     extra_linkers = {
         "measurement_series": ("data_series", {"s_ids": "s_ids"}),
@@ -46,8 +47,29 @@ class Measurement(Saveable):
         exporter=None,
         sample=None,
         lablog=None,
+        tstamp=None,
     ):
-        """initialize a measurement"""
+        """initialize a measurement
+
+        Args:
+            name (str): The name of the measurement
+            metadata (dict or json string): Free-form measurement metadata
+            technique (str): The measurement technique
+            s_ids (list of int): The id's of the measurement's DataSeries, if
+                to be loaded (instead of given directly in series_list)
+            series_list (list of DataSeries): The measurement's DataSeries
+            m_ids (list of int): The id's of the component measurements, if to be
+                loaded. None unless this is a combined measurement (typically
+                corresponding to more than one file).
+            component_measurements (list of Measurements): The measurements of which
+                this measurement is a combination
+            plotter (Plotter): The visualization tool for the measurement
+            exporter (Exporter): The exporting tool for the measurement
+            sample (Sample): The sample being measured
+            lablog (LabLog): The log entry with e.g. notes taken during the measurement
+            tstamp (float): The nominal starting time of the measurement, used for
+                visualization, data selection, and exporting.
+        """
         super().__init__()
         self.name = name
         self.technique = technique
@@ -66,6 +88,7 @@ class Measurement(Saveable):
         self._component_measurements = fill_object_list(
             component_measurements, m_ids, cls=Measurement
         )
+        self.tstamp = tstamp
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -144,7 +167,13 @@ class Measurement(Saveable):
             else:
                 s = append_vseries_by_time(ss)
             if item[-2:] in ["-t", "-x"]:
-                s = s.tseries
+                s0 = s.tseries
+                s = TimeSeries(  # copy the timeseries but shifted to self.tstamp
+                    name=s0.name,
+                    unit=s0.unit,
+                    data=s0.data + s0.tstamp - self.tstamp,
+                    tstamp=self.tstamp,
+                )
         else:
             raise SeriesNotFoundError
         return s
@@ -153,7 +182,7 @@ class Measurement(Saveable):
         vseries = self[item]
         tseries = vseries.tseries
         v = vseries.data
-        t = tseries.data
+        t = tseries.data + tseries.tstamp - self.tstamp
         mask = np.logical_and(tspan[0] < t, t < tspan[-1])
         return t[mask], v[mask]
 
