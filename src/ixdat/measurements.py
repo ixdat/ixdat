@@ -15,6 +15,7 @@ from .plotters import ValuePlotter
 from .exporters import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError
 from .techniques import TECHNIQUE_CLASSES
+from .readers import READER_CLASSES
 
 
 class Measurement(Saveable):
@@ -105,6 +106,13 @@ class Measurement(Saveable):
             technique_class = cls
         return technique_class(**obj_as_dict)
 
+    @classmethod
+    def read(cls, path_to_file, reader):
+        """Return a Measurement object from parsing a file with the specified reader"""
+        if isinstance(reader, str):
+            reader = READER_CLASSES[reader]()
+        return reader.read(path_to_file)
+
     @property
     def metadata_json(self):
         """Measurement metadata as a JSON-formatted string"""
@@ -172,9 +180,7 @@ class Measurement(Saveable):
     def value_series(self):
         """List of the VSeries among in the measurement's DataSeries"""
         return [
-            series.name
-            for series in self.series_list
-            if isinstance(series, ValueSeries)
+            series for series in self.series_list if isinstance(series, ValueSeries)
         ]
 
     @property
