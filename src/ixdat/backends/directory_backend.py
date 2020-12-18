@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from . import BackendBase
+from .memory_backend import BackendBase
 from ..config import STANDARD_DATA_DIRECTORY, STANDARD_SUFFIX, STANDARD_DATA_SUFFIX
 
 
@@ -31,7 +31,7 @@ class DirBackend(BackendBase):
         Args:
             directory (Path): the directory to save files (under table subfolders)
             suffix (str): The suffix to use for JSON-formatted metadata files
-            suffix (str): The suffix to use for numpy-formatted data files
+            data_suffix (str): The suffix to use for numpy-formatted data files
         """
         self.directory = directory
         self.suffix = suffix

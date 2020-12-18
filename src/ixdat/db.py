@@ -4,36 +4,8 @@ from .exceptions import DataBaseError
 from .backends import DATABASE_BACKENDS
 
 
-class BackendBase:
-    """Base class listing the functions that must be implemented in a database backend.
-
-    A backend defines where and how all Saveable objects (inheriting from the Saveable
-    class) save their data. This is a key part of the seamless interoperability of
-    ixdat classes and experimental databases. Each Saveable class roughly corresponds
-    to a table, and the save() and open() functions correspond to inserting and
-    selecting from a databae table.
-
-    Backends inheriting from this base class are in modules of the ixdat.backends folder
-    """
-    def save(self, obj):
-        """Save a Saveable object and return its id. Must be implemented."""
-        raise NotImplementedError
-
-    def open(self, cls, i):
-        """Load the object with id=i of a Saveable class. Must be implemented."""
-        raise NotImplementedError
-
-    def load_obj_data(self, obj):
-        """Load and return the 'data' of a saveable object. Must be implemented."""
-        raise NotImplementedError
-
-    def get_next_available_id(self, table_name):
-        """Return the next id for a table in the backend. Must be implemented."""
-        raise NotImplementedError
-
-
 MemoryBackend = DATABASE_BACKENDS["memory"]  # The default for a local not-yet-saved obj
-memory_backend = MemoryBackend()   # The backend to assign id's for in-memory objects
+memory_backend = MemoryBackend()  # The backend to assign id's for in-memory objects
 DirBackend = DATABASE_BACKENDS["directory"]  # The default backend for saving
 
 
@@ -46,6 +18,7 @@ class DataBase:
     The DataBase should be initialized with a backend, and by default uses DirBackend,
     which saves to a folder.
     """
+
     def __init__(self, backend=None):
         """Initialize the database with its backend"""
         backend = backend or DirBackend()
@@ -87,6 +60,7 @@ DB = DataBase()  # initate the database. It functions as a global "constant"
 # will never have to deal with the db, except when changing it away
 # from the default. This function should probably be exposed in the
 # top name space.
+
 
 def change_database(db_kind, **db_kwargs):
     """Change the backend specifying which database objects are saved to/loaded from"""
@@ -140,6 +114,7 @@ class Saveable:
             memory backend, which just counts objects of each table starting with 1.
         name (str): The name of the object. `name` should be a column in ixdat tables.
     """
+
     db = DB
     table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
@@ -206,13 +181,15 @@ class Saveable:
                 table_name: {column: getattr(self, attr) for column, attr in extras}
                 for table_name, extras in self.extra_column_attrs.items()
             }
-            self_as_dict.update(**aux_dict for aux_dict in aux_tables_dict.values())
+            for aux_dict in aux_tables_dict.values():
+                self_as_dict.update(**aux_dict)
         if self.extra_linkers:
             linker_tables_dict = {
                 table_name: {column: getattr(self, attr) for column, attr in linkers}
                 for table_name, linkers in self.extra_linkers.items()
             }
-            self_as_dict.update(**linker[1] for linker in linker_tables_dict.values())
+            for linker in linker_tables_dict.values():
+                self_as_dict.update(**linker[1])
         return self_as_dict
 
     def save(self):
@@ -236,6 +213,7 @@ class Saveable:
 
 class PlaceHolderObject:
     """A tool for ixdat's laziness, instances sit in for Saveable objects."""
+
     def __init__(self, i, cls):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 

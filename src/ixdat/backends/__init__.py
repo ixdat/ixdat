@@ -6,9 +6,7 @@ Constants:
         is the backend class (inheriting from Backend) for saving and loading things.
 """
 
-from ..db import BackendBase
-
-from .memory_backend import MemoryBackend
+from .memory_backend import BackendBase, MemoryBackend
 from .directory_backend import DirBackend
 
 

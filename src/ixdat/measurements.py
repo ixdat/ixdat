@@ -14,8 +14,6 @@ from .lablogs import LabLog
 from .plotters import ValuePlotter
 from .exporters import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError
-from .techniques import TECHNIQUE_CLASSES
-from .readers import READER_CLASSES
 
 
 class Measurement(Saveable):
@@ -100,6 +98,8 @@ class Measurement(Saveable):
                 tables) of the measurement. obj_as_dict["technique"] specifies the
                 technique class to use, from TECHNIQUE_CLASSES
         """
+        from .techniques import TECHNIQUE_CLASSES
+
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
         else:
@@ -110,6 +110,8 @@ class Measurement(Saveable):
     def read(cls, path_to_file, reader):
         """Return a Measurement object from parsing a file with the specified reader"""
         if isinstance(reader, str):
+            from .readers import READER_CLASSES
+
             reader = READER_CLASSES[reader]()
         return reader.read(path_to_file)
 
@@ -266,6 +268,9 @@ class Measurement(Saveable):
         obj_as_dict = self.as_dict()
         new_name = self.name + " AND " + other.name
         new_technique = self.technique + " AND " + other.technique
+
+        from .techniques import TECHNIQUE_CLASSES
+
         if new_technique in TECHNIQUE_CLASSES:
             cls = TECHNIQUE_CLASSES[new_technique]
         elif self.__class__ is other.__class__:
