@@ -1,6 +1,6 @@
 """Module for representation and analysis of EC measurements"""
 
-from . import Measurement
+from ..measurements import Measurement
 
 
 class ECMeasurement(Measurement):
