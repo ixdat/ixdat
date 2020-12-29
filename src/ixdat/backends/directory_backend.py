@@ -1,7 +1,11 @@
 import json
 import numpy as np
 from .memory_backend import BackendBase
-from ..config import STANDARD_DATA_DIRECTORY, STANDARD_SUFFIX, STANDARD_DATA_SUFFIX
+from ..config import (
+    STANDARD_DATA_DIRECTORY,
+    STANDARD_METADATA_SUFFIX,
+    STANDARD_DATA_SUFFIX,
+)
 
 
 def id_from_path(path):
@@ -14,7 +18,7 @@ def id_from_path(path):
 
 def name_from_path(path):
     """Return the name (str) of the row represented by given path to an ixdat file"""
-    return "".join(path.stem.split("_")[1:])
+    return path.stem.split("_", 1)[1]
 
 
 class DirBackend(BackendBase):
@@ -23,18 +27,18 @@ class DirBackend(BackendBase):
     def __init__(
         self,
         directory=STANDARD_DATA_DIRECTORY,
-        suffix=STANDARD_SUFFIX,
+        metadata_suffix=STANDARD_METADATA_SUFFIX,
         data_suffix=STANDARD_DATA_SUFFIX,
     ):
         """Initialize a directory database backend with the directory as Path
 
         Args:
             directory (Path): the directory to save files (under table subfolders)
-            suffix (str): The suffix to use for JSON-formatted metadata files
+            metadata_suffix (str): The suffix to use for JSON-formatted metadata files
             data_suffix (str): The suffix to use for numpy-formatted data files
         """
         self.directory = directory
-        self.suffix = suffix
+        self.metadata_suffix = metadata_suffix
         self.data_suffix = data_suffix
 
     @property
@@ -47,13 +51,10 @@ class DirBackend(BackendBase):
             # save any data objects first as this may change the references
             for data_obj in obj.data_objects:
                 self.save_data_obj(data_obj)
-        try:
-            table_name = obj.table_name
-        except AttributeError:
-            table_name = str(type(obj))
+        table_name = obj.table_name
         obj_as_dict = obj.as_dict()
         obj.id = self.add_row(obj_as_dict, table_name=table_name)
-        obj.backend_name = self.name
+        obj.backend = self
         return obj.id
 
     def open(self, cls, i):
@@ -96,17 +97,17 @@ class DirBackend(BackendBase):
         return data_obj.id
 
     def add_row(self, obj_as_dict, table_name):
-        """Save object's serializaiton to the folder table_name (like adding a row)"""
+        """Save object's serialization to the folder table_name (like adding a row)"""
         folder = self.directory / table_name
         if not folder.exists():
             folder.mkdir()
         i = self.get_next_available_id(table_name)
 
         name = obj_as_dict["name"]
-        file_name = f"{id}_{name}.{self.suffix}"
+        file_name = f"{id}_{name}.{self.metadata_suffix}"
 
         with open(folder / file_name, "w") as f:
-            json.dump(obj_as_dict, f)
+            json.dump(obj_as_dict, f, indent=4)
         return i
 
     def open_serialization(self, table_name, i):
@@ -123,7 +124,7 @@ class DirBackend(BackendBase):
             return next(
                 p
                 for p in folder.iterdir()
-                if id_from_path(p) == i and p.suffix == self.suffix
+                if id_from_path(p) == i and p.metadata_suffix == self.metadata_suffix
             )
         except StopIteration:
             return None

@@ -31,7 +31,7 @@ class DataBase:
     def open(self, cls, i):
         """Open and return an object of a Saveable class from the backend"""
         obj = self.backend.open(cls, i)
-        obj.backend_name = self.backend.name  # How we keep track with multiple backends
+        obj.backend = self.backend  # How we keep track with multiple backends
         return obj
 
     def load_obj_data(self, obj):
@@ -106,7 +106,7 @@ class Saveable:
             the connections between objects.
 
     Object attributes:
-        backend_name (str): the name of the backend where the object is saved. For a
+        backend (Backend): the backend where the object is saved. For a
             new, un-saved, object, this is "memory".
         _id (int): the principle key of the object, also accessible as `id`. This should
             be set explicitly in the backend when loading an object. For objects
@@ -135,12 +135,17 @@ class Saveable:
             setattr(self, attr, value)
         if self_as_dict and not self.column_attrs:
             self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
-        self.backend_name = "memory"  # SHOULD BE SET AFTER __INIT__ FOR LOADED OBJECT
+        self.backend = MemoryBackend  # SHOULD BE SET AFTER __INIT__ FOR LOADED OBJECT
         self._id = None  # SHOULD BE SET AFTER THE __INIT__ OF INHERITING CLASSES
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
     def __repr__(self):
         return f"{self.__class__}(id={self.id}, name={self.name})"
+
+    @property
+    def backend_name(self):
+        """The name of the backend in which self has been saved to / loaded from"""
+        return self.backend.name
 
     @property
     def id(self):

@@ -9,7 +9,7 @@ constants:
 """
 from pathlib import Path
 
-STANDARD_SUFFIX = "ix"
+STANDARD_METADATA_SUFFIX = "ix"
 STANDARD_DATA_SUFFIX = "ixdata"
 STANDARD_DATA_DIRECTORY = Path.home() / "ixdat"
 
