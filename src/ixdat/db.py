@@ -10,7 +10,7 @@ DirBackend = DATABASE_BACKENDS["directory"]  # The default backend for saving
 
 
 class DataBase:
-    """This class is a kind of middle-man between a Backend and a Saveabe class
+    """This class is a kind of middle-man between a Backend and a Savealbe class
 
     The reason for a middle man here is that it enables different databases (backends)
     to be switched between and kept track of in a single ixdat session.
@@ -21,8 +21,7 @@ class DataBase:
 
     def __init__(self, backend=None):
         """Initialize the database with its backend"""
-        backend = backend or DirBackend()
-        self.backend = backend
+        self.backend = backend or DirBackend()
 
     def save(self, obj):
         """Save a Saveable object with the backend"""
@@ -31,7 +30,7 @@ class DataBase:
     def open(self, cls, i):
         """Open and return an object of a Saveable class from the backend"""
         obj = self.backend.get(cls, i)
-        obj.backend = self.backend  # How we keep track with multiple backends
+        # obj will already have obj.id = i and obj.backend = self.backend from backend
         return obj
 
     def load_obj_data(self, obj):
@@ -44,7 +43,7 @@ class DataBase:
             BackendClass = DATABASE_BACKENDS[backend_name]
         else:
             raise NotImplementedError(
-                f"ixdat doresn't recognize db_kind = '{backend_name}'. If this is a new"
+                f"ixdat doesn't recognize db_name = '{backend_name}'. If this is a new"
                 "database backend, make sure it is added to the DATABASE_BACKENDS "
                 "constant in ixdat.backends."
                 "Or manually set it directly with DB.backend = <my_backend>"
@@ -62,12 +61,12 @@ DB = DataBase()  # initate the database. It functions as a global "constant"
 # top name space.
 
 
-def change_database(db_kind, **db_kwargs):
+def change_database(db_name, **db_kwargs):
     """Change the backend specifying which database objects are saved to/loaded from"""
-    DB.set_backend(db_kind, **db_kwargs)
+    DB.set_backend(db_name, **db_kwargs)
 
 
-def get_database_kind():
+def get_database_name():
     """Return the name of the class of which the database backend is an instance"""
     return DB.backend.__class__.__name__
 
@@ -75,14 +74,14 @@ def get_database_kind():
 class Saveable:
     """Base class for table-representing classes implementing database functionality.
 
-    This enables seamless interoperability between databse tables and ixdat classes.
+    This enables seamless interoperability between database tables and ixdat classes.
     Classes inheriting from this need to provide just a bit of info to define the
-    corresponding table, and then then saving and loading should just work.
+    corresponding table, and then saving and loading should just work.
 
     At a minimum, the `table_name` and `column_attrs` class attributes need to be
     overwritten in inheriting classes to define the name and columns of the main
     corresponding table. If an auxiliary table is needed to store lists of references
-    as rows, this should be represented in `linkers`. Doubly-inheriting classes can use
+    as rows, this should be represented in `linkers`. Sub-sub classes can use
     `extra_column_attrs` to add extra columns via an auxiliary table without changing
     the main table name.
 
@@ -135,12 +134,12 @@ class Saveable:
             setattr(self, attr, value)
         if self_as_dict and not self.column_attrs:
             self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
-        self.backend = MemoryBackend  # SHOULD BE SET AFTER __INIT__ FOR LOADED OBJECT
+        self._backend = MemoryBackend  # SHOULD BE SET AFTER __INIT__ FOR LOADED OBJECT
         self._id = None  # SHOULD BE SET AFTER THE __INIT__ OF INHERITING CLASSES
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
     def __repr__(self):
-        return f"{self.__class__}(id={self.id}, name={self.name})"
+        return f"{self.__class__.__name__}(id={self.id}, name={self.name})"
 
     @property
     def backend_name(self):
@@ -156,21 +155,29 @@ class Saveable:
             else:
                 raise DataBaseError(
                     f"{self} comes from {self.backend_name} "
-                    f"but did not get an id from its backend."
+                    "but did not get an id from its backend."
                 )
         return self._id
 
-    @id.setter
-    def id(self, i):
-        """Backends should explicitly set obj.id after loading a Saveable obj"""
+    @property
+    def backend(self):
+        """The backend the Saveable object was loaded from or last saved to."""
+        return self._backend
+
+    def set_id(self, i):
+        """Backends set obj.id here after loading/saving a Saveable obj"""
         self._id = i
+
+    def set_backend(self, backend):
+        """Backends set obj.backend here after loading/saving a Saveable obj"""
+        self._backend = backend
 
     def get_main_dict(self):
         """Return dict: serializition only of the row of the object's main table"""
         if self.column_attrs is None:
             raise DataBaseError(
-                f"{self} can't be seriealized because the class {self.__class__} "
-                f"hasn't defined column_attrs"
+                f"{self} can't be serialized because the class "
+                f"{self.__class__.__name__} hasn't defined column_attrs"
             )
         self_as_dict = {
             column: getattr(self, attr) for column, attr in self.column_attrs.items()
@@ -179,8 +186,7 @@ class Saveable:
 
     def as_dict(self):
         """Return dict: serialization of the object main and auxiliary tables"""
-        main = self.get_main_dict()
-        self_as_dict = main
+        self_as_dict = self.get_main_dict()
         if self.extra_column_attrs:
             aux_tables_dict = {
                 table_name: {column: getattr(self, attr) for column, attr in extras}
@@ -227,7 +233,7 @@ class PlaceHolderObject:
 
         Args:
             i (int): The id (principle key) of the object represented
-            cls (class): Class inheriting from Saveabe and thus specifiying the table
+            cls (class): Class inheriting from Saveable and thus specifiying the table
         """
         self.id = i
         self.cls = cls

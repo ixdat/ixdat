@@ -50,16 +50,17 @@ class DirBackend(BackendBase):
                 self.save_data_obj(data_obj)
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
-        obj.id = self.add_row(obj_as_dict, table_name=table_name)
-        obj.backend = self
-        return obj.id
+        i = self.add_row(obj_as_dict, table_name=table_name)
+        obj.set_id(i)
+        obj.set_backend(self)
+        return i
 
     def get(self, cls, i):
         """Open a Saveable object represented as row i of table cls.table_name"""
         table_name = cls.table_name
         obj_as_dict = self.get_row_as_dict(table_name, i)
         obj = cls.from_dict(obj_as_dict)
-        obj.backend = self
+        obj.set_backend(self)
         return obj
 
     def contains(self, table_name, i):
@@ -86,12 +87,13 @@ class DirBackend(BackendBase):
         obj_as_dict = data_obj.as_dict()
         data = obj_as_dict["data"]
         obj_as_dict["data"] = None
-        data_obj.id = self.add_row(obj_as_dict, table_name=table_name)
+        i = self.add_row(obj_as_dict, table_name=table_name)
         folder = self.directory / table_name
-        data_obj.backend = self
         data_file_name = f"{data_obj.id}_{data_obj.name}.{self.data_suffix}"
         np.save(folder / data_file_name, data)
-        return data_obj.id
+        data_obj.set_id(i)
+        data_obj.set_backend(self)
+        return i
 
     def add_row(self, obj_as_dict, table_name):
         """Save object's serialization to the folder table_name (like adding a row)"""

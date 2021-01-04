@@ -93,7 +93,7 @@ class ValueSeries(DataSeries):
         """Initiate a ValueSeries with a TimeSeries or a reference thereto
 
         Args (in addition to those of parent):
-            t_id (int): The id of the corresponding TimeSeries, if not given dierectly
+            t_id (int): The id of the corresponding TimeSeries, if not given directly
             tseries (TimeSeries): The corresponding TimeSeries, if available
         """
         super().__init__(name, unit_name, data)
@@ -122,6 +122,7 @@ class ValueSeries(DataSeries):
         """The TimeSeries describing when the data in the ValueSeries was recorded"""
         if not self._tseries:
             self._tseries = TimeSeries.get(i=self.t_id)
+            self._t_id = None  # to avoid any confusion of two t_id's
         return self._tseries
 
     @property
@@ -154,7 +155,7 @@ class Field(DataSeries):
 
         Args (in addition to those of parent):
             a_ids (list of int): The ids of the corresponding axes DataSeries, if not
-                the series are not given dierectly as `axes_series`
+                the series are not given directly as `axes_series`
             axes_series (list of DataSeries): The DataSeries describing the axes which
                 the field's data spans, if available
         """
@@ -175,6 +176,8 @@ class Field(DataSeries):
         """Return the DataSeries of the `axis_number`'th axis of the data"""
         if not self._axes_series[axis_number]:
             self._axes_series[axis_number] = DataSeries.get(i=self._a_ids[axis_number])
+            # And so as not have two id's for the axis_number'th axis:
+            self._a_ids[axis_number] = None
         return self._axes_series[axis_number]
 
     @property
