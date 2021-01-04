@@ -197,9 +197,10 @@ class Saveable:
                 self_as_dict.update(**linker[1])
         return self_as_dict
 
-    def save(self):
+    def save(self, db=None):
         """Save self and return the id. This sets self.backend_name and self.id"""
-        return self.db.save(self)
+        db = db or self.db
+        return db.save(self)
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -207,13 +208,15 @@ class Saveable:
         return cls(**obj_as_dict)
 
     @classmethod
-    def get(cls, i):
-        """Open an object given its id (the table is cls.table_name)"""
-        return cls.db.open(cls, i)
+    def get(cls, i, db=None):
+        """Open an object of cls given its id (the table is cls.table_name)"""
+        db = db or cls.db
+        return db.open(cls, i)
 
-    def load_data(self):
+    def load_data(self, db=None):
         """Load the data of the object, if ixdat in its laziness hasn't done so yet"""
-        return self.db.load_obj_data(self)
+        db = db or self.db
+        return db.load_obj_data(self)
 
 
 class PlaceHolderObject:

@@ -1,9 +1,9 @@
 """This module defines the DataSeries class, the elementary data structure of ixdat
 
-An ixdat DataSeries is a wapper around a numpy array containing the metadata needed
+An ixdat DataSeries is a wrapper around a numpy array containing the metadata needed
 to combine it with other DataSeries. Typically this means a reference to the time
 variable corresponding to the rows of the array. The time variable itself is a special
-case, TimeSeries, which must know its absolute (unix) time.
+case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
 from .db import Saveable
@@ -25,7 +25,7 @@ class DataSeries(Saveable):
 
         Args:
             name (str): The name of the data series
-            unit_name (str): The name of unit in which the data is stored
+            unit_name (str): The name of the unit in which the data is stored
             data (np.array): The numerical data
         """
         super().__init__()
@@ -42,13 +42,14 @@ class DataSeries(Saveable):
             return ValueSeries(**obj_as_dict)
         elif "a_ids" in obj_as_dict:
             return Field(**obj_as_dict)
+        return cls(**obj_as_dict)
 
     def __repr__(self):
-        return f"{self.__class__}(id={self.id}, name='{self.name}')"
+        return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @property
     def data(self):
-        """The data as a np.array, loading lazily."""
+        """The data as a np.array, loaded the first time it is needed."""
         if self._data is None:
             self._data = self.load_data()  # inherited from Saveable.
         return self._data
@@ -65,7 +66,11 @@ class TimeSeries(DataSeries):
     extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
 
     def __init__(self, name, unit_name, data, tstamp):
-        """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)"""
+        """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
+
+        Args (in addition to those of parent):
+            tstamp (float): The unix timestamp of the time at which t=0 in the data
+        """
         super().__init__(name, unit_name, data)
         self.tstamp = tstamp
 

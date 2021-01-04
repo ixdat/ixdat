@@ -20,7 +20,11 @@ class Config:
         self.standard_data_directory = Path.home() / "ixdat"
 
         if not self.standard_data_directory.exists():
-            self.standard_data_directory.mkdir()
+            try:
+                self.standard_data_directory.mkdir()
+            except Exception:
+                raise  # TODO, figure out what gets raised, then except with line below
+                # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
 
 
 CFG = Config()

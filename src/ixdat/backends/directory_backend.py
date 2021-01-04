@@ -1,11 +1,7 @@
 import json
 import numpy as np
 from .memory_backend import BackendBase
-from ..config import (
-    standard_data_directory,
-    standard_metadata_suffix,
-    standard_data_suffix,
-)
+from ..config import CFG
 
 
 def id_from_path(path):
@@ -26,9 +22,9 @@ class DirBackend(BackendBase):
 
     def __init__(
         self,
-        directory=standard_data_directory,
-        metadata_suffix=standard_metadata_suffix,
-        data_suffix=standard_data_suffix,
+        directory=CFG.standard_data_directory,
+        metadata_suffix=CFG.standard_metadata_suffix,
+        data_suffix=CFG.standard_data_suffix,
     ):
         """Initialize a directory database backend with the directory as Path
 
@@ -40,6 +36,7 @@ class DirBackend(BackendBase):
         self.directory = directory
         self.metadata_suffix = metadata_suffix
         self.data_suffix = data_suffix
+        super().__init__()
 
     @property
     def name(self):
@@ -60,7 +57,7 @@ class DirBackend(BackendBase):
     def get(self, cls, i):
         """Open a Saveable object represented as row i of table cls.table_name"""
         table_name = cls.table_name
-        obj_as_dict = self.get_serialization(table_name, i)
+        obj_as_dict = self.get_row_as_dict(table_name, i)
         obj = cls.from_dict(obj_as_dict)
         obj.backend = self
         return obj
@@ -110,7 +107,7 @@ class DirBackend(BackendBase):
             json.dump(obj_as_dict, f, indent=4)
         return i
 
-    def get_serialization(self, table_name, i):
+    def get_row_as_dict(self, table_name, i):
         """Return the serialization of the object represented in row i of table_name"""
         path_to_row = self.get_path_to_row(table_name, i)
         with open(path_to_row, "r") as file:

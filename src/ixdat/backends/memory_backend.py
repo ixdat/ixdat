@@ -13,10 +13,11 @@ class BackendBase:
     Backends inheriting from this base class are in modules of the ixdat.backends folder
     """
 
+    name = "memory"
+
     def __init__(self):
         """Initialize the backend with dict for {table_name (str): id_counter (int)}"""
         self.next_available_ids = {}
-        self.name = "memory"
 
     def get_next_available_id(self, table_name):
         """Return the id counter for table_name, starting with 1."""
