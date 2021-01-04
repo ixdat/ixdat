@@ -10,19 +10,20 @@ class ValuePlotter:
         self.measurement = measurement
 
     def plot(self, *args, **kwargs):
-        """Plot the the exporter's measurement via plotter.plot_measurement()"""
+        """Plot the exporter's measurement via plotter.plot_measurement()"""
         return self.plot_measurement(measurement=self.measurement, *args, **kwargs)
 
-    def plot_measurement(self, measurement, v_list=None, tspan=None):
+    def plot_measurement(self, measurement, v_list=None, tspan=None, ax=None):
         """Plot a measurement.
 
         Args:
-            measurement (Measurement): The measurement to export
+            measurement (Measurement): The measurement to plot
             v_list (list of str): The names of the data series to include. Defaults to
                 names of all VSeries in the measurement.
             tspan (timespan): The timespan to include in the file, defaults to all of it
         """
-        fig, ax = plt.subplots()
+        if not ax:
+            fig, ax = plt.subplots()
         v_list = v_list or measurement.value_names
 
         for v_name in v_list:

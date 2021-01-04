@@ -116,7 +116,7 @@ class Measurement(Saveable):
         return reader.read(path_to_file)
 
     @property
-    def metadata_json(self):
+    def metadata_json_string(self):
         """Measurement metadata as a JSON-formatted string"""
         return json.dumps(self.metadata, indent=4)
 
@@ -175,25 +175,25 @@ class Measurement(Saveable):
 
     @property
     def value_names(self):
-        """List of the names of the VSeries among in the measurement's DataSeries"""
+        """List of the names of the VSeries in the measurement's DataSeries"""
         return [vseries.name for vseries in self.value_series]
 
     @property
     def value_series(self):
-        """List of the VSeries among in the measurement's DataSeries"""
+        """List of the VSeries in the measurement's DataSeries"""
         return [
             series for series in self.series_list if isinstance(series, ValueSeries)
         ]
 
     @property
     def time_series(self):
-        """List of the TSeries among in the measurement's DataSeries NOT timeshifted!"""
+        """List of the TSeries in the measurement's DataSeries. NOT timeshifted!"""
         return [
             series.name for series in self.series_list if isinstance(series, TimeSeries)
         ]
 
     def __getitem__(self, item):
-        """Return the built measurement DataSeries with the its name specified by item
+        """Return the built measurement DataSeries with its name specified by item
 
         The item is interpreted as the name of a series. VSeries names can have "-v"
         or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
@@ -254,13 +254,13 @@ class Measurement(Saveable):
         metadata, sample, and logentry come from the first measurement.
 
         An important point about addition is that it is almost but not quite associative
-        and transitiry i.e.
+        and commutative i.e.
         A + (B + C) == (A + B) + C == C + B + A   is not quite true
         Each one results in the same series and component measurements. They will even
         appear in the same order in A + (B + C) and (A + B) + C. However, the technique
         might be different, as a new technique might be determined each time.
 
-        Not also that there is no difference between hyphenating (simultaneous EC and
+        Note also that there is no difference between hyphenating (simultaneous EC and
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
         TODO: Make sure with tests this is okay, differentiate using | operator if not.
@@ -299,8 +299,8 @@ def append_series(series_list):
     s0 = series_list[0]
     if isinstance(s0, TimeSeries):
         return append_tseries(series_list)
-    elif isinstance(s0, TimeSeries):
-        return append_tseries(series_list)
+    elif isinstance(s0, ValueSeries):
+        return append_vseries_by_time(series_list)
     raise BuildError(
         f"An algorithm of append_series for series like {s0} is not yet implemented"
     )
@@ -319,8 +319,7 @@ def append_vseries_by_time(series_list):
         data = np.append(data, s.data)
 
     tseries = append_tseries([s.tseries for s in series_list])
-    vseries = cls(name=name, unit=unit, data=data, tseries=tseries)
-    return vseries
+    return cls(name=name, unit=unit, data=data, tseries=tseries)
 
 
 def append_tseries(series_list, tstamp=None):
@@ -341,12 +340,24 @@ def append_tseries(series_list, tstamp=None):
 
 
 def fill_object_list(object_list, obj_ids, cls=None):
-    """Add PlaceHolderObjects to object_list for any unrepresented obj_ids"""
+    """Add PlaceHolderObjects to object_list for any unrepresented obj_ids.
+
+    Args:
+        object_list (list of objects or None): The objects already known,
+            in a list. This is the list to be appended to. If None, an empty
+            list will be appended to.
+        obj_ids (list of ints or None): The id's of objects to ensure are in
+            the list. Any id in obj_ids not already represented in object_list
+            is added to the list as a PlaceHolderObject
+        cls (Saveable class): the class remembered by any PlaceHolderObjects
+            added to the object_list, so that eventually the right object will
+            be loaded.
+    """
     cls = cls or object_list[0].__class__
     object_list = object_list or []
     provided_series_ids = [s.id for s in object_list]
     if not obj_ids:
-        return
+        return object_list
     for i in obj_ids:
         if i not in provided_series_ids:
             object_list.append(PlaceHolderObject(i=i, cls=cls))
