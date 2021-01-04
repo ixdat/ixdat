@@ -2,9 +2,9 @@ import json
 import numpy as np
 from .memory_backend import BackendBase
 from ..config import (
-    STANDARD_DATA_DIRECTORY,
-    STANDARD_METADATA_SUFFIX,
-    STANDARD_DATA_SUFFIX,
+    standard_data_directory,
+    standard_metadata_suffix,
+    standard_data_suffix,
 )
 
 
@@ -26,9 +26,9 @@ class DirBackend(BackendBase):
 
     def __init__(
         self,
-        directory=STANDARD_DATA_DIRECTORY,
-        metadata_suffix=STANDARD_METADATA_SUFFIX,
-        data_suffix=STANDARD_DATA_SUFFIX,
+        directory=standard_data_directory,
+        metadata_suffix=standard_metadata_suffix,
+        data_suffix=standard_data_suffix,
     ):
         """Initialize a directory database backend with the directory as Path
 
@@ -57,10 +57,10 @@ class DirBackend(BackendBase):
         obj.backend = self
         return obj.id
 
-    def open(self, cls, i):
+    def get(self, cls, i):
         """Open a Saveable object represented as row i of table cls.table_name"""
         table_name = cls.table_name
-        obj_as_dict = self.open_serialization(table_name, i)
+        obj_as_dict = self.get_serialization(table_name, i)
         obj = cls.from_dict(obj_as_dict)
         obj.backend = self
         return obj
@@ -110,7 +110,7 @@ class DirBackend(BackendBase):
             json.dump(obj_as_dict, f, indent=4)
         return i
 
-    def open_serialization(self, table_name, i):
+    def get_serialization(self, table_name, i):
         """Return the serialization of the object represented in row i of table_name"""
         path_to_row = self.get_path_to_row(table_name, i)
         with open(path_to_row, "r") as file:
@@ -120,14 +120,10 @@ class DirBackend(BackendBase):
     def get_path_to_row(self, table_name, i):
         """Return the Path to the file representing row i of the table `table_name`"""
         folder = self.directory / table_name
-        try:
-            return next(
-                p
-                for p in folder.iterdir()
-                if id_from_path(p) == i and p.metadata_suffix == self.metadata_suffix
-            )
-        except StopIteration:
-            return None
+        for p in folder.iterdir():
+            if id_from_path(p) == i and p.metadata_suffix == self.metadata_suffix:
+                return p
+        return None  # if that row is not in the table.
 
     def get_id_list(self, table_name):
         """List the principle keys of the existing rows of a given table"""
@@ -154,6 +150,7 @@ class DirBackend(BackendBase):
             hasattr(other, "directory")
             and other.directory.resolve() == self.directory.resolve()
             and other.directory.lstat() == self.directory.lstat()
+            and other.__class__ is self.__class__
         ):
             return True
         return False

@@ -23,7 +23,7 @@ There are two reasons to combine these two faces into one piece of software, one
 
 ``ixdat`` will be a collaborative project for which anyone with time and programming skill can plug in extra tools for their technique or an existing database for their sub-field.
 
-The design should be highly pythonic: object-oriented, pluggable, and dynamic. It must be well-documented to facilitate a diverse gorup of users. 
+The design should be highly pythonic: object-oriented, pluggable, and dynamic. It must be well-documented to facilitate a diverse group of users.
 
 In the near-to-mid future, ``ixdat`` will require a bit of programming skill from the user, but, if there is interest, select functionality all the way from raw data to database will eventually have GUIs attached to it.
 

@@ -116,7 +116,7 @@ class ValueSeries(DataSeries):
     def tseries(self):
         """The TimeSeries describing when the data in the ValueSeries was recorded"""
         if not self._tseries:
-            self._tseries = TimeSeries.open(i=self.t_id)
+            self._tseries = TimeSeries.get(i=self.t_id)
         return self._tseries
 
     @property
@@ -169,7 +169,7 @@ class Field(DataSeries):
     def get_axis_series(self, axis_number):
         """Return the DataSeries of the `axis_number`'th axis of the data"""
         if not self._axes_series[axis_number]:
-            self._axes_series[axis_number] = DataSeries.open(i=self._a_ids[axis_number])
+            self._axes_series[axis_number] = DataSeries.get(i=self._a_ids[axis_number])
         return self._axes_series[axis_number]
 
     @property

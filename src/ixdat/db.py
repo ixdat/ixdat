@@ -30,7 +30,7 @@ class DataBase:
 
     def open(self, cls, i):
         """Open and return an object of a Saveable class from the backend"""
-        obj = self.backend.open(cls, i)
+        obj = self.backend.get(cls, i)
         obj.backend = self.backend  # How we keep track with multiple backends
         return obj
 
@@ -95,7 +95,7 @@ class Saveable:
     classes for more info.
 
     Class attributes:
-        db (DataBase): the database, DB, which has the save, open, and load_data methods
+        db (DataBase): the database, DB, which has the save, get, and load_data methods
         table_name (str): The name of the table or folder in which objects are saved
         column_attrs (dict): {column: attr} where column (str) is the name of the
             column in the table and attr (str) is the name of the attribute of the
@@ -207,7 +207,7 @@ class Saveable:
         return cls(**obj_as_dict)
 
     @classmethod
-    def open(cls, i):
+    def get(cls, i):
         """Open an object given its id (the table is cls.table_name)"""
         return cls.db.open(cls, i)
 
@@ -231,4 +231,4 @@ class PlaceHolderObject:
 
     def get_object(self):
         """Return the loaded real object represented by the PlaceHolderObject"""
-        return self.cls.open(self.id)
+        return self.cls.get(self.id)
