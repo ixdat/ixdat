@@ -1,4 +1,25 @@
-"""This module contains the classes which pass on database functionality"""
+"""This module contains the classes which pass on database functionality
+
+Note on terminology:
+    In ixdat, we seek to use the following naming conventions:
+        `load` grabs *an object* from a database backend given its class or table name
+            and the name of the specific object desired (see DataBase.load).
+        `load_xxx` grabs `xxx` from a database backend given the object for which
+            xxx is desired (see DataBase.load_object_data).
+        `get` grabs *an object* from a database backend given its class or table name and
+            the princple key (the id) of the row in the corresponding table
+        `get_xxx` grabs `xxx` from a database backend given the principle key (the id) of
+            the row in the table corresponding to xxx (see `Database.get`)
+
+        So `load` works by `name` or existing object, while `get` works by `id`.
+        `get_xx` is also used as the counterpart to `set_xx` to grab `xx`, typically a
+        managed attribute, from an object in memory.
+
+        `load` and `get` convention holds vertically - i.e. the Backend, the DataBase,
+            up through the Saveable parent class for all ixdat classes corresponding to
+            database tables have `load` and `get` methods which call downwards.
+    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546400793
+"""
 
 from .exceptions import DataBaseError
 from .backends import DATABASE_BACKENDS
@@ -27,11 +48,14 @@ class DataBase:
         """Save a Saveable object with the backend"""
         return self.backend.save(obj)
 
-    def open(self, cls, i):
-        """Open and return an object of a Saveable class from the backend"""
+    def get(self, cls, i):
+        """Select and return object of Saveable class cls with id=i from the backend"""
         obj = self.backend.get(cls, i)
         # obj will already have obj.id = i and obj.backend = self.backend from backend
         return obj
+
+    def load(self, cls, name):
+        """Select and return object of Saveable class cls with name=name from backend"""
 
     def load_obj_data(self, obj):
         """Load and return the numerical data (obj.data) for a Saveable object"""
@@ -111,6 +135,8 @@ class Saveable:
             be set explicitly in the backend when loading an object. For objects
             initiated directly in the session, it will become the id provided by the
             memory backend, which just counts objects of each table starting with 1.
+            TODO: consider renaming.
+                See: https://github.com/ixdat/ixdat/pull/1#discussion_r546434676
         name (str): The name of the object. `name` should be a column in ixdat tables.
     """
 
@@ -217,7 +243,7 @@ class Saveable:
     def get(cls, i, db=None):
         """Open an object of cls given its id (the table is cls.table_name)"""
         db = db or cls.db
-        return db.open(cls, i)
+        return db.get(cls, i)
 
     def load_data(self, db=None):
         """Load the data of the object, if ixdat in its laziness hasn't done so yet"""

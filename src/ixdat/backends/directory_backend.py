@@ -18,7 +18,11 @@ def name_from_path(path):
 
 
 class DirBackend(BackendBase):
-    """A database backend that loads and saves .ix files from a directory"""
+    """A database backend that loads and saves .ix files from a directory
+
+    TODO: refactor i with the standard id_ inside methods
+        see github: https://github.com/ixdat/ixdat/pull/1#discussion_r546400226
+    """
 
     def __init__(
         self,

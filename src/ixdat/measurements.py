@@ -52,6 +52,8 @@ class Measurement(Saveable):
 
         Args:
             name (str): The name of the measurement
+            TODO: Decide if metadata needs the json string option.
+                See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
             metadata (dict or json string): Free-form measurement metadata
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
@@ -98,6 +100,8 @@ class Measurement(Saveable):
                 tables) of the measurement. obj_as_dict["technique"] specifies the
                 technique class to use, from TECHNIQUE_CLASSES
         """
+        # TODO: see if there isn't a way to put the import at the top of the module.
+        #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
         from .techniques import TECHNIQUE_CLASSES
 
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
@@ -110,6 +114,8 @@ class Measurement(Saveable):
     def read(cls, path_to_file, reader):
         """Return a Measurement object from parsing a file with the specified reader"""
         if isinstance(reader, str):
+            # TODO: see if there isn't a way to put the import at the top of the module.
+            #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
@@ -269,6 +275,8 @@ class Measurement(Saveable):
         new_name = self.name + " AND " + other.name
         new_technique = self.technique + " AND " + other.technique
 
+        # TODO: see if there isn't a way to put the import at the top of the module.
+        #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
         from .techniques import TECHNIQUE_CLASSES
 
         if new_technique in TECHNIQUE_CLASSES:

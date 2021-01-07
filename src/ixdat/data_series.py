@@ -98,6 +98,9 @@ class ValueSeries(DataSeries):
         """
         super().__init__(name, unit_name, data)
         self._tseries = tseries
+        # TODO: This could probably be handled more nicely with PlaceHolderObjects
+        #   see: Measurement and
+        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
         self._t_id = t_id
         if tseries and t_id:
             if not t_id == tseries.id:
@@ -163,6 +166,9 @@ class Field(DataSeries):
         N = len(a_ids) if a_ids is not None else len(axes_series)
         self.N_dimensions = N
         self._a_ids = a_ids if a_ids is not None else ([None] * N)
+        # TODO: This could probably be handled more nicely with PlaceHolderObjects
+        #   see: Measurement and
+        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
         self._axes_series = axes_series if axes_series is not None else ([None] * N)
         self._check_axes()  # raises an AxisError if something's wrong
 
