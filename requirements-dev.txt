@@ -4,3 +4,7 @@ Sphinx
 sphinx-rtd-theme
 sphinx_automodapi
 EC_MS
+flake8
+tox
+pytest
+invoke
