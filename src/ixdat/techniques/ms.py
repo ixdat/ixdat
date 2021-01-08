@@ -1,6 +1,6 @@
 """Module for representation and analysis of MS measurements"""
 
-from . import Measurement
+from ..measurements import Measurement
 
 
 class MSMeasurement(Measurement):

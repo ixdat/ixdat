@@ -19,3 +19,7 @@ class SeriesNotFoundError(Exception):
 
 class BuildError(Exception):
     """ixdat errors having to do with series not being able to be appended"""
+
+
+class ReadError(Exception):
+    """ixdat errors having to do with file reading"""
