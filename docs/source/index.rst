@@ -11,6 +11,7 @@ We are just getting started with this project, please have patience.
     :maxdepth: 2
 
     introduction
+    extended_concept
     dataset
     license
 
