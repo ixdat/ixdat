@@ -56,7 +56,7 @@ class BiologicMPTReader:
                 name=column_name,
                 data=data,
                 tseries=tseries,
-                unit_name=self.get_column_unit(column_name),
+                unit_name=get_column_unit(column_name),
             )
             data_series_list.append(vseries)
 
@@ -97,10 +97,11 @@ class BiologicMPTReader:
             return
         loop_match = re.search(regular_expressions["loop"], line)
         if loop_match:
+            print(f"loop specified on line='{line}'")
             n = int(loop_match.group(1))
             start = int(loop_match.group(2))
             finish = int(loop_match.group(3))
-            if not "loop_number" in self.column_data:
+            if "loop_number" not in self.column_data:
                 self.column_data["loop_number"] = np.array([])
             self.column_data["loop_number"] = np.append(
                 self.column_data["loop_number"], np.array([n] * (finish - start + 1))
@@ -113,7 +114,7 @@ class BiologicMPTReader:
     def process_column_line(self, line):
         self.header_lines.append(line)
         self.column_names = line.strip().split(delim)
-        self.column_data = {name: np.array([]) for name in self.column_names}
+        self.column_data.update({name: np.array([]) for name in self.column_names})
         self.place_in_file = "data"
 
     def process_data_line(self, line):
@@ -132,12 +133,17 @@ class BiologicMPTReader:
                         raise ReadError(f"can't parse value string '{value_string}'")
             self.column_data[name] = np.append(self.column_data[name], value)
 
-    def get_column_unit(self, column_name):
-        if "/" in column_name:
-            unit_name = column_name.split("/")[-1]
-        else:
-            unit_name = None
-        return unit_name
+    def print_header(self):
+        header = "".join(self.header_lines)
+        print(header)
+
+
+def get_column_unit(column_name):
+    if "/" in column_name:
+        unit_name = column_name.split("/")[-1]
+    else:
+        unit_name = None
+    return unit_name
 
 
 def timestamp_string_to_tstamp(timestamp_string, form=time_string_form):

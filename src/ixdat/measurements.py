@@ -234,8 +234,10 @@ class Measurement(Saveable):
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
-        mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-        return t[mask], v[mask]
+        if tspan:
+            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
+            t, v = t[mask], v[mask]
+        return t, v
 
     @property
     def data_cols(self):
