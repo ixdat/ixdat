@@ -13,5 +13,5 @@ from .biologic import BiologicMPTReader
 READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "zilien": ZilienTSVReader,
-    "biologi": BiologicMPTReader,
+    "biologic": BiologicMPTReader,
 }

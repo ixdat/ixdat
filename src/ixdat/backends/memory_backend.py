@@ -7,11 +7,13 @@ class BackendBase:
     A backend defines where and how all Saveable objects (inheriting from the Saveable
     class) save their data. This is a key part of the seamless interoperability of
     ixdat classes and experimental databases. Each Saveable class roughly corresponds
-    to a table, and the save() and open() functions correspond to inserting and
-    selecting from a databae table.
+    to a table, and the save() and get() functions correspond to inserting and
+    selecting from a database table.
 
     Backends inheriting from this base class are in modules of the ixdat.backends folder
     """
+
+    name = "memory"
 
     def __init__(self):
         """Initialize the backend with dict for {table_name (str): id_counter (int)}"""
@@ -31,7 +33,7 @@ class BackendBase:
         """Save a Saveable object and return its id. Must be implemented."""
         raise NotImplementedError
 
-    def open(self, cls, i):
+    def get(self, cls, i):
         """Load the object with id=i of a Saveable class. Must be implemented."""
         raise NotImplementedError
 

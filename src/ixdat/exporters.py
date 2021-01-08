@@ -27,7 +27,7 @@ class CSVExporter:
         columns_data = {}
         s_list = []
         v_list = v_list or list(measurement.data_cols)
-        if not path_to_file.suffix:
+        if not path_to_file.metadata_suffix:
             path_to_file = path_to_file.with_suffix(".csv")
         for v_name in v_list:
             t_name = measurement[v_name].tseries.name

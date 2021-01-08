@@ -1,9 +1,9 @@
 """This module defines the DataSeries class, the elementary data structure of ixdat
 
-An ixdat DataSeries is a wapper around a numpy array containing the metadata needed
+An ixdat DataSeries is a wrapper around a numpy array containing the metadata needed
 to combine it with other DataSeries. Typically this means a reference to the time
 variable corresponding to the rows of the array. The time variable itself is a special
-case, TimeSeries, which must know its absolute (unix) time.
+case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
 from .db import Saveable
@@ -25,7 +25,7 @@ class DataSeries(Saveable):
 
         Args:
             name (str): The name of the data series
-            unit_name (str): The name of unit in which the data is stored
+            unit_name (str): The name of the unit in which the data is stored
             data (np.array): The numerical data
         """
         super().__init__()
@@ -42,13 +42,14 @@ class DataSeries(Saveable):
             return ValueSeries(**obj_as_dict)
         elif "a_ids" in obj_as_dict:
             return Field(**obj_as_dict)
+        return cls(**obj_as_dict)
 
     def __repr__(self):
-        return f"{self.__class__}(id={self.id}, name='{self.name}')"
+        return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @property
     def data(self):
-        """The data as a np.array, loading lazily."""
+        """The data as a np.array, loaded the first time it is needed."""
         if self._data is None:
             self._data = self.load_data()  # inherited from Saveable.
         return self._data
@@ -65,7 +66,11 @@ class TimeSeries(DataSeries):
     extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
 
     def __init__(self, name, unit_name, data, tstamp):
-        """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)"""
+        """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
+
+        Args (in addition to those of parent):
+            tstamp (float): The unix timestamp of the time at which t=0 in the data
+        """
         super().__init__(name, unit_name, data)
         self.tstamp = tstamp
 
@@ -88,11 +93,14 @@ class ValueSeries(DataSeries):
         """Initiate a ValueSeries with a TimeSeries or a reference thereto
 
         Args (in addition to those of parent):
-            t_id (int): The id of the corresponding TimeSeries, if not given dierectly
+            t_id (int): The id of the corresponding TimeSeries, if not given directly
             tseries (TimeSeries): The corresponding TimeSeries, if available
         """
         super().__init__(name, unit_name, data)
         self._tseries = tseries
+        # TODO: This could probably be handled more nicely with PlaceHolderObjects
+        #   see: Measurement and
+        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
         self._t_id = t_id
         if tseries and t_id:
             if not t_id == tseries.id:
@@ -116,7 +124,8 @@ class ValueSeries(DataSeries):
     def tseries(self):
         """The TimeSeries describing when the data in the ValueSeries was recorded"""
         if not self._tseries:
-            self._tseries = TimeSeries.open(i=self.t_id)
+            self._tseries = TimeSeries.get(i=self.t_id)
+            self._t_id = None  # to avoid any confusion of two t_id's
         return self._tseries
 
     @property
@@ -149,7 +158,7 @@ class Field(DataSeries):
 
         Args (in addition to those of parent):
             a_ids (list of int): The ids of the corresponding axes DataSeries, if not
-                the series are not given dierectly as `axes_series`
+                the series are not given directly as `axes_series`
             axes_series (list of DataSeries): The DataSeries describing the axes which
                 the field's data spans, if available
         """
@@ -157,6 +166,9 @@ class Field(DataSeries):
         N = len(a_ids) if a_ids is not None else len(axes_series)
         self.N_dimensions = N
         self._a_ids = a_ids if a_ids is not None else ([None] * N)
+        # TODO: This could probably be handled more nicely with PlaceHolderObjects
+        #   see: Measurement and
+        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
         self._axes_series = axes_series if axes_series is not None else ([None] * N)
         self._check_axes()  # raises an AxisError if something's wrong
 
@@ -169,7 +181,9 @@ class Field(DataSeries):
     def get_axis_series(self, axis_number):
         """Return the DataSeries of the `axis_number`'th axis of the data"""
         if not self._axes_series[axis_number]:
-            self._axes_series[axis_number] = DataSeries.open(i=self._a_ids[axis_number])
+            self._axes_series[axis_number] = DataSeries.get(i=self._a_ids[axis_number])
+            # And so as not have two id's for the axis_number'th axis:
+            self._a_ids[axis_number] = None
         return self._axes_series[axis_number]
 
     @property
