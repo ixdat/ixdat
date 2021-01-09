@@ -14,7 +14,7 @@ CLEAN_PATTERNS = ("__pycache__", "*.pyc", "*.pyo", ".mypy_cache")
 
 
 tox_config = configparser.ConfigParser()
-tox_config.read("tox.ini")
+tox_config.read(THIS_DIR / "tox.ini")
 
 
 def extract_first_command_from_tox_env(environment):
@@ -94,7 +94,7 @@ def tox(context):
         else:
             environments_to_run.append(environment)
 
-    context.run("tox -e " + ",".join(environments_to_run))
+    context.run("tox -p auto -e " + ",".join(environments_to_run))
 
 
 # ### Maintenance tasks
