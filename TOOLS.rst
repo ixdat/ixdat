@@ -36,7 +36,7 @@ updating the list of contributors from the git log.
 **tox** is tuned towards a specific purpose, which is to run
 specifically QA tools (something like linter, type checker, test
 runner or code formatter) in a clean environment, with a fresh install
-of code, across as many supported python versions as possible. `tox`
+of code, across as many supported python versions as possible. ``tox``
 can also be used in CI tools, such a Github Actions, to specify what
 to run as part of the CI, which eliminates the need to an extra
 configuration.
@@ -57,14 +57,14 @@ Where are settings and arguments kept
 For settings and arguments for tools the following rules apply:
 
 * **setup.cfg** If the tool support defining them in the shared
-  configuration file `setup.cfg`, then they belong there no-matter how
-  they are run. If not (settings may only be available at the command
-  line), see the next points.
-* **tox.ini** If the tool is run by both `tox` and `invoke`, then the
-  settings belong in the `tox` configuration file and `invoke` will
-  have to read them from there
-* **tasks.py** If the tool is `invoke` specific, then obviously the
-  configuration goes into its "configuration file" `tasks.py`
+  configuration file ``setup.cfg``, then they belong there no-matter
+  how they are run. If not (settings may only be available at the
+  command line), see the next points.
+* **tox.ini** If the tool is run by both ``tox`` and ``invoke``, then
+  the settings belong in the ``tox`` configuration file and ``invoke``
+  will have to read them from there
+* **tasks.py** If the tool is ``invoke`` specific, then obviously the
+  configuration goes into its "configuration file" ``tasks.py``
 
 Non-tool related "settings"
 ```````````````````````````
@@ -74,26 +74,89 @@ and all remaining information about how to create a package goes into
 setup.py
 
 **requirements** goes into the two requirements files;
-`requirements.txt` for package requirements and `requirements-dev.txt`
-for development requirements.
+``requirements.txt`` for package requirements and
+``requirements-dev.txt`` for development requirements.
 
 Git hooks
 =========
 
-The version control system `git` has the option of having check done
+The version control system ``git`` has the option of having check done
 before certain important actions, like a commit or a push. These are
-referred to as `hooks`. For xidat a pre-push is recommended (as
+referred to as ``hooks``. For xidat a pre-push is recommended (as
 opposed to a pre-commit hook, which take time to run the tests on
-every commit). The pre-push hook is located in `tools/hooks`.
+every commit). The pre-push hooks are located in ``tools/hooks``.
 
 Git hooks cannot be distributed automatically, so it will need to be
-"installed". On Linux systems this is done by sym-linking it into the
-proper folder:
+"installed".
+
+Linux instructions
+------------------
+
+On Linux systems this is done by sym-linking it into the proper
+folder. Starting at the base folder of the git archive it looks like
+this:
 
 $ cd .git/hooks
 $ ln -s ../../tools/hooks/pre-push .
 
-Windows instructions TODO.
+Windows instructions
+--------------------
+
+The pre-push hooks on Windows is dependent on a full Git installation,
+because it depends on the shell that is embedded in Git Bash. So if
+there isn't already a full Git for Windows installed, do that
+(https://git-scm.com/downloads) and afterwards confirm that the file
+``C:/Program\ Files/Git/usr/bin/sh.exe`` exists.
+
+The next step is to copy the Windows specific hook into place, so
+locate the folder ``.git/hooks`` in the main folder of the git archive
+and copy the file ``tools/hooks/pre-push_windows_git_bash`` into that
+folder. (The interested reader will notice that the only difference
+between the Linux and the Windows version of the hooks is the line at
+the top that indicates the executable that should run the program).
+
+Then there is a bit of difference depending on how git is used. If the
+main interface to git is via powershell (or mayby Command Prompt) and
+a virtual environment is being used and is active, then the commit
+hook will just work.
+
+If the development is done elsewhere, but still somehow relies on a
+virtual environment (either a separate virtual environment or an
+anaconda environment), and git is used via the Git Bash program that
+is installed along with Git for Windows, then a bit more work is
+required before. The problem is that Git Bash does not know about the
+path of the development tools, so that will have to be set manually.
+
+First we should locate the path of the tools. In case a separate
+virtual environment is used, located e.g. in c:\venv\ixdat, then
+c:\venv\ixdat\Scripts will be the path of tools. TODO anaconda.
+
+Having found the path of the tools it needs to be added to the Bash
+configuration file like so:
+
+$ cd
+$ pwd
+/c/Users/Kenneth Nielsen
+$ nano .bashrc
+
+Inside .bashrc add a line like this:
+
+export PATH=/c/venv/ixdat/Scripts:$PATH
+
+where the /c/venv/ixdat/Scripts is the path located before, but
+converted for Git Bash notation, where the C-driver is called /c and /
+is used for directory separation.
+
+After having done this all the development tools and the git hook
+should work. You can test the development tools by starting a new Git
+Bash shell, navigation to the git archive and executing the command:
+
+| $ invoke tox
+| GLOB sdist-make: C:\venv\ixdat\ixdat\setup.py
+| ___________________________________ summary ___________________________________
+|   py39: commands succeeded
+|   flake8: commands succeeded
+|   congratulations :)
 
 Command quick tips
 ==================
@@ -101,11 +164,12 @@ Command quick tips
 tox
 ---
 
-To run all `test environments` simply run
+To run all ``test environments`` simply run
 
 $ tox
 
-To pick a specific one to run, use the `-e` flag followed by the name:
+To pick a specific one to run, use the ``-e`` flag followed by the
+name:
 
 $ tox -e flake8
 
@@ -132,6 +196,6 @@ To run a command with an **invoke specific** argument do:
 
 $ invoke clean --dryrun
 
-To get help on a command, e.g. `clean`, do:
+To get help on a command, e.g. ``clean``, do:
 
 $ invoke --help clean
