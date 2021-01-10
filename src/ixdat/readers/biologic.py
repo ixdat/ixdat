@@ -47,6 +47,10 @@ class BiologicMPTReader:
         column_data (dict of str: np.array): The data in the file as a dict.
             Note that the np arrays are the same ones as in the measurement's DataSeries,
             so this does not waste memory.
+        file_has_been_read (bool): This is used to make sure read() is only successfully
+            called once by the Reader. False until read() is called, then True.
+        measurement (Measurement): The measurement returned by read() when the file is
+            read. self.measureemnt is None before read() is called.
     """
 
     def __init__(self):
@@ -61,6 +65,8 @@ class BiologicMPTReader:
         self.N_header_lines = None
         self.column_names = []
         self.column_data = {}
+        self.file_has_been_read = False
+        self.measurement = None
 
     def read(self, path_to_file):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
@@ -78,6 +84,14 @@ class BiologicMPTReader:
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
         """
+        if self.file_has_been_read:
+            print(
+                f"This {self.__class__.__name__} has already read {self.path_to_file}."
+                " Returning the measurement resulting from the original read. "
+                "Use a new Reader if you want to read another file."
+            )
+            return self.measurement
+
         self.path_to_file = path_to_file
         with open(path_to_file) as f:
             for line in f:
@@ -106,13 +120,16 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        return ECMeasurement(
+        self.measurement = ECMeasurement(
             name=str(self.path_to_file),
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
         )
+        self.file_has_been_read = True
+
+        return self.measurement
 
     def process_line(self, line):
         """Call the correct line processing method depending on self.place_in_file"""
@@ -174,8 +191,6 @@ class BiologicMPTReader:
                 value = float(value_string)
             except ValueError:
                 if "," in value_string:  # oh my god, why?!
-                    value_string = value_string.replace(",", ".")
-                if "E" in value_string:  # Biologic uses capital E for sci. notation.
                     value_string = value_string.replace(",", ".")
                 try:
                     value = float(value_string)
