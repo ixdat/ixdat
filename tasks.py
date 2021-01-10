@@ -1,11 +1,13 @@
 
 """Definition of invoke tasks"""
 
+import sys
 import configparser
+import platform
 from shutil import rmtree
 from invoke import task
 from pathlib import Path
-from subprocess import check_call, CalledProcessError
+from subprocess import check_call, CalledProcessError, check_output
 
 
 THIS_DIR = Path(__file__).parent
@@ -61,12 +63,19 @@ def checks(context):
 def tox(context):
     """Run tox for the python interpreters available on your system"""
     environments = tox_config["tox"]["envlist"].split(", ")
-    environments_to_run = []
 
     # Check which pythons are available on the system
+    if platform.system() == "Windows":
+        environments_to_run = filter_tox_environments_windows(environments)
+    else:
+        environments_to_run = filter_tox_environments_linux(environments)
 
-    # TODO this almost certainly is Linux and possibly MacOS specific
-    # and will need a Windows port
+    context.run("tox -p auto -e " + ",".join(environments_to_run))
+
+
+def filter_tox_environments_linux(environments):
+    """Filter tox environments to only those available on this Linux system"""
+    environments_to_run = []
     for environment in environments:
         if environment.startswith("py"):
             if environment.startswith("pypy"):
@@ -93,8 +102,29 @@ def tox(context):
             environments_to_run.append(environment)
         else:
             environments_to_run.append(environment)
+    return environments_to_run
 
-    context.run("tox -p auto -e " + ",".join(environments_to_run))
+
+def filter_tox_environments_windows(environments):
+    """Filter tox environments to only those available on this Linux system"""
+    python_versions = []
+    for path in sys.path:
+        ppath = Path(path) / "python.exe"
+        if ppath.is_file():
+            version_string = check_output([str(ppath), "--version"]).decode("ascii").strip()
+            version_numbers = version_string.replace("Python ", "").split(".")
+            version = "".join(version_numbers[:2])
+            python_versions.append("py" + version)
+
+    environments_to_run = []
+    for environment in environments:
+        if environment.startswith("py"):
+            if environment in python_versions:
+                environments_to_run.append(environment)
+        else:
+            environments_to_run.append(environment)
+
+    return environments_to_run
 
 
 # ### Maintenance tasks
