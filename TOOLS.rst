@@ -77,6 +77,24 @@ setup.py
 `requirements.txt` for package requirements and `requirements-dev.txt`
 for development requirements.
 
+Git hooks
+=========
+
+The version control system `git` has the option of having check done
+before certain important actions, like a commit or a push. These are
+referred to as `hooks`. For xidat a pre-push is recommended (as
+opposed to a pre-commit hook, which take time to run the tests on
+every commit). The pre-push hook is located in `tools/hooks`.
+
+Git hooks cannot be distributed automatically, so it will need to be
+"installed". On Linux systems this is done by sym-linking it into the
+proper folder:
+
+$ cd .git/hooks
+$ ln -s ../../tools/hooks/pre-push .
+
+Windows instructions TODO.
+
 Command quick tips
 ==================
 
