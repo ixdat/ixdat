@@ -42,6 +42,7 @@ class Measurement(Saveable):
         series_list=None,
         m_ids=None,
         component_measurements=None,
+        reader=None,
         plotter=None,
         exporter=None,
         sample=None,
@@ -64,6 +65,7 @@ class Measurement(Saveable):
                 corresponding to more than one file).
             component_measurements (list of Measurements): The measurements of which
                 this measurement is a combination
+            reader (Reader): The file reader (None unless read from a file)
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
             sample (Sample): The sample being measured
@@ -77,6 +79,7 @@ class Measurement(Saveable):
         if isinstance(metadata, str):
             metadata = json.loads(metadata)
         self.metadata = metadata or {}
+        self.reader = reader
         self.plotter = plotter or ValuePlotter(measurement=self)
         self.exporter = exporter or CSVExporter(measurement=self)
         if isinstance(sample, str):
@@ -231,8 +234,10 @@ class Measurement(Saveable):
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
-        mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-        return t[mask], v[mask]
+        if tspan:
+            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
+            t, v = t[mask], v[mask]
+        return t, v
 
     @property
     def data_cols(self):
@@ -380,14 +385,14 @@ def time_shifted(series, tstamp=None):
     if isinstance(series, TimeSeries):
         return cls(
             name=series.name,
-            unit=series.unit,
+            unit_name=series.unit.name,
             data=series.data + series.tstamp - tstamp,
             tstamp=tstamp,
         )
     elif isinstance(series, ValueSeries):
         series = cls(
             name=series.name,
-            unit=series.unit,
+            unit_name=series.unit.name,
             data=series.data,
             tseries=time_shifted(series.tseries, tstamp=tstamp),
         )
