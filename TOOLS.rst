@@ -120,9 +120,10 @@ there isn't already a full Git for Windows installed, do that
 The next step is to copy the Windows specific hook into place, so
 locate the folder ``.git/hooks`` in the main folder of the git archive
 and copy the file ``tools/hooks/pre-push_windows_git_bash`` into that
-folder. (The interested reader will notice that the only difference
-between the Linux and the Windows version of the hook, is the line at
-the top that indicates the executable that should run the program).
+folder and shorten its name to ``.git/hooks/pre-push``. (The interested
+reader will notice that the only difference between the Linux and the
+Windows version of the hook, is the line at the top that indicates the
+executable that should run the program).
 
 Then there is a bit of difference depending on how git is used. If the
 main interface to git is via powershell (or mayby Command Prompt) and
