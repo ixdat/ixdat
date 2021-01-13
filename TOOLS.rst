@@ -15,9 +15,19 @@ The following is a list of "tool and commands runners":
 * **invoke** is used during development, to run tools and other
   pre-configured maintenance tasks inside the existing development
   environment
-* **tox** is used as a tool to run all **QA** tools and commands
-  across all supported enviroments, typically before push or by
-  continuous integration (CI) tools
+* **tox** is used as a tool to run all quality assurance (**QA**)
+  tools and commands across all supported enviroments, typically
+  before push or by continuous integration (CI) tools
+
+Install instructions
+--------------------
+
+Install all development tools by executing::
+
+  pip install -r requirements-dev.txt
+
+while being at the git archive root in your virtual environment or
+anaconda environment.
 
 Tool and command runners in more detail
 =======================================
@@ -56,10 +66,11 @@ Where are settings and arguments kept
 
 For settings and arguments for tools the following rules apply:
 
-* **setup.cfg** If the tool support defining them in the shared
-  configuration file ``setup.cfg``, then they belong there no-matter
-  how they are run. If not (settings may only be available at the
-  command line), see the next points.
+* **setup.cfg** (not to be confused with setup.py which is used for
+  bilding the package) If the tools support defining settings in the
+  shared configuration file ``setup.cfg``, then they belong there
+  no-matter how the tools are run. If not (settings may only be
+  available at the command line), see the next points.
 * **tox.ini** If the tool is run by both ``tox`` and ``invoke``, then
   the settings belong in the ``tox`` configuration file and ``invoke``
   will have to read them from there
@@ -94,10 +105,10 @@ Linux instructions
 
 On Linux systems this is done by sym-linking it into the proper
 folder. Starting at the base folder of the git archive it looks like
-this:
+this::
 
-$ cd .git/hooks
-$ ln -s ../../tools/hooks/pre-push .
+ $ cd .git/hooks
+ $ ln -s ../../tools/hooks/pre-push .
 
 Windows instructions
 --------------------
@@ -112,7 +123,7 @@ The next step is to copy the Windows specific hook into place, so
 locate the folder ``.git/hooks`` in the main folder of the git archive
 and copy the file ``tools/hooks/pre-push_windows_git_bash`` into that
 folder. (The interested reader will notice that the only difference
-between the Linux and the Windows version of the hooks is the line at
+between the Linux and the Windows version of the hook, is the line at
 the top that indicates the executable that should run the program).
 
 Then there is a bit of difference depending on how git is used. If the
@@ -124,39 +135,43 @@ If the development is done elsewhere, but still somehow relies on a
 virtual environment (either a separate virtual environment or an
 anaconda environment), and git is used via the Git Bash program that
 is installed along with Git for Windows, then a bit more work is
-required before. The problem is that Git Bash does not know about the
-path of the development tools, so that will have to be set manually.
+required. The problem is that Git Bash does not know about the path of
+the development tools, so that will have to be set manually.
 
 First we should locate the path of the tools. In case a separate
-virtual environment is used, located e.g. in c:\venv\ixdat, then
-c:\venv\ixdat\Scripts will be the path of tools. TODO anaconda.
+virtual environment is used, located e.g. in ``c:\venv\ixdat``, then
+``c:\venv\ixdat\Scripts`` will be the path of tools. TODO anaconda.
 
 Having found the path of the tools it needs to be added to the Bash
-configuration file like so:
+configuration file like so::
 
-$ cd
-$ pwd
-/c/Users/Kenneth Nielsen
-$ nano .bashrc
+ $ cd
+ $ pwd
+ /c/Users/Kenneth Nielsen
+ $ nano .bashrc
 
-Inside .bashrc add a line like this:
+The last line will open the ``.bashrc`` file in the terminal editor
+``nano`` (https://www.nano-editor.org/dist/latest/cheatsheet.html). In
+the editor, add this line to end of the file::
 
-export PATH=/c/venv/ixdat/Scripts:$PATH
+  export PATH=/c/venv/ixdat/Scripts:$PATH
 
-where the /c/venv/ixdat/Scripts is the path located before, but
-converted for Git Bash notation, where the C-driver is called /c and /
-is used for directory separation.
+and save the file and exit by pressing ``Ctrl-x`` followed by ``Y``
+(if your editor is in english) and ``Enter``. The
+``/c/venv/ixdat/Scripts`` part of that line is the path located
+before, but converted for Git Bash notation, where the C-drive is
+called ``/c`` and ``/`` is used for directory separation.
 
 After having done this all the development tools and the git hook
 should work. You can test the development tools by starting a new Git
-Bash shell, navigation to the git archive and executing the command:
+Bash shell, navigation to the git archive and executing the command::
 
-| $ invoke tox
-| GLOB sdist-make: C:\venv\ixdat\ixdat\setup.py
-| ___________________________________ summary ___________________________________
-|   py39: commands succeeded
-|   flake8: commands succeeded
-|   congratulations :)
+ $ invoke tox
+ GLOB sdist-make: C:\venv\ixdat\ixdat\setup.py
+ ___________________________________ summary ___________________________________
+   py39: commands succeeded
+   flake8: commands succeeded
+   congratulations :)
 
 Command quick tips
 ==================
@@ -164,38 +179,38 @@ Command quick tips
 tox
 ---
 
-To run all ``test environments`` simply run
+To run all ``test environments`` simply run::
 
-$ tox
+ $ tox
 
 To pick a specific one to run, use the ``-e`` flag followed by the
-name:
+name::
 
-$ tox -e flake8
+ $ tox -e flake8
 
-To list the enviroments do:
+To list the enviroments do::
 
-$ tox -l
+ $ tox -l
 
-To force recreation of all tox' virtual environments do
+To force recreation of all tox' virtual environments do::
 
-$ tox -r
+ $ tox -r
 
 invoke
 ------
 
-To see a list of all tasks:
+To see a list of all tasks::
 
-$ invoke --list
+ $ invoke --list
 
-To run a specific task, say linting, run:
+To run a specific task, say linting, run::
 
-$ invoke lint
+ $ invoke lint
 
-To run a command with an **invoke specific** argument do:
+To run a command with an **invoke specific** argument do::
 
-$ invoke clean --dryrun
+ $ invoke clean --dryrun
 
-To get help on a command, e.g. ``clean``, do:
+To get help on a command, e.g. ``clean``, do::
 
-$ invoke --help clean
+ $ invoke --help clean

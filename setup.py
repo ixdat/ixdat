@@ -1,9 +1,13 @@
 
 """Initial setup.py
 
-TODO: This file is very rudimentary and is setup purely to enable tox to
-run. None of the information in it reflects necessarily what it should be and
-will be updated to proper values by project owner.
+TODO: This file is rudimentary and setup mainly to enable tox to
+run. The main points missing are:
+
+* Proper and correct trove classifiers (https://pypi.org/classifiers/)
+* A read through of metadata in ``__init__.py``
+* Handling of data files (necessary for the package to run, not for
+  development) when we start to get those
 
 """
 
@@ -17,18 +21,35 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 PACKAGES = setuptools.find_packages(where="./src")
 
 
+# The `read` and `find_meta` functions are shamelessly stolen from
+# https://hynek.me/articles/sharing-your-labor-of-love-pypi-quick-and-dirty/
+# and their doc strings adapted
+
+
 def read(*parts):
-    """
-    Build an absolute path from *parts* and and return the contents of the
-    resulting file.  Assume UTF-8 encoding.
+    """Build an absolute path from *parts* and return the contents of
+    the resulting file as a string.
+
+    Assume UTF-8 encoding.
+
     """
     with codecs.open(os.path.join(HERE, *parts), "rb", "utf-8") as f:
         return f.read()
 
 
+META_FILE = read(META_PATH)
+
+
 def find_meta(meta):
-    """
-    Extract __*meta*__ from META_FILE.
+    """Extract a piece of double underscore defined metadata from the
+    global META_FILE (defined above).
+
+    If e.g. in META_FILE there is the code::
+
+     __author__ = "Guido"
+
+    then find_meta("author") will return "Guido"
+
     """
     meta_match = re.search(
         r"^__{meta}__ = ['\"]([^'\"]*)['\"]".format(meta=meta),
@@ -40,8 +61,6 @@ def find_meta(meta):
         "Unable to find __{meta}__ string.".format(meta=meta)
     )
 
-
-META_FILE = read(META_PATH)
 
 setuptools.setup(
     name=find_meta("title"),

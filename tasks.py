@@ -7,7 +7,7 @@ import platform
 from shutil import rmtree
 from invoke import task
 from pathlib import Path
-from subprocess import check_call, CalledProcessError, check_output
+from subprocess import check_call, CalledProcessError, check_output, DEVNULL
 
 
 THIS_DIR = Path(__file__).parent
@@ -20,8 +20,27 @@ tox_config.read(THIS_DIR / "tox.ini")
 
 
 def extract_first_command_from_tox_env(environment):
-    """Extract the first command from list of commands from tox.ini"""
+    """Extract the first command from the list of commands from tox.ini
+    configuration file
+
+    This function is used to extract the command used to run a tool
+    from the tox.ini configuration file. The reason for this is that
+    the QA tools needs to be run both by invoke and by tox. So to
+    prevent the proliferation of settings they are written only in the
+    tox configuration file and read here.
+
+    """
     commands_string = tox_config[environment]["commands"]
+    # The commands key contain potentially a list of commands
+    # (although there is often only one). In .ini files they look like
+    # this:
+    #
+    # commands =
+    #     command1
+    #     command2
+    #
+    # and so it commonly begins with a newline and the elements are
+    # separated by newline. Hence the parsing below.
     commands = commands_string.split("\n")
     if commands[0].strip() == "" and len(commands) > 0:
         commands = commands[1:]
@@ -33,7 +52,13 @@ def extract_first_command_from_tox_env(environment):
 
 @task(aliases=["lint"])
 def flake8(context):
-    """Run the flake8 task"""
+    """Run the flake8 task
+
+    The ``context`` argument is automatically passed in by invoke and
+    represents the context the commands is to be "invoked" in. See
+    http://docs.pyinvoke.org/en/stable/api/context.html for details.
+
+    """
     command = extract_first_command_from_tox_env("testenv:flake8")
     print("# flake8")
     return context.run(command).return_code
@@ -41,7 +66,11 @@ def flake8(context):
 
 @task(aliases=["test", "tests"])
 def pytest(context):
-    """Run the pytest task"""
+    """Run the pytest task
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+
+    """
     command = extract_first_command_from_tox_env("testenv")
     print("# pytest")
     return context.run(command).return_code
@@ -49,7 +78,11 @@ def pytest(context):
 
 @task(aliases=["QA", "qa", "check"])
 def checks(context):
-    """Run all QA checks"""
+    """Run all QA checks
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+
+    """
     combined_return_code = flake8(context)
     combined_return_code += pytest(context)
     if combined_return_code == 0:
@@ -60,22 +93,41 @@ def checks(context):
 
 
 @task
-def tox(context):
-    """Run tox for the python interpreters available on your system"""
+def tox(context, single=False):
+    """Run tox for the python interpreters available on your system
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+
+    Args:
+
+        single (bool): Whether or not to restrict the tox run to the
+            first python environment found, instead of all of
+            the. This option is available at the command line as the
+            ``single`` or ``-s`` option and used like so:
+            `invoke tox --single`
+
+    """
     environments = tox_config["tox"]["envlist"].split(", ")
 
     # Check which pythons are available on the system
     if platform.system() == "Windows":
-        environments_to_run = filter_tox_environments_windows(environments)
+        environments_to_run = filter_tox_environments_windows(environments, single=single)
     else:
-        environments_to_run = filter_tox_environments_linux(environments)
+        environments_to_run = filter_tox_environments_linux(environments, single=single)
 
     context.run("tox -p auto -e " + ",".join(environments_to_run))
 
 
-def filter_tox_environments_linux(environments):
-    """Filter tox environments to only those available on this Linux system"""
+def filter_tox_environments_linux(environments, single=False):
+    """Filter tox environments to only those available on this Linux system
+
+    Args:
+        single (bool): Whether or not to return just a single **python** environment,
+            no-matter how many are available
+
+    """
     environments_to_run = []
+    found_at_least_one_python = False
     for environment in environments:
         if environment.startswith("py"):
             if environment.startswith("pypy"):
@@ -86,41 +138,62 @@ def filter_tox_environments_linux(environments):
 
             # Check that the executable exists
             try:
-                check_call([command, "--version"])
+                check_call([command, "--version"], stdout=DEVNULL)
             except (CalledProcessError, FileNotFoundError):
                 continue
 
             # Certain version of Ubuntu may have a old "reduced"
-            # Python version, with an "m" suffix. It is unsifficient
+            # Python version, with an "m" suffix. It is insufficient
             # for tox so check that it isn't there.
             try:
-                check_call([command + "m", "--version"])
+                check_call([command + "m", "--version"], stdout=DEVNULL)
                 continue
             except (CalledProcessError, FileNotFoundError):
                 pass
 
+            if found_at_least_one_python and single:
+                continue
+
             environments_to_run.append(environment)
+            found_at_least_one_python = True
+
         else:
             environments_to_run.append(environment)
     return environments_to_run
 
 
-def filter_tox_environments_windows(environments):
-    """Filter tox environments to only those available on this Linux system"""
+def filter_tox_environments_windows(environments, single=False):
+    """Filter tox environments to only those available on this Windows system
+
+
+    Args:
+        single (bool): Whether or not to return just a single **python** environment,
+            no-matter how many are available
+
+    """
     python_versions = []
     for path in sys.path:
-        ppath = Path(path) / "python.exe"
-        if ppath.is_file():
-            version_string = check_output([str(ppath), "--version"]).decode("ascii").strip()
+        python_path = Path(path) / "python.exe"
+        if python_path.is_file():
+            version_string = check_output(
+                [str(python_path), "--version"]
+            ).decode("ascii").strip()
+            # The version string comes back as: Python 3.7.2
+            # hence the parsing below
             version_numbers = version_string.replace("Python ", "").split(".")
             version = "".join(version_numbers[:2])
             python_versions.append("py" + version)
 
     environments_to_run = []
+    found_at_least_one_python = False
     for environment in environments:
         if environment.startswith("py"):
             if environment in python_versions:
+                if found_at_least_one_python and single:
+                    continue
+
                 environments_to_run.append(environment)
+                found_at_least_one_python = True
         else:
             environments_to_run.append(environment)
 
@@ -131,8 +204,20 @@ def filter_tox_environments_windows(environments):
 
 
 @task
-def clean(c, dryrun=False):
-    """Clean the repository of temporary files and caches"""
+def clean(context, dryrun=False):
+    """Clean the repository of temporary files and caches
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+
+    Arguments:
+
+        dryrun (bool): Whether to perform a dryrun, meaning only show
+            what would be deleted, but don't actually delete it. This
+            option can accessed on the command line as the
+            ``--dryrun`` or ``-d`` option like so:
+            `invoke clean --dryrun`
+
+    """
     if dryrun:
         print("CLEANING DRYRUN")
     for clean_pattern in CLEAN_PATTERNS:

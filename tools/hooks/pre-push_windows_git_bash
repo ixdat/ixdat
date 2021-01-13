@@ -18,5 +18,5 @@
 #
 # This script should be copied or better yet sym-linked into .git/hooks/
 
-invoke tox
+invoke tox --single
 exit $?
