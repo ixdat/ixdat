@@ -66,16 +66,14 @@ Where are settings and arguments kept
 
 For settings and arguments for tools the following rules apply:
 
-* **setup.cfg** (not to be confused with setup.py which is used for
-  bilding the package) If the tools support defining settings in the
-  shared configuration file ``setup.cfg``, then they belong there
-  no-matter how the tools are run. If not (settings may only be
-  available at the command line), see the next points.
-* **tox.ini** If the tool is run by both ``tox`` and ``invoke``, then
-  the settings belong in the ``tox`` configuration file and ``invoke``
-  will have to read them from there
-* **tasks.py** If the tool is ``invoke`` specific, then obviously the
-  configuration goes into its "configuration file" ``tasks.py``
+* **setup.cfg**) (not to be confused with setup.py, which is used for
+  building the package) If the tools support configuration in the
+  shared configuration file ``setup.cfg``, then it belong there
+  always!
+* **tox.ini** and **tasks.py**) If the tools only support
+  configuration on the command line, then it goes into the
+  configuration files of the tool runners, ``tox.ini`` for tox and
+  ``tasks.py`` for invoke.
 
 Non-tool related "settings"
 ```````````````````````````

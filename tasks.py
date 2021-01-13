@@ -12,39 +12,12 @@ from subprocess import check_call, CalledProcessError, check_output, DEVNULL
 
 THIS_DIR = Path(__file__).parent
 SOURCE_DIR = THIS_DIR / "src" / "ixdat"
+# Patterns to match for files of directories that should be deleted in the clean task
 CLEAN_PATTERNS = ("__pycache__", "*.pyc", "*.pyo", ".mypy_cache")
 
 
 tox_config = configparser.ConfigParser()
 tox_config.read(THIS_DIR / "tox.ini")
-
-
-def extract_first_command_from_tox_env(environment):
-    """Extract the first command from the list of commands from tox.ini
-    configuration file
-
-    This function is used to extract the command used to run a tool
-    from the tox.ini configuration file. The reason for this is that
-    the QA tools needs to be run both by invoke and by tox. So to
-    prevent the proliferation of settings they are written only in the
-    tox configuration file and read here.
-
-    """
-    commands_string = tox_config[environment]["commands"]
-    # The commands key contain potentially a list of commands
-    # (although there is often only one). In .ini files they look like
-    # this:
-    #
-    # commands =
-    #     command1
-    #     command2
-    #
-    # and so it commonly begins with a newline and the elements are
-    # separated by newline. Hence the parsing below.
-    commands = commands_string.split("\n")
-    if commands[0].strip() == "" and len(commands) > 0:
-        commands = commands[1:]
-    return commands[0]
 
 
 # ### QA tasks
@@ -59,9 +32,8 @@ def flake8(context):
     http://docs.pyinvoke.org/en/stable/api/context.html for details.
 
     """
-    command = extract_first_command_from_tox_env("testenv:flake8")
     print("# flake8")
-    return context.run(command).return_code
+    return context.run("flake8").return_code
 
 
 @task(aliases=["test", "tests"])
@@ -71,9 +43,8 @@ def pytest(context):
     See docstring of :func:`flake8` for explanation of `context` argument
 
     """
-    command = extract_first_command_from_tox_env("testenv")
     print("# pytest")
-    return context.run(command).return_code
+    return context.run("pytest").return_code
 
 
 @task(aliases=["QA", "qa", "check"])
