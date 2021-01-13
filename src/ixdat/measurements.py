@@ -11,7 +11,6 @@ from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, ValueSeries
 from .samples import Sample
 from .lablogs import LabLog
-from .plotters import ValuePlotter
 from .exporters import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError
 
@@ -80,7 +79,7 @@ class Measurement(Saveable):
             metadata = json.loads(metadata)
         self.metadata = metadata or {}
         self.reader = reader
-        self.plotter = plotter or ValuePlotter(measurement=self)
+        self.plotter = plotter
         self.exporter = exporter or CSVExporter(measurement=self)
         if isinstance(sample, str):
             sample = Sample.load_or_make(sample)
@@ -248,6 +247,10 @@ class Measurement(Saveable):
         """Plot the measurement using its plotter (see its Plotter for details)"""
         if plotter:
             return plotter.plot_measurement(self, *args, **kwargs)
+        if not self.plotter:
+            from .plotters import ValuePlotter
+
+            self.plotter = ValuePlotter
         return self.plotter.plot(*args, **kwargs)
 
     def export(self, exporter=None, *args, **kwargs):

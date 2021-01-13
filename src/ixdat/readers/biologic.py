@@ -100,7 +100,7 @@ class BiologicMPTReader:
             for line in f:
                 self.process_line(line)
 
-        if not t_str in self.column_data:
+        if t_str not in self.column_data:
             raise ReadError(
                 f"{self} did not find any data for t_str='{t_str}'. "
                 f"This reader only works for files with a '{t_str}' column"
@@ -231,9 +231,12 @@ def timestamp_string_to_tstamp(timestamp_string, form=timestamp_string_form):
 
 
 if __name__ == "__main__":
-    """To run this module demo in PyCharm, configure it to run with 
-    Module name = ixdat.readers.biologic,
-    and *not* Script path = ...
+    """Module demo here.
+
+    To run this module in PyCharm, open Run Configuration and set
+        Module name = ixdat.readers.biologic,
+    and *not*
+        Script path = ...
     """
 
     from pathlib import Path
