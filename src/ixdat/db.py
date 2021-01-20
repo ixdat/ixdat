@@ -59,7 +59,7 @@ class DataBase:
 
     def load_obj_data(self, obj):
         """Load and return the numerical data (obj.data) for a Saveable object"""
-        return self.backend.get_obj_data(obj)
+        return self.backend.load_obj_data(obj)
 
     def set_backend(self, backend_name, **db_kwargs):
         """Change backend to the class given by backend_name initiated with db_kwargs"""
@@ -215,18 +215,22 @@ class Saveable:
         self_as_dict = self.get_main_dict()
         if self.extra_column_attrs:
             aux_tables_dict = {
-                table_name: {column: getattr(self, attr) for column, attr in extras}
+                table_name: {
+                    column: getattr(self, attr) for column, attr in extras.items()
+                }
                 for table_name, extras in self.extra_column_attrs.items()
             }
             for aux_dict in aux_tables_dict.values():
                 self_as_dict.update(**aux_dict)
         if self.extra_linkers:
             linker_tables_dict = {
-                table_name: {column: getattr(self, attr) for column, attr in linkers}
+                table_name: {
+                    column: getattr(self, attr) for column, attr in linkers[1].items()
+                }
                 for table_name, linkers in self.extra_linkers.items()
             }
-            for linker in linker_tables_dict.values():
-                self_as_dict.update(**linker[1])
+            for linked_attrs in linker_tables_dict.values():
+                self_as_dict.update(**linked_attrs)
         return self_as_dict
 
     def save(self, db=None):

@@ -71,7 +71,7 @@ class BiologicMPTReader:
         self.file_has_been_read = False
         self.measurement = None
 
-    def read(self, path_to_file):
+    def read(self, path_to_file, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -86,6 +86,7 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
         """
         if self.file_has_been_read:
             print(
@@ -123,13 +124,16 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        self.measurement = ECMeasurement(
+        init_kwargs = dict(
             name=str(self.path_to_file),
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
         )
+        init_kwargs.update(kwargs)
+
+        self.measurement = ECMeasurement(**init_kwargs)
         self.file_has_been_read = True
 
         return self.measurement
@@ -243,9 +247,10 @@ if __name__ == "__main__":
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 
-    test_data_dir = Path(
-        __file__
-    ).parent.parent.parent.parent / "test_data/biologic_mpt_and_zilien_tsv"
+    test_data_dir = (
+        Path(__file__).parent.parent.parent.parent
+        / "test_data/biologic_mpt_and_zilien_tsv"
+    )
 
     path_to_test_file = (
         test_data_dir / "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"

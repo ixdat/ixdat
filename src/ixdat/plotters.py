@@ -13,14 +13,18 @@ class ValuePlotter:
         """Plot the exporter's measurement via plotter.plot_measurement()"""
         return self.plot_measurement(measurement=self.measurement, *args, **kwargs)
 
-    def plot_measurement(self, measurement, v_list=None, tspan=None, ax=None):
-        """Plot a measurement.
+    def plot_measurement(
+        self, measurement, v_list=None, tspan=None, ax=None, legend=True, logscale=False
+    ):
+        """Plot a measurement's values vs time
 
         Args:
             measurement (Measurement): The measurement to plot
             v_list (list of str): The names of the data series to include. Defaults to
                 names of all VSeries in the measurement.
             tspan (timespan): The timespan to include in the file, defaults to all of it
+            legend (bool): Whether to include a legend. Defaults to True.
+            logscale (bool): Whether to use a log-scaled y-axis. Defaults to False.
         """
         if not ax:
             fig, ax = plt.subplots()
@@ -29,5 +33,8 @@ class ValuePlotter:
         for v_name in v_list:
             v, t = measurement.get_t_and_v(v_name, tspan=tspan)
             ax.plot(v, t, label=v_name)
+
+        if legend:
+            ax.legend()
 
         return ax

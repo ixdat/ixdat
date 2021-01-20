@@ -20,10 +20,10 @@ class Measurement(Saveable):
 
     table_name = "measurement"
     column_attrs = {
-        "id": "i",
+        "id": "id",
         "name": "name",
         "technique": "technique",
-        "metadata": "metadata_json",
+        "metadata": "metadata_json_string",
         "sample": "sample_name",
         "tstamp": "tstamp",
     }
@@ -113,7 +113,7 @@ class Measurement(Saveable):
         return technique_class(**obj_as_dict)
 
     @classmethod
-    def read(cls, path_to_file, reader):
+    def read(cls, path_to_file, reader, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader"""
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
@@ -121,7 +121,7 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        return reader.read(path_to_file)
+        return reader.read(path_to_file, **kwargs)
 
     @property
     def metadata_json_string(self):
@@ -131,7 +131,8 @@ class Measurement(Saveable):
     @property
     def sample_name(self):
         """Name of the sample on which the measurement was conducted"""
-        return self.sample.name
+        if self.sample:
+            return self.sample.name
 
     @property
     def series_list(self):
@@ -250,7 +251,7 @@ class Measurement(Saveable):
         if not self.plotter:
             from .plotters import ValuePlotter
 
-            self.plotter = ValuePlotter
+            self.plotter = ValuePlotter(measurement=self)
         return self.plotter.plot(*args, **kwargs)
 
     def export(self, exporter=None, *args, **kwargs):
