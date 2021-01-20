@@ -120,12 +120,11 @@ class Saveable:
     Class attributes:
         db (DataBase): the database, DB, which has the save, get, and load_data methods
         table_name (str): The name of the table or folder in which objects are saved
-        column_attrs (dict): {column: attr} where column (str) is the name of the
-            column in the table and attr (str) is the name of the attribute of the
-            class. The two names column and attr are often but not always the same.
-        extra_column_attrs (dict): {table_name: {column: attr}} for auxiliary tables
+        column_attrs (set of str): {attr} where attr is the name of the column in the
+            table and also the name of the attribute of the class.
+        extra_column_attrs (dict): {table_name: {attr}} for auxiliary tables
             to represent the "extra" attributes, for double-inheriting classes.
-        linkers (dict): {table_name: (reference_table, {column: attr})} for defining
+        linkers (dict): {table_name: (reference_table, attr)} for defining
             the connections between objects.
 
     Object attributes:
@@ -205,9 +204,7 @@ class Saveable:
                 f"{self} can't be serialized because the class "
                 f"{self.__class__.__name__} hasn't defined column_attrs"
             )
-        self_as_dict = {
-            column: getattr(self, attr) for column, attr in self.column_attrs.items()
-        }
+        self_as_dict = {attr: getattr(self, attr) for attr in self.column_attrs}
         return self_as_dict
 
     def as_dict(self):
@@ -215,19 +212,15 @@ class Saveable:
         self_as_dict = self.get_main_dict()
         if self.extra_column_attrs:
             aux_tables_dict = {
-                table_name: {
-                    column: getattr(self, attr) for column, attr in extras.items()
-                }
+                table_name: {attr: getattr(self, attr) for attr in extras}
                 for table_name, extras in self.extra_column_attrs.items()
             }
             for aux_dict in aux_tables_dict.values():
                 self_as_dict.update(**aux_dict)
         if self.extra_linkers:
             linker_tables_dict = {
-                table_name: {
-                    column: getattr(self, attr) for column, attr in linkers[1].items()
-                }
-                for table_name, linkers in self.extra_linkers.items()
+                (table_name, linked_table_name): {attr: getattr(self, attr)}
+                for table_name, (linked_table_name, attr) in self.extra_linkers.items()
             }
             for linked_attrs in linker_tables_dict.values():
                 self_as_dict.update(**linked_attrs)

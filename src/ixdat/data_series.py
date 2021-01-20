@@ -19,10 +19,9 @@ class DataSeries(Saveable):
 
     table_name = "data_series"
     column_attrs = {
-        "id": "id",
-        "name": "name",
-        "unit_name": "unit_name",
-        "data": "data",
+        "name",
+        "unit_name",
+        "data",
     }
 
     def __init__(self, name, unit_name, data):
@@ -68,7 +67,7 @@ class DataSeries(Saveable):
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
-    extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
+    extra_column_attrs = {"tstamps": {"tstamp"}}
 
     def __init__(self, name, unit_name, data, tstamp):
         """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
@@ -92,7 +91,7 @@ class ValueSeries(DataSeries):
     represented in relational databases as a row in an auxiliary linker table
     """
 
-    extra_linkers = {"value_time": ("data_series", {"t_ids": "t_ids"})}
+    extra_linkers = {"value_time": ("data_series", "t_ids")}
 
     def __init__(self, name, unit_name, data, t_id=None, t_ids=None, tseries=None):
         """Initiate a ValueSeries with a TimeSeries or a reference thereto
@@ -159,7 +158,7 @@ class Field(DataSeries):
     DataSeries. This is represented in the extra linkers.
     """
 
-    extra_linkers = {"field_axes": ("data_series", {"a_ids": "a_ids"})}
+    extra_linkers = {"field_axes": ("data_series", "a_ids")}
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
         """Initiate the Field and check that the supplied axes make sense.

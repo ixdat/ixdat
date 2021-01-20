@@ -20,16 +20,15 @@ class Measurement(Saveable):
 
     table_name = "measurement"
     column_attrs = {
-        "id": "id",
-        "name": "name",
-        "technique": "technique",
-        "metadata": "metadata_json_string",
-        "sample": "sample_name",
-        "tstamp": "tstamp",
+        "name",
+        "technique",
+        "metadata_json_string",
+        "sample_name",
+        "tstamp",
     }
     extra_linkers = {
-        "measurement_series": ("data_series", {"s_ids": "s_ids"}),
-        "component_measurements": ("measurements", {"m_ids": "m_ids"}),
+        "measurement_series": ("data_series", "s_ids"),
+        "component_measurements": ("measurements", "m_ids"),
     }
 
     def __init__(
@@ -37,6 +36,7 @@ class Measurement(Saveable):
         name,
         technique=None,
         metadata=None,
+        metadata_json_string=None,
         s_ids=None,
         series_list=None,
         m_ids=None,
@@ -45,6 +45,7 @@ class Measurement(Saveable):
         plotter=None,
         exporter=None,
         sample=None,
+        sample_name=None,
         lablog=None,
         tstamp=None,
     ):
@@ -54,7 +55,8 @@ class Measurement(Saveable):
             name (str): The name of the measurement
             TODO: Decide if metadata needs the json string option.
                 See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
-            metadata (dict or json string): Free-form measurement metadata
+            metadata (dict): Free-form measurement metadata
+            metadata_json_string (str): Free-form measurement metadata as json string
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
@@ -67,7 +69,8 @@ class Measurement(Saveable):
             reader (Reader): The file reader (None unless read from a file)
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
-            sample (Sample): The sample being measured
+            sample (Sample): The (already loaded) sample being measured
+            sample_name (str): The name of the sample being measured (will be loaded)
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
                 data selection, visualization, and exporting.
@@ -75,13 +78,13 @@ class Measurement(Saveable):
         super().__init__()
         self.name = name
         self.technique = technique
-        if isinstance(metadata, str):
-            metadata = json.loads(metadata)
+        if metadata_json_string and not metadata:
+            metadata = json.loads(metadata_json_string)
         self.metadata = metadata or {}
         self.reader = reader
         self.plotter = plotter
         self.exporter = exporter or CSVExporter(measurement=self)
-        if isinstance(sample, str):
+        if sample_name and not sample:
             sample = Sample.load_or_make(sample)
         self.sample = sample
         if isinstance(lablog, str):

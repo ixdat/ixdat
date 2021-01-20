@@ -135,6 +135,7 @@ class DirBackend(BackendBase):
         if not folder.exists():
             folder.mkdir()
         i = self.get_next_available_id(table_name)
+        obj_as_dict.update({"id": i})
         fixed_name = fix_name_for_saving(obj_as_dict["name"])
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
 
@@ -153,7 +154,6 @@ class DirBackend(BackendBase):
         """Return the Path to the file representing row i of the table `table_name`"""
         folder = self.project_directory / table_name
         for p in folder.iterdir():
-            print("checking ")
             if id_from_path(p) == i and p.suffix == self.metadata_suffix:
                 return p
         print(f"could not find row with id={i} in table '{table_name}'")
