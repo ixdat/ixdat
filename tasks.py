@@ -82,7 +82,9 @@ def tox(context, single=False):
 
     # Check which pythons are available on the system
     if platform.system() == "Windows":
-        environments_to_run = filter_tox_environments_windows(environments, single=single)
+        environments_to_run = filter_tox_environments_windows(
+            environments, single=single
+        )
     else:
         environments_to_run = filter_tox_environments_linux(environments, single=single)
 
