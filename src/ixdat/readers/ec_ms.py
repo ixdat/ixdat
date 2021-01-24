@@ -1,17 +1,31 @@
 from . import TECHNIQUE_CLASSES
 import pickle
-from .data_series import TimeSeries, ValueSeries
-from .measurements import Measurement
+from ..data_series import TimeSeries, ValueSeries
+from ..measurements import Measurement
+from ..techniques.ec_ms import ECMSMeasurement
+
 
 ECMSMeasruement = TECHNIQUE_CLASSES["EC-MS"]
 
 
 class EC_MS_CONVERTER:
+"""Class that converts old .pkl files obtained from the legacy EC-MS package
+into a ixdat ECMSMeasurement object. Metadata from the .pkl is omitted.
+"""
     def __init__(self):
         print('Reader of old ECMS .pkl files')
 
     def read(self, file_path):
+        """Return an ECMSMeasurement with the data recorded in path_to_file
 
+        This loops through the keys of the EC-MS dict and searches for MS and
+        EC data. Names the dataseries according to their names in the original
+        dict. Omitts any other data as well as metadata.
+
+        Args:
+            path_to_file (Path): The full abs or rel path including the
+            ".pkl" extension.
+        """
         with open(file_path, "rb") as f:
             data = pickle.load(f)
 
@@ -39,7 +53,7 @@ class EC_MS_CONVERTER:
         for col in cols_str:
             if col[0] == "M" and col[-1] == "y":
                 cols_list.append(ValueSeries(
-                col, "A",
+                col[:-2], "A",
                 data[col],
                 tseries=measurement[col[:-1] + 'x']
                 ))
@@ -50,8 +64,10 @@ class EC_MS_CONVERTER:
                 tseries=measurement['time/s']
                 ))
 
-        measurement = Measurement('tseries_ms',
+        measurement = ECMSMeasurement(file_path,
             technique = 'EC_MS',
-            series_list=cols_list)
+            series_list=cols_list,
+            reader=self,
+            tstamp=data["tstamp"])
 
         return measurement

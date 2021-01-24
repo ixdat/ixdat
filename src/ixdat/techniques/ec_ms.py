@@ -6,3 +6,6 @@ from .ms import MSMeasurement
 
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class implementing raw EC-MS functionality"""
+
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
