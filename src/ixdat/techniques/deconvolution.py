@@ -142,7 +142,7 @@ class Kernel:
 
     @property
     def sig_area(self):
-    """Integrates a measured impulse response and returns the area."""
+        """Integrates a measured impulse response and returns the area."""
         delta_sig = self.MS_data[1] - self.MS_data[1][-1]
         sig_area = np.trapz(delta_sig, self.MS_data[0])
 
@@ -151,8 +151,9 @@ class Kernel:
 
     @property
     def charge(self):
-    """Integrates the measured current over the time of the impulse and returns
-    the charge passed."""
+        """Integrates the measured current over the time of the impulse and returns
+        the charge passed.
+        """
         y_curr = self.EC_data[1]
 
         mask = np.isclose(
@@ -171,7 +172,7 @@ class Kernel:
         norm=True,
         **kwargs
         ):
-    """Returns a plot of the kernel/impulse response."""
+        """Returns a plot of the kernel/impulse response."""
         if ax is None:
             fig1 = plt.figure()
             ax = fig1.add_subplot(111)
@@ -196,22 +197,22 @@ class Kernel:
 
     def gen_kernel(self,
         dt=0.1,
-        len=100
+        len=100,
         norm=True,
         matrix=False
         ):
-    """Generates a kernel/impulse response based on the defined mass transport
-    parameters contained in dict.
+        """Generates a kernel/impulse response based on the defined mass
+        transport parameters contained in dict.
 
-    Args:
-        dt (int): Timestep for which the kernel/impulse response is calculated.
-        len(int): Timelength in seconds for which the kernel/impulse response is
-            calculated.
-        norm (bool): If true the kernel/impulse response is normalized to its
-            area.
-        matrix (bool): If true the circulant matrix constructed from the kernel/
-            impulse reponse is returned.
-    """
+        Args:
+            dt (int): Timestep for which the kernel/impulse response is calculated.
+            len(int): Timelength in seconds for which the kernel/impulse response is
+                calculated.
+            norm (bool): If true the kernel/impulse response is normalized to its
+                area.
+            matrix (bool): If true the circulant matrix constructed from the kernel/
+                impulse reponse is returned.
+        """
         if self.type is 'functional':
 
             time = np.arange(0,len,dt)
