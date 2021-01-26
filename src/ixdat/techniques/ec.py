@@ -45,7 +45,7 @@ class ECMeasurement(Measurement):
         tstamp=None,
         ec_technique=None,
         E_str="raw potential / [V]",
-        V_str="$U_\text{RHE}$ / [V]",
+        V_str="$U_{RHE}$ / [V]",
         RE_vs_RHE=None,
         raw_potential_names=("Ewe/V", "<Ewe>/V"),
         I_str="raw current / [mA]",
@@ -187,7 +187,7 @@ class ECMeasurement(Measurement):
                 unit_name=raw_current.unit_name,
                 tseries=current_tseries,
             )
-            self.series_list.append(self._raw_potential)
+            self.series_list.append(self._raw_current)
 
     @property
     def potential(self):
@@ -209,7 +209,7 @@ class ECMeasurement(Measurement):
             return raw_current
         else:
             return ValueSeries(
-                name=self.V_str,
+                name=self.J_str,
                 data=raw_current.data / self.A_el,
                 unit_name=raw_current.unit_name + "/cm^2",
                 tseries=raw_current.tseries,
@@ -244,3 +244,11 @@ class ECMeasurement(Measurement):
     @property
     def j(self):
         return self.current.data.copy()
+
+    @property
+    def plotter(self):
+        if not self._plotter:
+            from ..plotters.ec_plotter import ECPlotter
+
+            self._plotter = ECPlotter(measurement=self)
+        return self._plotter

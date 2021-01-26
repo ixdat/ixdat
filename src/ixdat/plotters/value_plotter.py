@@ -1,7 +1,7 @@
 """Classes for plotting measurement data"""
 
 from matplotlib import pyplot as plt
-from .exceptions import SeriesNotFoundError
+from ixdat.exceptions import SeriesNotFoundError
 
 
 class ValuePlotter:

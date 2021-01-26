@@ -82,7 +82,7 @@ class Measurement(Saveable):
             metadata = json.loads(metadata_json_string)
         self.metadata = metadata or {}
         self.reader = reader
-        self.plotter = plotter
+        self._plotter = plotter
         self.exporter = exporter or CSVExporter(measurement=self)
         if sample_name and not sample:
             sample = Sample.load_or_make(sample)
@@ -258,11 +258,15 @@ class Measurement(Saveable):
         """Plot the measurement using its plotter (see its Plotter for details)"""
         if plotter:
             return plotter.plot_measurement(self, *args, **kwargs)
-        if not self.plotter:
+        return self.plotter.plot(*args, **kwargs)
+
+    @property
+    def plotter(self):
+        if not self._plotter:
             from .plotters import ValuePlotter
 
-            self.plotter = ValuePlotter(measurement=self)
-        return self.plotter.plot(*args, **kwargs)
+            self._plotter = ValuePlotter(measurement=self)
+        return self._plotter
 
     def export(self, exporter=None, *args, **kwargs):
         """Export the measurement using its exporter (see its Exporter for details)"""
@@ -343,7 +347,7 @@ def append_vseries_by_time(series_list):
     tseries, sort_indeces = append_tseries(tseries_list, return_sort_indeces=True)
 
     for s in series_list:
-        if not (s.name == name and s.unit == unit and s.__class__ == cls):
+        if not (s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
     data = data[sort_indeces]
@@ -360,7 +364,7 @@ def append_tseries(series_list, tstamp=None, sorted=True, return_sort_indeces=Fa
     data = np.array([])
 
     for s in series_list:
-        if not (s.name == name and s.unit == unit and s.__class__ == cls):
+        if not (s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data + s.tstamp - tstamp)
 

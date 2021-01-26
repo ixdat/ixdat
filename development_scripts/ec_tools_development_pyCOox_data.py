@@ -39,9 +39,14 @@ combined_meas = ocp_meas + cv_meas + cp_meas
 
 v_list = ["Ewe/V", "<I>/mA", "I/mA"]
 t_start = 13700
-tspan = [0, 5000]
+tspan = [0, 3000]
 
-for meas in [ocp_meas, cv_meas, cp_meas, combined_meas]:
-    meas.tstamp += t_start
+if False:
+    for meas in [ocp_meas, cv_meas, cp_meas, combined_meas]:
+        meas.tstamp += t_start
 
-    meas.plot(v_list=v_list, tspan=tspan)
+        meas.plot(v_list=v_list, tspan=tspan)
+else:
+    combined_meas.tstamp += t_start
+
+combined_meas.plot(tspan=tspan)
