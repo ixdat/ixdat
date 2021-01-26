@@ -3,7 +3,7 @@
 import numpy as np
 
 from ..measurements import Measurement, append_series
-from ..data_series import ValueSeries
+from ..data_series import ValueSeries, ConstantValue
 from ..exceptions import SeriesNotFoundError
 
 
@@ -127,6 +127,26 @@ class ECMeasurement(Measurement):
 
         self._raw_potential = None
         self._raw_current = None
+        if self.ec_technique in [
+            "Open Circuit Voltage",
+        ]:
+            available_current_names = [
+                name for name in self.series_names if name in self.raw_current_names
+            ]
+            if len(available_current_names) == 0:
+                self.series_list.append(
+                    ConstantValue(
+                        name=self.raw_current_names[0],
+                        unit_name="mA",
+                        value=0,
+                    )
+                )
+            self._populate_constants()  # So that OCP currents are included as 0.
+            # TODO: I don't like this. The ConstantValue was introduced to facilitate
+            #   ixdat's laziness, but I can't find anywhere else to put the call to
+            #   _populate_constants() that can find the right tseries. That's because
+            #   once measurements are added together, it's not completely easy to
+            #   tell which DataSeries come form the same component measurements.
 
     @property
     def raw_potential(self):
@@ -188,6 +208,13 @@ class ECMeasurement(Measurement):
                 tseries=current_tseries,
             )
             self.series_list.append(self._raw_current)
+
+    def _populate_constants(self):
+        for (i, s) in enumerate(self.series_list):
+            if isinstance(s, ConstantValue):
+                tseries = self.potential.tseries
+                current_series = s.get_vseries(tseries=tseries)
+                self.series_list[i] = current_series
 
     @property
     def potential(self):

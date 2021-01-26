@@ -12,7 +12,7 @@ from .data_series import DataSeries, TimeSeries, ValueSeries
 from .samples import Sample
 from .lablogs import LabLog
 from .exporters import CSVExporter
-from .exceptions import BuildError, TechniqueError, SeriesNotFoundError
+from .exceptions import BuildError, SeriesNotFoundError  # , TechniqueError
 
 
 class Measurement(Saveable):
@@ -115,11 +115,8 @@ class Measurement(Saveable):
             technique_class = cls
         try:
             measurement = technique_class(**obj_as_dict)
-        except TypeError:
-            raise TechniqueError(
-                f"Can't initiate a {technique_class} with the"
-                f"kwargs {list(obj_as_dict.keys())}"
-            )
+        except Exception:
+            raise
         return measurement
 
     @classmethod
@@ -207,9 +204,7 @@ class Measurement(Saveable):
     @property
     def time_series(self):
         """List of the TSeries in the measurement's DataSeries. NOT timeshifted!"""
-        return [
-            series.name for series in self.series_list if isinstance(series, TimeSeries)
-        ]
+        return [series for series in self.series_list if isinstance(series, TimeSeries)]
 
     def __getitem__(self, item):
         """Return the built measurement DataSeries with its name specified by item
