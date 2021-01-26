@@ -15,8 +15,7 @@ class MSMeasurement(Measurement):
             calibration (dict): calibration constants whereby the key
                 corresponds to the respective signal name."""
         super().__init__(name, **kwargs)
-        self.calibration=None
-
+        self.calibration = None  # TODO: Not final implementation
 
     def get_signal(self, signal_name, tspan=None, t_bg=None):
         """Returns raw signal for a given signal name
@@ -36,8 +35,6 @@ class MSMeasurement(Measurement):
             _, bg = self.get_t_and_v(signal_name, tspan=t_bg)
             return time, value - np.average(bg)
 
-
-
     def get_calib_signal(self, signal_name, tspan=None, t_bg=None):
         """Returns a calibrated signal for a given signal name. Only works if
         calibration dict is not None.
@@ -48,8 +45,9 @@ class MSMeasurement(Measurement):
             t_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
         """
+        # TODO: Not final implementation
         if self.calibration is None:
-            print('No calibration dict found.')
+            print("No calibration dict found.")
             return
 
         time, value = self.get_signal(signal_name, tspan=tspan, t_bg=t_bg)

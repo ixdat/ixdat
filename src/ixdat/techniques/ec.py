@@ -7,6 +7,10 @@ class ECMeasurement(Measurement):
     """Class implementing raw electrochemistry measurements"""
 
     def __init__(self, name, ec_technique=None, **kwargs):
+        """initialize a EC measurement
+
+        Args:
+            name (str): The name of the measurement"""
         super().__init__(name, **kwargs)
         self.ec_technique = ec_technique
         self.E_str = "Ewe/V"
