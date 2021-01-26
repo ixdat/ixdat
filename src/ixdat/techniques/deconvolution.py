@@ -93,6 +93,7 @@ class Kernel:
     """Kernel class implementing datatreatment of kernel/impulse response data."""
 
     # TODO: Make class inherit from Measurement, add properties to store kernel
+    # TODO: Reference equations to paper.
     def __init__(
         self,
         parameters={},
