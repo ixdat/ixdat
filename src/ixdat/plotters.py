@@ -1,6 +1,7 @@
 """Classes for plotting measurement data"""
 
 from matplotlib import pyplot as plt
+from .exceptions import SeriesNotFoundError
 
 
 class ValuePlotter:
@@ -31,7 +32,11 @@ class ValuePlotter:
         v_list = v_list or measurement.value_names
 
         for v_name in v_list:
-            v, t = measurement.get_t_and_v(v_name, tspan=tspan)
+            try:
+                v, t = measurement.get_t_and_v(v_name, tspan=tspan)
+            except SeriesNotFoundError as e:
+                print(f"WARNING!!! {e}")
+                continue
             ax.plot(v, t, label=v_name)
 
         if legend:

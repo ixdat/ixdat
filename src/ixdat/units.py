@@ -11,3 +11,9 @@ class Unit:
         self.name = name
         self.si_unit = None
         self.si_conversion_factor = None
+
+    def __repr__(self):
+        return f"Unit('{self.name}')"
+
+    def __eq__(self, other):
+        return self.name == other.name

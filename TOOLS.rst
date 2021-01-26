@@ -31,6 +31,44 @@ anaconda environment.
 
 Tool and command runners in more detail
 =======================================
+Each of these tools and tool runners can be installed with
+`$ pip install <tool_name.`,
+or all at once with `$ pip install -r requirements-dev.txt` as
+recommended above.
+
+For each of the tools, we refer to its own documentation but offer a quick
+summary here with our suggestions for usage.
+
+Tools
+-----
+**black** is an autoformatter, which fixes your white space usage etc.
+https://black.readthedocs.io/en/stable/
+It's nice to run it from the same terminal
+that you use to `git commit`, so that you can black-format your code right
+before committing (and avoid a "fix formatting" commit later). To get black
+and the other tools available in git bash, you have to tell ~\.bashrc where
+it is (see Windows instructions below under git hooks).
+
+**flake8** is a linter, which checks the code for errors.
+https://flake8.pycqa.org/en/latest/
+This includes
+syntax errors, but also programming errors like using a variable which
+has not been defined, and style errors. flake8 can be a bit over-zeleous
+and even a bit stupid, so even perfectly formatted (i.e. black-formatted)
+code can sometimes
+trigger it. An example is unused import statements in __init__.py, which
+are fine practice to make it quicker to import the most important parts of
+a package. To allow these, we have added to the project's setup.cfg, the line
+`--per-file-ignores = src/*/__init__.py:F401`
+Additional allowances may need to be added there.
+flake8 also enforces a maximum line length of 89, chosen by Soren to match the
+default setting of black (+/- 1 char).
+
+**pytest** is a suite of stuff used to write and run software tests.
+https://docs.pytest.org/en/stable/
+
+Tool runners
+------------
 
 The reason there are two different tool runners is that they have very
 different purposes:

@@ -1,4 +1,3 @@
-
 """Initial setup.py
 
 TODO: This file is rudimentary and setup mainly to enable tox to
@@ -52,14 +51,11 @@ def find_meta(meta):
 
     """
     meta_match = re.search(
-        r"^__{meta}__ = ['\"]([^'\"]*)['\"]".format(meta=meta),
-        META_FILE, re.M
+        r"^__{meta}__ = ['\"]([^'\"]*)['\"]".format(meta=meta), META_FILE, re.M
     )
     if meta_match:
         return meta_match.group(1)
-    raise RuntimeError(
-        "Unable to find __{meta}__ string.".format(meta=meta)
-    )
+    raise RuntimeError("Unable to find __{meta}__ string.".format(meta=meta))
 
 
 setuptools.setup(
@@ -79,5 +75,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
 )

@@ -12,7 +12,7 @@ from .data_series import DataSeries, TimeSeries, ValueSeries
 from .samples import Sample
 from .lablogs import LabLog
 from .exporters import CSVExporter
-from .exceptions import BuildError, SeriesNotFoundError
+from .exceptions import BuildError, TechniqueError, SeriesNotFoundError
 
 
 class Measurement(Saveable):
@@ -113,7 +113,14 @@ class Measurement(Saveable):
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
         else:
             technique_class = cls
-        return technique_class(**obj_as_dict)
+        try:
+            measurement = technique_class(**obj_as_dict)
+        except TypeError:
+            raise TechniqueError(
+                f"Can't initiate a {technique_class} with the"
+                f"kwargs {list(obj_as_dict.keys())}"
+            )
+        return measurement
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -228,7 +235,7 @@ class Measurement(Saveable):
             else:
                 s = append_series(ss)
         else:
-            raise SeriesNotFoundError
+            raise SeriesNotFoundError(f"{self} has no series called {item}")
         return time_shifted(s, self.tstamp)
 
     def get_t_and_v(self, item, tspan=None):
@@ -298,10 +305,10 @@ class Measurement(Saveable):
         else:
             cls = Measurement
 
-        new_series_list = self.series_list
-        new_series_list.append(other.series_list)
-        new_component_measurements = self.component_measurements or [self]
-        new_component_measurements.append(other.component_measurements or [other])
+        new_series_list = self.series_list + other.series_list
+        new_component_measurements = (self.component_measurements or [self]) + (
+            other.component_measurements or [other]
+        )
         obj_as_dict.update(
             name=new_name,
             series_list=new_series_list,
@@ -332,17 +339,19 @@ def append_vseries_by_time(series_list):
     cls = series_list[0].__class__
     unit = series_list[0].unit
     data = np.array([])
+    tseries_list = [s.tseries for s in series_list]
+    tseries, sort_indeces = append_tseries(tseries_list, return_sort_indeces=True)
 
     for s in series_list:
         if not (s.name == name and s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
+    data = data[sort_indeces]
 
-    tseries = append_tseries([s.tseries for s in series_list])
-    return cls(name=name, unit=unit, data=data, tseries=tseries)
+    return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
 
 
-def append_tseries(series_list, tstamp=None):
+def append_tseries(series_list, tstamp=None, sorted=True, return_sort_indeces=False):
     """Return new TSeries with the data appended relative to series_list[0].tstamp"""
     name = series_list[0].name
     cls = series_list[0].__class__
@@ -355,7 +364,15 @@ def append_tseries(series_list, tstamp=None):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data + s.tstamp - tstamp)
 
-    tseries = cls(name=name, unit=unit, data=data, tstamp=tstamp)
+    if sorted:
+        sort_indices = np.argsort(data)
+        data = data[sort_indices]
+    else:
+        sort_indices = None
+
+    tseries = cls(name=name, unit_name=unit.name, data=data, tstamp=tstamp)
+    if return_sort_indeces:
+        return tseries, sort_indices
     return tseries
 
 

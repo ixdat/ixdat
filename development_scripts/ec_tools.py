@@ -1,8 +1,9 @@
-
 from ixdat.techniques import ECMeasurement
 
-path_to_file = ("../test_data/biologic_mpt_and_zilien_tsv/"
-                "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt")
+path_to_file = (
+    "../test_data/biologic_mpt_and_zilien_tsv/"
+    "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"
+)
 
 m = ECMeasurement.read(
     path_to_file,
@@ -14,7 +15,7 @@ m = ECMeasurement.read(
 
 m.save()
 i = m.id
-del(m)
+del m
 
 m1 = ECMeasurement.get(i)
 

@@ -1,4 +1,3 @@
-
 """Definition of invoke tasks"""
 
 import sys
@@ -107,7 +106,7 @@ def filter_tox_environments_linux(environments, single=False):
                 command = environment
             else:
                 # The environments look like: py36
-                command = "python{}.{}".format(*environment[2: 4])
+                command = "python{}.{}".format(*environment[2:4])
 
             # Check that the executable exists
             try:
@@ -148,9 +147,9 @@ def filter_tox_environments_windows(environments, single=False):
     for path in sys.path:
         python_path = Path(path) / "python.exe"
         if python_path.is_file():
-            version_string = check_output(
-                [str(python_path), "--version"]
-            ).decode("ascii").strip()
+            version_string = (
+                check_output([str(python_path), "--version"]).decode("ascii").strip()
+            )
             # The version string comes back as: Python 3.7.2
             # hence the parsing below
             version_numbers = version_string.replace("Python ", "").split(".")

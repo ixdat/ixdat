@@ -1,4 +1,3 @@
-
 """Dummy test file, should be deleted as soon as we have the first real test"""
 
 
