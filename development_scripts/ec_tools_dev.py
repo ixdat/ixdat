@@ -38,7 +38,7 @@ else:
 combined_meas = ocp_meas + cv_meas + cp_meas
 
 t_start = 13700
-tspan = [0, 3000]
+tspan = [0, 5000]
 
 combined_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
 
@@ -52,10 +52,12 @@ cut_meas.plot(J_str="selector")
 select_meas = cut_meas.select_values(selector=[7, 9])
 select_meas.correct_ohmic_drop(R_Ohm=200)
 select_meas.plot()
-
-select_meas.name = "selected_measurement"
-select_meas.save()  # this changes its ID!
-my_id = select_meas.id
+if False:
+    select_meas.name = "selected_measurement"
+    select_meas.save()  # this changes its ID!
+    my_id = select_meas.id
+else:
+    my_id = 4
 
 del select_meas
 

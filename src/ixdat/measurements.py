@@ -280,11 +280,15 @@ class Measurement(Saveable):
         """Return a set of the names of all of the measurement's VSeries and TSeries"""
         return set([s.name for s in (self.value_series + self.time_series)])
 
-    def plot(self, plotter=None, *args, **kwargs):
+    def plot_measurement(self, plotter=None, *args, **kwargs):
         """Plot the measurement using its plotter (see its Plotter for details)"""
         if plotter:
             return plotter.plot_measurement(self, *args, **kwargs)
-        return self.plotter.plot(*args, **kwargs)
+        return self.plotter.plot_measurement(*args, **kwargs)
+
+    def plot(self, *args, **kwargs):
+        """Pseudonymn in class Measurement for plot_measurement"""
+        return self.plot_measurement(*args, **kwargs)
 
     @property
     def plotter(self):
@@ -405,12 +409,13 @@ class Measurement(Saveable):
                     f"{self} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
+            if len(args) == 1:
+                args = args[0]
             kwargs[self.sel_str] = args
         new_measurement = self
         for series_name, allowed_values in kwargs.items():
             if not hasattr(allowed_values, "__iter__"):
                 allowed_values = [allowed_values]
-            t, v = new_measurement.get_t_and_v(series_name)
             meas = None
             for value in allowed_values:
                 m = new_measurement.select_value(**{series_name: value})
@@ -426,7 +431,7 @@ class Measurement(Saveable):
         if tspan:
             new_measurement = new_measurement.cut(tspan=tspan)
         if args or kwargs:
-            new_measurement = new_measurement.select_value(*args, **kwargs)
+            new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
 
     def __add__(self, other):

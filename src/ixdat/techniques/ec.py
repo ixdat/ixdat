@@ -354,7 +354,7 @@ class ECMeasurement(Measurement):
     def selector(self):
         if self.sel_str not in self.series_names:
             self.build_selector()
-        return self._selector
+        return self[self.sel_str]
 
     def build_selector(self, sel_str=None):
         sel_str = sel_str or self.sel_str
@@ -380,7 +380,7 @@ class ECMeasurement(Measurement):
             data=selector,
             tseries=self.potential.tseries,
         )
-        self._selector = selector_series
+        self[self.sel_str] = selector_series
 
     @property
     def cycle_number(self):
