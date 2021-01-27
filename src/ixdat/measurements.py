@@ -198,7 +198,7 @@ class Measurement(Saveable):
     @property
     def series_dict(self):
         """Dictionary mapping the id's of the measurement's series to the DataSeries"""
-        return {s.id: s for s in self.series_list}
+        return {(s.id, s.backend_name): s for s in self.series_list}
 
     @property
     def series_names(self):
@@ -321,7 +321,14 @@ class Measurement(Saveable):
             except AttributeError:  # series independent of time are uneffected by cut
                 new_series_list.append(series)
             else:
-                t_id = tseries.id
+                t_id = (tseries.id, tseries.backend_name)
+                # FIXME: Beautiful, met my first id clash here. Local memory and loaded
+                #    each had a timeseries with id=1, but different length. Previously
+                #    the above line of code was just t_id = tseries.id as you'd expect,
+                #    meaning that time_cutting_stuff appeared to already have the needed
+                #    tseries but didn't!
+                #    Note that the id together with the backend works but could be
+                #    replaced by a single Universal Unique Identifier
                 if t_id in time_cutting_stuff:
                     mask, new_tseries = time_cutting_stuff[t_id]
                 else:
@@ -338,7 +345,7 @@ class Measurement(Saveable):
                     continue
                 if False not in mask:
                     new_series_list.append(series)
-                elif series.id == t_id:
+                elif (series.id, series.backend_name) == t_id:
                     new_series_list.append(new_tseries)
                 else:
                     new_series = series.__class__(

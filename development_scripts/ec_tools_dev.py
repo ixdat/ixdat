@@ -31,9 +31,9 @@ if False:
     cv_id = cv_meas.save()
     cp_id = cp_meas.save()
 else:
-    ocp_meas = Measurement.get(7)
-    cv_meas = Measurement.get(8)
-    cp_meas = Measurement.get(9)
+    ocp_meas = Measurement.get(1)
+    cv_meas = Measurement.get(2)
+    cp_meas = Measurement.get(3)
 
 combined_meas = ocp_meas + cv_meas + cp_meas
 
