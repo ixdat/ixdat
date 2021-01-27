@@ -350,7 +350,7 @@ class Measurement(Saveable):
                     new_series_list.append(new_series)
         obj_as_dict["series_list"] = new_series_list
         del obj_as_dict["s_ids"]
-        new_measurement = self.__class__(**obj_as_dict)
+        new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement
 
     def select_value(self, *args, **kwargs):

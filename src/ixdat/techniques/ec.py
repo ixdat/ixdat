@@ -19,6 +19,7 @@ class ECMeasurement(Measurement):
         "ec_meaurements": {
             "ec_technique",
             "RE_vs_RHE",
+            "R_Ohm",
             "raw_potential_names",
             "A_el",
             "raw_current_names",
@@ -31,7 +32,6 @@ class ECMeasurement(Measurement):
         *,
         technique=None,
         metadata=None,
-        metadata_json_string=None,
         s_ids=None,
         series_list=None,
         m_ids=None,
@@ -40,13 +40,13 @@ class ECMeasurement(Measurement):
         plotter=None,
         exporter=None,
         sample=None,
-        sample_name=None,
         lablog=None,
         tstamp=None,
         ec_technique=None,
         E_str="raw potential / [V]",
         V_str="$U_{RHE}$ / [V]",
         RE_vs_RHE=None,
+        R_Ohm=None,
         raw_potential_names=("Ewe/V", "<Ewe>/V"),
         I_str="raw current / [mA]",
         J_str="J / [mA cm$^{-2}$]",
@@ -61,7 +61,6 @@ class ECMeasurement(Measurement):
                 TODO: Decide if metadata needs the json string option.
                     See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
             metadata (dict): Free-form measurement metadata
-            metadata_json_string (str): Free-form measurement metadata as json string
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
@@ -75,7 +74,6 @@ class ECMeasurement(Measurement):
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
             sample (Sample): The (already loaded) sample being measured
-            sample_name (str): The name of the sample being measured (will be loaded)
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
                 data selection, visualization, and exporting.
@@ -85,6 +83,9 @@ class ECMeasurement(Measurement):
             RE_vs_RHE (float): Reference electrode potential in [V] on the RHE scale.
                 If RE_vs_RHE is not None, the measurement is considered *calibrated*,
                 and will use the calibrated potential `self[self.V_str]` by default
+                TODO: Unit
+            R_Ohm (float): Ohmic drop in [Ohm]. If R_Ohm is not None, the ohmic drop
+                is corrected for when returning potential.
                 TODO: Unit
             raw_potential_names (tuple of str): The names of the VSeries which
                 represent raw working electrode current. This is typically how the data
@@ -118,6 +119,7 @@ class ECMeasurement(Measurement):
         self.E_str = E_str
         self.V_str = V_str
         self.RE_vs_RHE = RE_vs_RHE
+        self.R_Ohm = R_Ohm
         self.raw_potential_names = raw_potential_names
         self.I_str = I_str
         self.J_str = J_str
@@ -183,6 +185,10 @@ class ECMeasurement(Measurement):
                 return self.current
             elif item == self.sel_str:
                 return self.selector
+            elif item == "potential":
+                return self.potential
+            elif item == "current":
+                return self.current
             raise SeriesNotFoundError(f"{self} doesn't have item '{item}'")
 
     @property
@@ -255,6 +261,9 @@ class ECMeasurement(Measurement):
         self.RE_vs_RHE = RE_vs_RHE if RE_vs_RHE is not None else self.RE_vs_RHE
         self.A_el = A_el if A_el is not None else self.A_el
 
+    def correct_ohmic_drop(self, R_Ohm):
+        self.R_Ohm = R_Ohm
+
     def normalize(self, A_el, RE_vs_RHE=None):
         self.A_el = A_el if A_el is not None else self.A_el
         self.RE_vs_RHE = RE_vs_RHE if RE_vs_RHE is not None else self.RE_vs_RHE
@@ -262,15 +271,26 @@ class ECMeasurement(Measurement):
     @property
     def potential(self):
         raw_potential = self.raw_potential
-        if self.RE_vs_RHE is None:
+        if self.RE_vs_RHE is None and self.R_Ohm is None:
             return raw_potential
-        else:
-            return ValueSeries(
-                name=self.V_str,
-                data=raw_potential.data + self.RE_vs_RHE,
-                unit_name=raw_potential.unit_name,
-                tseries=raw_potential.tseries,
-            )
+        fixed_V_str = raw_potential.name
+        fixed_potential_data = raw_potential.data
+        fixed_unit_name = raw_potential.unit_name
+        if self.RE_vs_RHE:
+            fixed_V_str = self.V_str
+            fixed_potential_data = fixed_potential_data + self.RE_vs_RHE
+            fixed_unit_name = "V <RHE>"
+        if self.R_Ohm:
+            fixed_V_str += " (corrected)"
+            fixed_potential_data = (
+                fixed_potential_data - self.R_Ohm * self.raw_current.data * 1e-3
+            )  # TODO: Units. The 1e-3 here is to bring raw_current.data from [mA] to [A]
+        return ValueSeries(
+            name=fixed_V_str,
+            data=fixed_potential_data,
+            unit_name=fixed_unit_name,
+            tseries=raw_potential.tseries,
+        )
 
     @property
     def current(self):

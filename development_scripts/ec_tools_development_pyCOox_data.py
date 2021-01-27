@@ -50,4 +50,15 @@ cut_meas = combined_meas.cut(tspan=tspan)
 cut_meas.plot(J_str="selector")
 
 select_meas = cut_meas.select_value(selector=7)
+select_meas.correct_ohmic_drop(R_Ohm=200)
 select_meas.plot()
+
+select_meas.name = "selected_measurement"
+select_meas.save()  # this changes its ID!
+my_id = select_meas.id
+
+del select_meas
+
+loaded_meas = Measurement.get(my_id)
+
+loaded_meas.plot()
