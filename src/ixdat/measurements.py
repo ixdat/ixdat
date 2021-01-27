@@ -22,7 +22,7 @@ class Measurement(Saveable):
     column_attrs = {
         "name",
         "technique",
-        "metadata_json_string",
+        "metadata",
         "sample_name",
         "tstamp",
     }
@@ -36,7 +36,6 @@ class Measurement(Saveable):
         name,
         technique=None,
         metadata=None,
-        metadata_json_string=None,
         s_ids=None,
         series_list=None,
         m_ids=None,
@@ -45,7 +44,6 @@ class Measurement(Saveable):
         plotter=None,
         exporter=None,
         sample=None,
-        sample_name=None,
         lablog=None,
         tstamp=None,
     ):
@@ -55,8 +53,7 @@ class Measurement(Saveable):
             name (str): The name of the measurement
             TODO: Decide if metadata needs the json string option.
                 See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
-            metadata (dict): Free-form measurement metadata
-            metadata_json_string (str): Free-form measurement metadata as json string
+            metadata (dict): Free-form measurement metadata. Must be json-compatible.
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
@@ -69,8 +66,7 @@ class Measurement(Saveable):
             reader (Reader): The file reader (None unless read from a file)
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
-            sample (Sample): The (already loaded) sample being measured
-            sample_name (str): The name of the sample being measured (will be loaded)
+            sample (Sample or str): The sample being measured
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
                 data selection, visualization, and exporting.
@@ -78,13 +74,11 @@ class Measurement(Saveable):
         super().__init__()
         self.name = name
         self.technique = technique
-        if metadata_json_string and not metadata:
-            metadata = json.loads(metadata_json_string)
         self.metadata = metadata or {}
         self.reader = reader
         self.plotter = plotter
         self.exporter = exporter or CSVExporter(measurement=self)
-        if sample_name and not sample:
+        if isinstance(sample, str):
             sample = Sample.load_or_make(sample)
         self.sample = sample
         if isinstance(lablog, str):
@@ -108,6 +102,27 @@ class Measurement(Saveable):
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
         from .techniques import TECHNIQUE_CLASSES
+
+        # certain objects stored in the Measurement, but only saved as their names.
+        #   __init__() will get the object from the name, but the argument is
+        #   called like the object either way. For example __init__() takes an argument
+        #   called `sample` which can be an ixdat.Sample or a string interpreted as the
+        #   name of the sample to load. Subsequently, the sample name is accessible as
+        #   the property `sample_name`. But in the database is only saved the sample's
+        #   name as a string with the key/column "sample_name". So
+        #   obj_as_dict["sample_name"] needs to be renamed obj_as_dict["sample"] before
+        #   obj_as_dict can be passed to __init__.
+        #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
+        #       DataSeries.unit_name) and as such should be moved to db.Saveable
+        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372
+        objects_saved_as_their_name = [
+            "sample",
+        ]
+        for object_type_str in objects_saved_as_their_name:
+            object_name_str = object_type_str + "_name"
+            if object_name_str in obj_as_dict:
+                obj_as_dict[object_type_str] = obj_as_dict[object_name_str]
+                del obj_as_dict[object_name_str]
 
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]

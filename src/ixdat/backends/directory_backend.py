@@ -12,10 +12,12 @@ char_substitutions = {
     "<": "_LTS_",  # less-than sign
     ">": "_GTS_",  # greater-than sign
 }
+# TODO: consider implementing some kind of general solution with a tmp dir
+#    see: https://github.com/ixdat/ixdat/pull/5#discussion_r565075588
 
 
 def fix_name_for_saving(name):
-    """Replace problematic characters in name with the substitution defined above"""
+    """Replace problematic characters in name with the substitutions defined above"""
     for bad_char, substitution in char_substitutions.items():
         name = name.replace(bad_char, substitution)
     return name
@@ -58,12 +60,11 @@ class DirBackend(BackendBase):
             data_suffix (str): The suffix to use for numpy-formatted data files
         """
         self.project_directory = directory / project_name
-        if not self.project_directory.exists():
-            try:
-                self.project_directory.mkdir()
-            except Exception:
-                raise  # TODO, figure out what gets raised, then except with line below
-                # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
+        try:
+            self.project_directory.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            raise  # TODO, figure out what gets raised, then except with line below
+            # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
 
         self.metadata_suffix = metadata_suffix
         self.data_suffix = data_suffix

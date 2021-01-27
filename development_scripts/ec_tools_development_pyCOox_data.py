@@ -12,8 +12,8 @@ from ixdat import Measurement
 plt.close("all")
 
 if False:
-    data_dir = Path(
-        "~/Dropbox/ixdat_resources/20B12_Data_Analysis_Workshop/example data set/"
+    data_dir = Path.home() / (
+        "Dropbox/ixdat_resources/20B12_Data_Analysis_Workshop/example data set/"
     )
 
     ocp_file = data_dir / "01_Trimi1_cont_02_OCV_C01.mpt"
@@ -31,9 +31,9 @@ if False:
     cv_id = cv_meas.save()
     cp_id = cp_meas.save()
 else:
-    ocp_meas = Measurement.get(3)
-    cv_meas = Measurement.get(4)
-    cp_meas = Measurement.get(5)
+    ocp_meas = Measurement.get(7)
+    cv_meas = Measurement.get(8)
+    cp_meas = Measurement.get(9)
 
 combined_meas = ocp_meas + cv_meas + cp_meas
 
