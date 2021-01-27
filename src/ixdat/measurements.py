@@ -11,9 +11,8 @@ from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, ValueSeries
 from .samples import Sample
 from .lablogs import LabLog
-from .plotters import ValuePlotter
 from .exporters import CSVExporter
-from .exceptions import BuildError, SeriesNotFoundError
+from .exceptions import BuildError, TechniqueError, SeriesNotFoundError
 
 
 class Measurement(Saveable):
@@ -21,16 +20,15 @@ class Measurement(Saveable):
 
     table_name = "measurement"
     column_attrs = {
-        "id": "i",
-        "name": "name",
-        "technique": "technique",
-        "metadata": "metadata_json",
-        "sample": "sample_name",
-        "tstamp": "tstamp",
+        "name",
+        "technique",
+        "metadata",
+        "sample_name",
+        "tstamp",
     }
     extra_linkers = {
-        "measurement_series": ("data_series", {"s_ids": "s_ids"}),
-        "component_measurements": ("measurements", {"m_ids": "m_ids"}),
+        "measurement_series": ("data_series", "s_ids"),
+        "component_measurements": ("measurements", "m_ids"),
     }
 
     def __init__(
@@ -55,7 +53,7 @@ class Measurement(Saveable):
             name (str): The name of the measurement
             TODO: Decide if metadata needs the json string option.
                 See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
-            metadata (dict or json string): Free-form measurement metadata
+            metadata (dict): Free-form measurement metadata. Must be json-compatible.
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
@@ -68,7 +66,7 @@ class Measurement(Saveable):
             reader (Reader): The file reader (None unless read from a file)
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
-            sample (Sample): The sample being measured
+            sample (Sample or str): The sample being measured
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
                 data selection, visualization, and exporting.
@@ -76,11 +74,9 @@ class Measurement(Saveable):
         super().__init__()
         self.name = name
         self.technique = technique
-        if isinstance(metadata, str):
-            metadata = json.loads(metadata)
         self.metadata = metadata or {}
         self.reader = reader
-        self.plotter = plotter or ValuePlotter(measurement=self)
+        self.plotter = plotter
         self.exporter = exporter or CSVExporter(measurement=self)
         if isinstance(sample, str):
             sample = Sample.load_or_make(sample)
@@ -107,14 +103,42 @@ class Measurement(Saveable):
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
         from .techniques import TECHNIQUE_CLASSES
 
+        # certain objects stored in the Measurement, but only saved as their names.
+        #   __init__() will get the object from the name, but the argument is
+        #   called like the object either way. For example __init__() takes an argument
+        #   called `sample` which can be an ixdat.Sample or a string interpreted as the
+        #   name of the sample to load. Subsequently, the sample name is accessible as
+        #   the property `sample_name`. But in the database is only saved the sample's
+        #   name as a string with the key/column "sample_name". So
+        #   obj_as_dict["sample_name"] needs to be renamed obj_as_dict["sample"] before
+        #   obj_as_dict can be passed to __init__.
+        #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
+        #       DataSeries.unit_name) and as such should be moved to db.Saveable
+        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372
+        objects_saved_as_their_name = [
+            "sample",
+        ]
+        for object_type_str in objects_saved_as_their_name:
+            object_name_str = object_type_str + "_name"
+            if object_name_str in obj_as_dict:
+                obj_as_dict[object_type_str] = obj_as_dict[object_name_str]
+                del obj_as_dict[object_name_str]
+
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
         else:
             technique_class = cls
-        return technique_class(**obj_as_dict)
+        try:
+            measurement = technique_class(**obj_as_dict)
+        except TypeError:
+            raise TechniqueError(
+                f"Can't initiate a {technique_class} with the"
+                f"kwargs {list(obj_as_dict.keys())}"
+            )
+        return measurement
 
     @classmethod
-    def read(cls, path_to_file, reader):
+    def read(cls, path_to_file, reader, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader"""
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
@@ -122,7 +146,7 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        return reader.read(path_to_file)
+        return reader.read(path_to_file, **kwargs)
 
     @property
     def metadata_json_string(self):
@@ -132,7 +156,8 @@ class Measurement(Saveable):
     @property
     def sample_name(self):
         """Name of the sample on which the measurement was conducted"""
-        return self.sample.name
+        if self.sample:
+            return self.sample.name
 
     @property
     def series_list(self):
@@ -225,7 +250,7 @@ class Measurement(Saveable):
             else:
                 s = append_series(ss)
         else:
-            raise SeriesNotFoundError
+            raise SeriesNotFoundError(f"{self} has no series called {item}")
         return time_shifted(s, self.tstamp)
 
     def get_t_and_v(self, item, tspan=None):
@@ -248,6 +273,10 @@ class Measurement(Saveable):
         """Plot the measurement using its plotter (see its Plotter for details)"""
         if plotter:
             return plotter.plot_measurement(self, *args, **kwargs)
+        if not self.plotter:
+            from .plotters import ValuePlotter
+
+            self.plotter = ValuePlotter(measurement=self)
         return self.plotter.plot(*args, **kwargs)
 
     def export(self, exporter=None, *args, **kwargs):
@@ -291,10 +320,10 @@ class Measurement(Saveable):
         else:
             cls = Measurement
 
-        new_series_list = self.series_list
-        new_series_list.append(other.series_list)
-        new_component_measurements = self.component_measurements or [self]
-        new_component_measurements.append(other.component_measurements or [other])
+        new_series_list = self.series_list + other.series_list
+        new_component_measurements = (self.component_measurements or [self]) + (
+            other.component_measurements or [other]
+        )
         obj_as_dict.update(
             name=new_name,
             series_list=new_series_list,
@@ -325,17 +354,19 @@ def append_vseries_by_time(series_list):
     cls = series_list[0].__class__
     unit = series_list[0].unit
     data = np.array([])
+    tseries_list = [s.tseries for s in series_list]
+    tseries, sort_indeces = append_tseries(tseries_list, return_sort_indeces=True)
 
     for s in series_list:
         if not (s.name == name and s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
+    data = data[sort_indeces]
 
-    tseries = append_tseries([s.tseries for s in series_list])
-    return cls(name=name, unit=unit, data=data, tseries=tseries)
+    return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
 
 
-def append_tseries(series_list, tstamp=None):
+def append_tseries(series_list, tstamp=None, sorted=True, return_sort_indeces=False):
     """Return new TSeries with the data appended relative to series_list[0].tstamp"""
     name = series_list[0].name
     cls = series_list[0].__class__
@@ -348,7 +379,15 @@ def append_tseries(series_list, tstamp=None):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data + s.tstamp - tstamp)
 
-    tseries = cls(name=name, unit=unit, data=data, tstamp=tstamp)
+    if sorted:
+        sort_indices = np.argsort(data)
+        data = data[sort_indices]
+    else:
+        sort_indices = None
+
+    tseries = cls(name=name, unit_name=unit.name, data=data, tstamp=tstamp)
+    if return_sort_indeces:
+        return tseries, sort_indices
     return tseries
 
 

@@ -14,7 +14,10 @@ from ..exceptions import ReadError
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
 delim = "\t"
 t_str = "time/s"
-timestamp_string_form = "%m/%d/%Y %H:%M:%S"  # like 07/29/2020 10:31:03
+timestamp_form_strings = [
+    "%m/%d/%Y %H:%M:%S",  # like 07/29/2020 10:31:03
+    "%m-%d-%Y %H:%M:%S",  # like 01-31-2020 10:32:02
+]
 regular_expressions = {
     "N_header_lines": "Nb header lines : (.+)\n",
     "timestamp_string": "Acquisition started on : (.+)\n",
@@ -58,6 +61,7 @@ class BiologicMPTReader:
 
     def __init__(self):
         """Initialize a Reader for .mpt files. See class docstring."""
+        self.name = None
         self.path_to_file = None
         self.n_line = 0
         self.place_in_file = "header"
@@ -71,7 +75,7 @@ class BiologicMPTReader:
         self.file_has_been_read = False
         self.measurement = None
 
-    def read(self, path_to_file):
+    def read(self, path_to_file, name=None, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -86,6 +90,7 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
         """
         if self.file_has_been_read:
             print(
@@ -94,13 +99,15 @@ class BiologicMPTReader:
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
-
+        self.name = name or path_to_file
         self.path_to_file = path_to_file
         with open(path_to_file) as f:
             for line in f:
                 self.process_line(line)
+        for name in self.column_names:
+            self.column_data[name] = np.array(self.column_data[name])
 
-        if not t_str in self.column_data:
+        if t_str not in self.column_data:
             raise ReadError(
                 f"{self} did not find any data for t_str='{t_str}'. "
                 f"This reader only works for files with a '{t_str}' column"
@@ -123,13 +130,17 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        self.measurement = ECMeasurement(
-            name=str(self.path_to_file),
+        init_kwargs = dict(
+            name=self.name,
+            technique="EC",
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
         )
+        init_kwargs.update(kwargs)
+
+        self.measurement = ECMeasurement(**init_kwargs)
         self.file_has_been_read = True
 
         return self.measurement
@@ -165,7 +176,7 @@ class BiologicMPTReader:
             return
         loop_match = re.search(regular_expressions["loop"], line)
         if loop_match:
-            print(f"loop specified on line='{line}'")
+            # print(f"loop specified on line='{line}'")  # debugging
             n = int(loop_match.group(1))
             start = int(loop_match.group(2))
             finish = int(loop_match.group(3))
@@ -183,7 +194,7 @@ class BiologicMPTReader:
         """Split the line to get the names of the file's data columns"""
         self.header_lines.append(line)
         self.column_names = line.strip().split(delim)
-        self.column_data.update({name: np.array([]) for name in self.column_names})
+        self.column_data.update({name: [] for name in self.column_names})
         self.place_in_file = "data"
 
     def process_data_line(self, line):
@@ -199,7 +210,7 @@ class BiologicMPTReader:
                     value = float(value_string)
                 except ValueError:
                     raise ReadError(f"can't parse value string '{value_string}'")
-            self.column_data[name] = np.append(self.column_data[name], value)
+            self.column_data[name].append(value)
 
     def print_header(self):
         """Print the file header including column names. read() must be called first."""
@@ -216,7 +227,7 @@ def get_column_unit(column_name):
     return unit_name
 
 
-def timestamp_string_to_tstamp(timestamp_string, form=timestamp_string_form):
+def timestamp_string_to_tstamp(timestamp_string, form=None):
     """Return the unix timestamp as a float by parsing timestamp_string
 
     Args:
@@ -225,24 +236,36 @@ def timestamp_string_to_tstamp(timestamp_string, form=timestamp_string_form):
             TODO: EC-Lab saves time in a couple different ways based on version and
                 location. In the future this function will need to try multiple forms.
     """
-    struct = time.strptime(timestamp_string, form)
+    timestamp_forms = ([form] if form else []) + timestamp_form_strings
+    for form in timestamp_forms:
+        try:
+            struct = time.strptime(timestamp_string, form)
+        except ValueError:
+            continue
+        else:
+            break
+
     tstamp = time.mktime(struct)
     return tstamp
 
 
 if __name__ == "__main__":
-    """To run this module demo in PyCharm, configure it to run with 
-    Module name = ixdat.readers.biologic,
-    and *not* Script path = ...
+    """Module demo here.
+
+    To run this module in PyCharm, open Run Configuration and set
+        Module name = ixdat.readers.biologic,
+    and *not*
+        Script path = ...
     """
 
     from pathlib import Path
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 
-    test_data_dir = Path(
-        __file__
-    ).parent.parent.parent.parent / "test_data/biologic_mpt_and_zilien_tsv"
+    test_data_dir = (
+        Path(__file__).parent.parent.parent.parent
+        / "test_data/biologic_mpt_and_zilien_tsv"
+    )
 
     path_to_test_file = (
         test_data_dir / "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"

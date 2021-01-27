@@ -9,5 +9,8 @@ __email__ = "scott.soren@gmail.com"  # maybe we should get an orgianization emai
 # __copyright__ = "Copyright (c) 2020 ixdat"
 __license__ = "MIT"
 
+from .measurements import Measurement
+
+
 # I like this to be sure I'm importing from where I think I am:
 print(f"importing ixdat v{__version__} from {__file__}")

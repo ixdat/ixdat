@@ -15,16 +15,10 @@ class Config:
     """
 
     def __init__(self):
-        self.standard_metadata_suffix = "ix"
-        self.standard_data_suffix = "ixdata"
+        self.standard_metadata_suffix = ".ix"
+        self.standard_data_suffix = ".ix.npy"
         self.standard_data_directory = Path.home() / "ixdat"
-
-        if not self.standard_data_directory.exists():
-            try:
-                self.standard_data_directory.mkdir()
-            except Exception:
-                raise  # TODO, figure out what gets raised, then except with line below
-                # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
+        self.default_project_name = "test"
 
 
 CFG = Config()

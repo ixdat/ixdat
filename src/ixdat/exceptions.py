@@ -23,3 +23,7 @@ class BuildError(Exception):
 
 class ReadError(Exception):
     """ixdat errors having to do with file reading"""
+
+
+class TechniqueError(Exception):
+    """ixdat errors having to do with techniques and their limitations"""

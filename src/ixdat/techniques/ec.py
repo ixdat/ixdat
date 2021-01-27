@@ -6,6 +6,8 @@ from ..measurements import Measurement
 class ECMeasurement(Measurement):
     """Class implementing raw electrochemistry measurements"""
 
+    extra_column_attrs = {"ec_techniques": {"ec_technique"}}
+
     def __init__(self, ec_technique=None, **kwargs):
         super().__init__(**kwargs)
         self.ec_technique = ec_technique
