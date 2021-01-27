@@ -11,7 +11,7 @@ from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, ValueSeries
 from .samples import Sample
 from .lablogs import LabLog
-from .exporters import CSVExporter
+from ixdat.exporters.csv_exporter import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError  # , TechniqueError
 
 
@@ -75,7 +75,7 @@ class Measurement(Saveable):
         self.metadata = metadata or {}
         self.reader = reader
         self._plotter = plotter
-        self.exporter = exporter or CSVExporter(measurement=self)
+        self._exporter = exporter
         if isinstance(sample, str):
             sample = Sample.load_or_make(sample)
         self.sample = sample
@@ -297,6 +297,12 @@ class Measurement(Saveable):
 
             self._plotter = ValuePlotter(measurement=self)
         return self._plotter
+
+    @property
+    def exporter(self):
+        if not self._exporter:
+            self._exporter = CSVExporter(measurement=self)
+        return self._exporter
 
     def export(self, exporter=None, *args, **kwargs):
         """Export the measurement using its exporter (see its Exporter for details)"""

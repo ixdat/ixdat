@@ -56,7 +56,7 @@ class CyclicVoltammagram(ECMeasurement):
                 v = -v
             while n < N:
                 mask_behind = v[n:] < start_potential
-                if not True in mask_behind:
+                if True not in mask_behind:
                     break
                 else:
                     n += (
@@ -65,7 +65,7 @@ class CyclicVoltammagram(ECMeasurement):
                 # print('point number on way up: ' + str(n)) # debugging
 
                 mask_in_front = v[n:] > start_potential
-                if not True in mask_in_front:
+                if True not in mask_in_front:
                     break
                 else:
                     n += np.argmax(mask_in_front)

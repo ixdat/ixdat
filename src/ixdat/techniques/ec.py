@@ -5,6 +5,7 @@ import numpy as np
 from ..measurements import Measurement, append_series
 from ..data_series import ValueSeries, ConstantValue
 from ..exceptions import SeriesNotFoundError
+from ..exporters.ec_exporter import ECExporter
 
 
 class ECMeasurement(Measurement):
@@ -43,15 +44,16 @@ class ECMeasurement(Measurement):
         lablog=None,
         tstamp=None,
         ec_technique=None,
+        t_str="time / [s]",
         E_str="raw potential / [V]",
         V_str="$U_{RHE}$ / [V]",
         RE_vs_RHE=None,
         R_Ohm=None,
-        raw_potential_names=("Ewe/V", "<Ewe>/V"),
+        raw_potential_names=("Ewe/V", "<Ewe>/V"),  # TODO: reader must define this
         I_str="raw current / [mA]",
         J_str="J / [mA cm$^{-2}$]",
         A_el=None,
-        raw_current_names=("I/mA", "<I>/mA"),
+        raw_current_names=("I/mA", "<I>/mA"),  # TODO: reader must define this
         cycle_names=("cycle number",),
     ):
         """initialize an electrochemistry measurement
@@ -77,6 +79,7 @@ class ECMeasurement(Measurement):
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
                 data selection, visualization, and exporting.
+            t_str (str): Name of the main time variable (corresponding to potential)
             E_str (str): Name of raw potential (so called because potential is saved
                 as "Ewe/V" in biologic .mpt files)
             V_str (str): Name of calibrated potential
@@ -116,6 +119,7 @@ class ECMeasurement(Measurement):
             tstamp=tstamp,
         )
         self.ec_technique = ec_technique
+        self.t_str = t_str
         self.E_str = E_str
         self.V_str = V_str
         self.RE_vs_RHE = RE_vs_RHE
@@ -175,6 +179,8 @@ class ECMeasurement(Measurement):
         try:
             return super().__getitem__(item)
         except SeriesNotFoundError:
+            if item == self.t_str:
+                return self.potential.tseries
             if item == self.E_str:
                 return self.raw_potential
             elif item == self.V_str:
@@ -342,6 +348,12 @@ class ECMeasurement(Measurement):
 
             self._plotter = ECPlotter(measurement=self)
         return self._plotter
+
+    @property
+    def exporter(self):
+        if not self._exporter:
+            self._exporter = ECExporter(measurement=self)
+        return self._exporter
 
     def plot_vs_potential(self, *args, **kwargs):
         return self.plotter.plot_vs_potential(*args, **kwargs)

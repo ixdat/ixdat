@@ -4,7 +4,7 @@ Created on Mon Jan 25 22:02:57 2021
 
 @author: scott
 """
-# from pathlib import Path
+from pathlib import Path
 from matplotlib import pyplot as plt
 
 from ixdat import Measurement
@@ -25,3 +25,6 @@ cv_selection.plot_measurement(J_str="cycle")
 ax = cv_selection[1].plot(label="cycle 1")
 cv_selection[2].plot(ax=ax, linestyle="--", label="cycle 2")
 ax.legend()
+
+
+cv_selection.export(path_to_file=Path.home() / "test.csv")
