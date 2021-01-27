@@ -343,6 +343,9 @@ class ECMeasurement(Measurement):
             self._plotter = ECPlotter(measurement=self)
         return self._plotter
 
+    def plot_vs_potential(self, *args, **kwargs):
+        return self.plotter.plot_vs_potential(*args, **kwargs)
+
     @property
     def selector(self):
         if self.sel_str not in self.series_names:
