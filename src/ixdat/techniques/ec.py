@@ -52,6 +52,7 @@ class ECMeasurement(Measurement):
         J_str="J / [mA cm$^{-2}$]",
         A_el=None,
         raw_current_names=("I/mA", "<I>/mA"),
+        cycle_names=("cycle number",),
     ):
         """initialize an electrochemistry measurement
 
@@ -124,29 +125,64 @@ class ECMeasurement(Measurement):
         self.J_str = J_str
         self.A_el = A_el
         self.raw_current_names = raw_current_names
+        self.cycle_names = cycle_names
+
+        self.sel_str = "selector"
+        self.cycle_str = "cycle_number"
 
         self._raw_potential = None
         self._raw_current = None
-        if self.ec_technique in [
-            "Open Circuit Voltage",
-        ]:
-            available_current_names = [
-                name for name in self.series_names if name in self.raw_current_names
+        self._selector = None
+        if all(
+            [
+                (current_name not in self.series_names)
+                for current_name in self.raw_current_names
             ]
-            if len(available_current_names) == 0:
-                self.series_list.append(
-                    ConstantValue(
-                        name=self.raw_current_names[0],
-                        unit_name="mA",
-                        value=0,
-                    )
+        ):
+            self.series_list.append(
+                ConstantValue(
+                    name=self.raw_current_names[0],
+                    unit_name="mA",
+                    value=0,
                 )
+            )
             self._populate_constants()  # So that OCP currents are included as 0.
             # TODO: I don't like this. The ConstantValue was introduced to facilitate
             #   ixdat's laziness, but I can't find anywhere else to put the call to
             #   _populate_constants() that can find the right tseries. That's because
             #   once measurements are added together, it's not completely easy to
             #   tell which DataSeries come form the same component measurements.
+        if all(
+            [(cycle_name not in self.series_names) for cycle_name in self.cycle_names]
+        ):
+            self.series_list.append(
+                ConstantValue(
+                    name=self.cycle_names[0],
+                    unit_name=None,
+                    value=0,
+                )
+            )
+            self._populate_constants()  # So that everything has a cycle number
+
+    def _populate_constants(self):
+        for (i, s) in enumerate(self.series_list):
+            if isinstance(s, ConstantValue):
+                tseries = self.potential.tseries
+                current_series = s.get_vseries(tseries=tseries)
+                self.series_list[i] = current_series
+
+    def __getitem__(self, item):
+        if item == self.E_str:
+            return self.raw_potential
+        elif item == self.V_str:
+            return self.potential
+        elif item == self.I_str:
+            return self.raw_current
+        elif item == self.J_str:
+            return self.current
+        elif item == self.sel_str:
+            return self.selector
+        return super().__getitem__(item)
 
     @property
     def raw_potential(self):
@@ -173,7 +209,7 @@ class ECMeasurement(Measurement):
                 unit_name=raw_potential.unit_name,
                 tseries=potential_tseries,
             )
-            self.series_list.append(self._raw_potential)
+            self[self.E_str] = self._raw_potential
         else:
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw potential."
@@ -207,14 +243,20 @@ class ECMeasurement(Measurement):
                 unit_name=raw_current.unit_name,
                 tseries=current_tseries,
             )
-            self.series_list.append(self._raw_current)
+            self[self.I_str] = self._raw_current
+        else:
+            raise SeriesNotFoundError(
+                f"{self} does not have a series corresponding to raw current."
+                f" Looked for series with names in {self.raw_current_names}"
+            )
 
-    def _populate_constants(self):
-        for (i, s) in enumerate(self.series_list):
-            if isinstance(s, ConstantValue):
-                tseries = self.potential.tseries
-                current_series = s.get_vseries(tseries=tseries)
-                self.series_list[i] = current_series
+    def calibrate(self, RE_vs_RHE, A_el=None):
+        self.RE_vs_RHE = RE_vs_RHE if RE_vs_RHE is not None else self.RE_vs_RHE
+        self.A_el = A_el if A_el is not None else self.A_el
+
+    def normalize(self, A_el, RE_vs_RHE=None):
+        self.A_el = A_el if A_el is not None else self.A_el
+        self.RE_vs_RHE = RE_vs_RHE if RE_vs_RHE is not None else self.RE_vs_RHE
 
     @property
     def potential(self):
@@ -279,3 +321,70 @@ class ECMeasurement(Measurement):
 
             self._plotter = ECPlotter(measurement=self)
         return self._plotter
+
+    @property
+    def selector(self):
+        if self.sel_str not in self.series_names:
+            self.build_selector()
+        return self._selector
+
+    def build_selector(self, sel_str=None):
+        sel_str = sel_str or self.sel_str
+        changes = np.tile(False, self.t.shape)
+        self["file_number"] = self.file_number
+        col_list = ["cycle number", "loop_number", "file_number"]
+        for col in col_list:
+            if col in self.series_names:
+                values = self[col].data
+                if len(values) == 0:
+                    print("WARNING: " + col + " is empty")
+                    continue
+                elif not len(values) == len(changes):
+                    print("WARNING: " + col + " has an unexpected length")
+                    continue
+                n_down = np.append(
+                    values[0], values[:-1]
+                )  # comparing with n_up instead puts selector a point ahead
+                changes = np.logical_or(changes, n_down < values)
+        selector = np.cumsum(changes)
+        selector_series = ValueSeries(
+            name=sel_str,
+            unit_name="",
+            data=selector,
+            tseries=self.potential.tseries,
+        )
+        self._selector = selector_series
+
+    @property
+    def cycle_number(self):
+        cycle_series_list = [s for s in self.series_list if s.name in self.cycle_names]
+        if len(cycle_series_list) == 1:
+            return cycle_series_list[0]
+        elif len(cycle_series_list) > 1:
+            cycle = append_series(cycle_series_list)
+            return ValueSeries(
+                name=self.cycle_str,
+                data=cycle.data,
+                unit_name=cycle.unit_name,
+                tseries=cycle.tseries,
+            )
+        else:
+            raise SeriesNotFoundError(
+                f"{self} does not have a series corresponding to raw current."
+                f" Looked for series with names in {self.raw_current_names}"
+            )
+
+    @property
+    def file_number(self):
+        file_number_series_list = []
+        for m in self.component_measurements:
+            vseries = m.potential
+            file_number_series = ValueSeries(
+                name="file_number",
+                unit_name="",
+                data=np.tile(m.id, vseries.t.shape),
+                tseries=vseries.tseries,
+            )
+            file_number_series_list.append(file_number_series)
+        file_number = append_series(file_number_series_list)
+        return file_number

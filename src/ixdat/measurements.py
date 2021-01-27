@@ -158,10 +158,12 @@ class Measurement(Saveable):
     def component_measurements(self):
         """List of the component measurements of which this measurement is a combination
 
-        For a pure measurement (not a measurement set), this is None.
+        For a pure measurement (not a measurement set), this is itself in a list.
         """
         if not self._component_measurements:
-            return None
+            return [
+                self,
+            ]
         for i, m in enumerate(self._component_measurements):
             if isinstance(m, PlaceHolderObject):
                 self._component_measurements[i] = m.get_object()
@@ -233,6 +235,21 @@ class Measurement(Saveable):
             raise SeriesNotFoundError(f"{self} has no series called {item}")
         return time_shifted(s, self.tstamp)
 
+    def __setitem__(self, series_name, series):
+        if not series.name == series_name:
+            raise SeriesNotFoundError(
+                f"Can't set {self}[{series_name}] = {series}. Series names don't agree."
+            )
+        del self[series_name]
+        self.series_list.append(series)
+
+    def __delitem__(self, series_name):
+        new_series_list = []
+        for s in self.series_list:
+            if not s.name == series_name:
+                new_series_list.append(s)
+        self._series_list = new_series_list
+
     def get_t_and_v(self, item, tspan=None):
         """Return the time and value vectors for a given VSeries name cut by tspan"""
         vseries = self[item]
@@ -268,6 +285,15 @@ class Measurement(Saveable):
         if exporter:
             return exporter.export_measurement(self, *args, **kwargs)
         return self.exporter.export(*args, **kwargs)
+
+    def get_original_m_id_of_series(self, series):
+        m_id_list = []
+        for m in self.component_measurements:
+            if series.id in m.s_ids:
+                m_id_list.append(m.id)
+        if len(m_id_list) == 1:
+            return m_id_list[0]
+        return m_id_list
 
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.
@@ -305,8 +331,8 @@ class Measurement(Saveable):
             cls = Measurement
 
         new_series_list = self.series_list + other.series_list
-        new_component_measurements = (self.component_measurements or [self]) + (
-            other.component_measurements or [other]
+        new_component_measurements = (
+            self.component_measurements + other.component_measurements
         )
         obj_as_dict.update(
             name=new_name,

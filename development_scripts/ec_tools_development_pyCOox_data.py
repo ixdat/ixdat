@@ -37,16 +37,9 @@ else:
 
 combined_meas = ocp_meas + cv_meas + cp_meas
 
-v_list = ["Ewe/V", "<I>/mA", "I/mA"]
 t_start = 13700
 tspan = [0, 3000]
 
-if False:
-    for meas in [ocp_meas, cv_meas, cp_meas, combined_meas]:
-        meas.tstamp += t_start
+combined_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
 
-        meas.plot(v_list=v_list, tspan=tspan)
-else:
-    combined_meas.tstamp += t_start
-
-combined_meas.plot(tspan=tspan)
+combined_meas.plot(tspan=tspan, J_str="selector")
