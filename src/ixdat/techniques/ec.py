@@ -8,7 +8,7 @@ from ..exceptions import SeriesNotFoundError
 
 
 class ECMeasurement(Measurement):
-    """Class implementing raw electrochemistry measurements
+    """Class implementing electrochemistry measurements
 
     TODO:
         Implement a unit library for current and potential, A_el and RE_vs_RHE
@@ -168,8 +168,8 @@ class ECMeasurement(Measurement):
         for (i, s) in enumerate(self.series_list):
             if isinstance(s, ConstantValue):
                 tseries = self.potential.tseries
-                current_series = s.get_vseries(tseries=tseries)
-                self.series_list[i] = current_series
+                series = s.get_vseries(tseries=tseries)
+                self.series_list[i] = series
 
     def __getitem__(self, item):
         try:
@@ -346,6 +346,10 @@ class ECMeasurement(Measurement):
     def plot_vs_potential(self, *args, **kwargs):
         return self.plotter.plot_vs_potential(*args, **kwargs)
 
+    def plot(self, *args, **kwargs):
+        """default plot for ECMeasurement is plot_measurement"""
+        return self.plotter.plot_measurement(*args, **kwargs)
+
     @property
     def selector(self):
         if self.sel_str not in self.series_names:
@@ -416,3 +420,12 @@ class ECMeasurement(Measurement):
             file_number_series_list.append(file_number_series)
         file_number = append_series(file_number_series_list)
         self["file_number"] = file_number
+
+    def as_cv(self):
+        from .cv import CyclicVoltammagram
+
+        self_as_dict = self.as_dict()
+        self_as_dict["series_list"] = self.series_list
+        self_as_dict["technique"] = "CV"
+        del self_as_dict["s_ids"]
+        return CyclicVoltammagram.from_dict(self_as_dict)

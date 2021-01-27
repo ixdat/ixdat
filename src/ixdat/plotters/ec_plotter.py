@@ -7,7 +7,7 @@ class ECPlotter:
     def __init__(self, measurement=None):
         self.measurement = measurement
 
-    def plot(
+    def plot_measurement(
         self,
         measurement=None,
         tspan=None,

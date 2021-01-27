@@ -8,6 +8,7 @@ Constants:
 """
 
 from .ec import ECMeasurement
+from .cv import CyclicVoltammagram
 from .ms import MSMeasurement
 from .ec_ms import ECMSMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
@@ -15,6 +16,7 @@ from ..measurements import Measurement  # for importing in the technique modules
 TECHNIQUE_CLASSES = {
     "simple": Measurement,
     "EC": ECMeasurement,
+    "CV": CyclicVoltammagram,
     "MS": MSMeasurement,
     "EC-MS": ECMSMeasurement,
 }
