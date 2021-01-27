@@ -103,7 +103,6 @@ class ECMeasurement(Measurement):
             name,
             technique=technique,
             metadata=metadata,
-            metadata_json_string=metadata_json_string,
             s_ids=s_ids,
             series_list=series_list,
             m_ids=m_ids,
@@ -112,7 +111,6 @@ class ECMeasurement(Measurement):
             plotter=plotter,
             exporter=exporter,
             sample=sample,
-            sample_name=sample_name,
             lablog=lablog,
             tstamp=tstamp,
         )
@@ -133,6 +131,7 @@ class ECMeasurement(Measurement):
         self._raw_potential = None
         self._raw_current = None
         self._selector = None
+        self._file_number = None
         if all(
             [
                 (current_name not in self.series_names)
@@ -147,11 +146,10 @@ class ECMeasurement(Measurement):
                 )
             )
             self._populate_constants()  # So that OCP currents are included as 0.
-            # TODO: I don't like this. The ConstantValue was introduced to facilitate
+            # TODO: I don't like this. ConstantValue was introduced to facilitate
             #   ixdat's laziness, but I can't find anywhere else to put the call to
-            #   _populate_constants() that can find the right tseries. That's because
-            #   once measurements are added together, it's not completely easy to
-            #   tell which DataSeries come form the same component measurements.
+            #   _populate_constants() that can find the right tseries. This is a
+            #   violation of laziness as bad as what it was meant to solve.
         if all(
             [(cycle_name not in self.series_names) for cycle_name in self.cycle_names]
         ):
@@ -172,17 +170,20 @@ class ECMeasurement(Measurement):
                 self.series_list[i] = current_series
 
     def __getitem__(self, item):
-        if item == self.E_str:
-            return self.raw_potential
-        elif item == self.V_str:
-            return self.potential
-        elif item == self.I_str:
-            return self.raw_current
-        elif item == self.J_str:
-            return self.current
-        elif item == self.sel_str:
-            return self.selector
-        return super().__getitem__(item)
+        try:
+            return super().__getitem__(item)
+        except SeriesNotFoundError:
+            if item == self.E_str:
+                return self.raw_potential
+            elif item == self.V_str:
+                return self.potential
+            elif item == self.I_str:
+                return self.raw_current
+            elif item == self.J_str:
+                return self.current
+            elif item == self.sel_str:
+                return self.selector
+            raise SeriesNotFoundError(f"{self} doesn't have item '{item}'")
 
     @property
     def raw_potential(self):
@@ -331,7 +332,6 @@ class ECMeasurement(Measurement):
     def build_selector(self, sel_str=None):
         sel_str = sel_str or self.sel_str
         changes = np.tile(False, self.t.shape)
-        self["file_number"] = self.file_number
         col_list = ["cycle number", "loop_number", "file_number"]
         for col in col_list:
             if col in self.series_names:
@@ -376,6 +376,11 @@ class ECMeasurement(Measurement):
 
     @property
     def file_number(self):
+        if "file_number" in self.series_names:
+            self._build_file_number()
+        return self["file_number"]
+
+    def _build_file_number(self):
         file_number_series_list = []
         for m in self.component_measurements:
             vseries = m.potential
@@ -387,4 +392,4 @@ class ECMeasurement(Measurement):
             )
             file_number_series_list.append(file_number_series)
         file_number = append_series(file_number_series_list)
-        return file_number
+        self["file_number"] = file_number

@@ -66,6 +66,14 @@ class DataSeries(Saveable):
         """The name of the data series' unit"""
         return self.unit.name
 
+    @property
+    def shape(self):
+        return self.data.shape
+
+    @property
+    def size(self):
+        return self.data.size
+
 
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
@@ -80,6 +88,10 @@ class TimeSeries(DataSeries):
         """
         super().__init__(name, unit_name, data)
         self.tstamp = tstamp
+
+    @property
+    def t(self):
+        return self.data
 
     @property
     def tseries(self):

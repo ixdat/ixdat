@@ -51,8 +51,6 @@ class Measurement(Saveable):
 
         Args:
             name (str): The name of the measurement
-            TODO: Decide if metadata needs the json string option.
-                See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
             metadata (dict): Free-form measurement metadata. Must be json-compatible.
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
@@ -89,6 +87,7 @@ class Measurement(Saveable):
             component_measurements, m_ids, cls=Measurement
         )
         self.tstamp = tstamp
+        self.sel_str = None  # the default thing to select on.
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -204,12 +203,12 @@ class Measurement(Saveable):
     @property
     def series_names(self):
         """List of the names of the series in the measurement"""
-        return [series.name for series in self.series_list]
+        return set([series.name for series in self.series_list])
 
     @property
     def value_names(self):
         """List of the names of the VSeries in the measurement's DataSeries"""
-        return [vseries.name for vseries in self.value_series]
+        return set([vseries.name for vseries in self.value_series])
 
     @property
     def value_series(self):
@@ -310,6 +309,119 @@ class Measurement(Saveable):
             return m_id_list[0]
         return m_id_list
 
+    def cut(self, tspan):
+        new_series_list = []
+        obj_as_dict = self.as_dict()
+        time_cutting_stuff = {}  # {tseries_id: (mask, new_tseries)}
+        for series in self.series_list:
+            try:
+                tseries = series.tseries
+                if tseries is None:
+                    raise AttributeError
+            except AttributeError:  # series independent of time are uneffected by cut
+                new_series_list.append(series)
+            else:
+                t_id = tseries.id
+                if t_id in time_cutting_stuff:
+                    mask, new_tseries = time_cutting_stuff[t_id]
+                else:
+                    t = tseries.t + tseries.tstamp - self.tstamp
+                    mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
+                    new_tseries = TimeSeries(
+                        name=tseries.name,
+                        unit_name=tseries.unit_name,
+                        tstamp=tseries.tstamp,
+                        data=tseries.data[mask],
+                    )
+                    time_cutting_stuff[t_id] = (mask, new_tseries)
+                if True not in mask:
+                    continue
+                if False not in mask:
+                    new_series_list.append(series)
+                elif series.id == t_id:
+                    new_series_list.append(new_tseries)
+                else:
+                    new_series = series.__class__(
+                        name=series.name,
+                        unit_name=series.unit_name,
+                        data=series.data[mask],
+                        tseries=new_tseries,
+                    )
+                    new_series_list.append(new_series)
+        obj_as_dict["series_list"] = new_series_list
+        del obj_as_dict["s_ids"]
+        new_measurement = self.__class__(**obj_as_dict)
+        return new_measurement
+
+    def select_value(self, *args, **kwargs):
+        if len(args) >= 1:
+            if not self.sel_str:
+                raise BuildError(
+                    f"{self} does not have a default selection string "
+                    f"(Measurement.sel_str), and so selection only works with kwargs."
+                )
+            kwargs[self.sel_str] = args
+        if len(kwargs) > 1:
+            raise BuildError(
+                f"select_value got kwargs={kwargs} but can only be used for one value "
+                f"at a time. Use select_values for more."
+            )
+        new_measurement = self
+        ((series_name, value),) = kwargs.items()
+
+        t, v = self.get_t_and_v(series_name)
+        mask = v == value  # linter doesn't realize this is a np array
+        mask_prev = np.append(False, mask[:-1])
+        mask_next = np.append(mask[1:], False)
+        interval_starts_here = np.logical_and(
+            np.logical_not(mask_prev), mask
+        )  # True at [0] if mask[0] is True.
+        interval_ends_here = np.logical_and(
+            mask, np.logical_not(mask_next)
+        )  # True at [-1] if mask[-1] is True.
+        t_starts = list(t[interval_starts_here])
+        t_ends = list(t[interval_ends_here])
+        tspans = zip(t_starts, t_ends)
+        meas = None
+        for tspan in tspans:
+            if meas:
+                meas = meas + new_measurement.cut(tspan)
+            else:
+                meas = new_measurement.cut(tspan)
+        new_measurement = meas
+        return new_measurement
+
+    def select_values(self, *args, **kwargs):
+        if len(args) >= 1:
+            if not self.sel_str:
+                raise BuildError(
+                    f"{self} does not have a default selection string "
+                    f"(Measurement.sel_str), and so selection only works with kwargs."
+                )
+            kwargs[self.sel_str] = args
+        new_measurement = self
+        for series_name, allowed_values in kwargs.items():
+            if not hasattr(allowed_values, "__iter__"):
+                allowed_values = [allowed_values]
+            t, v = new_measurement.get_t_and_v(series_name)
+            meas = None
+            for value in allowed_values:
+                m = new_measurement.select_value(**{series_name: value})
+                if meas:
+                    meas = meas + m
+                else:
+                    meas = m
+            new_measurement = meas
+        return new_measurement
+
+    def select(self, *args, tspan=None, **kwargs):
+        new_measurement = self
+        if tspan:
+            new_measurement = new_measurement.cut(tspan=tspan)
+        if args or kwargs:
+            new_measurement = new_measurement.select_value(*args, **kwargs)
+        return new_measurement
+
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.
 
@@ -358,7 +470,10 @@ class Measurement(Saveable):
 
 
 #  ------- Now come a few module-level functions for series manipulation ---------
-#  TODO: move to a .build module or similar
+# TODO: move to an `ixdat.build` module or similar.
+#   There's a lot of stuff that should go there. Basically anything in ECMeasurement
+#   that can be reasonably converted to a module level function to decrease the
+#   awkwardness there.
 
 
 def append_series(series_list):

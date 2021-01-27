@@ -42,4 +42,12 @@ tspan = [0, 3000]
 
 combined_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
 
-combined_meas.plot(tspan=tspan, J_str="selector")
+combined_meas.tstamp += t_start
+
+combined_meas.plot(tspan=tspan)
+
+cut_meas = combined_meas.cut(tspan=tspan)
+cut_meas.plot(J_str="selector")
+
+select_meas = cut_meas.select_value(selector=7)
+select_meas.plot()
