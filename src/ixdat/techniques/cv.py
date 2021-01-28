@@ -5,11 +5,25 @@ from ..exceptions import SeriesNotFoundError
 
 
 class CyclicVoltammagram(ECMeasurement):
+    """Class for cyclic voltammatry measurements.
+
+    Onto ECMeasurement, this adds:
+    - a property `cycle` which is a ValueSeries on the same TimeSeries as potential,
+        which counts cycles. "cycle" becomes the Measurement's `sel_str`. Indexing with
+        integer or iterable selects according to `cycle`.
+    - functions for quantitatively comparing cycles (like a stripping cycle, base cycle)
+    - the default plot() is plot_vs_potential()
+    """
+
+    start_potential = None  # see `redefine_cycle`
+    redox = None  # see `redefine_cycle`
+
     def plot(self, *args, **kwargs):
         """Default plot for cv is plot_vs_potential"""
         return self.plotter.plot_vs_potential(*args, **kwargs)
 
     def __getitem__(self, key):
+        """Given int list or slice key, return a CyclicVoltammagram with those cycles"""
         if type(key) is slice:
             start, stop, step = key.start, key.stop, key.step
             if step is None:
@@ -29,9 +43,20 @@ class CyclicVoltammagram(ECMeasurement):
 
     @property
     def cycle(self):
+        """ValueSeries: the cycle number. The default selector. see `redefine_cycle`"""
         return self.selector
 
     def redefine_cycle(self, start_potential=None, redox=None):
+        """Build `cycle` which iterates when passing through start_potential
+
+        Args:
+            start_potential (float): The potential in [V] at which the cycle counter will
+                iterate. If start_potential is not given, the cycle is just the
+                `selector` inherited from ECMeasurement shifted to start at 0.
+            redox (bool): True (or 1) for anodic, False (or 0) for cathodic. The
+                direction in which the potential is scanning through start_potential to
+                trigger an iteration of `cycle`.
+        """
         self.start_potential = start_potential
         self.redox = redox
         if start_potential is None:
@@ -42,14 +67,13 @@ class CyclicVoltammagram(ECMeasurement):
                 data=old_cycle_series.data - min(old_cycle_series.data),
                 tseries=old_cycle_series.tseries,
             )
-
         else:
             cycle_vec = np.zeros(self.t.shape)
             c = 0
             n = 0
             N = len(self.t)
             v = self.v
-            if redox in [0, -1, "red", "reduction"]:
+            if not redox:
                 # easiest way to reverse directions is to use the same > < operators
                 # but negate the arguments
                 start_potential = -start_potential
