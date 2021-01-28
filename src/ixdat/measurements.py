@@ -250,6 +250,7 @@ class Measurement(Saveable):
         return time_shifted(s, self.tstamp)
 
     def __setitem__(self, series_name, series):
+        """Append `series` with name=`series_name` to `series_list` and remove others."""
         if not series.name == series_name:
             raise SeriesNotFoundError(
                 f"Can't set {self}[{series_name}] = {series}. Series names don't agree."
@@ -258,6 +259,7 @@ class Measurement(Saveable):
         self.series_list.append(series)
 
     def __delitem__(self, series_name):
+        """Remove all series which have `series_name` as their name from series_list"""
         new_series_list = []
         for s in self.series_list:
             if not s.name == series_name:
@@ -292,6 +294,7 @@ class Measurement(Saveable):
 
     @property
     def plotter(self):
+        """The default plotter for Measurement is ValuePlotter."""
         if not self._plotter:
             from .plotters import ValuePlotter
 
@@ -300,6 +303,7 @@ class Measurement(Saveable):
 
     @property
     def exporter(self):
+        """The default exporter for Measurement is CSVExporter."""
         if not self._exporter:
             self._exporter = CSVExporter(measurement=self)
         return self._exporter
@@ -311,6 +315,7 @@ class Measurement(Saveable):
         return self.exporter.export(*args, **kwargs)
 
     def get_original_m_id_of_series(self, series):
+        """Return the id(s) of component measurements to which `series` belongs."""
         m_id_list = []
         for m in self.component_measurements:
             if series.id in m.s_ids:
@@ -320,6 +325,15 @@ class Measurement(Saveable):
         return m_id_list
 
     def cut(self, tspan):
+        """Return a new measurement with the data in the given time interval
+
+        Args:
+            tspan (iter of float): The time interval to use, relative to self.tstamp
+                tspan[0] is the start time of the interval, and tspan[-1] is the end
+                time of the interval. Using tspan[-1] means you can directly use a
+                long time vector that you have at hand to describe the time interval
+                you're looking for.
+        """
         new_series_list = []
         obj_as_dict = self.as_dict()
         time_cutting_stuff = {}  # {tseries_id: (mask, new_tseries)}
@@ -337,8 +351,10 @@ class Measurement(Saveable):
                 #    the above line of code was just t_id = tseries.id as you'd expect,
                 #    meaning that time_cutting_stuff appeared to already have the needed
                 #    tseries but didn't!
-                #    Note that the id together with the backend works but could be
-                #    replaced by a single Universal Unique Identifier
+                #    Note that the id together with the backend works but should be
+                #    replaced by a single Universal Unique Identifier, or perhaps just
+                #    a property `Saveable.uid`, returning `(self.id, self.backend_name)`
+
                 if t_id in time_cutting_stuff:
                     mask, new_tseries = time_cutting_stuff[t_id]
                 else:
@@ -371,6 +387,16 @@ class Measurement(Saveable):
         return new_measurement
 
     def select_value(self, *args, **kwargs):
+        """Return a new Measurement with the time(s) meeting criteria.
+
+        Can only take one arg or kwarg!
+        The `series_name` is `self.sel_str` if given an arg, kw if given a kwarg.
+        Either way the argument is the `value` to be selected for.
+
+        The method finds all time intervals for which `self[series_name] == value`
+        It then cuts the measurement according to each time interval and adds these
+        segments together. TODO: This can be done better, i.e. without chopping series.
+        """
         if len(args) >= 1:
             if not self.sel_str:
                 raise BuildError(
@@ -409,6 +435,24 @@ class Measurement(Saveable):
         return new_measurement
 
     def select_values(self, *args, **kwargs):
+        """Return a new Measurement with the time(s) in the measurement meeting criteria
+
+        Any series can be selected for using the series name as a key-word. Arguments
+        can be single acceptable values or lists of acceptable values. In the latter
+        case, each acceptable value is selected for on its own and the resulting
+        measurements added together.
+        # FIXME: That is sloppy because it mutliplies the number of DataSeries
+            containing the same amount of data.
+        If no key-word is given, the series name is assumed to
+        be the default selector, which is named by self.sel_str. Multiple criteria are
+        applied sequentially, i.e. you get the intersection of satisfying parts.
+
+        Args:
+            args (tuple): Argument(s) given without key-word are understood as acceptable
+                value(s) for the default selector (that named by self.sel_str)
+            kwargs (dict): Each key-word arguments is understood as the name
+                of a series and its acceptable value(s).
+        """
         if len(args) >= 1:
             if not self.sel_str:
                 raise BuildError(
@@ -433,6 +477,7 @@ class Measurement(Saveable):
         return new_measurement
 
     def select(self, *args, tspan=None, **kwargs):
+        """`cut` (with tspan) and `select_values` (with *args and/or **kwargs)."""
         new_measurement = self
         if tspan:
             new_measurement = new_measurement.cut(tspan=tspan)
@@ -494,38 +539,60 @@ class Measurement(Saveable):
 #   awkwardness there.
 
 
-def append_series(series_list):
-    """Return series appending series_list relative to series_list[0].tseries.tstamp"""
+def append_series(series_list, sorted=True, tstamp=None):
+    """Return series appending series_list relative to series_list[0].tseries.tstamp
+
+    Args:
+        series_list (list of Series): The series to append (must all be of same type)
+        sorted (bool): Whether to sort the data so that time only goes forward
+        tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
+    """
     s0 = series_list[0]
     if isinstance(s0, TimeSeries):
-        return append_tseries(series_list)
+        return append_tseries(series_list, sorted=sorted, tstamp=tstamp)
     elif isinstance(s0, ValueSeries):
-        return append_vseries_by_time(series_list)
+        return append_vseries_by_time(series_list, sorted=sorted, tstamp=tstamp)
     raise BuildError(
         f"An algorithm of append_series for series like {s0} is not yet implemented"
     )
 
 
-def append_vseries_by_time(series_list):
-    """Return new series with the data in series_list appended"""
+def append_vseries_by_time(series_list, sorted=True, tstamp=None):
+    """Return new ValueSeries with the data in series_list appended
+
+    Args:
+        series_list (list of ValueSeries): The value series to append
+        sorted (bool): Whether to sort the data so that time only goes forward
+        tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
+    """
     name = series_list[0].name
     cls = series_list[0].__class__
     unit = series_list[0].unit
     data = np.array([])
     tseries_list = [s.tseries for s in series_list]
-    tseries, sort_indeces = append_tseries(tseries_list, return_sort_indeces=True)
+    tseries, sort_indeces = append_tseries(
+        tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
+    )
 
     for s in series_list:
         if not (s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
-    data = data[sort_indeces]
+    if sorted:
+        data = data[sort_indeces]
 
     return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
 
 
-def append_tseries(series_list, tstamp=None, sorted=True, return_sort_indeces=False):
-    """Return new TSeries with the data appended relative to series_list[0].tstamp"""
+def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=None):
+    """Return new TimeSeries with the data appended.
+
+    Args:
+        series_list (list of TimeSeries): The time series to append
+        sorted (bool): Whether to sort the data so that time only goes forward
+        return_sort_indeces (bool): Whether to return the indeces that sort the data
+        tstamp (unix tstamp): The t=0 of the returned TimeSeries.
+    """
     name = series_list[0].name
     cls = series_list[0].__class__
     unit = series_list[0].unit
@@ -576,7 +643,7 @@ def fill_object_list(object_list, obj_ids, cls=None):
 
 def time_shifted(series, tstamp=None):
     """Return a series with the time shifted to be relative to tstamp"""
-    if not tstamp:
+    if tstamp is None:
         return series
     cls = series.__class__
     if isinstance(series, TimeSeries):
