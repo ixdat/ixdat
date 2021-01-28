@@ -40,7 +40,7 @@ class DecoMeasurement(ECMSMeasurement):
         kernel = kernel_obj.generate_kernel(dt=t_sig[1] - t_sig[0])
         kernel = np.hstack((kernel, np.zeros(len(sig) - len(kernel))))
         H = fft(kernel)
-
+        # TODO: store this as well.
         partial_current = np.real(
             ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
         )
@@ -118,7 +118,7 @@ class Kernel:
                     current, potential).
         """
 
-        if MS_data is not None and parameters:
+        if MS_data is not None and parameters:  # TODO: Make two different classes
             raise Exception(
                 "Kernel can only be initialized with data OR parameters, not both"
             )
@@ -187,7 +187,7 @@ class Kernel:
             dt (int): Timestep for which the kernel/impulse response is calculated.
                 Has to match the timestep of the measured data for deconvolution.
             len(int): Timelength in seconds for which the kernel/impulse response is
-                calculated.
+                calculated. Must be long enough to reach zero.
             norm (bool): If true the kernel/impulse response is normalized to its
                 area.
             matrix (bool): If true the circulant matrix constructed from the kernel/
