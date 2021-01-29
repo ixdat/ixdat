@@ -192,6 +192,8 @@ class ECMeasurement(Measurement):
         self.sel_str = "selector"
         self.cycle_str = "cycle_number"
 
+        self.plot_vs_potential = self.plotter.plot_vs_potential
+
         self._raw_potential = None
         self._raw_current = None
         self._selector = None
@@ -488,6 +490,7 @@ class ECMeasurement(Measurement):
             from ..plotters.ec_plotter import ECPlotter
 
             self._plotter = ECPlotter(measurement=self)
+
         return self._plotter
 
     @property
@@ -496,14 +499,6 @@ class ECMeasurement(Measurement):
         if not self._exporter:
             self._exporter = ECExporter(measurement=self)
         return self._exporter
-
-    def plot_vs_potential(self, *args, **kwargs):
-        """Plot the measurement vs potential. See the plotter"""
-        return self.plotter.plot_vs_potential(*args, **kwargs)
-
-    def plot(self, *args, **kwargs):
-        """default plot for ECMeasurement is plot_measurement"""
-        return self.plotter.plot_measurement(*args, **kwargs)
 
     @property
     def selector(self):

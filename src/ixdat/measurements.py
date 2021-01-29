@@ -89,6 +89,10 @@ class Measurement(Saveable):
         self.tstamp = tstamp
         self.sel_str = None  # the default thing to select on.
 
+        # defining these methods here gets them the right docstrings :D
+        self.plot_measurement = self.plotter.plot_measurement
+        self.plot = self.plotter.plot_measurement
+
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return an object of the measurement class of the right technique
@@ -282,16 +286,6 @@ class Measurement(Saveable):
         """Return a set of the names of all of the measurement's VSeries and TSeries"""
         return set([s.name for s in (self.value_series + self.time_series)])
 
-    def plot_measurement(self, plotter=None, *args, **kwargs):
-        """Plot the measurement using its plotter (see its Plotter for details)"""
-        if plotter:
-            return plotter.plot_measurement(self, *args, **kwargs)
-        return self.plotter.plot_measurement(*args, **kwargs)
-
-    def plot(self, *args, **kwargs):
-        """Pseudonymn in class Measurement for plot_measurement"""
-        return self.plot_measurement(*args, **kwargs)
-
     @property
     def plotter(self):
         """The default plotter for Measurement is ValuePlotter."""
@@ -299,6 +293,10 @@ class Measurement(Saveable):
             from .plotters import ValuePlotter
 
             self._plotter = ValuePlotter(measurement=self)
+        # self.plot_measurement.__doc__ = self._plotter.plot_measurement.__doc__
+        # self.plot.__doc__ = self._plotter.plot_measurement.__doc__
+        # FIXME: Help! plot_measurement() needs to be wrapped with the plotter's
+        # plot_measu
         return self._plotter
 
     @property
@@ -308,7 +306,7 @@ class Measurement(Saveable):
             self._exporter = CSVExporter(measurement=self)
         return self._exporter
 
-    def export(self, exporter=None, *args, **kwargs):
+    def export(self, *args, exporter=None, **kwargs):
         """Export the measurement using its exporter (see its Exporter for details)"""
         if exporter:
             return exporter.export_measurement(self, *args, **kwargs)
@@ -644,6 +642,8 @@ def fill_object_list(object_list, obj_ids, cls=None):
 def time_shifted(series, tstamp=None):
     """Return a series with the time shifted to be relative to tstamp"""
     if tstamp is None:
+        return series
+    if tstamp == series.tstamp:
         return series
     cls = series.__class__
     if isinstance(series, TimeSeries):

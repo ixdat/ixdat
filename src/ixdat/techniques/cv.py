@@ -15,12 +15,13 @@ class CyclicVoltammagram(ECMeasurement):
     - the default plot() is plot_vs_potential()
     """
 
+    def __init__(self, *args, **kwargs):
+        """Only reason to have an __init__ here is to set the default plot()"""
+        super().__init__(*args, **kwargs)
+        self.plot = self.plotter.plot_vs_potential  # gets the right docstrings! :D
+
     start_potential = None  # see `redefine_cycle`
     redox = None  # see `redefine_cycle`
-
-    def plot(self, *args, **kwargs):
-        """Default plot for cv is plot_vs_potential"""
-        return self.plotter.plot_vs_potential(*args, **kwargs)
 
     def __getitem__(self, key):
         """Given int list or slice key, return a CyclicVoltammagram with those cycles"""

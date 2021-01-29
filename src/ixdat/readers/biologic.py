@@ -99,7 +99,7 @@ class BiologicMPTReader:
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
-        self.name = name or path_to_file
+        self.name = name or path_to_file.name
         self.path_to_file = path_to_file
         with open(path_to_file) as f:
             for line in f:

@@ -1,4 +1,5 @@
 """Classes for exporting measurement data"""
+from pathlib import Path
 
 
 class CSVExporter:
@@ -34,6 +35,8 @@ class CSVExporter:
         columns_data = {}
         s_list = []
         v_list = v_list or self.default_v_list or list(measurement.data_cols)
+        if isinstance(path_to_file, str):
+            path_to_file = Path(path_to_file)
         if not path_to_file.suffix:
             path_to_file = path_to_file.with_suffix(".csv")
         for v_name in v_list:

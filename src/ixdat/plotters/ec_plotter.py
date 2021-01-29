@@ -49,8 +49,14 @@ class ECPlotter:
         Returns list of matplotlib.pyplot.Axis: The axes plotted on.
         """
         measurement = measurement or self.measurement
-        V_str = V_str or measurement.V_str
-        J_str = J_str or measurement.J_str
+        V_str = V_str or (
+            measurement.V_str
+            if measurement.RE_vs_RHE is not None
+            else measurement.E_str
+        )
+        J_str = J_str or (
+            measurement.J_str if measurement.A_el is not None else measurement.I_str
+        )
         t_v, v = measurement.get_t_and_v(V_str, tspan=tspan)
         t_j, j = measurement.get_t_and_v(J_str, tspan=tspan)
         if axes:
@@ -58,6 +64,7 @@ class ECPlotter:
         else:
             fig, ax1 = plt.subplots()
             ax2 = ax1.twinx()
+            axes = [ax1, ax2]
         ax1.plot(t_v, v, "-", color=V_color, label=V_str, **kwargs)
         ax2.plot(t_j, j, "-", color=J_color, label=J_str, **kwargs)
         ax1.set_xlabel("time / [s]")
@@ -96,8 +103,14 @@ class ECPlotter:
         Returns matplotlib.pyplot.axis: The axis plotted on.
         """
         measurement = measurement or self.measurement
-        V_str = V_str or measurement.V_str
-        J_str = J_str or measurement.J_str
+        V_str = V_str or (
+            measurement.V_str
+            if measurement.RE_vs_RHE is not None
+            else measurement.E_str
+        )
+        J_str = J_str or (
+            measurement.J_str if measurement.A_el is not None else measurement.I_str
+        )
         t_v, v = measurement.get_t_and_v(V_str, tspan=tspan)
         t_j, j = measurement.get_t_and_v(J_str, tspan=tspan)
 
