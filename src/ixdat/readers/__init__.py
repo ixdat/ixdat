@@ -6,7 +6,7 @@ Constants:
         is the reader class for parsing files.
 """
 from ..techniques import TECHNIQUE_CLASSES
-from .ec_ms import EC_MS_CONVERTER
+from .ec_ms_pkl import EC_MS_CONVERTER
 from .zilien import ZilienTSVReader
 from .biologic import BiologicMPTReader
 

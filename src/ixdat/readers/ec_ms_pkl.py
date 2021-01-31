@@ -32,7 +32,7 @@ class EC_MS_CONVERTER:
         cols_list = []
 
         for col in cols_str:
-            if endswith("-x"):
+            if col.endswith("-x"):
                 cols_list.append(TimeSeries(col, "s", data[col], data["tstamp"]))
 
             if col == "time/s":
@@ -43,7 +43,7 @@ class EC_MS_CONVERTER:
         )
 
         for col in cols_str:
-            if startswith("M") and endswith("-y"):
+            if col.startswith("M") and col.endswith("-y"):
                 cols_list.append(
                     ValueSeries(
                         col[:-2], "A", data[col], tseries=measurement[col[:-1] + "x"]

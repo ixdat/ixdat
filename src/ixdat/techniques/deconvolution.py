@@ -8,6 +8,7 @@ from scipy import signal
 from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth
 import matplotlib.pyplot as plt
 from numpy.fft import fft, ifft, ifftshift, fftfreq
+import numpy as np
 
 
 class DecoMeasurement(ECMSMeasurement):
@@ -111,7 +112,7 @@ class Kernel:
                     work_dist: Working distance between electrode and gas/liq interface
                     vol_gas: Gas sampling volume of the chip
                     volflow_cap: Volumetric capillary flow
-                    henry_vol: Dimensionless Henry volatility
+                    henry_vola: Dimensionless Henry volatility
                 MS_data (list): List of numpy arrays containing the MS signal
                     data.
                 EC_data (list): List of numpy arrays containing the EC (time,
@@ -155,23 +156,24 @@ class Kernel:
 
         return Q
 
-    def plot(self, t_kernel=None, ax=None, norm=True, **kwargs):
+    def plot(self, dt=0.1, duration=100, ax=None, norm=True, **kwargs):
         """Returns a plot of the kernel/impulse response."""
         if ax is None:
             fig1 = plt.figure()
             ax = fig1.add_subplot(111)
 
         if self.type is "functional":
+            t_kernel = np.arange(0, duration, dt)
             ax.plot(
                 t_kernel,
-                self.gen_kernel(t_kernel=t_kernel, norm=norm),
+                self.calculate_kernel(dt=dt, duration=duration, norm=norm),
                 **kwargs,
             )
 
         elif self.type is "measured":
             ax.plot(
                 self.MS_data[0],
-                self.gen_kernel(norm=norm),
+                self.calculate_kernel(dt=dt, duration=duration, norm=norm),
                 **kwargs,
             )
 
@@ -180,13 +182,13 @@ class Kernel:
 
         return ax
 
-    def calculate_kernel(self, dt=0.1, len=100, norm=True, matrix=False):
+    def calculate_kernel(self, dt=0.1, duration=100, norm=True, matrix=False):
         """Calculates a kernel/impulse response.
 
         Args:
             dt (int): Timestep for which the kernel/impulse response is calculated.
                 Has to match the timestep of the measured data for deconvolution.
-            len(int): Timelength in seconds for which the kernel/impulse response is
+            duration(int): Duration in seconds for which the kernel/impulse response is
                 calculated. Must be long enough to reach zero.
             norm (bool): If true the kernel/impulse response is normalized to its
                 area.
@@ -195,19 +197,19 @@ class Kernel:
         """
         if self.type is "functional":
 
-            t_kernel = np.arange(0, len, dt)
+            t_kernel = np.arange(0, duration, dt)
             t_kernel[0] = 1e-6
 
             diff_const = self.params["diff_const"]
             work_dist = self.params["work_dist"]
             vol_gas = self.params["vol_gas"]
             volflow_cap = self.params["volflow_cap"]
-            henry_vol = self.params["henry_vol"]
+            henry_vola = self.params["henry_vola"]
 
             tdiff = t_kernel * diff_const / (work_dist ** 2)
             fs = lambda s: 1 / (
                 sqrt(s) * sinh(sqrt(s))
-                + (vol_gas * henry_vol / 0.196e-4 / work_dist)
+                + (vol_gas * henry_vola / 0.196e-4 / work_dist)
                 * (s + volflow_cap / vol_gas * work_dist ** 2 / diff_const)
                 * cosh(sqrt(s))
             )
