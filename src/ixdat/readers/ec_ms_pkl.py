@@ -16,7 +16,7 @@ class EC_MS_CONVERTER:
 
     def read(self, file_path):
         """Return an ECMSMeasurement with the data recorded in path_to_file
-
+        # TODO: Always returns ECMS class even when read with DecoMeasurement.read()
         This loops through the keys of the EC-MS dict and searches for MS and
         EC data. Names the dataseries according to their names in the original
         dict. Omitts any other data as well as metadata.

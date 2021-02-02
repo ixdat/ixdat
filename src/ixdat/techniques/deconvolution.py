@@ -38,14 +38,14 @@ class DecoMeasurement(ECMSMeasurement):
 
         t_sig, v_sig = self.get_calib_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
-        kernel = kernel_obj.generate_kernel(dt=t_sig[1] - t_sig[0])
-        kernel = np.hstack((kernel, np.zeros(len(sig) - len(kernel))))
+        kernel = kernel_obj.calculate_kernel(dt=t_sig[1] - t_sig[0])
+        kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel))))
         H = fft(kernel)
         # TODO: store this as well.
         partial_current = np.real(
             ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
         )
-
+        partial_current = partial_current * sum(kernel)
         return t_sig, partial_current
 
     def extract_kernel(self, signal_name, cutoff_pot=0, tspan=None, t_bg=None):
