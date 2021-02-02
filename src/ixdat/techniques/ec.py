@@ -64,14 +64,6 @@ class ECMeasurement(Measurement):
     - `ec_meas.v` for `ec_meas["potential"].data`
     - `ec_meas.j` for `ec_meas["current"].data
 
-<<<<<<< HEAD
-    def __init__(self, name, ec_technique=None, **kwargs):
-        """initialize a EC measurement
-
-        Args:
-            name (str): The name of the measurement"""
-        super().__init__(name, **kwargs)
-=======
     `ECMeasurement` comes with an `ECPlotter` which either plots `potential` and
     `current` against time (`ec_meas.plot_measurement()`) or plots `current` against
     `potential (`ec_meas.plot_vs_potential()`).
@@ -184,7 +176,6 @@ class ECMeasurement(Measurement):
             lablog=lablog,
             tstamp=tstamp,
         )
->>>>>>> 430d2b38154c1fb9fc5c100bd3a2dc875f9611eb
         self.ec_technique = ec_technique
         self.t_str = t_str
         self.E_str = E_str
@@ -454,22 +445,6 @@ class ECMeasurement(Measurement):
             )
 
     def get_potential(self, tspan=None):
-<<<<<<< HEAD
-        """Returns measured electrochemical potential
-
-        Args:
-            tspan (list): Timespan for which the potential is returned.
-        """
-        return self.get_t_and_v(self.E_str, tspan=tspan)
-
-    def get_current(self, tspan=None):
-        """Returns measured electrochemical current
-
-        Args:
-            tspan (list): Timespan for which the current is returned.
-        """
-        return self.get_t_and_v(self.I_str, tspan=tspan)
-=======
         """Return the time [s] and potential [V] vectors cut by tspan
 
         TODO: I think this is identical, now that __getitem__ finds potential, to
@@ -620,4 +595,3 @@ class ECMeasurement(Measurement):
         del self_as_dict["s_ids"]
         # Note, this works perfectly! All needed information is in self_as_dict :)
         return CyclicVoltammagram.from_dict(self_as_dict)
->>>>>>> 430d2b38154c1fb9fc5c100bd3a2dc875f9611eb
