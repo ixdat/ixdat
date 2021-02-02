@@ -6,6 +6,7 @@ variable corresponding to the rows of the array. The time variable itself is a s
 case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
+import numpy as np
 from .db import Saveable
 from .units import Unit
 from .exceptions import TimeError, AxisError
@@ -18,7 +19,11 @@ class DataSeries(Saveable):
     """
 
     table_name = "data_series"
-    column_attrs = {"id": "i", "name": "name", "unit": "unit_name", "data": "data"}
+    column_attrs = {
+        "name",
+        "unit_name",
+        "data",
+    }
 
     def __init__(self, name, unit_name, data):
         """initialize a data series with its name, unit, and data (id handled by parent)
@@ -38,10 +43,12 @@ class DataSeries(Saveable):
         """Return the right type of DataSeries based on the info in its serialization"""
         if "tstamp" in obj_as_dict:
             return TimeSeries(**obj_as_dict)
-        elif "t_id" in obj_as_dict:
+        elif "t_ids" in obj_as_dict:
             return ValueSeries(**obj_as_dict)
         elif "a_ids" in obj_as_dict:
             return Field(**obj_as_dict)
+        elif "value" in obj_as_dict:
+            return ConstantValue(**obj_as_dict)
         return cls(**obj_as_dict)
 
     def __repr__(self):
@@ -59,11 +66,19 @@ class DataSeries(Saveable):
         """The name of the data series' unit"""
         return self.unit.name
 
+    @property
+    def shape(self):
+        return self.data.shape
+
+    @property
+    def size(self):
+        return self.data.size
+
 
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
-    extra_column_attrs = {"tstamps": {"tstamp": "tstamp"}}
+    extra_column_attrs = {"tstamps": {"tstamp"}}
 
     def __init__(self, name, unit_name, data, tstamp):
         """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
@@ -73,6 +88,10 @@ class TimeSeries(DataSeries):
         """
         super().__init__(name, unit_name, data)
         self.tstamp = tstamp
+
+    @property
+    def t(self):
+        return self.data
 
     @property
     def tseries(self):
@@ -87,13 +106,14 @@ class ValueSeries(DataSeries):
     represented in relational databases as a row in an auxiliary linker table
     """
 
-    extra_linkers = {"value_time": ("data_series", {"t_ids": "t_ids"})}
+    extra_linkers = {"value_time": ("data_series", "t_ids")}
 
-    def __init__(self, name, unit_name, data, t_id=None, tseries=None):
+    def __init__(self, name, unit_name, data, t_id=None, t_ids=None, tseries=None):
         """Initiate a ValueSeries with a TimeSeries or a reference thereto
 
         Args (in addition to those of parent):
             t_id (int): The id of the corresponding TimeSeries, if not given directly
+            t_ids (list of int): [t_id], only so that a backend can pass t_id as a list
             tseries (TimeSeries): The corresponding TimeSeries, if available
         """
         super().__init__(name, unit_name, data)
@@ -101,6 +121,8 @@ class ValueSeries(DataSeries):
         # TODO: This could probably be handled more nicely with PlaceHolderObjects
         #   see: Measurement and
         #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
+        if t_ids and not t_id:
+            t_id = t_ids[0]
         self._t_id = t_id
         if tseries and t_id:
             if not t_id == tseries.id:
@@ -151,7 +173,7 @@ class Field(DataSeries):
     DataSeries. This is represented in the extra linkers.
     """
 
-    extra_linkers = {"field_axes": ("data_series", {"a_ids": "a_ids"})}
+    extra_linkers = {"field_axes": ("data_series", "a_ids")}
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
         """Initiate the Field and check that the supplied axes make sense.
@@ -228,3 +250,23 @@ class Field(DataSeries):
                     f"{len(self._data.shape)}-dimensional."
                 )
         return self._data
+
+
+class ConstantValue(DataSeries):
+    """This is a stand-in for a VSeries for when we know the value is constant"""
+
+    extra_column_attrs = {"constants": {"value"}}
+
+    def __init__(self, name, unit_name, data=None, value=None):
+        super().__init__(name=name, unit_name=unit_name, data=np.array([]))
+        if not np.array(value).size == 1:
+            raise AxisError(
+                f"Can't initiate {self} with data={self.value}. Data must have size 1."
+            )
+        self.value = value
+
+    def get_vseries(self, tseries):
+        data = self.value * np.ones(tseries.data.shape)
+        return ValueSeries(
+            name=self.name, unit_name=self.unit_name, data=data, tseries=tseries
+        )
