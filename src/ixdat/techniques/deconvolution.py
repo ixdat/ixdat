@@ -1,5 +1,4 @@
-"""Module for analysis of EC-MS measurements with impulse response and
-deconvolution of mass transport effects to obtain partial current densities."""
+"""Module for deconvolution of mass transport effects."""
 
 from .ec_ms import ECMSMeasurement
 from scipy.optimize import curve_fit
