@@ -146,7 +146,7 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        return reader.read(path_to_file, **kwargs)
+        return reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
 
     @property
     def metadata_json_string(self):
@@ -394,6 +394,9 @@ class Measurement(Saveable):
         The method finds all time intervals for which `self[series_name] == value`
         It then cuts the measurement according to each time interval and adds these
         segments together. TODO: This can be done better, i.e. without chopping series.
+
+        TODO: greater-than and less-than kwargs.
+            Ideally you should be able to say e.g., `select(cycle=1, 0.5<potential<1)`
         """
         if len(args) >= 1:
             if not self.sel_str:
