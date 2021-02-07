@@ -41,7 +41,7 @@ class CSVExporter:
             path_to_file = path_to_file.with_suffix(".csv")
         for v_name in v_list:
             t_name = measurement[v_name].tseries.name
-            t, v = measurement.get_t_and_v(v_name, tspan=tspan)
+            t, v = measurement.grab(v_name, tspan=tspan)
             if t_name not in columns_data:
                 columns_data[t_name] = t
                 s_list.append(t_name)

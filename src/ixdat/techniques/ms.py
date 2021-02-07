@@ -17,7 +17,7 @@ class MSMeasurement(Measurement):
         super().__init__(name, **kwargs)
         self.calibration = None  # TODO: Not final implementation
 
-    def get_signal(self, signal_name, tspan=None, t_bg=None):
+    def grab_signal(self, signal_name, tspan=None, t_bg=None):
         """Returns raw signal for a given signal name
 
         Args:
@@ -26,16 +26,16 @@ class MSMeasurement(Measurement):
             t_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
         """
-        time, value = self.get_t_and_v(signal_name, tspan=tspan)
+        time, value = self.grab(signal_name, tspan=tspan)
 
         if t_bg is None:
             return time, value
 
         else:
-            _, bg = self.get_t_and_v(signal_name, tspan=t_bg)
+            _, bg = self.grab(signal_name, tspan=t_bg)
             return time, value - np.average(bg)
 
-    def get_calib_signal(self, signal_name, tspan=None, t_bg=None):
+    def grab_cal_signal(self, signal_name, tspan=None, t_bg=None):
         """Returns a calibrated signal for a given signal name. Only works if
         calibration dict is not None.
 
@@ -50,6 +50,6 @@ class MSMeasurement(Measurement):
             print("No calibration dict found.")
             return
 
-        time, value = self.get_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        time, value = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         return time, value * self.calibration[signal_name]

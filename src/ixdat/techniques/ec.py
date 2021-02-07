@@ -457,29 +457,19 @@ class ECMeasurement(Measurement):
                 tseries=raw_current.tseries,
             )
 
-    def get_potential(self, tspan=None):
-        """Return the time [s] and potential [V] vectors cut by tspan
+    def grab_potential(self, tspan=None, cal=True):
+        """Return t and potential (if cal else raw_potential) [V] vectors cut by tspan"""
+        if cal:
+            return self.grab("potential", tspan=tspan)
+        else:
+            return self.grab("raw_potential", tspan=tspan)
 
-        TODO: I think this is identical, now that __getitem__ finds potential, to
-            self.get_t_and_v("potential", tspan=tspan)
-        """
-        t = self.potential.t.copy()
-        v = self.potential.data.copy()
-        if tspan:
-            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[mask]
-            v = v[mask]
-        return t, v
-
-    def get_current(self, tspan=None):
-        """Return the time [s] and current ([mA] or [mA/cm^2]) vectors cut by tspan"""
-        t = self.current.t.copy()
-        j = self.current.data.copy()
-        if tspan:
-            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[mask]
-            j = j[mask]
-        return t, j
+    def grab_current(self, tspan=None, norm=True):
+        """Return t [s] and current (if cal else raw_current) [V] vectors cut by tspan"""
+        if norm:
+            return self.grab("current", tspan=tspan)
+        else:
+            return self.grab("raw_current", tspan=tspan)
 
     @property
     def t(self):

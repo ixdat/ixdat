@@ -279,7 +279,7 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
-    def get_t_and_v(self, item, tspan=None):
+    def grab(self, item, tspan=None):
         """Return the time and value vectors for a given VSeries name cut by tspan"""
         vseries = self[item]
         tseries = vseries.tseries
@@ -422,7 +422,7 @@ class Measurement(Saveable):
         new_measurement = self
         ((series_name, value),) = kwargs.items()
 
-        t, v = self.get_t_and_v(series_name)
+        t, v = self.grab(series_name)
         mask = v == value  # linter doesn't realize this is a np array
         mask_prev = np.append(False, mask[:-1])
         mask_next = np.append(mask[1:], False)

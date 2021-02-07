@@ -20,7 +20,7 @@ class DecoMeasurement(ECMSMeasurement):
             name (str): The name of the measurement"""
         super().__init__(name, **kwargs)
 
-    def get_partial_current(
+    def grab_partial_current(
         self, signal_name, kernel_obj, tspan=None, t_bg=None, snr=10
     ):
         """Return the deconvoluted partial current for a given signal
@@ -35,7 +35,7 @@ class DecoMeasurement(ECMSMeasurement):
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
 
-        t_sig, v_sig = self.get_calib_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         kernel = kernel_obj.calculate_kernel(dt=t_sig[1] - t_sig[0])
         kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel))))
@@ -60,9 +60,9 @@ class DecoMeasurement(ECMSMeasurement):
                 extracted.
             t_bg (list): Timespan that corresponds to the background signal.
         """
-        x_curr, y_curr = self.get_current(tspan=tspan)
-        x_pot, y_pot = self.get_potential(tspan=tspan)
-        x_sig, y_sig = self.get_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        x_curr, y_curr = self.grab_current(tspan=tspan)
+        x_pot, y_pot = self.grab_potential(tspan=tspan)
+        x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         if signal_name == "M32":
             t0 = x_curr[np.argmax(y_pot > cutoff_pot)]  # time of impulse
