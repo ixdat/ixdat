@@ -1,12 +1,12 @@
 """Module for deconvolution of mass transport effects."""
 
 from .ec_ms import ECMSMeasurement
-from scipy.optimize import curve_fit
-from scipy.interpolate import interp1d
-from scipy import signal
-from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth
+from scipy.optimize import curve_fit  # noqa
+from scipy.interpolate import interp1d  # noqa
+from scipy import signal  # noqa
+from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth  # noqa
 import matplotlib.pyplot as plt
-from numpy.fft import fft, ifft, ifftshift, fftfreq
+from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 import numpy as np
 
 
@@ -161,7 +161,7 @@ class Kernel:
             fig1 = plt.figure()
             ax = fig1.add_subplot(111)
 
-        if self.type is "functional":
+        if self.type == "functional":
             t_kernel = np.arange(0, duration, dt)
             ax.plot(
                 t_kernel,
@@ -169,7 +169,7 @@ class Kernel:
                 **kwargs,
             )
 
-        elif self.type is "measured":
+        elif self.type == "measured":
             ax.plot(
                 self.MS_data[0],
                 self.calculate_kernel(dt=dt, duration=duration, norm=norm),
@@ -194,7 +194,7 @@ class Kernel:
             matrix (bool): If true the circulant matrix constructed from the kernel/
                 impulse reponse is returned.
         """
-        if self.type is "functional":
+        if self.type == "functional":
 
             t_kernel = np.arange(0, duration, dt)
             t_kernel[0] = 1e-6
@@ -206,18 +206,20 @@ class Kernel:
             henry_vola = self.params["henry_vola"]
 
             tdiff = t_kernel * diff_const / (work_dist ** 2)
-            fs = lambda s: 1 / (
-                sqrt(s) * sinh(sqrt(s))
-                + (vol_gas * henry_vola / 0.196e-4 / work_dist)
-                * (s + volflow_cap / vol_gas * work_dist ** 2 / diff_const)
-                * cosh(sqrt(s))
-            )
+
+            def fs(s):
+                return 1 / (
+                    sqrt(s) * sinh(sqrt(s))
+                    + (vol_gas * henry_vola / 0.196e-4 / work_dist)
+                    * (s + volflow_cap / vol_gas * work_dist ** 2 / diff_const)
+                    * cosh(sqrt(s))
+                )
 
             kernel = np.zeros(len(t_kernel))
             for i in range(len(t_kernel)):
                 kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
 
-        elif self.type is "measured":
+        elif self.type == "measured":
             kernel = self.MS_data[1]
             t_kernel = self.MS_data[0]
 

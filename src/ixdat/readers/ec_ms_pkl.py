@@ -2,7 +2,6 @@ from . import TECHNIQUE_CLASSES
 import pickle
 from ..data_series import TimeSeries, ValueSeries
 from ..measurements import Measurement
-from ..techniques.ec_ms import ECMSMeasurement
 
 
 ECMSMeasruement = TECHNIQUE_CLASSES["EC-MS"]
