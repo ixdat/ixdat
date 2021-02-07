@@ -140,7 +140,7 @@ class BiologicMPTReader:
         )
         init_kwargs.update(kwargs)
 
-        self.measurement = ECMeasurement(**init_kwargs)
+        self.measurement = ECMeasurement(**init_kwargs)  # cls.from_dict(**init_kwargs)
         self.file_has_been_read = True
 
         return self.measurement

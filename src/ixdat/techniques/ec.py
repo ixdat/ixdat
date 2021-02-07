@@ -260,17 +260,17 @@ class ECMeasurement(Measurement):
         try:
             return super().__getitem__(item)
         except SeriesNotFoundError:
-            if item == self.t_str:
+            if item == self.t_str:  # master time (potential's tseries)
                 return self.potential.tseries
-            if item == self.E_str:
+            if item == self.E_str:  # raw potential
                 return self.raw_potential
-            elif item == self.V_str:
+            elif item == self.V_str:  # (calibrated) (corrected) potential
                 return self.potential
-            elif item == self.I_str:
+            elif item == self.I_str:  # raw current
                 return self.raw_current
-            elif item == self.J_str:
+            elif item == self.J_str:  # (normalized) current
                 return self.current
-            elif item == self.sel_str:
+            elif item == self.sel_str:  # selector
                 return self.selector
             elif item == "potential":
                 return self.potential
@@ -375,19 +375,32 @@ class ECMeasurement(Measurement):
                 f" Looked for series with names in {self.raw_current_names}"
             )
 
-    def calibrate(self, RE_vs_RHE, A_el=None):
-        """Calibrate the reverence electrode by providing `RE_vs_RHE` in [V]."""
-        self.RE_vs_RHE = RE_vs_RHE if RE_vs_RHE is not None else self.RE_vs_RHE
-        if A_el:  # So that you can calibrate and normalize in one method call:
-            self.normalize(A_el=A_el)
+    def calibrate(self, RE_vs_RHE=None, A_el=None, R_Ohm=None):
+        """Calibrate the EC measurement (all args optional)
 
-    def correct_ohmic_drop(self, R_Ohm=None):
-        """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
-        self.R_Ohm = R_Ohm if R_Ohm is not None else self.R_Ohm
+        Args:
+            RE_vs_RHE (float): reference electode potential on RHE scale in [V]
+            A_el (float): electrode area in [cm^2]
+            R_Ohm (float): ohmic drop resistance in [Ohm]
+        """
+        if RE_vs_RHE:
+            self.calibrate_RE(RE_vs_RHE=RE_vs_RHE)
+        if A_el:
+            self.normalize_current(A_el=A_el)
+        if R_Ohm:
+            self.correct_ohmic_drop(R_Ohm=R_Ohm)
 
-    def normalize(self, A_el):
+    def calibrate_RE(self, RE_vs_RHE):
+        """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
+        self.RE_vs_RHE = RE_vs_RHE
+
+    def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
-        self.A_el = A_el if A_el is not None else self.A_el
+        self.A_el = A_el
+
+    def correct_ohmic_drop(self, R_Ohm):
+        """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
+        self.R_Ohm = R_Ohm
 
     @property
     def potential(self):
