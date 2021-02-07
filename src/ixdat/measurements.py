@@ -128,8 +128,16 @@ class Measurement(Saveable):
                 del obj_as_dict[object_name_str]
 
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
+            # This makes it so that from_dict() can be used to initiate for any more
+            # derived technique, so long as obj_as_dict specifies the technique name!
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
+            if not issubclass(technique_class, cls):
+                # But we never want obj_as_dict["technique"] to take us to a *less*
+                # specific technique, if the user has been intentional about which
+                # class they call `as_dict` from (e.g. via a Reader)!
+                technique_class = cls
         else:
+            # Normally, we're going to want to make sure that we're in
             technique_class = cls
         try:
             measurement = technique_class(**obj_as_dict)
@@ -146,7 +154,8 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        return reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
+        # print(f"{__name__}. cls={cls}")  # debugging
+        return reader.read(path_to_file, cls=cls, **kwargs)
 
     @property
     def metadata_json_string(self):

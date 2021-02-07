@@ -75,7 +75,7 @@ class BiologicMPTReader:
         self.file_has_been_read = False
         self.measurement = None
 
-    def read(self, path_to_file, name=None, **kwargs):
+    def read(self, path_to_file, name=None, cls=None, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -100,6 +100,7 @@ class BiologicMPTReader:
             )
             return self.measurement
         self.name = name or path_to_file.name
+        self.measurement_class = cls or ECMeasurement
         self.path_to_file = path_to_file
         with open(path_to_file) as f:
             for line in f:
@@ -130,7 +131,7 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        init_kwargs = dict(
+        obj_as_dict = dict(
             name=self.name,
             technique="EC",
             reader=self,
@@ -138,9 +139,9 @@ class BiologicMPTReader:
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
         )
-        init_kwargs.update(kwargs)
+        obj_as_dict.update(kwargs)
 
-        self.measurement = ECMeasurement(**init_kwargs)  # cls.from_dict(**init_kwargs)
+        self.measurement = self.measurement_class.from_dict(obj_as_dict)
         self.file_has_been_read = True
 
         return self.measurement
