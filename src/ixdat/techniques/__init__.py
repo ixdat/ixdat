@@ -13,6 +13,8 @@ from .ms import MSMeasurement
 from .ec_ms import ECMSMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
 
+# TODO: Is something like DecoMeasurement a Measurement or something else?
+
 TECHNIQUE_CLASSES = {
     "simple": Measurement,
     "EC": ECMeasurement,

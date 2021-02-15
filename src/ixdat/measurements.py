@@ -128,8 +128,16 @@ class Measurement(Saveable):
                 del obj_as_dict[object_name_str]
 
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
+            # This makes it so that from_dict() can be used to initiate for any more
+            # derived technique, so long as obj_as_dict specifies the technique name!
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
+            if not issubclass(technique_class, cls):
+                # But we never want obj_as_dict["technique"] to take us to a *less*
+                # specific technique, if the user has been intentional about which
+                # class they call `as_dict` from (e.g. via a Reader)!
+                technique_class = cls
         else:
+            # Normally, we're going to want to make sure that we're in
             technique_class = cls
         try:
             measurement = technique_class(**obj_as_dict)
@@ -146,7 +154,8 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        return reader.read(path_to_file, **kwargs)
+        # print(f"{__name__}. cls={cls}")  # debugging
+        return reader.read(path_to_file, cls=cls, **kwargs)
 
     @property
     def metadata_json_string(self):
@@ -270,7 +279,7 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
-    def get_t_and_v(self, item, tspan=None):
+    def grab(self, item, tspan=None):
         """Return the time and value vectors for a given VSeries name cut by tspan"""
         vseries = self[item]
         tseries = vseries.tseries
@@ -394,6 +403,9 @@ class Measurement(Saveable):
         The method finds all time intervals for which `self[series_name] == value`
         It then cuts the measurement according to each time interval and adds these
         segments together. TODO: This can be done better, i.e. without chopping series.
+
+        TODO: greater-than and less-than kwargs.
+            Ideally you should be able to say e.g., `select(cycle=1, 0.5<potential<1)`
         """
         if len(args) >= 1:
             if not self.sel_str:
@@ -410,7 +422,7 @@ class Measurement(Saveable):
         new_measurement = self
         ((series_name, value),) = kwargs.items()
 
-        t, v = self.get_t_and_v(series_name)
+        t, v = self.grab(series_name)
         mask = v == value  # linter doesn't realize this is a np array
         mask_prev = np.append(False, mask[:-1])
         mask_next = np.append(mask[1:], False)

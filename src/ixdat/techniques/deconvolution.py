@@ -1,12 +1,12 @@
 """Module for deconvolution of mass transport effects."""
 
 from .ec_ms import ECMSMeasurement
-from scipy.optimize import curve_fit
-from scipy.interpolate import interp1d
-from scipy import signal
-from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth
+from scipy.optimize import curve_fit  # noqa
+from scipy.interpolate import interp1d  # noqa
+from scipy import signal  # noqa
+from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth  # noqa
 import matplotlib.pyplot as plt
-from numpy.fft import fft, ifft, ifftshift, fftfreq
+from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 import numpy as np
 
 
@@ -20,7 +20,7 @@ class DecoMeasurement(ECMSMeasurement):
             name (str): The name of the measurement"""
         super().__init__(name, **kwargs)
 
-    def get_partial_current(
+    def grab_partial_current(
         self, signal_name, kernel_obj, tspan=None, t_bg=None, snr=10
     ):
         """Return the deconvoluted partial current for a given signal
@@ -35,7 +35,7 @@ class DecoMeasurement(ECMSMeasurement):
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
 
-        t_sig, v_sig = self.get_calib_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         kernel = kernel_obj.calculate_kernel(
             dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
@@ -62,9 +62,9 @@ class DecoMeasurement(ECMSMeasurement):
                 extracted.
             t_bg (list): Timespan that corresponds to the background signal.
         """
-        x_curr, y_curr = self.get_current(tspan=tspan)
-        x_pot, y_pot = self.get_potential(tspan=tspan)
-        x_sig, y_sig = self.get_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        x_curr, y_curr = self.grab_current(tspan=tspan)
+        x_pot, y_pot = self.grab_potential(tspan=tspan)
+        x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         if signal_name == "M32":
             t0 = x_curr[np.argmax(y_pot > cutoff_pot)]  # time of impulse
@@ -163,7 +163,7 @@ class Kernel:
             fig1 = plt.figure()
             ax = fig1.add_subplot(111)
 
-        if self.type is "functional":
+        if self.type == "functional":
             t_kernel = np.arange(0, duration, dt)
             ax.plot(
                 t_kernel,
@@ -171,7 +171,7 @@ class Kernel:
                 **kwargs,
             )
 
-        elif self.type is "measured":
+        elif self.type == "measured":
             ax.plot(
                 self.MS_data[0],
                 self.calculate_kernel(dt=dt, duration=duration, norm=norm),
@@ -196,7 +196,7 @@ class Kernel:
             matrix (bool): If true the circulant matrix constructed from the kernel/
                 impulse reponse is returned.
         """
-        if self.type is "functional":
+        if self.type == "functional":
 
             t_kernel = np.arange(0, duration, dt)
             t_kernel[0] = 1e-6
@@ -208,12 +208,14 @@ class Kernel:
             henry_vola = self.params["henry_vola"]
 
             tdiff = t_kernel * diff_const / (work_dist ** 2)
-            fs = lambda s: 1 / (
-                sqrt(s) * sinh(sqrt(s))
-                + (vol_gas * henry_vola / 0.196e-4 / work_dist)
-                * (s + volflow_cap / vol_gas * work_dist ** 2 / diff_const)
-                * cosh(sqrt(s))
-            )
+
+            def fs(s):
+                return 1 / (
+                    sqrt(s) * sinh(sqrt(s))
+                    + (vol_gas * henry_vola / 0.196e-4 / work_dist)
+                    * (s + volflow_cap / vol_gas * work_dist ** 2 / diff_const)
+                    * cosh(sqrt(s))
+                )
 
             kernel = np.zeros(len(t_kernel))
             for i in range(len(t_kernel)):
@@ -221,7 +223,7 @@ class Kernel:
                 print(tdiff[i])
                 print(kernel[i])
 
-        elif self.type is "measured":
+        elif self.type == "measured":
             kernel = self.MS_data[1]
             t_kernel = self.MS_data[0]
 
