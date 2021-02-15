@@ -37,7 +37,9 @@ class DecoMeasurement(ECMSMeasurement):
 
         t_sig, v_sig = self.get_calib_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
-        kernel = kernel_obj.calculate_kernel(dt=t_sig[1] - t_sig[0])
+        kernel = kernel_obj.calculate_kernel(
+            dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
+        )
         kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel))))
         H = fft(kernel)
         # TODO: store this as well.
@@ -66,7 +68,7 @@ class DecoMeasurement(ECMSMeasurement):
 
         if signal_name == "M32":
             t0 = x_curr[np.argmax(y_pot > cutoff_pot)]  # time of impulse
-        elif signal_name == "M2":
+        elif signal_name == "M2" or signal_name == "M17":
             t0 = x_curr[np.argmax(y_pot < cutoff_pot)]
         else:
             print("mass not found")
@@ -216,6 +218,8 @@ class Kernel:
             kernel = np.zeros(len(t_kernel))
             for i in range(len(t_kernel)):
                 kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
+                print(tdiff[i])
+                print(kernel[i])
 
         elif self.type is "measured":
             kernel = self.MS_data[1]
