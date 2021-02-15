@@ -2,7 +2,6 @@ from . import TECHNIQUE_CLASSES
 import pickle
 from ..data_series import TimeSeries, ValueSeries
 from ..measurements import Measurement
-from ..techniques.ec_ms import ECMSMeasurement
 
 
 ECMSMeasruement = TECHNIQUE_CLASSES["EC-MS"]
@@ -14,7 +13,7 @@ class EC_MS_CONVERTER:
     def __init__(self):
         print("Reader of old ECMS .pkl files")
 
-    def read(self, file_path):
+    def read(self, file_path, cls=None):
         """Return an ECMSMeasurement with the data recorded in path_to_file
         # TODO: Always returns ECMS class even when read with DecoMeasurement.read()
         This loops through the keys of the EC-MS dict and searches for MS and
@@ -56,12 +55,15 @@ class EC_MS_CONVERTER:
                     ValueSeries(col, "A", data[col], tseries=measurement["time/s"])
                 )
 
-        measurement = ECMSMeasurement(
-            file_path,
+        obj_as_dict = dict(
+            name=file_path,
             technique="EC_MS",
             series_list=cols_list,
             reader=self,
             tstamp=data["tstamp"],
         )
+        # print(f"{__name__}. cls={cls}")  # debugging
+
+        measurement = cls.from_dict(obj_as_dict)
 
         return measurement
