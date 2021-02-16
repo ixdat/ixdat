@@ -1,3 +1,4 @@
+.. _concept:
 
 ================
 Extended concept
@@ -5,7 +6,7 @@ Extended concept
 *By Soren B. Scott, 20H03 (August 3, 2020)*
 
 
-My idea is that ``ixdat`` will have two "faces":
+My idea is that ``ixdat`` will have two "faces":
 
 1. The first face is towards the raw data and the experimenter. Here, by "combining techniques", we mean making one dataset out of separately saved data files. Electrochemistry - Mass Spectrometry (EC-MS) is a perfect example, where, typically one has data files for the potentiostat and the mass spectrometer and the data tool has to line them up in time and make one dataset for the methods to be analyzed simultaneously (in contrast to some proprietary softwares like Spectro Inlets' Zilien which combine the datasets during acquisition, but inevitably make tradeoffs in the process). This will be the core of what ixdat does. On top of that, it will have a lot of auxiliary functionality for low-level analysis of typical combined datasets - for example automated calibration of the MS data based on electrochemistry (like using the electrode current during steady hydrogen evolution to calibrate the |H2| signal). 
 

@@ -1,19 +1,19 @@
 
 
-Documentation for **ixdat**
-===========================
+Documentation for ``ixdat``
+###########################
 The in-situ experimental data tool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We are just getting started with this project, please have patience.
+Welcome to the ``ixdat`` documentation. We hope that you can find what you are looking for here!
+This documentation, like ``ixdat`` itself, is a work in progress and we welcome any feedback.
 
 .. toctree::
     :maxdepth: 2
 
     introduction
-    extended_concept
     measurement
-    data_series
+    data-series
     license
 
 Indices and tables
