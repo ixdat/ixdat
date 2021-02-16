@@ -32,7 +32,8 @@ def read(*parts):
     Assume UTF-8 encoding.
 
     """
-    with codecs.open(os.path.join(HERE, *parts), "rb", "utf-8") as f:
+    path_to_file = os.path.join(HERE, *parts)
+    with open(path_to_file, "r") as f:
         return f.read()
 
 
@@ -54,6 +55,7 @@ def find_meta(meta):
         r"^__{meta}__ = ['\"]([^'\"]*)['\"]".format(meta=meta), META_FILE, re.M
     )
     if meta_match:
+        print(f"found {meta}: '{meta_match.group(1)}'")  # debugging
         return meta_match.group(1)
     raise RuntimeError("Unable to find __{meta}__ string.".format(meta=meta))
 
@@ -75,5 +77,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    install_requires=read("requirements.txt").split("\n"),
     python_requires=">=3.6",
 )
