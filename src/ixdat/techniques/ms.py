@@ -1,6 +1,7 @@
 """Module for representation and analysis of MS measurements"""
 
 from ..measurements import Measurement
+import re
 import numpy as np
 
 
@@ -53,3 +54,8 @@ class MSMeasurement(Measurement):
         time, value = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         return time, value * self.calibration[signal_name]
+
+    @property
+    def mass_list(self):
+        """List of the masses for which ValueSeries are contained in the measurement"""
+        return [col for col in self.series_names if re.search("^M[0-9]+$", col)]

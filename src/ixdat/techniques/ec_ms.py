@@ -1,6 +1,4 @@
 """Module for representation and analysis of EC-MS measurements"""
-import re
-
 from .ec import ECMeasurement
 from .ms import MSMeasurement
 
@@ -20,7 +18,3 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             self._plotter = ECMSPlotter(measurement=self)
 
         return self._plotter
-
-    @property
-    def mass_list(self):
-        return [col for col in self.series_names if re.search("^M[0-9]+$", col)]

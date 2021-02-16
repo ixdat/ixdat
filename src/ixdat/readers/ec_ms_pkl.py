@@ -17,9 +17,7 @@ class EC_MS_CONVERTER:
 
     def read(self, file_path, cls=None, **kwargs):
         """Return an ECMSMeasurement with the data recorded in path_to_file
-        This loops through the keys of the EC-MS dict and searches for MS and
-        EC data. Names the dataseries according to their names in the original
-        dict. Omitts any other data as well as metadata.
+        Most of the work is done by module-level function measurement_from_ec_ms_dataset
 
         Args:
             path_to_file (Path): The full abs or rel path including the
@@ -46,6 +44,10 @@ def measurement_from_ec_ms_dataset(
     **kwargs,
 ):
     """Return an ixdat Measurement with the data from an EC_MS data dictionary.
+
+    This loops through the keys of the EC-MS dict and searches for MS and
+    EC data. Names the dataseries according to their names in the original
+    dict. Omitts any other data as well as metadata.
 
     Args:
         ec_ms_dict (dict): The EC_MS data dictionary
@@ -83,7 +85,6 @@ def measurement_from_ec_ms_dataset(
                     tseries=measurement[col[:-1] + "x"],
                 )
             )
-        # TODO: Import all EC data.
         if col in BIOLOGIC_COLUMN_NAMES and col not in measurement.series_names:
             cols_list.append(
                 ValueSeries(

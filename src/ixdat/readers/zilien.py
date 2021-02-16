@@ -6,6 +6,10 @@ ECMSMeasurement = TECHNIQUE_CLASSES["EC-MS"]
 
 class ZilienTSVReader:
     def read(self, path_to_file, cls=None, name=None, **kwargs):
+        """Read a zilien file
+
+        TODO: This is a hack using EC_MS to read the .tsv. Will be replaced.
+        """
         cls = cls or ECMSMeasurement
         from EC_MS import Zilien_Dataset
 
@@ -21,15 +25,21 @@ class ZilienTSVReader:
 
 
 if __name__ == "__main__":
+    """Module demo here.
+
+    To run this module in PyCharm, open Run Configuration and set
+        Module name = ixdat.readers.zilien,
+    and *not*
+        Script path = ...
+    """
 
     from pathlib import Path
     from ixdat.measurements import Measurement
 
     path_to_test_file = Path.home() / (
         "Dropbox/ixdat_resources/test_data/"
-        # "2021-02-01 14_50_40 Chip 2 test water/"
-        # "2021-02-01 14_50_40 Chip 2 test water.tsv"
-        "2021-02-01 17_44_12 NMC vs Li 0.1C/2021-02-01 17_44_12 NMC vs Li 0.tsv"
+        # "zilien_with_spectra/2021-02-01 14_50_40.tsv"
+        "zilien_with_ec/2021-02-01 17_44_12.tsv"
     )
 
     ecms_measurement = Measurement.read(

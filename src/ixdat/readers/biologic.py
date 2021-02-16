@@ -250,6 +250,8 @@ def timestamp_string_to_tstamp(timestamp_string, form=None):
     return tstamp
 
 
+# This tuple contains variable names encountered in .mpt files. The tuple can be used by
+#   other modules to tell which data is from biologic.
 BIOLOGIC_COLUMN_NAMES = (
     "mode",
     "ox/red",
