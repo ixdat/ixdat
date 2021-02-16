@@ -12,7 +12,8 @@ We are just getting started with this project, please have patience.
 
     introduction
     extended_concept
-    dataset
+    measurement
+    data_series
     license
 
 Indices and tables
