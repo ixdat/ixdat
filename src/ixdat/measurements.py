@@ -157,6 +157,16 @@ class Measurement(Saveable):
         # print(f"{__name__}. cls={cls}")  # debugging
         return reader.read(path_to_file, cls=cls, **kwargs)
 
+    @classmethod
+    def read_url(cls, url, reader, **kwargs):
+        """Read a url (via a temporary file) using the specified reader"""
+        from .readers.reading_tools import url_to_file
+
+        path_to_temp_file = url_to_file(url)
+        measurement = cls.read(path_to_temp_file, reader=reader, **kwargs)
+        path_to_temp_file.unlink()
+        return measurement
+
     @property
     def metadata_json_string(self):
         """Measurement metadata as a JSON-formatted string"""

@@ -3,6 +3,7 @@
 Demonstrated/tested at the bottom under `if __name__ == "__main__":`
 """
 
+from pathlib import Path
 import re
 import time
 import numpy as np
@@ -92,6 +93,7 @@ class BiologicMPTReader:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
         """
+        path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
         if self.file_has_been_read:
             print(
                 f"This {self.__class__.__name__} has already read {self.path_to_file}."
@@ -100,9 +102,9 @@ class BiologicMPTReader:
             )
             return self.measurement
         self.name = name or path_to_file.name
-        self.measurement_class = cls or ECMeasurement
         self.path_to_file = path_to_file
-        with open(path_to_file) as f:
+        self.measurement_class = cls or ECMeasurement
+        with open(self.path_to_file) as f:
             for line in f:
                 self.process_line(line)
         for name in self.column_names:
@@ -302,7 +304,6 @@ if __name__ == "__main__":
         Script path = ...
     """
 
-    from pathlib import Path
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 

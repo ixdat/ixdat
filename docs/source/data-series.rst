@@ -19,10 +19,12 @@ In some deeper way, time is just another dimension…
 but for hyphenated laboratory measurements, as well as multi-technique experimental projects in general (so long as samples and equipment are moving slow compared to the speed of light), time is special because it is the one measurable quantity that is always shared between all detectors.
 
 Absolute time (epoch timestamp) exists in two places:
+
 - ``Measurement.tstamp``: This timestamp is a bit decorative – it tells the measurement’s plotter and data selection methods what to use as t=0
 - ``TSeries.tstamp``: This timestamp is truth. It defines the t=0 for the primary time data of any measurement.
 
 Data carriers:
+
 - ``DataSeries``: The ``TimeSeries`` is a special case of the ``DataSeries``. All data
   carried by ixdat will be as a numpy array in a Series. All Series share a primary key
   (id in table series in the db diagram on the left), and in addition to the data have a ``name`` (think “column header”) and a ``unit``. Series is a table in the ``ixdat`` database structure, with helper tables for special cases.
