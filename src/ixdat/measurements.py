@@ -653,7 +653,7 @@ def fill_object_list(object_list, obj_ids, cls=None):
 
 def time_shifted(series, tstamp=None):
     """Return a series with the time shifted to be relative to tstamp"""
-    if tstamp is None:
+    if tstamp is None or not series:
         return series
     if tstamp == series.tstamp:
         return series

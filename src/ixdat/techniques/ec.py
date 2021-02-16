@@ -198,35 +198,39 @@ class ECMeasurement(Measurement):
         self._raw_current = None
         self._selector = None
         self._file_number = None
-        if all(
-            [
-                (current_name not in self.series_names)
-                for current_name in self.raw_current_names
-            ]
-        ):
-            self.series_list.append(
-                ConstantValue(
-                    name=self.raw_current_names[0],
-                    unit_name="mA",
-                    value=0,
+        if self.potential:
+            if all(
+                [
+                    (current_name not in self.series_names)
+                    for current_name in self.raw_current_names
+                ]
+            ):
+                self.series_list.append(
+                    ConstantValue(
+                        name=self.raw_current_names[0],
+                        unit_name="mA",
+                        value=0,
+                    )
                 )
-            )
-            self._populate_constants()  # So that OCP currents are included as 0.
-            # TODO: I don't like this. ConstantValue was introduced to facilitate
-            #   ixdat's laziness, but I can't find anywhere else to put the call to
-            #   _populate_constants() that can find the right tseries. This is a
-            #   violation of laziness as bad as what it was meant to solve.
-        if all(
-            [(cycle_name not in self.series_names) for cycle_name in self.cycle_names]
-        ):
-            self.series_list.append(
-                ConstantValue(
-                    name=self.cycle_names[0],
-                    unit_name=None,
-                    value=0,
+                self._populate_constants()  # So that OCP currents are included as 0.
+                # TODO: I don't like this. ConstantValue was introduced to facilitate
+                #   ixdat's laziness, but I can't find anywhere else to put the call to
+                #   _populate_constants() that can find the right tseries. This is a
+                #   violation of laziness as bad as what it was meant to solve.
+            if all(
+                [
+                    (cycle_name not in self.series_names)
+                    for cycle_name in self.cycle_names
+                ]
+            ):
+                self.series_list.append(
+                    ConstantValue(
+                        name=self.cycle_names[0],
+                        unit_name=None,
+                        value=0,
+                    )
                 )
-            )
-            self._populate_constants()  # So that everything has a cycle number
+                self._populate_constants()  # So that everything has a cycle number
 
     def _populate_constants(self):
         """Replace any ConstantValues with ValueSeries on potential's tseries
@@ -325,6 +329,7 @@ class ECMeasurement(Measurement):
                 self.E_str
             ] = self._raw_potential  # TODO: Better cache'ing. This saves.
         else:
+            return  # TODO: Need better handling here.
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw potential."
                 f" Looked for series with names in {self.raw_potential_names}"
@@ -370,6 +375,7 @@ class ECMeasurement(Measurement):
                 self.I_str
             ] = self._raw_current  # TODO: better cache'ing. This is saved
         else:
+            return  # TODO Need better handling so EC-MS with only MS data works.
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw current."
                 f" Looked for series with names in {self.raw_current_names}"
@@ -558,9 +564,9 @@ class ECMeasurement(Measurement):
                 tseries=cycle.tseries,
             )
         else:
+            return
             raise SeriesNotFoundError(
-                f"{self} does not have a series corresponding to raw current."
-                f" Looked for series with names in {self.raw_current_names}"
+                f"{self} does not have a series corresponding to cycle number."
             )
         # TODO: better cache'ing. This one is not cache'd at all
 

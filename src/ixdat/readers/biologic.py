@@ -250,6 +250,47 @@ def timestamp_string_to_tstamp(timestamp_string, form=None):
     return tstamp
 
 
+BIOLOGIC_COLUMN_NAMES = (
+    "mode",
+    "ox/red",
+    "error",
+    "control changes",
+    "time/s",
+    "control/V",
+    "Ewe/V",
+    "<I>/mA",
+    "(Q-Qo)/C",
+    "P/W",
+    "loop number",
+    "I/mA",
+    "control/mA",
+    "Ns changes",
+    "counter inc.",
+    "cycle number",
+    "Ns",
+    "(Q-Qo)/mA.h",
+    "dQ/C",
+    "Q charge/discharge/mA.h",
+    "half cycle",
+    "Capacitance charge/µF",
+    "Capacitance discharge/µF",
+    "dq/mA.h",
+    "Q discharge/mA.h",
+    "Q charge/mA.h",
+    "Capacity/mA.h",
+    "file number",
+    "file_number",
+    "Ece/V",
+    "Ewe-Ece/V",
+    "<Ece>/V",
+    "<Ewe>/V",
+    "Energy charge/W.h",
+    "Energy discharge/W.h",
+    "Efficiency/%",
+    "Rcmp/Ohm",
+)
+
+
 if __name__ == "__main__":
     """Module demo here.
 
