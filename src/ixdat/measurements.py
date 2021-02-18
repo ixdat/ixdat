@@ -385,7 +385,7 @@ class Measurement(Saveable):
             return m_id_list[0]
         return m_id_list
 
-    def cut(self, tspan):
+    def cut(self, tspan, t_zero=None):
         """Return a new measurement with the data in the given time interval
 
         Args:
@@ -394,6 +394,10 @@ class Measurement(Saveable):
                 time of the interval. Using tspan[-1] means you can directly use a
                 long time vector that you have at hand to describe the time interval
                 you're looking for.
+            t_zero (float or str): Where to put the tstamp of the returned measurement.
+                Default is to keep it the same as the present tstamp. If instead it is
+                a float, this adds the float to the present tstamp. If t_zero is "start",
+                tspan[0] is added to the present tstamp.
         """
         new_series_list = []
         obj_as_dict = self.as_dict()
@@ -444,6 +448,10 @@ class Measurement(Saveable):
                     new_series_list.append(new_series)
         obj_as_dict["series_list"] = new_series_list
         del obj_as_dict["s_ids"]
+        if t_zero:
+            if t_zero == "start":
+                t_zero = tspan[0]
+            obj_as_dict["tstamp"] += t_zero
         new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement
 

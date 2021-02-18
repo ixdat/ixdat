@@ -57,8 +57,8 @@ class ECPlotter:
         J_str = J_str or (
             measurement.J_str if measurement.A_el is not None else measurement.I_str
         )
-        t_v, v = measurement.grab(V_str, tspan=tspan)
-        t_j, j = measurement.grab(J_str, tspan=tspan)
+        t_v, v = measurement.grab(V_str, tspan=tspan, include_endpoints=False)
+        t_j, j = measurement.grab(J_str, tspan=tspan, include_endpoints=False)
         if axes:
             ax1, ax2 = axes
         else:
@@ -111,8 +111,8 @@ class ECPlotter:
         J_str = J_str or (
             measurement.J_str if measurement.A_el is not None else measurement.I_str
         )
-        t_v, v = measurement.grab(V_str, tspan=tspan)
-        t_j, j = measurement.grab(J_str, tspan=tspan)
+        t_v, v = measurement.grab(V_str, tspan=tspan, include_endpoints=False)
+        t_j, j = measurement.grab(J_str, tspan=tspan, include_endpoints=False)
 
         j_v = np.interp(t_v, t_j, j)
         if not ax:
@@ -148,12 +148,15 @@ class CVDiffPlotter:
         v_scan = measurement.scan_rate.data
         mask = np.logical_xor(0 < j_diff, v_scan < 0)
 
+        ax.fill_between(v1, j1 - j_diff, j1, where=mask, alpha=0.2, color="g")
         ax.fill_between(
-            v1, j1-j_diff, j1, where=mask, alpha=0.2, color="g"
-        )
-        ax.fill_between(
-            v1, j1-j_diff, j1, where=np.logical_not(mask),
-            alpha=0.1, hatch="//", color="g"
+            v1,
+            j1 - j_diff,
+            j1,
+            where=np.logical_not(mask),
+            alpha=0.1,
+            hatch="//",
+            color="g",
         )
 
         return ax
@@ -164,9 +167,9 @@ class CVDiffPlotter:
             self, measurement=measurement, axes=axes, **kwargs
         )
 
-    def plot_diff(self, measurement=None, ax=None):
+    def plot_diff(self, measurement=None, tspan=None, ax=None):
         measurement = measurement or self.measurement
-        t, v = measurement.grab("potential")
+        t, v = measurement.grab("potential", tspan=tspan, include_endpoints=False)
         j_diff = measurement.grab_for_t("current", t)
         v_scan = measurement.scan_rate.data
         # a mask which is true when cv_1 had bigger current than cv_2:
@@ -179,11 +182,11 @@ class CVDiffPlotter:
         ax.plot(
             v[np.logical_not(mask)],
             j_diff[np.logical_not(mask)],
-            "k--", label="cv1 < cv2"
+            "k--",
+            label="cv1 < cv2",
         )
         return ax
 
     def plot_vs_potential(self):
         """FIXME: This is needed to satisfy ECMeasurement.__init__"""
         pass
-

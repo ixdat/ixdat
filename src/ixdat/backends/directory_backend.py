@@ -59,13 +59,9 @@ class DirBackend(BackendBase):
             metadata_suffix (str): The suffix to use for JSON-formatted metadata files
             data_suffix (str): The suffix to use for numpy-formatted data files
         """
-        self.project_directory = directory / project_name
-        try:
-            self.project_directory.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            raise  # TODO, figure out what gets raised, then except with line below
-            # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
-
+        self.directory = directory
+        self.project_name = project_name
+        self._project_directory = None
         self.metadata_suffix = metadata_suffix
         self.data_suffix = data_suffix
         super().__init__()
@@ -73,6 +69,17 @@ class DirBackend(BackendBase):
     @property
     def name(self):
         return f"DirBackend({self.project_directory})"
+
+    @property
+    def project_directory(self):
+        if not self._project_directory:
+            self._project_directory = self.directory / self.project_name
+            try:
+                self._project_directory.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                raise  # TODO, figure out what gets raised, then except with line below
+                # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
+        return self._project_directory
 
     def save(self, obj):
         """Save the Saveable object as a file corresponding to a row in a table"""

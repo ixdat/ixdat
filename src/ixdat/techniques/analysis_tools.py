@@ -165,5 +165,3 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
             i_start += res_points
 
     return sections
-
-

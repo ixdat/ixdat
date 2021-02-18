@@ -35,7 +35,7 @@ class MSPlotter:
         measurement = measurement or self.measurement
         mass_list = mass_list or measurement.mass_list
         for mass in mass_list:
-            t, v = measurement.grab(mass, tspan=tspan)
+            t, v = measurement.grab(mass, tspan=tspan, include_endpoints=False)
             v[v < MIN_SIGNAL] = MIN_SIGNAL
             ax.plot(t, v, color=STANDARD_COLORS.get(mass, "k"), label=mass)
         if logplot:

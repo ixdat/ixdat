@@ -2,7 +2,11 @@ import numpy as np
 from .ec import ECMeasurement
 from ..data_series import ValueSeries, TimeSeries
 from ..exceptions import SeriesNotFoundError, BuildError
-from .analysis_tools import tspan_passing_through, calc_sharp_v_scan, find_signed_sections
+from .analysis_tools import (
+    tspan_passing_through,
+    calc_sharp_v_scan,
+    find_signed_sections,
+)
 
 
 class CyclicVoltammagram(ECMeasurement):
@@ -55,7 +59,7 @@ class CyclicVoltammagram(ECMeasurement):
                 name="cycle",
                 unit_name="",
                 data=np.ones(self.t.shape),
-                tseries=self.potential.tseries
+                tseries=self.potential.tseries,
             )
 
     def redefine_cycle(self, start_potential=None, redox=None):
@@ -96,7 +100,7 @@ class CyclicVoltammagram(ECMeasurement):
                     break
                 else:
                     n += (
-                            np.argmax(mask_behind) + 5
+                        np.argmax(mask_behind) + 5
                     )  # have to be below V for 5 datapoints
                 # print('point number on way up: ' + str(n)) # debugging
 
@@ -251,10 +255,7 @@ class CyclicVoltammagram(ECMeasurement):
                 diff_values[name] = np.append(diff_values[name], diff_v)
 
         t_diff_series = TimeSeries(
-            name="time/[s] for diffs",
-            unit_name="s",
-            data=t_diff,
-            tstamp=self.tstamp
+            name="time/[s] for diffs", unit_name="s", data=t_diff, tstamp=self.tstamp
         )  # I think this is the same as self.potential.tseries
 
         series_list.append(t_diff_series)
@@ -264,7 +265,7 @@ class CyclicVoltammagram(ECMeasurement):
                     name=name,
                     unit_name=self[name].unit_name,
                     data=data,
-                    tseries=t_diff_series
+                    tseries=t_diff_series,
                 )
             )
 
@@ -272,7 +273,7 @@ class CyclicVoltammagram(ECMeasurement):
         del diff_as_dict["s_ids"]
 
         diff_as_dict["series_list"] = series_list
-        diff_as_dict["raw_current_names"] = ("raw_current", )
+        diff_as_dict["raw_current_names"] = ("raw_current",)
 
         cls = cls or CyclicVoltammagramDiff
         diff = cls.from_dict(diff_as_dict)
