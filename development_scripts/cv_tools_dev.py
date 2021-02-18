@@ -7,24 +7,15 @@ Created on Mon Jan 25 22:02:57 2021
 from pathlib import Path
 from matplotlib import pyplot as plt
 
-from ixdat import Measurement
+from ixdat.techniques import CyclicVoltammagram
 
 plt.close("all")
 
-my_id = 5
-loaded_meas = Measurement.get(my_id)
+stripping_cycle = CyclicVoltammagram.get(1)
+base_cycle = CyclicVoltammagram.get(2)
 
-cv = loaded_meas.as_cv()
-cv.plot_measurement(J_str="cycle")
-cv_selection = cv[10:16]
+diff = stripping_cycle.diff_with(base_cycle)
 
-cv_selection.plot_measurement(J_str="cycle")
-cv_selection.redefine_cycle(start_potential=0.4, redox=1)
-cv_selection.plot_measurement(J_str="cycle")
-
-ax = cv_selection[1].plot(label="cycle 1")
-cv_selection[2].plot(ax=ax, linestyle="--", label="cycle 2")
-ax.legend()
-
-
-cv_selection.export(path_to_file=Path.home() / "test.csv")
+diff.plot_diff()
+diff.plot_measurement()
+diff.plot()

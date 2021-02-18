@@ -97,7 +97,7 @@ class ECPlotter:
             V_str (str): Name of the x-axis ValueSeries. Defaults to calibrated potential
             J_str (str): Name of the y-axis ValueSeries. Defaults to normalized current.
             ax (matplotlib.pyplot.Axis): The axis to plot on, if not a new one.
-            kwargs (dict): Additional key-word arguments are passed to matplotlib's
+            kwargs: Additional key-word arguments are passed to matplotlib's
                 plot() function, including `color`.
 
         Returns matplotlib.pyplot.axis: The axis plotted on.
@@ -124,3 +124,66 @@ class ECPlotter:
         ax.set_xlabel(V_str)
         ax.set_ylabel(J_str)
         return ax
+
+
+class CVDiffPlotter:
+    """A matplotlib plotter for highlighting the difference between two cv's."""
+
+    def __init__(self, measurement=None):
+        """Initiate the ECPlotter with its default CyclicVoltammagramDiff to plot"""
+        self.measurement = measurement
+
+    def plot(self, measurement=None, ax=None):
+        measurement = measurement or self.measurement
+        ax = ECPlotter.plot_vs_potential(
+            self, measurement=measurement.cv_1, axes=ax, color="g"
+        )
+        ax = ECPlotter.plot_vs_potential(
+            self, measurement=measurement.cv_2, ax=ax, color="k", linestyle="--"
+        )
+        t1, v1 = measurement.cv_1.grab("potential")
+        j1 = measurement.cv_1.grab_for_t("current", t=t1)
+        j_diff = measurement.grab_for_t("current", t=t1)
+        # a mask which is true when cv_1 had bigger current than cv_2:
+        v_scan = measurement.scan_rate.data
+        mask = np.logical_xor(0 < j_diff, v_scan < 0)
+
+        ax.fill_between(
+            v1, j1-j_diff, j1, where=mask, alpha=0.2, color="g"
+        )
+        ax.fill_between(
+            v1, j1-j_diff, j1, where=np.logical_not(mask),
+            alpha=0.1, hatch="//", color="g"
+        )
+
+        return ax
+
+    def plot_measurement(self, measurement=None, axes=None, **kwargs):
+        measurement = measurement or self.measurement
+        return ECPlotter.plot_measurement(
+            self, measurement=measurement, axes=axes, **kwargs
+        )
+
+    def plot_diff(self, measurement=None, ax=None):
+        measurement = measurement or self.measurement
+        t, v = measurement.grab("potential")
+        j_diff = measurement.grab_for_t("current", t)
+        v_scan = measurement.scan_rate.data
+        # a mask which is true when cv_1 had bigger current than cv_2:
+        mask = np.logical_xor(0 < j_diff, v_scan < 0)
+
+        if not ax:
+            fig, ax = plt.subplots()
+
+        ax.plot(v[mask], j_diff[mask], "k-", label="cv1 > cv2")
+        ax.plot(
+            v[np.logical_not(mask)],
+            j_diff[np.logical_not(mask)],
+            "k--", label="cv1 < cv2"
+        )
+        return ax
+
+    def plot_vs_potential(self):
+        """FIXME: This is needed to satisfy ECMeasurement.__init__"""
+        pass
+

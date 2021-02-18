@@ -437,7 +437,9 @@ class ECMeasurement(Measurement):
         if self.R_Ohm:
             fixed_V_str += " (corrected)"
             fixed_potential_data = (
-                fixed_potential_data - self.R_Ohm * self.raw_current.data * 1e-3
+                fixed_potential_data - self.R_Ohm * self.grab_for_t(
+                    "raw_current", raw_potential.t
+                ) * 1e-3
             )  # TODO: Units. The 1e-3 here is to bring raw_current.data from [mA] to [A]
         return ValueSeries(
             name=fixed_V_str,

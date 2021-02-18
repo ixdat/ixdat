@@ -289,7 +289,7 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
-    def grab(self, item, tspan=None):
+    def grab(self, item, tspan=None, include_endpoints=True):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -302,26 +302,31 @@ class Measurement(Saveable):
         TODO: option to specifiy desired units
 
         Typical usage::
-            t, v = measurement.grab(potential, tspan=[0, 100]
+            t, v = measurement.grab(potential, tspan=[0, 100])
 
         Args:
             item (str): The name of the DataSeries to grab data for
-            tspan ()
+            tspan (iter of float): Defines the timespan with its first and last values.
+                Optional. By default the entire time of the measurement is included.
+            include_endpoints (bool): Whether to add a points at t = tspan[0] and
+                t = tspan[-1] to the data returned. Default is True. This makes
+                trapezoidal integration less dependent on the time resolution.
         """
         vseries = self[item]
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
         if tspan:
-            if t[0] < tspan[0]:  # then add a point to make sure tspan[0] is included
-                v_0 = np.interp(tspan[0], t, v)
-                t = np.append(tspan[0], t)
-                v = np.append(v_0, v)
-            if tspan[-1] < t[-1]:  # then add a point to make sure tspan[-1] is included
-                v_end = np.interp(tspan[-1], t, v)
-                t = np.append(t, tspan[-1])
-                v = np.append(v, v_end)
-            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
+            if include_endpoints:
+                if t[0] < tspan[0]:  # then add a point to include tspan[0]
+                    v_0 = np.interp(tspan[0], t, v)
+                    t = np.append(tspan[0], t)
+                    v = np.append(v_0, v)
+                if tspan[-1] < t[-1]:  # then add a point to include tspan[-1]
+                    v_end = np.interp(tspan[-1], t, v)
+                    t = np.append(t, tspan[-1])
+                    v = np.append(v, v_end)
+            mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
             t, v = t[mask], v[mask]
         return t, v
 

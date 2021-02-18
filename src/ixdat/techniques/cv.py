@@ -1,8 +1,8 @@
 import numpy as np
 from .ec import ECMeasurement
-from ..data_series import ValueSeries
-from ..exceptions import SeriesNotFoundError
-from .analysis_tools import tspan_passing_through
+from ..data_series import ValueSeries, TimeSeries
+from ..exceptions import SeriesNotFoundError, BuildError
+from .analysis_tools import tspan_passing_through, calc_sharp_v_scan, find_signed_sections
 
 
 class CyclicVoltammagram(ECMeasurement):
@@ -46,7 +46,17 @@ class CyclicVoltammagram(ECMeasurement):
     @property
     def cycle(self):
         """ValueSeries: the cycle number. The default selector. see `redefine_cycle`"""
-        return self.selector
+        try:
+            return self.selector
+        except TypeError:
+            # FIXME: This is what happens now when a single-cycle CyclicVoltammagram is
+            #   saved and loaded.
+            return ValueSeries(
+                name="cycle",
+                unit_name="",
+                data=np.ones(self.t.shape),
+                tseries=self.potential.tseries
+            )
 
     def redefine_cycle(self, start_potential=None, redox=None):
         """Build `cycle` which iterates when passing through start_potential
@@ -86,7 +96,7 @@ class CyclicVoltammagram(ECMeasurement):
                     break
                 else:
                     n += (
-                        np.argmax(mask_behind) + 5
+                            np.argmax(mask_behind) + 5
                     )  # have to be below V for 5 datapoints
                 # print('point number on way up: ' + str(n)) # debugging
 
@@ -139,3 +149,154 @@ class CyclicVoltammagram(ECMeasurement):
                 vspan=vspan, t_i=tspan[0] if tspan else None
             ).integrate(item)
         return super().integrate(item, tspan)
+
+    @property
+    def scan_rate(self, res_points=10):
+        """The scan rate as a ValueSeries"""
+        t, v = self.grab("potential")
+        scan_rate_vec = calc_sharp_v_scan(t, v, res_points=res_points)
+        scan_rate_series = ValueSeries(
+            name="scan rate",
+            unit_name="V/s",  # TODO: unit = potential.unit / potential.tseries.unit
+            data=scan_rate_vec,
+            tseries=self.potential.tseries,
+        )
+        # TODO: cache'ing, index accessibility
+        return scan_rate_series
+
+    @property
+    def sweep_specs(self):
+        """Return list of [(tspan, type)] for all the potential sweeps in self.
+
+        There are three types: "anodic" (positive scan rate), "cathodic" (negative scan
+        rate), and "hold" (zero scan rate)
+        """
+        t = self.t
+        ec_sweep_types = {
+            "positive": "anodic",
+            "negative": "cathodic",
+            "steady": "hold",
+        }
+        indexed_sweeps = find_signed_sections(self.scan_rate.data)
+        timed_sweeps = []
+        for (i_start, i_finish), general_sweep_type in indexed_sweeps:
+            timed_sweeps.append(
+                ((t[i_start], t[i_finish]), ec_sweep_types[general_sweep_type])
+            )
+        return timed_sweeps
+
+    def diff_with(self, other, v_list=None, cls=None):
+        """Return a CyclicVotammagramDiff of this CyclicVotammagram with another one
+
+        Each anodic and cathodic sweep in other is lined up with a corresponding sweep
+        in self. Each variable given in v_list (defaults to just "current") is
+        interpolated onto self's potential and subtracted from self.
+        """
+
+        vseries = self.potential
+        tseries = vseries.tseries
+        series_list = [tseries, self.raw_potential, self.cycle]
+
+        v_list = v_list or ["current", "raw_current"]
+        if "potential" in v_list:
+            raise BuildError(
+                f"v_list={v_list} is invalid. 'potential' is used to interpolate."
+            )
+
+        my_sweep_specs = [
+            spec for spec in self.sweep_specs if spec[1] in ["anodic", "cathodic"]
+        ]
+        others_sweep_specs = [
+            spec for spec in other.sweep_specs if spec[1] in ["anodic", "cathodic"]
+        ]
+        if not len(my_sweep_specs) == len(others_sweep_specs):
+            raise BuildError(
+                "Can only make diff of CyclicVoltammagrams with same number of sweeps."
+                f"{self} has {my_sweep_specs} and {other} has {others_sweep_specs}."
+            )
+
+        diff_values = {name: np.array([]) for name in v_list}
+        t_diff = np.array([])
+
+        for my_spec, other_spec in zip(my_sweep_specs, others_sweep_specs):
+            sweep_type = my_spec[1]
+            if not other_spec[1] == sweep_type:
+                raise BuildError(
+                    "Corresponding sweeps must be of same type when making diff."
+                    f"Can't align {self}'s {my_spec} with {other}'s {other_spec}."
+                )
+            my_tspan = my_spec[0]
+            other_tspan = other_spec[0]
+            my_t, my_potential = self.grab(
+                "potential", my_tspan, include_endpoints=False
+            )
+            t_diff = np.append(t_diff, my_t)
+            other_t, other_potential = other.grab(
+                "potential", other_tspan, include_endpoints=False
+            )
+            if sweep_type == "anodic":
+                other_t_interp = np.interp(
+                    np.sort(my_potential), np.sort(other_potential), other_t
+                )
+            elif sweep_type == "cathodic":
+                other_t_interp = np.interp(
+                    np.sort(-my_potential), np.sort(-other_potential), other_t
+                )
+            else:
+                continue
+            for name in v_list:
+                my_v = self.grab_for_t(name, my_t)
+                other_v = other.grab_for_t(name, other_t_interp)
+                diff_v = my_v - other_v
+                diff_values[name] = np.append(diff_values[name], diff_v)
+
+        t_diff_series = TimeSeries(
+            name="time/[s] for diffs",
+            unit_name="s",
+            data=t_diff,
+            tstamp=self.tstamp
+        )  # I think this is the same as self.potential.tseries
+
+        series_list.append(t_diff_series)
+        for name, data in diff_values.items():
+            series_list.append(
+                ValueSeries(
+                    name=name,
+                    unit_name=self[name].unit_name,
+                    data=data,
+                    tseries=t_diff_series
+                )
+            )
+
+        diff_as_dict = self.as_dict()
+        del diff_as_dict["s_ids"]
+
+        diff_as_dict["series_list"] = series_list
+        diff_as_dict["raw_current_names"] = ("raw_current", )
+
+        cls = cls or CyclicVoltammagramDiff
+        diff = cls.from_dict(diff_as_dict)
+        diff.cv_1 = self
+        diff.cv_2 = other
+        return diff
+
+
+class CyclicVoltammagramDiff(CyclicVoltammagram):
+
+    cv_1 = None
+    cv_2 = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.plot = self.plotter.plot
+        self.plot_diff = self.plotter.plot_diff
+
+    @property
+    def plotter(self):
+        """The default plotter for CyclicVoltammagramDiff is CVDiffPlotter"""
+        if not self._plotter:
+            from ..plotters.ec_plotter import CVDiffPlotter
+
+            self._plotter = CVDiffPlotter(measurement=self)
+
+        return self._plotter
