@@ -6,6 +6,7 @@ from ..measurements import Measurement, append_series, time_shifted
 from ..data_series import ValueSeries, ConstantValue
 from ..exceptions import SeriesNotFoundError
 from ..exporters.ec_exporter import ECExporter
+from .analysis_tools import tspan_passing_through
 
 
 class ECMeasurement(Measurement):
@@ -280,6 +281,10 @@ class ECMeasurement(Measurement):
                 return self.potential
             elif item == "current":
                 return self.current
+            elif item == "raw_potential":
+                return self.raw_potential
+            elif item == "raw_current":
+                return self.raw_current
             raise SeriesNotFoundError(f"{self} doesn't have item '{item}'")
 
     @property
@@ -604,3 +609,13 @@ class ECMeasurement(Measurement):
         del self_as_dict["s_ids"]
         # Note, this works perfectly! All needed information is in self_as_dict :)
         return CyclicVoltammagram.from_dict(self_as_dict)
+
+    def select_sweep(self, vspan, redox=None, t_i=None):
+        tspan = tspan_passing_through(
+            t=self.t,
+            v=self.v,
+            vspan=vspan,
+            direction=redox,
+            t_i=t_i,
+        )
+        return self.cut(tspan=tspan)
