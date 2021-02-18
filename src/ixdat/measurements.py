@@ -290,15 +290,54 @@ class Measurement(Saveable):
         self._series_list = new_series_list
 
     def grab(self, item, tspan=None):
-        """Return the time and value vectors for a given VSeries name cut by tspan"""
+        """Return a value vector with the corresponding time vector
+
+        Grab is the *canonical* way to retrieve numerical time-dependent data from a
+        measurement in ixdat. The first argument is always the name of the value to get
+        time-resolved data for (the name of a ValueSeries). The second, optional,
+        argument is a timespan to select the data for.
+        Two vectors are returned: first time (t), then value (v). They are of the same
+        length so that `v` can be plotted against `t`, integrated over `t`, interpolated
+        via `t`, etc. `t` and `v` are returned in the units of their DataSeries.
+        TODO: option to specifiy desired units
+
+        Typical usage::
+            t, v = measurement.grab(potential, tspan=[0, 100]
+
+        Args:
+            item (str): The name of the DataSeries to grab data for
+            tspan ()
+        """
         vseries = self[item]
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
         if tspan:
+            if t[0] < tspan[0]:  # then add a point to make sure tspan[0] is included
+                v_0 = np.interp(tspan[0], t, v)
+                t = np.append(tspan[0], t)
+                v = np.append(v_0, v)
+            if tspan[-1] < t[-1]:  # then add a point to make sure tspan[-1] is included
+                v_end = np.interp(tspan[-1], t, v)
+                t = np.append(t, tspan[-1])
+                v = np.append(v, v_end)
             mask = np.logical_and(tspan[0] < t, t < tspan[-1])
             t, v = t[mask], v[mask]
         return t, v
+
+    def grab_for_t(self, item, t):
+        """Return a numpy array with the value of item interpolated to time t"""
+        vseries = self[item]
+        tseries = vseries.tseries
+        v_0 = vseries.data
+        t_0 = tseries.data + tseries.tstamp - self.tstamp
+        v = np.interp(t, t_0, v_0)
+        return v
+
+    def integrate(self, item, tspan=None):
+        """Return the time integral of item in the specified timespan"""
+        t, v = self.grab(item, tspan)
+        return np.trapz(v, t)
 
     @property
     def data_cols(self):

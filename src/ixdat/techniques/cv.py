@@ -2,6 +2,7 @@ import numpy as np
 from .ec import ECMeasurement
 from ..data_series import ValueSeries
 from ..exceptions import SeriesNotFoundError
+from .analysis_tools import tspan_passing_through
 
 
 class CyclicVoltammagram(ECMeasurement):
@@ -107,3 +108,34 @@ class CyclicVoltammagram(ECMeasurement):
         self["cycle"] = new_cycle_series
         self.sel_str = "cycle"
         return self.cycle
+
+    def select_sweep(self, vspan, t_i=None):
+        """Return a CyclicVoltammagram for while the potential is sweeping through vspan
+
+        Args:
+            vspan (iter of float): The range of self.potential for which to select data.
+                Vspan defines the direction of the sweep. If vspan[0] < vspan[-1], an
+                oxidative sweep is returned, i.e. one where potential is increasing.
+                If vspan[-1] < vspan[0], a reductive sweep is returned.
+            t_i (float): Optional. Time before which the sweep can't start.
+        """
+        tspan = tspan_passing_through(
+            t=self.t,
+            v=self.v,
+            vspan=vspan,
+            t_i=t_i,
+        )
+        return self.cut(tspan=tspan)
+
+    def integrate(self, item, tspan=None, vspan=None):
+        """Return the time integral of item while time in tspan or potential in vspan
+
+        item (str): The name of the ValueSeries to integrate
+        tspan (iter of float): A time interval over which to integrate it
+        vspan (iter of float): A potential interval over which to integrate it.
+        """
+        if vspan:
+            return self.select_sweep(
+                vspan=vspan, t_i=tspan[0] if tspan else None
+            ).integrate(item)
+        return super().integrate(item, tspan)
