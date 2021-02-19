@@ -15,7 +15,7 @@ regular_expressions = {
     "backend_name": r"backend_name = (\w+)",
     "id": r"id = ([0-9]+)",
     "timecol": r"timecol '(.+)' for: (?:'(.+)')$",
-    "unit": r"/ [(\w+)]",
+    "unit": r"/ [(.+)]",
 }
 
 
@@ -147,6 +147,11 @@ class IxdatCSVReader:
 
         if issubclass(cls, self.measurement_class):
             self.measurement_class = cls
+
+        if issubclass(self.measurement_class, TECHNIQUE_CLASSES["EC"]):
+            # this is how ECExporter exports current and potential:
+            obj_as_dict["raw_potential_names"] = ("raw potential / [V]",)
+            obj_as_dict["raw_current_names"] = ("raw current / [mA]",)
 
         self.measurement = self.measurement_class.from_dict(obj_as_dict)
         self.file_has_been_read = True
