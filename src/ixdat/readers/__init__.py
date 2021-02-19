@@ -9,9 +9,11 @@ from ..techniques import TECHNIQUE_CLASSES
 from .ec_ms_pkl import EC_MS_CONVERTER
 from .zilien import ZilienTSVReader
 from .biologic import BiologicMPTReader
+from .ixdat_csv import IxdatCSVReader
 
 READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "zilien": ZilienTSVReader,
     "biologic": BiologicMPTReader,
+    "ixdat": IxdatCSVReader,
 }

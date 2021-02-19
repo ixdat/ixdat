@@ -284,6 +284,10 @@ class ECMeasurement(Measurement):
                 return self.raw_potential
             elif item == "raw_current":
                 return self.raw_current
+            elif item == self.potential.name:
+                return self.potential
+            elif item == self.current.name:
+                return self.current
             raise SeriesNotFoundError(f"{self} doesn't have item '{item}'")
 
     @property
@@ -333,7 +337,6 @@ class ECMeasurement(Measurement):
                 self.E_str
             ] = self._raw_potential  # TODO: Better cache'ing. This saves.
         else:
-            return  # TODO: Need better handling here.
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw potential."
                 f" Looked for series with names in {self.raw_potential_names}"
@@ -379,7 +382,6 @@ class ECMeasurement(Measurement):
                 self.I_str
             ] = self._raw_current  # TODO: better cache'ing. This is saved
         else:
-            return  # TODO Need better handling so EC-MS with only MS data works.
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw current."
                 f" Looked for series with names in {self.raw_current_names}"
@@ -424,6 +426,8 @@ class ECMeasurement(Measurement):
             `R_Ohm` times the raw current from the potential and add " (corrected)" to
             its name.
         """
+        if self.V_str in self.series_names:
+            return self[self.V_str]
         raw_potential = self.raw_potential
         if self.RE_vs_RHE is None and self.R_Ohm is None:
             return raw_potential
@@ -457,6 +461,8 @@ class ECMeasurement(Measurement):
             data by `A_el`, change its name from `I_str` to `J_str`, and add `/cm^2` to
             its unit.
         """
+        if self.J_str in self.series_names:
+            return self[self.J_str]
         raw_current = self.raw_current
         if self.A_el is None:
             return raw_current

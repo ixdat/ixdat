@@ -39,22 +39,43 @@ class CSVExporter:
             path_to_file = Path(path_to_file)
         if not path_to_file.suffix:
             path_to_file = path_to_file.with_suffix(".csv")
+
+        timecols = {}
         for v_name in v_list:
             t_name = measurement[v_name].tseries.name
             t, v = measurement.grab(v_name, tspan=tspan)
-            if t_name not in columns_data:
+            if t_name in timecols:
+                timecols[t_name].append(v_name)
+            else:
                 columns_data[t_name] = t
                 s_list.append(t_name)
+                timecols[t_name] = [v_name]
             columns_data[v_name] = v
             s_list.append(v_name)
 
-        header_line = (
+        header_lines = []
+        for attr in ["name", "technique", "tstamp", "backend_name", "id"]:
+            line = f"{attr} = {getattr(measurement, attr)}\n"
+            header_lines.append(line)
+        for t_name, v_names in timecols.items():
+            line = (
+                f"timecol '{t_name}' for: "
+                + " and ".join([f"'{v_name}'" for v_name in v_names])
+                + "\n"
+            )
+            header_lines.append(line)
+
+        N_header_lines = len(header_lines) + 3
+        header_lines.append(f"N_header_lines = {N_header_lines}\n")
+        header_lines.append("\n")
+
+        col_header_line = (
             "".join([s_name + self.delim for s_name in s_list])[: -len(self.delim)]
             + "\n"
         )
-        #  TODO: Header may have to indicate which time goes with which value.
+        header_lines.append(col_header_line)
 
-        lines = [header_line]
+        lines = header_lines
         max_length = max([len(data) for data in columns_data.values()])
         for n in range(max_length):
             line = ""

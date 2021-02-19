@@ -49,14 +49,8 @@ class ECPlotter:
         Returns list of matplotlib.pyplot.Axis: The axes plotted on.
         """
         measurement = measurement or self.measurement
-        V_str = V_str or (
-            measurement.V_str
-            if measurement.RE_vs_RHE is not None
-            else measurement.E_str
-        )
-        J_str = J_str or (
-            measurement.J_str if measurement.A_el is not None else measurement.I_str
-        )
+        V_str = V_str or measurement.potential.name
+        J_str = J_str or measurement.current.name
         t_v, v = measurement.grab(V_str, tspan=tspan, include_endpoints=False)
         t_j, j = measurement.grab(J_str, tspan=tspan, include_endpoints=False)
         if axes:
@@ -103,14 +97,8 @@ class ECPlotter:
         Returns matplotlib.pyplot.axis: The axis plotted on.
         """
         measurement = measurement or self.measurement
-        V_str = V_str or (
-            measurement.V_str
-            if measurement.RE_vs_RHE is not None
-            else measurement.E_str
-        )
-        J_str = J_str or (
-            measurement.J_str if measurement.A_el is not None else measurement.I_str
-        )
+        V_str = V_str or measurement.potential.name
+        J_str = J_str or measurement.current.name
         t_v, v = measurement.grab(V_str, tspan=tspan, include_endpoints=False)
         t_j, j = measurement.grab(J_str, tspan=tspan, include_endpoints=False)
 
