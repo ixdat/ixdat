@@ -1,9 +1,9 @@
 import numpy as np
-from matplotlib import pyplot as plt
+from .base_mpl_plotter import MPLPlotter
 from .plotting_tools import color_axis
 
 
-class ECPlotter:
+class ECPlotter(MPLPlotter):
     """A matplotlib plotter specialized in electrochemistry measurements."""
 
     def __init__(self, measurement=None):
@@ -56,7 +56,7 @@ class ECPlotter:
         if axes:
             ax1, ax2 = axes
         else:
-            fig, ax1 = plt.subplots()
+            ax1 = self.new_ax()
             ax2 = ax1.twinx()
             axes = [ax1, ax2]
         ax1.plot(t_v, v, "-", color=V_color, label=V_str, **kwargs)
@@ -104,7 +104,7 @@ class ECPlotter:
 
         j_v = np.interp(t_v, t_j, j)
         if not ax:
-            fig, ax = plt.subplots()
+            ax = self.new_ax()
 
         if "color" not in kwargs:
             kwargs["color"] = "k"
@@ -114,7 +114,7 @@ class ECPlotter:
         return ax
 
 
-class CVDiffPlotter:
+class CVDiffPlotter(MPLPlotter):
     """A matplotlib plotter for highlighting the difference between two cv's."""
 
     def __init__(self, measurement=None):
@@ -164,7 +164,7 @@ class CVDiffPlotter:
         mask = np.logical_xor(0 < j_diff, v_scan < 0)
 
         if not ax:
-            fig, ax = plt.subplots()
+            ax = self.new_ax()
 
         ax.plot(v[mask], j_diff[mask], "k-", label="cv1 > cv2")
         ax.plot(

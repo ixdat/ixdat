@@ -1,10 +1,10 @@
 """Classes for plotting measurement data"""
 
-from matplotlib import pyplot as plt
-from ixdat.exceptions import SeriesNotFoundError
+from .base_mpl_plotter import MPLPlotter
+from ..exceptions import SeriesNotFoundError
 
 
-class ValuePlotter:
+class ValuePlotter(MPLPlotter):
     """Default plotter. By default plots all of the VSeries vs time on a single axis"""
 
     def __init__(self, measurement=None):
@@ -28,7 +28,7 @@ class ValuePlotter:
             logscale (bool): Whether to use a log-scaled y-axis. Defaults to False.
         """
         if not ax:
-            fig, ax = plt.subplots()
+            ax = self.new_ax()
         v_list = v_list or measurement.value_names
 
         for v_name in v_list:
@@ -41,5 +41,7 @@ class ValuePlotter:
 
         if legend:
             ax.legend()
+        if logscale:
+            ax.set_yscale("log")
 
         return ax

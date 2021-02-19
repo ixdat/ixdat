@@ -1,7 +1,7 @@
-from matplotlib import pyplot as plt
+from .base_mpl_plotter import MPLPlotter
 
 
-class MSPlotter:
+class MSPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
 
     def __init__(self, measurement=None):
@@ -29,9 +29,7 @@ class MSPlotter:
             legend (bool): Whether to use a legend for the MS data (default True)
         """
         if not ax:
-            fig, ax = plt.subplots()
-            ax.set_ylabel("signal / [A]")
-            ax.set_xlabel("time / [s]")
+            ax = self.new_ax(ylabel="signal / [A]", xlabel="time / [s]")
         measurement = measurement or self.measurement
         mass_list = mass_list or measurement.mass_list
         for mass in mass_list:

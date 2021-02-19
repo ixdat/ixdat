@@ -339,9 +339,21 @@ class Measurement(Saveable):
         v = np.interp(t, t_0, v_0)
         return v
 
-    def integrate(self, item, tspan=None):
+    def integrate(self, item, tspan=None, ax=None):
         """Return the time integral of item in the specified timespan"""
         t, v = self.grab(item, tspan)
+        if ax:
+            if ax == "new":
+                ax = self.plotter.new_ax(ylabel=item)
+                # FIXME: xlabel=self[item].tseries.name gives a problem :(
+            ax.plot(t, v, color="k", label=item)
+            ax.fill_between(
+                t, v, np.zeros(t.shape), where=v > 0, color="g", alpha=0.3
+            )
+            ax.fill_between(
+                t, v, np.zeros(t.shape), where=v < 0, color="g", alpha=0.1, hatch="//"
+            )
+
         return np.trapz(v, t)
 
     @property
