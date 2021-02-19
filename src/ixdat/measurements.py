@@ -9,8 +9,8 @@ import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, ValueSeries
-from .samples import Sample
-from .lablogs import LabLog
+from ixdat.projects.samples import Sample
+from ixdat.projects.lablogs import LabLog
 from ixdat.exporters.csv_exporter import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError  # , TechniqueError
 
