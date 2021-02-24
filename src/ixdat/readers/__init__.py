@@ -6,14 +6,22 @@ Constants:
         is the reader class for parsing files.
 """
 from ..techniques import TECHNIQUE_CLASSES
-from .ec_ms_pkl import EC_MS_CONVERTER
-from .zilien import ZilienTSVReader
-from .biologic import BiologicMPTReader
+
+# ixdat
 from .ixdat_csv import IxdatCSVReader
 
+# potentiostats
+from .biologic import BiologicMPTReader
+from .autolab import AutolabTXTReader
+
+# ec-ms
+from .zilien import ZilienTSVReader
+from .ec_ms_pkl import EC_MS_CONVERTER
+
 READER_CLASSES = {
-    "EC_MS": EC_MS_CONVERTER,
-    "zilien": ZilienTSVReader,
-    "biologic": BiologicMPTReader,
     "ixdat": IxdatCSVReader,
+    "biologic": BiologicMPTReader,
+    "autolab": AutolabTXTReader,
+    "zilien": ZilienTSVReader,
+    "EC_MS": EC_MS_CONVERTER,
 }

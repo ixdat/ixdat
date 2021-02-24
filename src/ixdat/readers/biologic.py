@@ -5,20 +5,16 @@ Demonstrated/tested at the bottom under `if __name__ == "__main__":`
 
 from pathlib import Path
 import re
-import time
 import numpy as np
 
 from . import TECHNIQUE_CLASSES
 from ..data_series import TimeSeries, ValueSeries
 from ..exceptions import ReadError
+from .reading_tools import timestamp_string_to_tstamp
 
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
 delim = "\t"
 t_str = "time/s"
-timestamp_form_strings = [
-    "%m/%d/%Y %H:%M:%S",  # like 07/29/2020 10:31:03
-    "%m-%d-%Y %H:%M:%S",  # like 01-31-2020 10:32:02
-]
 regular_expressions = {
     "N_header_lines": "Nb header lines : (.+)\n",
     "timestamp_string": "Acquisition started on : (.+)\n",
@@ -91,7 +87,11 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
-            **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
+            name (str): The name to use if not the file name
+            cls (Measurement subclass): The Measurement class to return an object of.
+                Defaults to `ECMeasurement` and should probably be a subclass thereof in
+                any case.
+            **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
         path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
         if self.file_has_been_read:
@@ -175,7 +175,9 @@ class BiologicMPTReader:
             timestamp_match = re.search(regular_expressions["timestamp_string"], line)
             if timestamp_match:
                 self.timestamp_string = timestamp_match.group(1)
-                self.tstamp = timestamp_string_to_tstamp(self.timestamp_string)
+                self.tstamp = timestamp_string_to_tstamp(
+                    self.timestamp_string, forms=BIOLOGIC_TIMESTAMP_FORMS
+                )
             return
         loop_match = re.search(regular_expressions["loop"], line)
         if loop_match:
@@ -230,27 +232,10 @@ def get_column_unit(column_name):
     return unit_name
 
 
-def timestamp_string_to_tstamp(timestamp_string, form=None):
-    """Return the unix timestamp as a float by parsing timestamp_string
-
-    Args:
-        timestamp_string (str): The timestamp as read in the .mpt file
-        form (str): The format string used by time.strptime (string-parse time)
-            TODO: EC-Lab saves time in a couple different ways based on version and
-                location. In the future this function will need to try multiple forms.
-    """
-    timestamp_forms = ([form] if form else []) + timestamp_form_strings
-    for form in timestamp_forms:
-        try:
-            struct = time.strptime(timestamp_string, form)
-        except ValueError:
-            continue
-        else:
-            break
-
-    tstamp = time.mktime(struct)
-    return tstamp
-
+BIOLOGIC_TIMESTAMP_FORMS = (
+    "%m/%d/%Y %H:%M:%S",  # like 07/29/2020 10:31:03
+    "%m-%d-%Y %H:%M:%S",  # like 01-31-2020 10:32:02
+)
 
 # This tuple contains variable names encountered in .mpt files. The tuple can be used by
 #   other modules to tell which data is from biologic.
