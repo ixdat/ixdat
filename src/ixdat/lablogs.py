@@ -1,4 +1,4 @@
-from ixdat.db import Saveable
+from .db import Saveable
 
 
 class LabLog(Saveable):

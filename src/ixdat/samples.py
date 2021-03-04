@@ -1,6 +1,6 @@
 """The module implements the sample class"""
 
-from ixdat.db import Saveable
+from .db import Saveable
 
 
 class Sample(Saveable):
