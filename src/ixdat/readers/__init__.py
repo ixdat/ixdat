@@ -12,7 +12,11 @@ from .ixdat_csv import IxdatCSVReader
 
 # potentiostats
 from .biologic import BiologicMPTReader
-from .autolab import AutolabTXTReader
+from .autolab import NovaASCIIReader
+from .ivium import IviumDatasetReader
+
+# mass spectrometers
+from .pfeiffer import PVMassSpecReader
 
 # ec-ms
 from .zilien import ZilienTSVReader
@@ -21,7 +25,9 @@ from .ec_ms_pkl import EC_MS_CONVERTER
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicMPTReader,
-    "autolab": AutolabTXTReader,
+    "autolab": NovaASCIIReader,
+    "ivium": IviumDatasetReader,
+    "pfeiffer": PVMassSpecReader,
     "zilien": ZilienTSVReader,
     "EC_MS": EC_MS_CONVERTER,
 }

@@ -18,6 +18,8 @@ char_substitutions = {
 
 def fix_name_for_saving(name):
     """Replace problematic characters in name with the substitutions defined above"""
+    if not isinstance(name, str):
+        return
     for bad_char, substitution in char_substitutions.items():
         name = name.replace(bad_char, substitution)
     return name

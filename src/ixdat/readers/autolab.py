@@ -1,4 +1,5 @@
-"""This module implements the autolab txt reader"""
+"""This module implements the reader for ascii exports from autolab's Nova software"""
+
 import re
 from pathlib import Path
 import pandas as pd
@@ -6,7 +7,7 @@ from ..data_series import TimeSeries, ValueSeries
 from .reading_tools import prompt_for_tstamp
 
 
-class AutolabTXTReader:
+class NovaASCIIReader:
     """A reader for ascii files exported by Autolab's Nova software"""
 
     def read(self, path_to_file, cls=None, name=None, **kwargs):

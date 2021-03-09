@@ -6,7 +6,8 @@ import urllib.request
 from ..config import CFG
 
 
-STANDARD_TIMESTAMP_FORM = "%m/%d/%Y %H:%M:%S"
+STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'
+USA_TIMESTAMP_FORM = "%m/%d/%Y %H:%M:%S"  # like '12/31/2020 23:59:59'
 
 
 def timestamp_string_to_tstamp(
@@ -20,7 +21,7 @@ def timestamp_string_to_tstamp(
         timestamp_string (str): The timestamp as read in the .mpt file
         form (str): The format string used by time.strptime (string-parse time). This is
             optional and overrides `forms` if given.
-        forms (list of str): The formats you want to try for time.strptime, defaults to
+        forms (iter of str): The formats you want to try for time.strptime, defaults to
             the standard timestamp form.
     """
     if form:
@@ -37,7 +38,7 @@ def timestamp_string_to_tstamp(
     return tstamp
 
 
-def prompt_for_tstamp(path_to_file, default="creation", form=STANDARD_TIMESTAMP_FORM):
+def prompt_for_tstamp(path_to_file, default="creation", form=USA_TIMESTAMP_FORM):
     """Return the tstamp resulting from a prompt to enter a timestamp, or a default
 
     Args:
