@@ -3,8 +3,7 @@
 import re
 from pathlib import Path
 import pandas as pd
-from .reading_tools import timestamp_string_to_tstamp
-from ..data_series import TimeSeries, ValueSeries
+from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
 
 
 class IviumDataReader:
@@ -52,22 +51,10 @@ class IviumDataReader:
 
         # All that's left is getting the data from the dataframe into DataSeries and
         # into the Measurement, starting with the TimeSeries:
-        t_str = "time/s"
-        tseries = TimeSeries(
-            name=t_str, unit_name="s", data=dataframe[t_str].to_numpy(), tstamp=tstamp
+
+        data_series_list = series_list_from_dataframe(
+            dataframe, "time/s", tstamp, get_column_unit
         )
-        data_series_list = [tseries]
-        for column_name, series in dataframe.items():
-            if column_name == t_str:
-                continue
-            data_series_list.append(
-                ValueSeries(
-                    name=column_name,
-                    unit_name=get_column_unit(column_name),
-                    data=series.to_numpy(),
-                    tseries=tseries,
-                )
-            )
         # With the `series_list` ready, we prepare the Measurement dictionary and
         # return the Measurement object:
         obj_as_dict = dict(

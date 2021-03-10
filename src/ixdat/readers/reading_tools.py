@@ -4,6 +4,7 @@ from pathlib import Path
 import time
 import urllib.request
 from ..config import CFG
+from ..measurements import TimeSeries, ValueSeries
 
 
 STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'
@@ -81,6 +82,37 @@ def prompt_for_tstamp(path_to_file, default="creation", form=USA_TIMESTAMP_FORM)
             else:
                 break
     return tstamp or default_tstamp
+
+
+def series_list_from_dataframe(dataframe, t_str, tstamp, unit_finding_function):
+    """Return a list of DataSeries with the data in a pandas dataframe.
+
+    Args:
+        dataframe (pandas dataframe): The dataframe. Column names are used as series
+            names, data is taken with series.to_numpy(). The dataframe can only have one
+            TimeSeries (if there are more than one, pandas is probably not the right
+            format anyway, since it requires columns be the same length).
+        t_str (str): The name of the column to use as the TimeSeries
+        tstamp (float): The timestamp
+        unit_finding_function (function): A function which takes a column name as a
+            string and returns its unit.
+    """
+    tseries = TimeSeries(
+        name=t_str, unit_name="s", data=dataframe[t_str].to_numpy(), tstamp=tstamp
+    )
+    data_series_list = [tseries]
+    for column_name, series in dataframe.items():
+        if column_name == t_str:
+            continue
+        data_series_list.append(
+            ValueSeries(
+                name=column_name,
+                unit_name=unit_finding_function(column_name),
+                data=series.to_numpy(),
+                tseries=tseries,
+            )
+        )
+    return data_series_list
 
 
 def url_to_file(url, file_name="temp", directory=None):

@@ -3,8 +3,7 @@
 import re
 from pathlib import Path
 import pandas as pd
-from ..data_series import TimeSeries, ValueSeries
-from .reading_tools import prompt_for_tstamp
+from .reading_tools import prompt_for_tstamp, series_list_from_dataframe
 
 
 class NovaASCIIReader:
@@ -27,22 +26,9 @@ class NovaASCIIReader:
 
         dataframe = pd.read_csv(self.path_to_file, delimiter=";")
 
-        t_str = "Time (s)"
-        tseries = TimeSeries(
-            name=t_str, unit_name="s", data=dataframe[t_str].to_numpy(), tstamp=tstamp
+        data_series_list = series_list_from_dataframe(
+            dataframe, "Time (s)", tstamp, get_column_unit
         )
-        data_series_list = [tseries]
-        for column_name, series in dataframe.items():
-            if column_name == t_str:
-                continue
-            data_series_list.append(
-                ValueSeries(
-                    name=column_name,
-                    unit_name=get_column_unit(column_name),
-                    data=series.to_numpy(),
-                    tseries=tseries,
-                )
-            )
         obj_as_dict = dict(
             name=name,
             technique="EC",
