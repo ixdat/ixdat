@@ -365,7 +365,7 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
-    def grab(self, item, tspan=None, include_endpoints=True):
+    def grab(self, item, tspan=None, include_endpoints=False):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -385,8 +385,8 @@ class Measurement(Saveable):
             tspan (iter of float): Defines the timespan with its first and last values.
                 Optional. By default the entire time of the measurement is included.
             include_endpoints (bool): Whether to add a points at t = tspan[0] and
-                t = tspan[-1] to the data returned. Default is True. This makes
-                trapezoidal integration less dependent on the time resolution.
+                t = tspan[-1] to the data returned. This makes trapezoidal integration
+                less dependent on the time resolution. Default is False.
         """
         vseries = self[item]
         tseries = vseries.tseries
@@ -417,7 +417,7 @@ class Measurement(Saveable):
 
     def integrate(self, item, tspan=None, ax=None):
         """Return the time integral of item in the specified timespan"""
-        t, v = self.grab(item, tspan)
+        t, v = self.grab(item, tspan, include_endpoints=True)
         if ax:
             if ax == "new":
                 ax = self.plotter.new_ax(ylabel=item)
