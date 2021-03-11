@@ -16,3 +16,9 @@ We will update this documentation as features are added.
 
 ``ixdat`` is free and open source software and we welcome input and new collaborators.
 The source is here: https://github.com/ixdat
+
+
+.. toctree::
+    :maxdepth: 2
+
+    extended-concept

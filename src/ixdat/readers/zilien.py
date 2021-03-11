@@ -5,6 +5,8 @@ ECMSMeasurement = TECHNIQUE_CLASSES["EC-MS"]
 
 
 class ZilienTSVReader:
+    """Class for reading files saved by Spectro Inlets' Zilien software"""
+
     def read(self, path_to_file, cls=None, name=None, **kwargs):
         """Read a zilien file
 

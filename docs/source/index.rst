@@ -13,7 +13,11 @@ This documentation, like ``ixdat`` itself, is a work in progress and we welcome 
 
     introduction
     measurement
+    technique_docs/index
     data-series
+    reader_docs/index
+    exporter_docs/index
+    plotter_docs/index
     license
 
 Indices and tables
