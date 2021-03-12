@@ -28,10 +28,14 @@ behind the EC-MS analysis and visualization in the puplications:
 
 The ``ec_ms`` module
 --------------------
+Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec_ms.py
+
 .. automodule:: ixdat.techniques.ec_ms
     :members:
 
 The ``deconvolution`` module
 ----------------------------
+Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/deconvolution.py
+
 .. automodule:: ixdat.techniques.deconvolution
     :members:

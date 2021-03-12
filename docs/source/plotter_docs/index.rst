@@ -2,6 +2,7 @@
 
 Plotters: visualizing `ixdat` data
 ==================================
+Sourece: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/plotters
 
 Basic
 -----
@@ -31,6 +32,7 @@ The ``ec_plotter`` module
 
 Mass Spectrometry
 -----------------
+
 .. _ms-plotter:
 
 The ``ms_plotter`` module

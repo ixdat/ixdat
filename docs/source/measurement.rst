@@ -8,7 +8,7 @@ main interface for user interaction. A measurement is an object of the generaliz
 main interface for user interaction. A measurement is an object of the generalized class
 ``Measurement``, defined in the ``measurements`` module, or an inheriting
 ***TechniqueMeasurement*** class defined in a module of the ``techniques`` folder
-(see :ref:`techniques`_).
+(see :ref:`techniques`).
 
 The general pluggable structure is defined by ``Measurement``, connecting every
 measurement to a *reader* for importing from text, a *backend* for saving and loading in
@@ -32,7 +32,7 @@ EC, MS, and EC-MS as an example:
   :width: 400
   :alt: Design: inheritance
 
-A full list of TechniqueMeasurements is in :ref:`techniques`_.
+A full list of TechniqueMeasurements is in :ref:`techniques`.
 
 Initiating a measurement
 ------------------------
@@ -44,7 +44,7 @@ by Biologic's EC-Lab, one can type:
 >>> from ixdat import Measurement
 >>> ec_meas = Measurement.read("my_file.mpt", reader="biologic")
 
-See :ref:`readers`_ for a description of the available readers.
+See :ref:`readers <readers>` for a description of the available readers.
 
 The biologic reader (``ixdat.readers.biologic.BiologicMPTReader``) ensures that the
 object returned, ``ec_meas``, is of type ``ECMeasurement``.
