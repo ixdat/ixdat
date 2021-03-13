@@ -2,7 +2,7 @@
 ``ixdat``: The In-situ Experimental Data Tool
 =============================================
 
-NOTE: We are currently working mainly on the `[user_ready] <https://github.com/ixdat/ixdat/tree/user_ready>_` branch. Both the `documentation <https://ixdat.readthedocs.io>`_ and the `pip installation <https://pypi.org/project/ixdat/>` are presently compiled from that branch while we work through some important details in `a pull request <https://github.com/ixdat/ixdat/pull/6>`_. 
+NOTE: We are currently working mainly on the `[user_ready] <https://github.com/ixdat/ixdat/tree/user_ready>`_ branch. Both the `documentation <https://ixdat.readthedocs.io>`_ and the `pip installation <https://pypi.org/project/ixdat/>`_ are presently compiled from that branch while we work through some important details in `a pull request <https://github.com/ixdat/ixdat/pull/6>`_. 
 
 ``ixdat`` will provide a powerful **object-oriented** interface to experimental data, especially in-situ experimental data for which it is of interest to combine data obtained simultaneously from multiple techniques.
 
