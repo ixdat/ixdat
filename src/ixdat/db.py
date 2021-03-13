@@ -164,7 +164,7 @@ class Saveable:
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(id={self.id}, name={self.name})"
+        return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @property
     def backend_name(self):

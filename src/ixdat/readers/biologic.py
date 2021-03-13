@@ -99,7 +99,7 @@ class BiologicMPTReader:
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
-        self.name = name or path_to_file
+        self.name = name or path_to_file.name
         self.path_to_file = path_to_file
         with open(path_to_file) as f:
             for line in f:
@@ -140,7 +140,7 @@ class BiologicMPTReader:
         )
         init_kwargs.update(kwargs)
 
-        self.measurement = ECMeasurement(**init_kwargs)
+        self.measurement = ECMeasurement(**init_kwargs)  # cls.from_dict(**init_kwargs)
         self.file_has_been_read = True
 
         return self.measurement

@@ -31,17 +31,37 @@ if False:
     cv_id = cv_meas.save()
     cp_id = cp_meas.save()
 else:
-    ocp_meas = Measurement.get(7)
-    cv_meas = Measurement.get(8)
-    cp_meas = Measurement.get(9)
+    ocp_meas = Measurement.get(1)
+    cv_meas = Measurement.get(2)
+    cp_meas = Measurement.get(3)
 
 combined_meas = ocp_meas + cv_meas + cp_meas
 
-v_list = ["Ewe/V", "<I>/mA", "I/mA"]
 t_start = 13700
 tspan = [0, 5000]
 
-for meas in [ocp_meas, cv_meas, cp_meas, combined_meas]:
-    meas.tstamp += t_start
+combined_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
 
-    meas.plot(v_list=v_list, tspan=tspan)
+combined_meas.tstamp += t_start
+
+combined_meas.plot(tspan=tspan)
+
+cut_meas = combined_meas.cut(tspan=tspan)
+cut_meas.plot(J_str="selector")
+
+select_meas = cut_meas.select_values(selector=[7, 9])
+select_meas.correct_ohmic_drop(R_Ohm=200)
+select_meas.plot()
+if False:
+    select_meas.name = "selected_measurement"
+    select_meas.save()  # this changes its ID!
+    my_id = select_meas.id
+else:
+    my_id = 4
+
+del select_meas
+
+loaded_meas = Measurement.get(my_id)
+
+loaded_meas.plot(J_str="selector")
+loaded_meas.plot_vs_potential()
