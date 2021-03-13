@@ -17,7 +17,7 @@ time. This results in the essential variables ``t`` (time), ``v`` (potential), a
 convenient, and powerful access to these three variables for data selection, analysis,
 and visualization, regardless of which hardware the data was acquired with.
 
-The default plotter, :ref:`ECPlotter <ec-plotter>`_, plots these variables.
+The default plotter, :ref:`ECPlotter <ec-plotter>`, plots these variables.
 The default exporter, ECExporter, exports these variables as well as an incrementer for
 selecting data, ``cycle``.
 
@@ -33,9 +33,11 @@ The ``ec`` module
 -----------------
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec.py
 
-.. image:: ../figures/ec_subplots.svg
+.. figure:: ../figures/ec_subplots.svg
   :width: 600
   :alt: Example plots. left: ``ECMeasurement.plot_vs_potential()`` right: ``ECMeasurement.plot_measurement()``
+
+  left: ``ECMeasurement.plot_vs_potential()`` right: ``ECMeasurement.plot_measurement()``. `Tutorial <https://github.com/ixdat/tutorials/blob/main/simple_ec_analysis/difference_between_two_cvs.ipynb>`_
 
 .. automodule:: ixdat.techniques.ec
     :members:
@@ -44,9 +46,11 @@ The ``cv`` module
 -----------------
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/cv.py
 
-.. image:: ../figures/cv_diff.svg
+.. figure:: ../figures/cv_diff.svg
   :width: 300
   :alt: Example ``CyclicVoltammagramDiff`` plot
+
+  ``CyclicVoltammagramDiff.plot()``.  `Tutorial <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_.
 
 .. automodule:: ixdat.techniques.cv
     :members:

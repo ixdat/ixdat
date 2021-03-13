@@ -1,3 +1,4 @@
+import numpy as np
 from .base_mpl_plotter import MPLPlotter
 
 
@@ -13,7 +14,10 @@ class MSPlotter(MPLPlotter):
         measurement=None,
         ax=None,
         mass_list=None,
+        mass_lists=None,
         tspan=None,
+        tspan_bg=None,
+        unit="A",
         logplot=True,
         legend=True,
     ):
@@ -24,22 +28,71 @@ class MSPlotter(MPLPlotter):
             ax (matplotlib axis): Defaults to a new axis
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
                 plot. Defaults to all of them (measurement.mass_list)
-            tspan (iter of float): The timespan, wrt measurement.tstamp, on which to plot
+            mass_lists (list of list of str): Alternately, two lists can be given for
+                masses in which case one list is plotted on the left y-axis and the other
+                on the right y-axis of the top panel.
+            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan_bg (timespan): A timespan for which to assume the signal is at its
+                background. The average signals during this timespan are subtracted.
+                If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
+                must also be two timespans - one for each axis. Default is `None` for no
+                background subtraction.
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
         """
-        if not ax:
-            ax = self.new_ax(ylabel="signal / [A]", xlabel="time / [s]")
         measurement = measurement or self.measurement
+        if not ax:
+            ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+        tspan_bg_right = None
+        if mass_lists:
+            mass_list = mass_lists[0]
+            try:
+                tspan_bg_right = tspan_bg[1]
+                if isinstance(tspan_bg_right, (float, int)):
+                    raise TypeError
+            except (KeyError, TypeError):
+                tspan_bg_right = None
+            else:
+                tspan_bg = tspan_bg[0]
+        unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "A": 1}[unit]
+        # TODO: Real units with a unit module! This should even be able to figure out the
+        #  unit prefix to put stuff in a nice 1-to-1e3 range
+        if not ax:
+            ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+
         mass_list = mass_list or measurement.mass_list
         for mass in mass_list:
             t, v = measurement.grab(mass, tspan=tspan, include_endpoints=False)
-            v[v < MIN_SIGNAL] = MIN_SIGNAL
-            ax.plot(t, v, color=STANDARD_COLORS.get(mass, "k"), label=mass)
+            if logplot:
+                v[v < MIN_SIGNAL] = MIN_SIGNAL
+            if tspan_bg:
+                _, v_bg = measurement.grab(mass, tspan=tspan_bg)
+                v = v - np.mean(v_bg)
+            ax.plot(
+                t, v * unit_factor, color=STANDARD_COLORS.get(mass, "k"), label=mass
+            )
+        if mass_lists:
+            ax2 = ax.twinx()
+            self.plot_measurement(
+                measurement=measurement,
+                ax=ax2,
+                mass_list=mass_lists[1],
+                unit=unit,
+                tspan=tspan,
+                tspan_bg=tspan_bg_right,
+                logplot=logplot,
+                legend=legend,
+            )
+            axes = [ax, ax2]
+        else:
+            axes = None
+
         if logplot:
             ax.set_yscale("log")
         if legend:
             ax.legend()
+
+        return axes if axes else ax
 
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)

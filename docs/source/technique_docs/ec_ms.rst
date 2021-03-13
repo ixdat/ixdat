@@ -5,7 +5,20 @@ Electrochemistry - Mass Spectrometry (EC-MS)
 
 The main class for EC-MS data is the ECMSMeasurement.
 
-It comes with the EC-MS plotter which makes
+It comes with the :ref:`EC-MS plotter <ec_ms-plotter>` which makes EC-MS plots like this one:
+
+.. figure:: ../figures/ec_ms_annotated.svg
+    :width: 600
+
+    ``ECMSMeasurement.plot_measurement()``. Data from Trimarco, 2018.
+
+Other than that it doesn't have much but inherits from both ``ECMeasurement`` and ``MSMeasurement``.
+An ``ECMSMeasurement`` can be created either by adding an ``ECMeasurement`` and an ``MSMeasurement``
+using the ``+`` operator, or by directly importing data using an EC-MS :ref:`reader <readers>`
+such as "zilien".
+
+Deconvolution, described in a publication under review, is implemented in the deconvolution module,
+in a class inheriting from ``ECMSMeasurement``.
 
 ixdat will soon have all the functionality and more for EC-MS data and analysis as the
 legacy `EC_MS <https://github.com/ScottSoren/EC_MS>`_ package. This includes the tools

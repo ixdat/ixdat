@@ -5,6 +5,7 @@ to combine them, i.e. "build" the combined dataset. It has a number of general m
 to visualize and analyze the combined dataset. Dataset is also the base class for a
 number of technique-specific Dataset-derived classes.
 """
+from pathlib import Path
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject
@@ -147,7 +148,13 @@ class Measurement(Saveable):
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
-        """Return a Measurement object from parsing a file with the specified reader"""
+        """Return a Measurement object from parsing a file with the specified reader
+
+        Args:
+            path_to_file (Path or str): The path to the file to read
+            reader (str or Reader class): The (name of the) reader to read the file with.
+            kwargs: key-word arguments are passed on to the reader's read() method.
+        """
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
@@ -165,6 +172,37 @@ class Measurement(Saveable):
         path_to_temp_file = url_to_file(url)
         measurement = cls.read(path_to_temp_file, reader=reader, **kwargs)
         path_to_temp_file.unlink()
+        return measurement
+
+    @classmethod
+    def read_set(cls, path_to_file_start, reader, file_list=None, **kwargs):
+        """Read and append a set of files.
+
+        Args:
+            path_to_file_start (Path or str): The path to the files to read including
+                the shared start of the file name: `Path(path_to_file).parent` is
+                interpreted as the folder where the file are.
+                `Path(path_to_file).name` is interpreted as the shared start of the files
+                to be appended.
+            reader (str or Reader class): The (name of the) reader to read the files with
+            file_list (list of Path): As an alternative to path_to_file_start, the
+                exact files to append can be specified in a list
+            kwargs: Key-word arguments are passed via cls.read() to the reader's read()
+                method, AND to cls.from_component_measurements()
+        """
+        base_name = None
+        if not file_list:
+            folder = Path(path_to_file_start).parent
+            base_name = Path(path_to_file_start).name
+            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
+
+        component_measurements = [
+            cls.read(f, reader=reader, **kwargs) for f in file_list
+        ]
+
+        if base_name and "name" not in kwargs:
+            kwargs["name"] = base_name
+        measurement = cls.from_component_measurements(component_measurements, **kwargs)
         return measurement
 
     @classmethod
@@ -643,6 +681,16 @@ class Measurement(Saveable):
             new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
 
+    def tspan(self):
+        """Return (t_start, t_finish) for all data in the measurement"""
+        t_start = None
+        t_finish = None
+        for tcol in self.time_names:
+            t = self[tcol].data
+            t_start = min(t_start, t[0]) if t_start else t[0]
+            t_finish = max(t_finish, t[-1]) if t_finish else t[-1]
+        return t_start, t_finish
+
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.
 
@@ -665,7 +713,7 @@ class Measurement(Saveable):
         """
         obj_as_dict = self.as_dict()
         new_name = self.name + " AND " + other.name
-        new_technique = self.technique + " AND " + other.technique
+        new_technique = get_combined_technique(self.technique, other.technique)
 
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
@@ -684,6 +732,7 @@ class Measurement(Saveable):
         )
         obj_as_dict.update(
             name=new_name,
+            technique=new_technique,
             series_list=new_series_list,
             component_measurements=new_component_measurements,
         )
@@ -821,3 +870,22 @@ def time_shifted(series, tstamp=None):
             tseries=time_shifted(series.tseries, tstamp=tstamp),
         )
     return series
+
+
+def get_combined_technique(technique_1, technique_2):
+    """Return the name of the technique resulting from adding two techniques"""
+    # TODO: see if there isn't a way to put the import at the top of the module.
+    #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+    if technique_1 == technique_2:
+        return technique_1
+
+    from .techniques import TECHNIQUE_CLASSES
+
+    for hyphenated in [
+        technique_1 + "-" + technique_2,
+        technique_2 + "-" + technique_1,
+    ]:
+        if hyphenated in TECHNIQUE_CLASSES:
+            return hyphenated
+
+    return technique_1 + " AND " + technique_2

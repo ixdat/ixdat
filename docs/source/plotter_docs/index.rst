@@ -1,7 +1,7 @@
 .. _plotters:
 
-Plotters: visualizing `ixdat` data
-==================================
+Plotters: visualizing ``ixdat`` data
+====================================
 Sourece: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/plotters
 
 Basic
@@ -22,7 +22,7 @@ The ``value_plotter`` module
 Electrochemistry
 ----------------
 
-.. _ec-plotter:
+.. _`ec-plotter`:
 
 The ``ec_plotter`` module
 ...............................
@@ -33,7 +33,7 @@ The ``ec_plotter`` module
 Mass Spectrometry
 -----------------
 
-.. _ms-plotter:
+.. _`ms-plotter`:
 
 The ``ms_plotter`` module
 ...............................
