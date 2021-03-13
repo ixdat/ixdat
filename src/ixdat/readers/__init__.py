@@ -17,6 +17,7 @@ from .ivium import IviumDatasetReader
 
 # mass spectrometers
 from .pfeiffer import PVMassSpecReader
+from .cinfdata import CinfdataTXTReader
 
 # ec-ms
 from .zilien import ZilienTSVReader
@@ -28,6 +29,7 @@ READER_CLASSES = {
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
     "pfeiffer": PVMassSpecReader,
+    "cinfdata": CinfdataTXTReader,
     "zilien": ZilienTSVReader,
     "EC_MS": EC_MS_CONVERTER,
 }

@@ -1,7 +1,7 @@
 .. _exporters:
 
-Exporters: getting data out of `ixdat`
-======================================
+Exporters: getting data out of ``ixdat``
+========================================
 
 
 Here is an example of an ixdat csv file (exported from a ``CyclicVoltammagram``

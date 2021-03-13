@@ -22,6 +22,23 @@ The ``ixdat_csv`` module
 .. automodule:: ixdat.readers.ixdat_csv
     :members:
 
+Importing from other experimental data platforms
+------------------------------------------------
+
+**cinfdata** is a web-based database system for experimental data, developed and used at DTU SurfCat
+(formerly CINF) in concert with The ``PyExpLabSys`` suite of experimental data acquisition tools.
+Both are available at https://github.com/CINF.
+
+As of yet, ``ixdat`` only has a text-file reader for data exported from **cinfdata**, but
+in the future it will also have a reader which downloads from the website given e.g. a
+setup and date.
+
+The ``cinfdata`` module
+........................
+
+.. automodule:: ixdat.readers.cinfdata
+    :members:
+
 Electrochemistry and sub-techniques
 ------------------------------------
 
