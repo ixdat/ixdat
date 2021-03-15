@@ -168,20 +168,29 @@ class CyclicVoltammagram(ECMeasurement):
         # TODO: cache'ing, index accessibility
         return scan_rate_series
 
-    @property
-    def sweep_specs(self):
+    def get_timed_sweeps(self, v_scan_res=5e-4, res_points=10):
         """Return list of [(tspan, type)] for all the potential sweeps in self.
 
         There are three types: "anodic" (positive scan rate), "cathodic" (negative scan
         rate), and "hold" (zero scan rate)
+
+        Args:
+            v_scan_res (float): The minimum scan rate considered significantly different
+                than zero, in [V/s]. Defaults to 5e-4 V/s (0.5 mV/s). May need be higher
+                for noisy potential, and lower for very low scan rates.
+            res_points (int): The minimum number of points to be considered a sweep.
+                During a sweep, a potential difference of at least `v_res` should be
+                scanned through every `res_points` points.
         """
         t = self.t
         ec_sweep_types = {
             "positive": "anodic",
             "negative": "cathodic",
-            "steady": "hold",
+            "zero": "hold",
         }
-        indexed_sweeps = find_signed_sections(self.scan_rate.data)
+        indexed_sweeps = find_signed_sections(
+            self.scan_rate.data, x_res=v_scan_res, res_points=res_points
+        )
         timed_sweeps = []
         for (i_start, i_finish), general_sweep_type in indexed_sweeps:
             timed_sweeps.append(
@@ -189,12 +198,21 @@ class CyclicVoltammagram(ECMeasurement):
             )
         return timed_sweeps
 
-    def diff_with(self, other, v_list=None, cls=None):
+    def diff_with(self, other, v_list=None, cls=None, v_scan_res=0.001, res_points=10):
         """Return a CyclicVotammagramDiff of this CyclicVotammagram with another one
 
         Each anodic and cathodic sweep in other is lined up with a corresponding sweep
         in self. Each variable given in v_list (defaults to just "current") is
         interpolated onto self's potential and subtracted from self.
+
+        Args:
+            other (CyclicVoltammagram): The cyclic voltammagram to subtract from self.
+            v_list (list of str): The names of the series to calculate a difference
+                between self and other for (defaults to just "current").
+            cls (ECMeasurement subclass): The class to return an object of. Defaults to
+                CyclicVoltammagramDiff.
+            v_scan_res (float): see CyclicVoltammagram.get_timed_sweeps()
+            res_points (int):  see CyclicVoltammagram.get_timed_sweeps()
         """
 
         vseries = self.potential
@@ -208,10 +226,18 @@ class CyclicVoltammagram(ECMeasurement):
             )
 
         my_sweep_specs = [
-            spec for spec in self.sweep_specs if spec[1] in ["anodic", "cathodic"]
+            spec
+            for spec in self.get_timed_sweeps(
+                v_scan_res=v_scan_res, res_points=res_points
+            )
+            if spec[1] in ["anodic", "cathodic"]
         ]
         others_sweep_specs = [
-            spec for spec in other.sweep_specs if spec[1] in ["anodic", "cathodic"]
+            spec
+            for spec in other.get_timed_sweeps(
+                v_scan_res=v_scan_res, res_points=res_points
+            )
+            if spec[1] in ["anodic", "cathodic"]
         ]
         if not len(my_sweep_specs) == len(others_sweep_specs):
             raise BuildError(

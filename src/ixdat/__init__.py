@@ -1,6 +1,6 @@
 """initialize ixdat, giving top-level access to a few of the important structures
 """
-__version__ = "0.0.6"
+__version__ = "0.0.7dev"
 __title__ = "ixdat"
 __description__ = "The in-situ experimental data tool"
 __url__ = "https://github.com/ixdat/ixdat"

@@ -167,6 +167,77 @@ class Measurement(Saveable):
         path_to_temp_file.unlink()
         return measurement
 
+    @classmethod
+    def from_component_measurements(
+        cls, component_measurements, keep_originals=True, **kwargs
+    ):
+        """Return a measurement with the data contained in the component measurements
+
+        TODO: This function "builds" the resulting measurement, i.e. it appends series
+            of the same name rather than keeping all the original copies. This should be
+            made more explicit, and a `build()` method should take over some of the work.
+
+        Args:
+            component_measurements (list of Measurement)
+            keep_originals: Whether to keep a list of component_measurements referenced.
+                This may result in redundant numpy arrays in RAM.
+            kwargs: key-word arguments are added to the dictionary for cls.from_dict()
+
+        Returns cls: a Measurement object of the
+        """
+
+        # First prepare everything but the series_list in the object dictionary
+        obj_as_dict = component_measurements[0].as_dict()
+        obj_as_dict.update(kwargs)
+        del obj_as_dict["m_ids"], obj_as_dict["s_ids"]
+        if keep_originals:
+            obj_as_dict["component_measurements"] = component_measurements
+
+        # Now, prepare the built series. First, we loop through the component
+        # measurements and get all the data and metadata organized in a dictionary:
+        series_as_dicts = {}
+        tstamp = component_measurements[0].tstamp
+        for meas in component_measurements:
+            tstamp_i = meas.tstamp  # save this for later.
+            meas.tstamp = tstamp  # so that the time vectors share a t=0
+            for s_name in meas.series_names:
+                series = meas[s_name]
+                if s_name in series_as_dicts:
+                    series_as_dicts[s_name]["data"] = np.append(
+                        series_as_dicts[s_name]["data"], series.data
+                    )
+                else:
+                    series_as_dicts[s_name] = series.as_dict()
+                    series_as_dicts[s_name]["data"] = series.data
+                    if isinstance(series, ValueSeries):
+                        # This will serve to match it to a TimeSeries later:
+                        series_as_dicts[s_name]["t_name"] = series.tseries.name
+            meas.tstamp = tstamp_i  # so it's not changed in the outer scope
+
+        # Now we make DataSeries, starting with all the TimeSeries
+        tseries_dict = {}
+        for name, s_as_dict in series_as_dicts.items():
+            if "tstamp" in s_as_dict:
+                tseries_dict[name] = TimeSeries.from_dict(s_as_dict)
+        # And then ValueSeries, and put both in with the TimeSeries
+        series_list = []
+        for name, s_as_dict in series_as_dicts.items():
+            if name in tseries_dict:
+                series_list.append(tseries_dict[name])
+            elif "t_name" in s_as_dict:
+                tseries = tseries_dict[s_as_dict["t_name"]]
+                vseries = ValueSeries(
+                    name=name,
+                    data=s_as_dict["data"],
+                    unit_name=s_as_dict["unit_name"],
+                    tseries=tseries,
+                )
+                series_list.append(vseries)
+
+        # Finally, add this series to the dictionary representation and return the object
+        obj_as_dict["series_list"] = series_list
+        return cls.from_dict(obj_as_dict)
+
     @property
     def metadata_json_string(self):
         """Measurement metadata as a JSON-formatted string"""
@@ -241,6 +312,11 @@ class Measurement(Saveable):
         ]
 
     @property
+    def time_names(self):
+        """List of the names of the VSeries in the measurement's DataSeries"""
+        return set([tseries.name for tseries in self.time_series])
+
+    @property
     def time_series(self):
         """List of the TSeries in the measurement's DataSeries. NOT timeshifted!"""
         return [series for series in self.series_list if isinstance(series, TimeSeries)]
@@ -289,7 +365,7 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
-    def grab(self, item, tspan=None, include_endpoints=True):
+    def grab(self, item, tspan=None, include_endpoints=False):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -309,8 +385,8 @@ class Measurement(Saveable):
             tspan (iter of float): Defines the timespan with its first and last values.
                 Optional. By default the entire time of the measurement is included.
             include_endpoints (bool): Whether to add a points at t = tspan[0] and
-                t = tspan[-1] to the data returned. Default is True. This makes
-                trapezoidal integration less dependent on the time resolution.
+                t = tspan[-1] to the data returned. This makes trapezoidal integration
+                less dependent on the time resolution. Default is False.
         """
         vseries = self[item]
         tseries = vseries.tseries
@@ -341,15 +417,13 @@ class Measurement(Saveable):
 
     def integrate(self, item, tspan=None, ax=None):
         """Return the time integral of item in the specified timespan"""
-        t, v = self.grab(item, tspan)
+        t, v = self.grab(item, tspan, include_endpoints=True)
         if ax:
             if ax == "new":
                 ax = self.plotter.new_ax(ylabel=item)
                 # FIXME: xlabel=self[item].tseries.name gives a problem :(
             ax.plot(t, v, color="k", label=item)
-            ax.fill_between(
-                t, v, np.zeros(t.shape), where=v > 0, color="g", alpha=0.3
-            )
+            ax.fill_between(t, v, np.zeros(t.shape), where=v > 0, color="g", alpha=0.3)
             ax.fill_between(
                 t, v, np.zeros(t.shape), where=v < 0, color="g", alpha=0.1, hatch="//"
             )
