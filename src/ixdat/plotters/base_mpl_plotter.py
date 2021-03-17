@@ -40,6 +40,11 @@ class MPLPlotter:
             axes = [plt.subplot(gs[0:3, 0])]
             axes += [plt.subplot(gs[3:6, 0])]
 
+        axes[0].xaxis.set_label_position("top")
+        axes[0].tick_params(
+            axis="x", top=True, bottom=False, labeltop=True, labelbottom=False
+        )
+
         if n_bottom == 2:
             axes += [axes[1].twinx()]
         if n_top == 2:
