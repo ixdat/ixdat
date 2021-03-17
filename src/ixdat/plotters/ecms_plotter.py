@@ -21,6 +21,7 @@ class ECMSPlotter(MPLPlotter):
         mass_lists=None,
         tspan=None,
         tspan_bg=None,
+        removebackground=None,
         unit="A",
         V_str=None,
         J_str=None,
@@ -58,6 +59,8 @@ class ECMSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
+            removebackground (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             V_str (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.potential`
@@ -108,11 +111,13 @@ class ECMSPlotter(MPLPlotter):
                 axes=[axes[0], axes[3]] if mass_lists else None,
                 tspan=tspan,
                 tspan_bg=tspan_bg,
+                removebackground=removebackground,
                 mass_list=mass_list,
                 mass_lists=mass_lists,
                 unit=unit,
                 logplot=logplot,
                 legend=legend,
+                **kwargs,
             )
             try:
                 ms_axes.set_ylabel(f"signal / [{unit}]")
@@ -133,8 +138,9 @@ class ECMSPlotter(MPLPlotter):
         mass_lists=None,
         tspan=None,
         tspan_bg=None,
+        removebackground=None,
         unit="A",
-        logplot=None,
+        logplot=False,
         legend=True,
         emphasis="top",
         **kwargs,
@@ -164,9 +170,10 @@ class ECMSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
+            removebackground (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
-            logplot (bool): Whether to plot the MS data on a log scale (default True
-                unless mass_lists are given)
+            logplot (bool): Whether to plot the MS data on a log scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels
@@ -188,11 +195,13 @@ class ECMSPlotter(MPLPlotter):
             axes=[axes[0], axes[2]] if mass_lists else None,
             tspan=tspan,
             tspan_bg=tspan_bg,
+            removebackground=removebackground,
             mass_list=mass_list,
             mass_lists=mass_lists,
             unit=unit,
             logplot=logplot,
             legend=legend,
+            **kwargs,
         )
         try:
             ms_axes.set_ylabel(f"signal / [{unit}]")

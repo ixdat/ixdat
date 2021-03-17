@@ -19,9 +19,11 @@ class MSPlotter(MPLPlotter):
         mass_lists=None,
         tspan=None,
         tspan_bg=None,
+        removebackground=None,
         unit="A",
         logplot=True,
         legend=True,
+        **kwargs,
     ):
         """Plot m/z signal vs time (MID) data and return the axis.
 
@@ -40,10 +42,15 @@ class MSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
+            removebackground (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
+            kwargs: extra key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
+        if removebackground is None:
+            removebackground = not logplot
         if not ax:
             ax = (
                 axes[0]
@@ -69,14 +76,21 @@ class MSPlotter(MPLPlotter):
 
         mass_list = mass_list or measurement.mass_list
         for mass in mass_list:
-            t, v = measurement.grab(mass, tspan=tspan, include_endpoints=False)
+            t, v = measurement.grab_signal(
+                mass,
+                tspan=tspan,
+                t_bg=tspan_bg,
+                removebackground=removebackground,
+                include_endpoints=False,
+            )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
-            if tspan_bg:
-                _, v_bg = measurement.grab(mass, tspan=tspan_bg)
-                v = v - np.mean(v_bg)
             ax.plot(
-                t, v * unit_factor, color=STANDARD_COLORS.get(mass, "k"), label=mass
+                t,
+                v * unit_factor,
+                color=STANDARD_COLORS.get(mass, "k"),
+                label=mass,
+                **kwargs,
             )
         if mass_lists:
             self.plot_measurement(
@@ -88,6 +102,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=tspan_bg_right,
                 logplot=logplot,
                 legend=legend,
+                **kwargs,
             )
 
         if logplot:
@@ -108,9 +123,11 @@ class MSPlotter(MPLPlotter):
         mass_lists=None,
         tspan=None,
         tspan_bg=None,
+        removebackground=None,
         unit="A",
         logplot=True,
         legend=True,
+        **kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
 
@@ -130,10 +147,15 @@ class MSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
+            removebackground (bool): Whether otherwise to subtract pre-determined
+                background signals if available
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
+            kwargs: key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
+        if removebackground is None:
+            removebackground = not logplot
         if not ax:
             ax = (
                 axes[0]
@@ -159,18 +181,22 @@ class MSPlotter(MPLPlotter):
         t, x = measurement.grab(x_name, tspan=tspan, include_endpoints=True)
         mass_list = mass_list or measurement.mass_list
         for mass in mass_list:
-            t_mass, v = measurement.grab(mass, tspan=tspan, include_endpoints=False)
+            t_mass, v = measurement.grab_signal(
+                mass,
+                tspan=tspan,
+                t_bg=tspan_bg,
+                removebackground=removebackground,
+                include_endpoints=False,
+            )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
-            if tspan_bg:
-                _, v_bg = measurement.grab(mass, tspan=tspan_bg)
-                v = v - np.mean(v_bg)
             x_mass = np.interp(t_mass, t, x)
             ax.plot(
                 x_mass,
                 v * unit_factor,
                 color=STANDARD_COLORS.get(mass, "k"),
                 label=mass,
+                **kwargs,
             )
         if mass_lists:
             self.plot_vs(
@@ -183,6 +209,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=tspan_bg_right,
                 logplot=logplot,
                 legend=legend,
+                **kwargs,
             )
 
         if logplot:

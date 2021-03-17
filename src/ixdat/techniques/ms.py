@@ -13,10 +13,13 @@ class MSMeasurement(Measurement):
     extra_column_attrs = {
         "ms_meaurements": {
             "mass_aliases",
-        }
+            "signal_bgs",
+        },
     }
 
-    def __init__(self, name, mass_aliases=None, **kwargs):
+    def __init__(
+        self, name, mass_aliases=None, signal_bgs=None, tspan_bg=None, **kwargs
+    ):
         """Initializes a MS Measurement
 
         Args:
@@ -25,10 +28,15 @@ class MSMeasurement(Measurement):
                 corresponds to the respective signal name.
             mass_aliases (dict): {mass: mass_name} for any masses that
                 do not have the standard 'M<x>' format used by ixdat.
+            signal_bgs (dict): {mass: S_bg} where S_bg is the background signal
+                in [A] for the mass (typically set with a timespan by `set_bg()`)
+            tspan_bg (timespan): background time used to set masses
         """
         super().__init__(name, **kwargs)
         self.calibration = None  # TODO: Not final implementation
         self.mass_aliases = mass_aliases or {}
+        self.signal_bgs = signal_bgs or {}
+        self.tspan_bg = tspan_bg
 
     def __getitem__(self, item):
         """Adds to Measurement's lookup to check if item is an alias for a mass"""
@@ -40,7 +48,29 @@ class MSMeasurement(Measurement):
             else:
                 raise
 
-    def grab_signal(self, signal_name, tspan=None, t_bg=None):
+    def set_bg(self, tspan_bg=None, mass_list=None):
+        """Set background values for mass_list to the average signal during tspan_bg."""
+        mass_list = mass_list or self.mass_list
+        tspan_bg = tspan_bg or self.tspan_bg
+        for mass in mass_list:
+            t, v = self.grab(mass, tspan_bg)
+            self.signal_bgs[mass] = np.mean(v)
+
+    def reset_bg(self, mass_list=None):
+        """Reset background values for the masses in mass_list"""
+        mass_list = mass_list or self.mass_list
+        for mass in mass_list:
+            if mass in self.signal_bgs:
+                del self.signal_bgs[mass]
+
+    def grab_signal(
+        self,
+        signal_name,
+        tspan=None,
+        t_bg=None,
+        removebackground=False,
+        include_endpoints=False,
+    ):
         """Returns raw signal for a given signal name
 
         Args:
@@ -48,10 +78,15 @@ class MSMeasurement(Measurement):
             tspan (list): Timespan for which the signal is returned.
             t_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
+            removebackground (bool): Whether to remove a pre-set background if available
         """
-        time, value = self.grab(signal_name, tspan=tspan)
+        time, value = self.grab(
+            signal_name, tspan=tspan, include_endpoints=include_endpoints
+        )
 
         if t_bg is None:
+            if removebackground and signal_name in self.signal_bgs:
+                return time, value - self.signal_bgs[signal_name]
             return time, value
 
         else:
@@ -100,10 +135,7 @@ class MSMeasurement(Measurement):
 
     @property
     def plotter(self):
-        """The default plotter for ECMeasurement is ECPlotter"""
+        """The default plotter for MSMeasurement is MSPlotter"""
         if not self._plotter:
-            from ..plotters.ec_plotter import ECPlotter
-
             self._plotter = MSPlotter(measurement=self)
-
         return self._plotter
