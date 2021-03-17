@@ -175,7 +175,9 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    def read_set(cls, path_to_file_start, reader, file_list=None, **kwargs):
+    def read_set(
+        cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs
+    ):
         """Read and append a set of files.
 
         Args:
@@ -187,6 +189,8 @@ class Measurement(Saveable):
             reader (str or Reader class): The (name of the) reader to read the files with
             file_list (list of Path): As an alternative to path_to_file_start, the
                 exact files to append can be specified in a list
+            suffix (str): If a suffix is given, only files with the specified ending are
+                added to the file list
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
                 method, AND to cls.from_component_measurements()
         """
@@ -195,6 +199,8 @@ class Measurement(Saveable):
             folder = Path(path_to_file_start).parent
             base_name = Path(path_to_file_start).name
             file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
+            if suffix:
+                file_list = [f for f in file_list if f.suffix == suffix]
 
         component_measurements = [
             cls.read(f, reader=reader, **kwargs) for f in file_list
@@ -207,7 +213,7 @@ class Measurement(Saveable):
 
     @classmethod
     def from_component_measurements(
-        cls, component_measurements, keep_originals=True, **kwargs
+        cls, component_measurements, keep_originals=True, sort=True, **kwargs
     ):
         """Return a measurement with the data contained in the component measurements
 
@@ -219,6 +225,7 @@ class Measurement(Saveable):
             component_measurements (list of Measurement)
             keep_originals: Whether to keep a list of component_measurements referenced.
                 This may result in redundant numpy arrays in RAM.
+            sort (bool): Whether to sort the series according to time
             kwargs: key-word arguments are added to the dictionary for cls.from_dict()
 
         Returns cls: a Measurement object of the
@@ -254,8 +261,12 @@ class Measurement(Saveable):
 
         # Now we make DataSeries, starting with all the TimeSeries
         tseries_dict = {}
+        sort_indeces = {}
         for name, s_as_dict in series_as_dicts.items():
             if "tstamp" in s_as_dict:
+                if sort:
+                    sort_indeces[name] = np.argsort(s_as_dict["data"])
+                    s_as_dict["data"] = s_as_dict["data"][sort_indeces[name]]
                 tseries_dict[name] = TimeSeries.from_dict(s_as_dict)
         # And then ValueSeries, and put both in with the TimeSeries
         series_list = []
@@ -264,12 +275,33 @@ class Measurement(Saveable):
                 series_list.append(tseries_dict[name])
             elif "t_name" in s_as_dict:
                 tseries = tseries_dict[s_as_dict["t_name"]]
-                vseries = ValueSeries(
-                    name=name,
-                    data=s_as_dict["data"],
-                    unit_name=s_as_dict["unit_name"],
-                    tseries=tseries,
-                )
+                if s_as_dict["data"].shape == tseries.shape:
+                    # Then we assume that the time and value data have lined up
+                    # successfully! :D
+                    if sort:
+                        s_as_dict["data"] = s_as_dict["data"][
+                            sort_indeces[tseries.name]
+                        ]
+                    vseries = ValueSeries(
+                        name=name,
+                        data=s_as_dict["data"],
+                        unit_name=s_as_dict["unit_name"],
+                        tseries=tseries,
+                    )
+                else:
+                    # this will be the case if vseries sharing the same tseries
+                    # are not present in the same subset of component_measurements.
+                    # In that case just append the vseries even though some tdata gets
+                    # duplicated.
+                    vseries = append_series(
+                        [
+                            s
+                            for m in component_measurements
+                            for s in m.series_list
+                            if s.name == name
+                        ],
+                        sort=sort,
+                    )
                 series_list.append(vseries)
 
         # Finally, add this series to the dictionary representation and return the object
@@ -681,6 +713,7 @@ class Measurement(Saveable):
             new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
 
+    @property
     def tspan(self):
         """Return (t_start, t_finish) for all data in the measurement"""
         t_start = None
@@ -746,30 +779,30 @@ class Measurement(Saveable):
 #   awkwardness there.
 
 
-def append_series(series_list, sorted=True, tstamp=None):
+def append_series(series_list, sort=True, tstamp=None):
     """Return series appending series_list relative to series_list[0].tseries.tstamp
 
     Args:
         series_list (list of Series): The series to append (must all be of same type)
-        sorted (bool): Whether to sort the data so that time only goes forward
+        sort (bool): Whether to sort the data so that time only goes forward
         tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
     """
     s0 = series_list[0]
     if isinstance(s0, TimeSeries):
-        return append_tseries(series_list, sorted=sorted, tstamp=tstamp)
+        return append_tseries(series_list, sort=sort, tstamp=tstamp)
     elif isinstance(s0, ValueSeries):
-        return append_vseries_by_time(series_list, sorted=sorted, tstamp=tstamp)
+        return append_vseries_by_time(series_list, sort=sort, tstamp=tstamp)
     raise BuildError(
         f"An algorithm of append_series for series like {s0} is not yet implemented"
     )
 
 
-def append_vseries_by_time(series_list, sorted=True, tstamp=None):
+def append_vseries_by_time(series_list, sort=True, tstamp=None):
     """Return new ValueSeries with the data in series_list appended
 
     Args:
         series_list (list of ValueSeries): The value series to append
-        sorted (bool): Whether to sort the data so that time only goes forward
+        sort (bool): Whether to sort the data so that time only goes forward
         tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
     """
     name = series_list[0].name
@@ -778,25 +811,25 @@ def append_vseries_by_time(series_list, sorted=True, tstamp=None):
     data = np.array([])
     tseries_list = [s.tseries for s in series_list]
     tseries, sort_indeces = append_tseries(
-        tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
+        tseries_list, sort=sort, return_sort_indeces=True, tstamp=tstamp
     )
 
     for s in series_list:
         if not (s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
-    if sorted:
+    if sort:
         data = data[sort_indeces]
 
     return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
 
 
-def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=None):
+def append_tseries(series_list, sort=True, return_sort_indeces=False, tstamp=None):
     """Return new TimeSeries with the data appended.
 
     Args:
         series_list (list of TimeSeries): The time series to append
-        sorted (bool): Whether to sort the data so that time only goes forward
+        sort (bool): Whether to sort the data so that time only goes forward
         return_sort_indeces (bool): Whether to return the indeces that sort the data
         tstamp (unix tstamp): The t=0 of the returned TimeSeries.
     """
@@ -811,7 +844,7 @@ def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=N
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data + s.tstamp - tstamp)
 
-    if sorted:
+    if sort:
         sort_indices = np.argsort(data)
         data = data[sort_indices]
     else:
@@ -879,6 +912,15 @@ def get_combined_technique(technique_1, technique_2):
     if technique_1 == technique_2:
         return technique_1
 
+    # if we're a component technique of a hyphenated technique to that hyphenated
+    # technique, the result is still the hyphenated technique. e.g. EC-MS + MS = EC-MS
+    if "-" in technique_1 and technique_2 in technique_1.split("-"):
+        return technique_1
+    elif "-" in technique_2 and technique_1 in technique_2.split("-"):
+        return technique_2
+
+    # if we're adding two independent technique which are components of a hyphenated
+    # technique, then we want that hyphenated technique. e.g. EC + MS = EC-MS
     from .techniques import TECHNIQUE_CLASSES
 
     for hyphenated in [
@@ -888,4 +930,5 @@ def get_combined_technique(technique_1, technique_2):
         if hyphenated in TECHNIQUE_CLASSES:
             return hyphenated
 
+    # if all else fails, we just join them with " AND ". e.g. MS + XRD = MS AND XRD
     return technique_1 + " AND " + technique_2

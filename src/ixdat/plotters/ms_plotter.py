@@ -11,8 +11,10 @@ class MSPlotter(MPLPlotter):
 
     def plot_measurement(
         self,
+        *,
         measurement=None,
         ax=None,
+        axes=None,
         mass_list=None,
         mass_lists=None,
         tspan=None,
@@ -26,6 +28,7 @@ class MSPlotter(MPLPlotter):
         Args:
             measurement (MSMeasurement): defaults to the one that initiated the plotter
             ax (matplotlib axis): Defaults to a new axis
+            axes (list of matplotlib axis): Left and right y-axes if mass_lists are given
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
                 plot. Defaults to all of them (measurement.mass_list)
             mass_lists (list of list of str): Alternately, two lists can be given for
@@ -42,9 +45,15 @@ class MSPlotter(MPLPlotter):
         """
         measurement = measurement or self.measurement
         if not ax:
-            ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+            ax = (
+                axes[0]
+                if axes
+                else self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+            )
         tspan_bg_right = None
         if mass_lists:
+            axes = axes or [ax, ax.twinx()]
+            ax = axes[0]
             mass_list = mass_lists[0]
             try:
                 tspan_bg_right = tspan_bg[1]
@@ -57,8 +66,6 @@ class MSPlotter(MPLPlotter):
         unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "A": 1}[unit]
         # TODO: Real units with a unit module! This should even be able to figure out the
         #  unit prefix to put stuff in a nice 1-to-1e3 range
-        if not ax:
-            ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
 
         mass_list = mass_list or measurement.mass_list
         for mass in mass_list:
@@ -72,10 +79,9 @@ class MSPlotter(MPLPlotter):
                 t, v * unit_factor, color=STANDARD_COLORS.get(mass, "k"), label=mass
             )
         if mass_lists:
-            ax2 = ax.twinx()
             self.plot_measurement(
                 measurement=measurement,
-                ax=ax2,
+                ax=axes[1],
                 mass_list=mass_lists[1],
                 unit=unit,
                 tspan=tspan,
@@ -83,9 +89,6 @@ class MSPlotter(MPLPlotter):
                 logplot=logplot,
                 legend=legend,
             )
-            axes = [ax, ax2]
-        else:
-            axes = None
 
         if logplot:
             ax.set_yscale("log")

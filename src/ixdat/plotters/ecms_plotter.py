@@ -1,10 +1,9 @@
-from matplotlib import pyplot as plt
-from matplotlib import gridspec
+from .base_mpl_plotter import MPLPlotter
 from .ec_plotter import ECPlotter
 from .ms_plotter import MSPlotter
 
 
-class ECMSPlotter:
+class ECMSPlotter(MPLPlotter):
     """A matplotlib plotter for EC-MS measurements."""
 
     def __init__(self, measurement=None):
@@ -27,6 +26,7 @@ class ECMSPlotter:
         J_color="r",
         logplot=None,
         legend=True,
+        emphasis="top",
         **kwargs,
     ):
         """Make an EC-MS plot vs time and return the axis handles.
@@ -66,6 +66,8 @@ class ECMSPlotter:
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
+            emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
+                bottom panel, None for equal-sized panels
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
         """
         measurement = measurement or self.measurement
@@ -73,11 +75,9 @@ class ECMSPlotter:
         logplot = (not mass_lists) if logplot is None else logplot
 
         if not axes:
-            gs = gridspec.GridSpec(5, 1)
-            # gs.update(hspace=0.025)
-            axes = [plt.subplot(gs[0:3, 0])]
-            axes += [plt.subplot(gs[3:5, 0])]
-            axes += [axes[1].twinx()]
+            axes = self.new_two_panel_axes(
+                n_bottom=2, n_top=(2 if mass_lists else 1), emphasis=emphasis
+            )
 
         if not tspan:
             if hasattr(measurement, "potential") and measurement.potential:
@@ -103,6 +103,7 @@ class ECMSPlotter:
             ms_axes = MSPlotter().plot_measurement(
                 measurement=measurement,
                 ax=axes[0],
+                axes=[axes[0], axes[3]] if mass_lists else None,
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 mass_list=mass_list,
@@ -126,4 +127,7 @@ class ECMSPlotter:
         return axes
 
     def plot_vs_potential(self):
-        """FIXME: This is needed due to assignment in ECMeasurement.__init__"""
+        """
+
+        FIXME: This is needed due to assignment in ECMeasurement.__init__
+        """

@@ -294,7 +294,11 @@ class ECMeasurement(Measurement):
     def raw_potential(self):
         """Return a time-shifted ValueSeries for the raw potential, built first time."""
         if not self._raw_potential:
-            self._find_or_build_raw_potential()
+            try:
+                self._find_or_build_raw_potential()
+            except SeriesNotFoundError as e:
+                print(f"Warning!!! {self} encountered: {e}")
+                return
         return time_shifted(self._raw_potential, tstamp=self.tstamp)
         # FIXME. Hidden attributes not scaleable cache'ing
 
