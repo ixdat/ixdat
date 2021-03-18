@@ -2,6 +2,7 @@
 from .ec import ECMeasurement
 from .ms import MSMeasurement
 from .cv import CyclicVoltammagram
+from ..exporters.ecms_exporter import ECMSExporter
 
 
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
@@ -27,14 +28,15 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         ec_kwargs = {
             k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
         }
-        # FIXME: I think the line below could be avoided with a PlaceHolderObject that
-        #  works together with MemoryBackend
-        ec_kwargs.update(series_list=kwargs["series_list"])
-        ECMeasurement.__init__(self, **ec_kwargs)
         ms_kwargs = {
             k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
         }
-        ms_kwargs.update(series_list=kwargs["series_list"])
+        # FIXME: I think the line below could be avoided with a PlaceHolderObject that
+        #  works together with MemoryBackend
+        if "series_list" in kwargs:
+            ec_kwargs.update(series_list=kwargs["series_list"])
+            ms_kwargs.update(series_list=kwargs["series_list"])
+        ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
 
     @property
@@ -46,6 +48,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             self._plotter = ECMSPlotter(measurement=self)
 
         return self._plotter
+
+    @property
+    def exporter(self):
+        """The default plotter for ECMSMeasurement is ECMSExporter"""
+        if not self._exporter:
+            self._exporter = ECMSExporter(measurement=self)
+        return self._exporter
 
     def as_cv(self):
         self_as_dict = self.as_dict()
@@ -59,7 +68,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
-    """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement"""
+    """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement
+
+    FIXME: Maybe this class should instead inherit from ECMSMeasurement and
+        just add the CyclicVoltammogram functionality?
+    """
 
     extra_column_attrs = {
         # FIXME: It would be more elegant if this carried over from both parents
@@ -99,3 +112,10 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
             self._plotter = ECMSPlotter(measurement=self)
 
         return self._plotter
+
+    @property
+    def exporter(self):
+        """The default plotter for ECMSCyclicVoltammogram is ECMSExporter"""
+        if not self._exporter:
+            self._exporter = ECMSExporter(measurement=self)
+        return self._exporter

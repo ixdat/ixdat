@@ -239,8 +239,8 @@ class Saveable:
             for table, attrs in cls.extra_column_attrs.items():
                 all_attrs = all_attrs.union(attrs)
         if cls.extra_linkers:
-            for table, (ref_table, attrs) in cls.extra_linkers.items():
-                all_attrs = all_attrs.union(attrs)
+            for table, (ref_table, attr) in cls.extra_linkers.items():
+                all_attrs.add(attr)
         return all_attrs
 
     @classmethod

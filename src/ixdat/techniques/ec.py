@@ -399,7 +399,7 @@ class ECMeasurement(Measurement):
             A_el (float): electrode area in [cm^2]
             R_Ohm (float): ohmic drop resistance in [Ohm]
         """
-        if RE_vs_RHE:
+        if RE_vs_RHE is not None:  # it can be 0!
             self.calibrate_RE(RE_vs_RHE=RE_vs_RHE)
         if A_el:
             self.normalize_current(A_el=A_el)

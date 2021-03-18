@@ -10,8 +10,10 @@ class ECExporter(CSVExporter):
         v_list = [
             self.measurement.E_str,
             self.measurement.I_str,
-            self.measurement.V_str,
-            self.measurement.J_str,
             self.measurement.sel_str,
         ]
+        if (self.measurement.RE_vs_RHE is not None) or self.measurement.R_Ohm:
+            v_list.append(self.measurement.V_str)
+        if self.measurement.A_el:
+            v_list.append(self.measurement.J_str)
         return v_list

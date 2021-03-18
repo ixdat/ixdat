@@ -330,7 +330,16 @@ class Measurement(Saveable):
     @property
     def data_objects(self):
         """This is what the DB backend knows to save separately, here the series"""
-        return self.series_list
+        # TimeSeries have to go first, so that ValueSeries are saved with the right t_id!
+        data_object_list = self.time_series
+        for s in self.series_list:
+            if s not in data_object_list:
+                if s.tseries not in data_object_list:
+                    # FIXME: some tseries, likely with duplicate data, seem to not
+                    #  make it into series_list
+                    data_object_list.append(s.tseries)
+                data_object_list.append(s)
+        return data_object_list
 
     @property
     def component_measurements(self):

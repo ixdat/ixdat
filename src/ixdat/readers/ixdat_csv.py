@@ -10,7 +10,7 @@ from ..techniques import TECHNIQUE_CLASSES
 
 regular_expressions = {
     "tstamp": r"tstamp = ([0-9\.]+)",
-    "technique": r"technique = (\w+)",
+    "technique": r"technique = ([A-Za-z\-]+)\n",
     "N_header_lines": r"N_header_lines = ([0-9]+)",
     "backend_name": r"backend_name = (\w+)",
     "id": r"id = ([0-9]+)",
@@ -214,7 +214,10 @@ class IxdatCSVReader:
                 try:
                     value = float(value_string)
                 except ValueError:
-                    raise ReadError(f"can't parse value string '{value_string}'")
+                    # That is probably because different columns are different length.
+                    #  so we just skip it!
+                    continue
+                    # raise ReadError(f"can't parse value string '{value_string}'")
                 self.column_data[name].append(value)
 
     def print_header(self):
