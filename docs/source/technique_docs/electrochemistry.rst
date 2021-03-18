@@ -42,6 +42,8 @@ Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec.p
 .. automodule:: ixdat.techniques.ec
     :members:
 
+.. _`cyclic_voltammetry`:
+
 The ``cv`` module
 -----------------
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/cv.py

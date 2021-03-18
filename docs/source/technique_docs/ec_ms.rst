@@ -17,6 +17,10 @@ An ``ECMSMeasurement`` can be created either by adding an ``ECMeasurement`` and 
 using the ``+`` operator, or by directly importing data using an EC-MS :ref:`reader <readers>`
 such as "zilien".
 
+``ECMSCyclicVoltammogram`` adds to ``ECMSMeasurement`` the tools for selecting and analyzing data
+based on an electrochemical cyclic voltammatry program that are implemented in ``CyclicVoltammogram``
+(see :ref:`cyclic_voltammetry`).
+
 Deconvolution, described in a publication under review, is implemented in the deconvolution module,
 in a class inheriting from ``ECMSMeasurement``.
 
