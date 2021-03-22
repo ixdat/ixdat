@@ -31,11 +31,14 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         ms_kwargs = {
             k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
         }
-        # FIXME: I think the line below could be avoided with a PlaceHolderObject that
+        # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
         #  works together with MemoryBackend
         if "series_list" in kwargs:
             ec_kwargs.update(series_list=kwargs["series_list"])
             ms_kwargs.update(series_list=kwargs["series_list"])
+        if "component_measurements" in kwargs:
+            ec_kwargs.update(component_measurements=kwargs["component_measurements"])
+            ms_kwargs.update(component_measurements=kwargs["component_measurements"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
 

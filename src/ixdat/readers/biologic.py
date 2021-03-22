@@ -104,7 +104,7 @@ class BiologicMPTReader:
         self.name = name or path_to_file.name
         self.path_to_file = path_to_file
         self.measurement_class = cls or ECMeasurement
-        with open(self.path_to_file, "r") as f:
+        with open(self.path_to_file, "r", encoding="ISO-8859-1") as f:
             for line in f:
                 self.process_line(line)
         for name in self.column_names:

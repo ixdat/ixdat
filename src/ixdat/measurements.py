@@ -32,6 +32,10 @@ class Measurement(Saveable):
         "component_measurements": ("measurements", "m_ids"),
     }
 
+    sel_str = None  # the default thing to select on.
+    #  FIXME: this is here because otherwise MSMeasurement.__init__ overwrites what it
+    #   gets set to by ECMeasurement.__init__ in ECMSMeasurement.__init__
+
     def __init__(
         self,
         name,
@@ -88,7 +92,6 @@ class Measurement(Saveable):
             component_measurements, m_ids, cls=Measurement
         )
         self.tstamp = tstamp
-        self.sel_str = None  # the default thing to select on.
 
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
