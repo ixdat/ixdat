@@ -222,6 +222,9 @@ class BiologicMPTReader:
         header = "".join(self.header_lines)
         print(header)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.path_to_file})"
+
 
 def get_column_unit(column_name):
     """Return the unit name of a .mpt column, i.e the part of the name after the '/'"""

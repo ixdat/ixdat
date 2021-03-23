@@ -756,7 +756,14 @@ class Measurement(Saveable):
         all the raw series (or their placeholders) are just stored in the lists.
         TODO: Make sure with tests this is okay, differentiate using | operator if not.
         """
+        # First we prepare a dictionary for all but the series_list.
+        # This has both dicts, but prioritizes self's dict for all that appears twice.
         obj_as_dict = self.as_dict()
+        other_as_dict = other.as_dict()
+        for k, v in other_as_dict.items():
+            # Looking forward to the "|" operator!
+            if k not in obj_as_dict:
+                obj_as_dict[k] = v
         new_name = self.name + " AND " + other.name
         new_technique = get_combined_technique(self.technique, other.technique)
 
