@@ -1,8 +1,7 @@
 .. _concept:
 
-================
 Extended concept
-================
+----------------
 *By Soren B. Scott, 20H03 (August 3, 2020)*
 
 

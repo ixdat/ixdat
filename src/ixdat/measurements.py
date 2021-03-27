@@ -5,6 +5,7 @@ to combine them, i.e. "build" the combined dataset. It has a number of general m
 to visualize and analyze the combined dataset. Dataset is also the base class for a
 number of technique-specific Dataset-derived classes.
 """
+from pathlib import Path
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject
@@ -30,6 +31,10 @@ class Measurement(Saveable):
         "measurement_series": ("data_series", "s_ids"),
         "component_measurements": ("measurements", "m_ids"),
     }
+
+    sel_str = None  # the default thing to select on.
+    #  FIXME: this is here because otherwise MSMeasurement.__init__ overwrites what it
+    #   gets set to by ECMeasurement.__init__ in ECMSMeasurement.__init__
 
     def __init__(
         self,
@@ -87,7 +92,6 @@ class Measurement(Saveable):
             component_measurements, m_ids, cls=Measurement
         )
         self.tstamp = tstamp
-        self.sel_str = None  # the default thing to select on.
 
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
@@ -147,7 +151,13 @@ class Measurement(Saveable):
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
-        """Return a Measurement object from parsing a file with the specified reader"""
+        """Return a Measurement object from parsing a file with the specified reader
+
+        Args:
+            path_to_file (Path or str): The path to the file to read
+            reader (str or Reader class): The (name of the) reader to read the file with.
+            kwargs: key-word arguments are passed on to the reader's read() method.
+        """
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
@@ -168,8 +178,45 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
+    def read_set(
+        cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs
+    ):
+        """Read and append a set of files.
+
+        Args:
+            path_to_file_start (Path or str): The path to the files to read including
+                the shared start of the file name: `Path(path_to_file).parent` is
+                interpreted as the folder where the file are.
+                `Path(path_to_file).name` is interpreted as the shared start of the files
+                to be appended.
+            reader (str or Reader class): The (name of the) reader to read the files with
+            file_list (list of Path): As an alternative to path_to_file_start, the
+                exact files to append can be specified in a list
+            suffix (str): If a suffix is given, only files with the specified ending are
+                added to the file list
+            kwargs: Key-word arguments are passed via cls.read() to the reader's read()
+                method, AND to cls.from_component_measurements()
+        """
+        base_name = None
+        if not file_list:
+            folder = Path(path_to_file_start).parent
+            base_name = Path(path_to_file_start).name
+            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
+            if suffix:
+                file_list = [f for f in file_list if f.suffix == suffix]
+
+        component_measurements = [
+            cls.read(f, reader=reader, **kwargs) for f in file_list
+        ]
+
+        if base_name and "name" not in kwargs:
+            kwargs["name"] = base_name
+        measurement = cls.from_component_measurements(component_measurements, **kwargs)
+        return measurement
+
+    @classmethod
     def from_component_measurements(
-        cls, component_measurements, keep_originals=True, **kwargs
+        cls, component_measurements, keep_originals=True, sort=True, **kwargs
     ):
         """Return a measurement with the data contained in the component measurements
 
@@ -181,6 +228,7 @@ class Measurement(Saveable):
             component_measurements (list of Measurement)
             keep_originals: Whether to keep a list of component_measurements referenced.
                 This may result in redundant numpy arrays in RAM.
+            sort (bool): Whether to sort the series according to time
             kwargs: key-word arguments are added to the dictionary for cls.from_dict()
 
         Returns cls: a Measurement object of the
@@ -216,8 +264,12 @@ class Measurement(Saveable):
 
         # Now we make DataSeries, starting with all the TimeSeries
         tseries_dict = {}
+        sort_indeces = {}
         for name, s_as_dict in series_as_dicts.items():
             if "tstamp" in s_as_dict:
+                if sort:
+                    sort_indeces[name] = np.argsort(s_as_dict["data"])
+                    s_as_dict["data"] = s_as_dict["data"][sort_indeces[name]]
                 tseries_dict[name] = TimeSeries.from_dict(s_as_dict)
         # And then ValueSeries, and put both in with the TimeSeries
         series_list = []
@@ -226,12 +278,33 @@ class Measurement(Saveable):
                 series_list.append(tseries_dict[name])
             elif "t_name" in s_as_dict:
                 tseries = tseries_dict[s_as_dict["t_name"]]
-                vseries = ValueSeries(
-                    name=name,
-                    data=s_as_dict["data"],
-                    unit_name=s_as_dict["unit_name"],
-                    tseries=tseries,
-                )
+                if s_as_dict["data"].shape == tseries.shape:
+                    # Then we assume that the time and value data have lined up
+                    # successfully! :D
+                    if sort:
+                        s_as_dict["data"] = s_as_dict["data"][
+                            sort_indeces[tseries.name]
+                        ]
+                    vseries = ValueSeries(
+                        name=name,
+                        data=s_as_dict["data"],
+                        unit_name=s_as_dict["unit_name"],
+                        tseries=tseries,
+                    )
+                else:
+                    # this will be the case if vseries sharing the same tseries
+                    # are not present in the same subset of component_measurements.
+                    # In that case just append the vseries even though some tdata gets
+                    # duplicated.
+                    vseries = append_series(
+                        [
+                            s
+                            for m in component_measurements
+                            for s in m.series_list
+                            if s.name == name
+                        ],
+                        sort=sort,
+                    )
                 series_list.append(vseries)
 
         # Finally, add this series to the dictionary representation and return the object
@@ -260,7 +333,16 @@ class Measurement(Saveable):
     @property
     def data_objects(self):
         """This is what the DB backend knows to save separately, here the series"""
-        return self.series_list
+        # TimeSeries have to go first, so that ValueSeries are saved with the right t_id!
+        data_object_list = self.time_series
+        for s in self.series_list:
+            if s not in data_object_list:
+                if s.tseries not in data_object_list:
+                    # FIXME: some tseries, likely with duplicate data, seem to not
+                    #  make it into series_list
+                    data_object_list.append(s.tseries)
+                data_object_list.append(s)
+        return data_object_list
 
     @property
     def component_measurements(self):
@@ -643,6 +725,17 @@ class Measurement(Saveable):
             new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
 
+    @property
+    def tspan(self):
+        """Return (t_start, t_finish) for all data in the measurement"""
+        t_start = None
+        t_finish = None
+        for tcol in self.time_names:
+            t = self[tcol].data
+            t_start = min(t_start, t[0]) if t_start else t[0]
+            t_finish = max(t_finish, t[-1]) if t_finish else t[-1]
+        return t_start, t_finish
+
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.
 
@@ -663,9 +756,16 @@ class Measurement(Saveable):
         all the raw series (or their placeholders) are just stored in the lists.
         TODO: Make sure with tests this is okay, differentiate using | operator if not.
         """
+        # First we prepare a dictionary for all but the series_list.
+        # This has both dicts, but prioritizes self's dict for all that appears twice.
         obj_as_dict = self.as_dict()
+        other_as_dict = other.as_dict()
+        for k, v in other_as_dict.items():
+            # Looking forward to the "|" operator!
+            if k not in obj_as_dict:
+                obj_as_dict[k] = v
         new_name = self.name + " AND " + other.name
-        new_technique = self.technique + " AND " + other.technique
+        new_technique = get_combined_technique(self.technique, other.technique)
 
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
@@ -684,6 +784,7 @@ class Measurement(Saveable):
         )
         obj_as_dict.update(
             name=new_name,
+            technique=new_technique,
             series_list=new_series_list,
             component_measurements=new_component_measurements,
         )
@@ -697,30 +798,30 @@ class Measurement(Saveable):
 #   awkwardness there.
 
 
-def append_series(series_list, sorted=True, tstamp=None):
+def append_series(series_list, sort=True, tstamp=None):
     """Return series appending series_list relative to series_list[0].tseries.tstamp
 
     Args:
         series_list (list of Series): The series to append (must all be of same type)
-        sorted (bool): Whether to sort the data so that time only goes forward
+        sort (bool): Whether to sort the data so that time only goes forward
         tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
     """
     s0 = series_list[0]
     if isinstance(s0, TimeSeries):
-        return append_tseries(series_list, sorted=sorted, tstamp=tstamp)
+        return append_tseries(series_list, sort=sort, tstamp=tstamp)
     elif isinstance(s0, ValueSeries):
-        return append_vseries_by_time(series_list, sorted=sorted, tstamp=tstamp)
+        return append_vseries_by_time(series_list, sort=sort, tstamp=tstamp)
     raise BuildError(
         f"An algorithm of append_series for series like {s0} is not yet implemented"
     )
 
 
-def append_vseries_by_time(series_list, sorted=True, tstamp=None):
+def append_vseries_by_time(series_list, sort=True, tstamp=None):
     """Return new ValueSeries with the data in series_list appended
 
     Args:
         series_list (list of ValueSeries): The value series to append
-        sorted (bool): Whether to sort the data so that time only goes forward
+        sort (bool): Whether to sort the data so that time only goes forward
         tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
     """
     name = series_list[0].name
@@ -729,25 +830,25 @@ def append_vseries_by_time(series_list, sorted=True, tstamp=None):
     data = np.array([])
     tseries_list = [s.tseries for s in series_list]
     tseries, sort_indeces = append_tseries(
-        tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
+        tseries_list, sort=sort, return_sort_indeces=True, tstamp=tstamp
     )
 
     for s in series_list:
         if not (s.unit == unit and s.__class__ == cls):
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
-    if sorted:
+    if sort:
         data = data[sort_indeces]
 
     return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
 
 
-def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=None):
+def append_tseries(series_list, sort=True, return_sort_indeces=False, tstamp=None):
     """Return new TimeSeries with the data appended.
 
     Args:
         series_list (list of TimeSeries): The time series to append
-        sorted (bool): Whether to sort the data so that time only goes forward
+        sort (bool): Whether to sort the data so that time only goes forward
         return_sort_indeces (bool): Whether to return the indeces that sort the data
         tstamp (unix tstamp): The t=0 of the returned TimeSeries.
     """
@@ -762,7 +863,7 @@ def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=N
             raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data + s.tstamp - tstamp)
 
-    if sorted:
+    if sort:
         sort_indices = np.argsort(data)
         data = data[sort_indices]
     else:
@@ -821,3 +922,32 @@ def time_shifted(series, tstamp=None):
             tseries=time_shifted(series.tseries, tstamp=tstamp),
         )
     return series
+
+
+def get_combined_technique(technique_1, technique_2):
+    """Return the name of the technique resulting from adding two techniques"""
+    # TODO: see if there isn't a way to put the import at the top of the module.
+    #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+    if technique_1 == technique_2:
+        return technique_1
+
+    # if we're a component technique of a hyphenated technique to that hyphenated
+    # technique, the result is still the hyphenated technique. e.g. EC-MS + MS = EC-MS
+    if "-" in technique_1 and technique_2 in technique_1.split("-"):
+        return technique_1
+    elif "-" in technique_2 and technique_1 in technique_2.split("-"):
+        return technique_2
+
+    # if we're adding two independent technique which are components of a hyphenated
+    # technique, then we want that hyphenated technique. e.g. EC + MS = EC-MS
+    from .techniques import TECHNIQUE_CLASSES
+
+    for hyphenated in [
+        technique_1 + "-" + technique_2,
+        technique_2 + "-" + technique_1,
+    ]:
+        if hyphenated in TECHNIQUE_CLASSES:
+            return hyphenated
+
+    # if all else fails, we just join them with " AND ". e.g. MS + XRD = MS AND XRD
+    return technique_1 + " AND " + technique_2

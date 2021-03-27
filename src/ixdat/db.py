@@ -232,6 +232,18 @@ class Saveable:
         return db.save(self)
 
     @classmethod
+    def get_all_column_attrs(cls):
+        """List all attributes of objects of cls that correspond to table columns"""
+        all_attrs = cls.column_attrs
+        if cls.extra_column_attrs:
+            for table, attrs in cls.extra_column_attrs.items():
+                all_attrs = all_attrs.union(attrs)
+        if cls.extra_linkers:
+            for table, (ref_table, attr) in cls.extra_linkers.items():
+                all_attrs.add(attr)
+        return all_attrs
+
+    @classmethod
     def from_dict(cls, obj_as_dict):
         """Return an object built from its serialization."""
         return cls(**obj_as_dict)

@@ -294,7 +294,11 @@ class ECMeasurement(Measurement):
     def raw_potential(self):
         """Return a time-shifted ValueSeries for the raw potential, built first time."""
         if not self._raw_potential:
-            self._find_or_build_raw_potential()
+            try:
+                self._find_or_build_raw_potential()
+            except SeriesNotFoundError as e:
+                print(f"Warning!!! {self} encountered: {e}")
+                return
         return time_shifted(self._raw_potential, tstamp=self.tstamp)
         # FIXME. Hidden attributes not scaleable cache'ing
 
@@ -395,7 +399,7 @@ class ECMeasurement(Measurement):
             A_el (float): electrode area in [cm^2]
             R_Ohm (float): ohmic drop resistance in [Ohm]
         """
-        if RE_vs_RHE:
+        if RE_vs_RHE is not None:  # it can be 0!
             self.calibrate_RE(RE_vs_RHE=RE_vs_RHE)
         if A_el:
             self.normalize_current(A_el=A_el)

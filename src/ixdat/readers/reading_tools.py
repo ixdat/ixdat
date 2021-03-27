@@ -4,6 +4,7 @@ from pathlib import Path
 import time
 import urllib.request
 from ..config import CFG
+from ..exceptions import ReadError
 from ..measurements import TimeSeries, ValueSeries
 
 
@@ -34,12 +35,14 @@ def timestamp_string_to_tstamp(
             continue
         except ValueError:
             continue
-
-    tstamp = time.mktime(struct)
+    try:
+        tstamp = time.mktime(struct)
+    except TypeError:
+        raise ReadError(f"couldn't parse timestamp_string='{timestamp_string}')")
     return tstamp
 
 
-def prompt_for_tstamp(path_to_file, default="creation", form=USA_TIMESTAMP_FORM):
+def prompt_for_tstamp(path_to_file, default="creation", form=STANDARD_TIMESTAMP_FORM):
     """Return the tstamp resulting from a prompt to enter a timestamp, or a default
 
     Args:

@@ -7,6 +7,8 @@ from .reading_tools import timestamp_string_to_tstamp, series_list_from_datafram
 
 
 class IviumDataReader:
+    """Class for reading single ivium files"""
+
     def read(self, path_to_file, cls=None, name=None, **kwargs):
         """read the ascii export from the Ivium software
 
@@ -76,6 +78,8 @@ class IviumDataReader:
 
 
 class IviumDatasetReader:
+    """Class for reading sets of ivium files exported together"""
+
     def read(self, path_to_file, cls=None, name=None, **kwargs):
         """Return a Measurement containing the data of an ivium dataset,
 
