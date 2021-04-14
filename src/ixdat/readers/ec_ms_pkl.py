@@ -56,6 +56,13 @@ def measurement_from_ec_ms_dataset(
         reader (Reader object): typically what calls this funciton with its read() method
     """
 
+    if "Ewe/V" in ec_ms_dict and "<Ewe>/V" in ec_ms_dict:
+        # EC_MS duplicates the latter as the former, so here we delete it:
+        del ec_ms_dict["<Ewe>/V"]
+    if "I/mA" in ec_ms_dict and "<I>/mA" in ec_ms_dict:
+        # EC_MS duplicates the latter as the former, so here we delete it:
+        del ec_ms_dict["<I>/mA"]
+
     cols_str = ec_ms_dict["data_cols"]
     cols_list = []
 
@@ -72,9 +79,11 @@ def measurement_from_ec_ms_dataset(
             TimeSeries("time/s", "s", ec_ms_dict["time/s"], ec_ms_dict["tstamp"])
         )
 
-    measurement = Measurement("tseries_ms", technique="EC_MS", series_list=cols_list)
+    tseries_meas = Measurement("tseries_ms", technique="EC_MS", series_list=cols_list)
 
     for col in cols_str:
+        if col not in ec_ms_dict:
+            continue
         if col.endswith("-y"):
             unit_name = "A" if col.startswith("M") else ""
             cols_list.append(
@@ -82,16 +91,16 @@ def measurement_from_ec_ms_dataset(
                     col[:-2],
                     unit_name=unit_name,
                     data=ec_ms_dict[col],
-                    tseries=measurement[col[:-1] + "x"],
+                    tseries=tseries_meas[col[:-1] + "x"],
                 )
             )
-        if col in BIOLOGIC_COLUMN_NAMES and col not in measurement.series_names:
+        if col in BIOLOGIC_COLUMN_NAMES and col not in tseries_meas.series_names:
             cols_list.append(
                 ValueSeries(
                     name=col,
                     data=ec_ms_dict[col],
                     unit_name=get_column_unit(col),
-                    tseries=measurement["time/s"],
+                    tseries=tseries_meas["time/s"],
                 )
             )
 
