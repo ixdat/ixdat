@@ -1,8 +1,11 @@
 """Module for representation and analysis of EC-MS measurements"""
+import numpy as np
+from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement
-from .ms import MSMeasurement
+from .ms import MSMeasurement, MSCalResult
 from .cv import CyclicVoltammagram
 from ..exporters.ecms_exporter import ECMSExporter
+from ..plotters.ms_plotter import STANDARD_COLORS
 
 
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
@@ -69,6 +72,70 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         return ECMSCyclicVoltammogram.from_dict(self_as_dict)
 
+    def ecms_calibration_curve(
+        self,
+        mol,
+        mass,
+        n_el,
+        tspan_list=None,
+        tspan_bg=None,
+        ax="new",
+        axes_measurement=None,
+    ):
+        """Fit mol's sensitivity at mass based on steady periods of EC production
+
+        Args:
+            mol (str): Name of the molecule to calibrate
+            mass (str): Name of the mass at which to calibrate
+            n_el (str): Number of electrons passed per molecule produced (remember the
+                sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            tspan_list (list of tspan): THe timespans of steady electrolysis
+            tspan_bg (tspan): The time to use as a background
+            ax (Axis): The axis on which to plot the calibration curve result. Defaults
+                to a new axis.
+            axes_measurement (list of Axes): The EC-MS plot axes to highlight the
+                calibration on. Defaults to None.
+
+        Return MSCalResult: The result of the calibration
+        """
+        axis_ms = axes_measurement[0] if axes_measurement else None
+        axis_current = axes_measurement[0] if axes_measurement else None
+        Y_list = []
+        n_list = []
+        for tspan in tspan_list:
+            Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
+            # FIXME: plotting current by giving integrate() an axis doesn't work great.
+            I = self.integrate("raw current / [mA]", tspan=tspan) * 1e-3
+            n = I / (n_el * FARADAY_CONSTANT)
+            Y_list.append(Y)
+            n_list.append(n)
+        n_vec = np.array(n_list)
+        Y_vec = np.array(Y_list)
+        pfit = np.polyfit(n_vec, Y_vec, deg=1)
+        F = pfit[0]
+        if ax:
+            color = STANDARD_COLORS[mass]
+            if ax == "new":
+                ax = self.plotter.new_ax()
+                ax.set_xlabel("amount produced / [nmol]")
+                ax.set_ylabel("integrated signal / [nC]")
+            ax.plot(n_vec * 1e9, Y_vec * 1e9, "o", color=color)
+            n_fit = np.array([0, max(n_vec)])
+            Y_fit = n_fit * pfit[0] + pfit[1]
+            ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
+        cal = MSCalResult(
+            name=f"{mol}_{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type="ecms_calibration_curve",
+            F=F,
+        )
+        if ax:
+            if axes_measurement:
+                return cal, ax, axes_measurement
+            return cal, ax
+        return cal
+
 
 class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement
@@ -122,3 +189,7 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         if not self._exporter:
             self._exporter = ECMSExporter(measurement=self)
         return self._exporter
+
+
+class ECMSCalibration:
+    pass

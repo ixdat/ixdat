@@ -1,8 +1,17 @@
 """Module for representation and analysis of MS measurements"""
 
 from ..measurements import Measurement
-from ..plotters.ms_plotter import MSPlotter
+from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
 from ..exceptions import SeriesNotFoundError
+from ..constants import (
+    AVOGADROS_CONSTANT,
+    BOLTZMAN_CONSTANT,
+    STANDARD_TEMPERATURE,
+    STANDARD_PRESSURE,
+    DYNAMIC_VISCOSITIES,
+    MOLECULAR_DIAMETERS,
+    MOLAR_MASSES,
+)
 import re
 import numpy as np
 
@@ -112,6 +121,32 @@ class MSMeasurement(Measurement):
 
         return time, value * self.calibration[signal_name]
 
+    def integrate_signal(self, mass, tspan, tspan_bg, ax=None):
+        """Integrate a ms signal with background subtraction and evt. plotting
+
+        TODO: Should this, like grab_signal does now, have the option of using a
+            background saved in the object rather than calculating a new one?
+
+        Args:
+            mass (str): The mass for which to integrate the signal
+            tspan (tspan): The timespan over which to integrate
+            tspan_bg (tspan): Timespan at which the signal is at its background value
+            ax (Axis): axis to plot on. Defaults to None
+        """
+        t, S = self.grab_signal(mass, tspan=tspan, include_endpoints=True)
+        if tspan_bg:
+            t_bg, S_bg_0 = self.grab_signal(
+                mass, tspan=tspan_bg, include_endpoints=True
+            )
+            S_bg = np.mean(S_bg_0) * np.ones(t.shape)
+        else:
+            S_bg = np.zeros(t.shape)
+        if ax:
+            if ax == "new":
+                fig, ax = self.plotter.new_ax()
+            ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mass], alpha=0.2)
+        return np.trapz(S - S_bg, t)
+
     @property
     def mass_list(self):
         """List of the masses for which ValueSeries are contained in the measurement"""
@@ -139,3 +174,167 @@ class MSMeasurement(Measurement):
         if not self._plotter:
             self._plotter = MSPlotter(measurement=self)
         return self._plotter
+
+
+class MSCalResult:
+    """A class for a mass spec calibration result."""
+
+    def __init__(
+        self,
+        name=None,
+        mol=None,
+        mass=None,
+        cal_type=None,
+        F=None,
+    ):
+        self.name = name
+        self.mol = mol
+        self.mass = mass
+        self.cal_type = cal_type
+        self.F = F
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(name={self.name}, mol={self.mol}, "
+            f"mass={self.mass}, F={self.F})"
+        )
+
+
+class MSInlet:
+    """A class for describing the inlet to the mass spec
+
+    Every MSInlet describes the rate and composition of the gas entering a mass
+    spectrometer. The default is a Spectro Inlets EC-MS chip.
+    """
+
+    def __init__(
+        self,
+        *,
+        l_cap=1e-3,
+        w_cap=6e-6,
+        h_cap=6e-6,
+        gas="He",
+        T=STANDARD_TEMPERATURE,
+        p=STANDARD_PRESSURE,
+        verbose=True,
+    ):
+        """Create a Chip object given its properties
+
+        Args:
+            l_cap (float): capillary length [m]. Defaults to design parameter.
+            w_cap (float): capillary width [m]. Defaults to design parameter.
+            h_cap (float): capillary height [m]. Defaults to design parameter.
+            p (float): system pressure in [Pa] (if to change from that in medium)
+            T (float): system temperature in [K] (if to change from that in medium)
+            gas (str): the gas at the start of the inlet.
+            verbose (bool): whether to print stuff to the terminal
+        """
+        self.verbose = verbose
+        self.l_cap = l_cap
+        self.w_cap = w_cap
+        self.h_cap = h_cap
+        self.p = p
+        self.T = T
+        self.gas = gas  # TODO: Gas mixture class. This must be a pure gas now.
+
+    def calc_n_dot_0(
+        self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None
+    ):
+        """Calculate the total molecular flux through the capillary in [s^-1]
+
+        Uses Equation 4.10 of Daniel's Thesis.
+
+        Args:
+            w_cap (float): capillary width [m], defaults to self.w_cap
+            h_cap (float): capillary height [m], defaults to self.h_cap
+            l_cap (float): capillary length [m], defaults to self.l_cap
+            gas (dict or str): the gas in the chip, defaults to self.gas
+            T (float): Temperature [K], if to be updated
+            p (float): pressure [Pa], if to be updated
+        Returns:
+            float: the total molecular flux in [s^-1] through the capillary
+        """
+
+        if w_cap is None:
+            w_cap = self.w_cap  # capillary width in [m]
+        if h_cap is None:
+            h_cap = self.h_cap  # capillary height in [m]
+        if l_cap is None:
+            l_cap = self.l_cap  # effective capillary length in [m]
+        if T is None:
+            T = self.T
+        if p is None:
+            p = self.p
+
+        pi = np.pi
+        eta = DYNAMIC_VISCOSITIES[gas]  # dynamic viscosity in [Pa*s]
+        s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
+        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
+
+        d = ((w_cap * h_cap) / pi) ** 0.5 * 2
+        # d = 4.4e-6  #used in Henriksen2009
+        a = d / 2
+        p_1 = p
+        lambda_ = d  # defining the transitional pressure
+        # ...from setting mean free path equal to capillary d
+        p_t = BOLTZMAN_CONSTANT * T / (2 ** 0.5 * pi * s ** 2 * lambda_)
+        p_2 = 0
+        p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
+        v_m = (8 * BOLTZMAN_CONSTANT * T / (pi * m)) ** 0.5
+        # a reciprocal velocity used for short-hand:
+        nu = (m / (BOLTZMAN_CONSTANT * T)) ** 0.5
+
+        # ... and now, we're ready for the capillary equation.
+        #   (need to turn of black and flake8 for tolerable format)
+        # fmt: off
+        #   Equation 4.10 of Daniel Trimarco's PhD Thesis:
+        N_dot = (                                                               # noqa
+            1 / (BOLTZMAN_CONSTANT * T) * 1 / l_cap * (                         # noqa
+                (p_t - p_2) * a**3 * 2 * pi / 3 * v_m + (p_1 - p_t) * (         # noqa
+                    a**4 * pi / (8 * eta) * p_m  + a**3 * 2 * pi / 3 * v_m * (  # noqa
+                        (1 + 2 * a * nu * p_m / eta) / (                        # noqa
+                        1 + 2.48 * a * nu * p_m / eta                           # noqa
+                        )                                                       # noqa
+                    )                                                           # noqa
+                )                                                               # noqa
+            )                                                                   # noqa
+        )                                                                       # noqa
+        # fmt: on
+        n_dot = N_dot / AVOGADROS_CONSTANT
+        return n_dot
+
+    def gas_flux_calibration(
+        self,
+        measurement,
+        mol,
+        mass,
+        tspan=None,
+        tspan_bg=None,
+        ax=None,
+    ):
+        """
+        Args:
+            measurement (MSMeasurement): The measurement with the calibration data
+            mol (str): The name of the molecule to calibrate
+            mass (str): The mass to calibrate at
+            tspan (iter): The timespan to average the signal over. Defaults to all
+            tspan_bg (iter): Optional timespan at which the signal is at its background.
+            ax (matplotlib axis): the axis on which to indicate what signal is used
+                with a thicker line. Defaults to none
+
+        Returns MSCalResult: a calibration result containing the sensitivity factor for
+            mol at mass
+        """
+        t, S = measurement.grab_signal(mass, tspan=tspan, t_bg=tspan_bg)
+        if ax:
+            ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+
+        n_dot = self.calc_n_dot_0(gas=mol)
+        F = np.mean(S) / n_dot
+        return MSCalResult(
+            name=f"{mol}_{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type="gas_flux_calibration",
+            F=F,
+        )
