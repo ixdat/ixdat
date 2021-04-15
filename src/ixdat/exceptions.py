@@ -27,3 +27,7 @@ class ReadError(Exception):
 
 class TechniqueError(Exception):
     """ixdat errors having to do with techniques and their limitations"""
+
+
+class QuantificationError(Exception):
+    """ixdat errors having to do with techniques and their limitations"""

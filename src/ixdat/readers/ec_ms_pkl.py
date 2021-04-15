@@ -82,27 +82,31 @@ def measurement_from_ec_ms_dataset(
     tseries_meas = Measurement("tseries_ms", technique="EC_MS", series_list=cols_list)
 
     for col in cols_str:
-        if col not in ec_ms_dict:
+        if col not in ec_ms_dict or col in tseries_meas.series_names:
             continue
         if col.endswith("-y"):
+            v_name = col[:-2]
+            tseries = tseries_meas[col[:-1] + "x"]
             unit_name = "A" if col.startswith("M") else ""
-            cols_list.append(
-                ValueSeries(
-                    col[:-2],
-                    unit_name=unit_name,
-                    data=ec_ms_dict[col],
-                    tseries=tseries_meas[col[:-1] + "x"],
-                )
+        elif col in BIOLOGIC_COLUMN_NAMES and col not in tseries_meas.series_names:
+            v_name = col
+            tseries = tseries_meas["time/s"]
+            unit_name = get_column_unit(col)
+        else:
+            print(f"Not including '{col}' as I don't know what it is.")
+            continue
+        data = ec_ms_dict[col]
+        if not tseries.data.size == data.size:
+            print(f"Not including '{col}' due to mismatch size with {tseries}")
+            continue
+        cols_list.append(
+            ValueSeries(
+                name=v_name,
+                data=data,
+                unit_name=unit_name,
+                tseries=tseries,
             )
-        if col in BIOLOGIC_COLUMN_NAMES and col not in tseries_meas.series_names:
-            cols_list.append(
-                ValueSeries(
-                    name=col,
-                    data=ec_ms_dict[col],
-                    unit_name=get_column_unit(col),
-                    tseries=tseries_meas["time/s"],
-                )
-            )
+        )
 
     obj_as_dict = dict(
         name=name,

@@ -46,6 +46,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ms_kwargs.update(component_measurements=kwargs["component_measurements"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
+        self.calibration = kwargs.get("calibration", None)
+        if self.calibration:
+            self.normalize_current(A_el=self.calibration.A_el)
+            self.calibrate_RE(RE_vs_RHE=self.calibration.RE_vs_RHE)
 
     @property
     def plotter(self):
@@ -63,6 +67,15 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         if not self._exporter:
             self._exporter = ECMSExporter(measurement=self)
         return self._exporter
+
+    def as_dict(self):
+        self_as_dict = super().as_dict()
+
+        if self.calibration:
+            self_as_dict["calibration"] = self.calibration
+            # FIXME: necessary because an ECMSCalibration is not serializeable
+            #   If it it was it would go into extra_column_attrs
+        return self_as_dict
 
     def as_cv(self):
         self_as_dict = self.as_dict()
@@ -174,6 +187,8 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         ms_kwargs.update(series_list=kwargs["series_list"])
         MSMeasurement.__init__(self, **ms_kwargs)
         self.plot = self.plotter.plot_vs_potential
+        # FIXME: only necessary because an ECMSCalibration is not seriealizeable.
+        self.calibration = kwargs.get("calibration", None)
 
     @property
     def plotter(self):
@@ -192,6 +207,15 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
             self._exporter = ECMSExporter(measurement=self)
         return self._exporter
 
+    def as_dict(self):
+        self_as_dict = super().as_dict()
+
+        if self.calibration:
+            self_as_dict["calibration"] = self.calibration
+            # FIXME: necessary because an ECMSCalibration is not serializeable
+            #   If it it was it would go into extra_column_attrs
+        return self_as_dict
+
 
 class ECMSCalibration(Saveable):
     """Class for calibrations useful for ECMSMeasurements
@@ -199,6 +223,7 @@ class ECMSCalibration(Saveable):
     FIXME: A class in a technique module shouldn't inherit directly from Saveable. We
         need to generalize calibration somehow
     """
+
     column_attrs = {"name", "date", "setup", "ms_cal_results", "RE_vs_RHE", "A_el", "L"}
     # FIXME: Not given a table_name as it can't save to the database without
     #   MSCalResult's being json-seriealizeable. Exporting and reading works, though :D
@@ -250,4 +275,25 @@ class ECMSCalibration(Saveable):
         ]
         return cls.from_dict(obj_as_dict)
 
+    @property
+    def mol_list(self):
+        return list({cal.mol for cal in self.ms_cal_results})
 
+    @property
+    def name_list(self):
+        return list({cal.name for cal in self.ms_cal_results})
+
+    def __contains__(self, mol):
+        return mol in self.mol_list or mol in self.name_list
+
+    def __iter__(self):
+        yield from self.ms_cal_results
+
+    def get_mass_and_F(self, mol):
+        """Return the mass and sensitivity factor to use for simple quant. of mol"""
+        cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
+        Fs = [cal.F for cal in cal_list_for_mol]
+        index = np.argmax(np.array(Fs))
+
+        the_good_cal = cal_list_for_mol[index]
+        return the_good_cal.mass, the_good_cal.F

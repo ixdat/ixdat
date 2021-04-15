@@ -2,7 +2,7 @@
 
 from ..measurements import Measurement
 from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
-from ..exceptions import SeriesNotFoundError
+from ..exceptions import SeriesNotFoundError, QuantificationError
 from ..constants import (
     AVOGADROS_CONSTANT,
     BOLTZMAN_CONSTANT,
@@ -28,7 +28,13 @@ class MSMeasurement(Measurement):
     }
 
     def __init__(
-        self, name, mass_aliases=None, signal_bgs=None, tspan_bg=None, **kwargs
+        self,
+        name,
+        mass_aliases=None,
+        signal_bgs=None,
+        tspan_bg=None,
+        calibration=None,
+        **kwargs,
     ):
         """Initializes a MS Measurement
 
@@ -40,6 +46,7 @@ class MSMeasurement(Measurement):
                 do not have the standard 'M<x>' format used by ixdat.
             signal_bgs (dict): {mass: S_bg} where S_bg is the background signal
                 in [A] for the mass (typically set with a timespan by `set_bg()`)
+            calibration (ECMSCalibration): A calibration for the MS signals
             tspan_bg (timespan): background time used to set masses
         """
         super().__init__(name, **kwargs)
@@ -81,7 +88,7 @@ class MSMeasurement(Measurement):
         removebackground=False,
         include_endpoints=False,
     ):
-        """Returns raw signal for a given signal name
+        """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
         Args:
             signal_name (str): Name of the signal.
@@ -89,6 +96,7 @@ class MSMeasurement(Measurement):
             t_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
+            include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
         """
         time, value = self.grab(
             signal_name, tspan=tspan, include_endpoints=include_endpoints
@@ -113,7 +121,8 @@ class MSMeasurement(Measurement):
             t_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
         """
-        # TODO: Not final implementation
+        # TODO: Not final implementation.
+        # FIXME: Depreciated! Use grab_flux instead!
         if self.calibration is None:
             print("No calibration dict found.")
             return
@@ -121,6 +130,38 @@ class MSMeasurement(Measurement):
         time, value = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
         return time, value * self.calibration[signal_name]
+
+    def grab_flux(
+        self,
+        mol,
+        tspan=None,
+        tspan_bg=None,
+        removebackground=False,
+        include_endpoints=False,
+    ):
+        """Return the flux of mol (calibrated signal) in [mol/s]
+
+        Args:
+            mol (str): Name of the molecule.
+            tspan (list): Timespan for which the signal is returned.
+            t_bg (list): Timespan that corresponds to the background signal.
+                If not given, no background is subtracted.
+            removebackground (bool): Whether to remove a pre-set background if available
+        """
+        if not self.calibration or mol not in self.calibration:
+            raise QuantificationError(
+                f"Can't quantify {mol} in {self}: Not in calibration={self.calibration}"
+            )
+        mass, F = self.calibration.get_mass_and_F(mol)
+        x, y = self.grab_signal(
+            mass,
+            tspan=tspan,
+            t_bg=tspan_bg,
+            removebackground=removebackground,
+            include_endpoints=include_endpoints,
+        )
+        n_dot = y / F
+        return x, n_dot
 
     def integrate_signal(self, mass, tspan, tspan_bg, ax=None):
         """Integrate a ms signal with background subtraction and evt. plotting
@@ -183,6 +224,7 @@ class MSCalResult(Saveable):
     TODO: How can we generalize calibration? I think that something inheriting directly
         from saveable belongs in a top-level module and not in a technique module
     """
+
     column_attrs = {"name", "mol", "mass", "cal_type", "F"}
 
     def __init__(

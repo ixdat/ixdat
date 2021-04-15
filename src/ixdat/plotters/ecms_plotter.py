@@ -19,10 +19,12 @@ class ECMSPlotter(MPLPlotter):
         axes=None,
         mass_list=None,
         mass_lists=None,
+        mol_list=None,
+        mol_lists=None,
         tspan=None,
         tspan_bg=None,
         removebackground=None,
-        unit="A",
+        unit=None,
         V_str=None,
         J_str=None,
         V_color="k",
@@ -53,6 +55,11 @@ class ECMSPlotter(MPLPlotter):
             mass_lists (list of list of str): Alternately, two lists can be given for
                 masses in which case one list is plotted on the left y-axis and the other
                 on the right y-axis of the top panel.
+            mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mol_lists (list of list of str): Alternately, two lists can be given for
+                molecules in which case one list is plotted on the left y-axis and the
+                other on the right y-axis of the top panel.
             tspan (iter of float): The time interval to plot, wrt measurement.tstamp
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
@@ -81,7 +88,9 @@ class ECMSPlotter(MPLPlotter):
 
         if not axes:
             axes = self.new_two_panel_axes(
-                n_bottom=2, n_top=(2 if mass_lists else 1), emphasis=emphasis
+                n_bottom=2,
+                n_top=(2 if (mass_lists or mol_lists) else 1),
+                emphasis=emphasis,
             )
 
         if not tspan:
@@ -103,29 +112,30 @@ class ECMSPlotter(MPLPlotter):
                 J_color=J_color,
                 **kwargs,
             )
-        if mass_list or hasattr(measurement, "mass_list"):
+        if (
+            mass_list
+            or mass_lists
+            or mol_list
+            or mol_lists
+            or hasattr(measurement, "mass_list")
+        ):
             # then we have MS data!
-            ms_axes = self.ms_plotter.plot_measurement(
+            self.ms_plotter.plot_measurement(
                 measurement=measurement,
                 ax=axes[0],
-                axes=[axes[0], axes[3]] if mass_lists else None,
+                axes=[axes[0], axes[3]] if (mass_lists or mol_lists) else axes[0],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 removebackground=removebackground,
                 mass_list=mass_list,
                 mass_lists=mass_lists,
+                mol_list=mol_list,
+                mol_lists=mol_lists,
                 unit=unit,
                 logplot=logplot,
                 legend=legend,
                 **kwargs,
             )
-            try:
-                ms_axes.set_ylabel(f"signal / [{unit}]")
-            except AttributeError:
-                for ax in ms_axes:
-                    ax.set_ylabel(f"signal / [{unit}]")
-                    if ax not in axes:
-                        axes.append(ax)
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
 
@@ -136,10 +146,12 @@ class ECMSPlotter(MPLPlotter):
         axes=None,
         mass_list=None,
         mass_lists=None,
+        mol_list=None,
+        mol_lists=None,
         tspan=None,
         tspan_bg=None,
         removebackground=None,
-        unit="A",
+        unit=None,
         logplot=False,
         legend=True,
         emphasis="top",
@@ -164,6 +176,11 @@ class ECMSPlotter(MPLPlotter):
             mass_lists (list of list of str): Alternately, two lists can be given for
                 masses in which case one list is plotted on the left y-axis and the other
                 on the right y-axis of the top panel.
+            mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mol_lists (list of list of str): Alternately, two lists can be given for
+                molecules in which case one list is plotted on the left y-axis and the
+                other on the right y-axis of the top panel.
             tspan (iter of float): The time interval to plot, wrt measurement.tstamp
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
@@ -182,33 +199,30 @@ class ECMSPlotter(MPLPlotter):
 
         if not axes:
             axes = self.new_two_panel_axes(
-                n_bottom=1, n_top=(2 if mass_lists else 1), emphasis=emphasis
+                n_bottom=2,
+                n_top=(2 if (mass_lists or mol_lists) else 1),
+                emphasis=emphasis,
             )
 
         self.ec_plotter.plot_vs_potential(
             measurement=measurement, tspan=tspan, ax=axes[1], **kwargs
         )
-        ms_axes = self.ms_plotter.plot_vs(
+        self.ms_plotter.plot_vs(
             x_name="potential",
             measurement=measurement,
             ax=axes[0],
-            axes=[axes[0], axes[2]] if mass_lists else None,
+            axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else axes[0],
             tspan=tspan,
             tspan_bg=tspan_bg,
             removebackground=removebackground,
             mass_list=mass_list,
             mass_lists=mass_lists,
+            mol_list=mol_list,
+            mol_lists=mol_lists,
             unit=unit,
             logplot=logplot,
             legend=legend,
             **kwargs,
         )
-        try:
-            ms_axes.set_ylabel(f"signal / [{unit}]")
-        except AttributeError:
-            for ax in ms_axes:
-                ax.set_ylabel(f"signal / [{unit}]")
-                if ax not in axes:
-                    axes.append(ax)
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
