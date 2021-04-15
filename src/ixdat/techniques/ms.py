@@ -12,6 +12,7 @@ from ..constants import (
     MOLECULAR_DIAMETERS,
     MOLAR_MASSES,
 )
+from ..db import Saveable
 import re
 import numpy as np
 
@@ -176,8 +177,13 @@ class MSMeasurement(Measurement):
         return self._plotter
 
 
-class MSCalResult:
-    """A class for a mass spec calibration result."""
+class MSCalResult(Saveable):
+    """A class for a mass spec calibration result.
+
+    TODO: How can we generalize calibration? I think that something inheriting directly
+        from saveable belongs in a top-level module and not in a technique module
+    """
+    column_attrs = {"name", "mol", "mass", "cal_type", "F"}
 
     def __init__(
         self,
@@ -187,6 +193,7 @@ class MSCalResult:
         cal_type=None,
         F=None,
     ):
+        super().__init__()
         self.name = name
         self.mol = mol
         self.mass = mass

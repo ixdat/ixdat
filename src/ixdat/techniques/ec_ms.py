@@ -6,6 +6,8 @@ from .ms import MSMeasurement, MSCalResult
 from .cv import CyclicVoltammagram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ms_plotter import STANDARD_COLORS
+from ..db import Saveable  # FIXME: doesn't belong here.
+import json  # FIXME: doesn't belong here.
 
 
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
@@ -191,5 +193,61 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         return self._exporter
 
 
-class ECMSCalibration:
-    pass
+class ECMSCalibration(Saveable):
+    """Class for calibrations useful for ECMSMeasurements
+
+    FIXME: A class in a technique module shouldn't inherit directly from Saveable. We
+        need to generalize calibration somehow
+    """
+    column_attrs = {"name", "date", "setup", "ms_cal_results", "RE_vs_RHE", "A_el", "L"}
+    # FIXME: Not given a table_name as it can't save to the database without
+    #   MSCalResult's being json-seriealizeable. Exporting and reading works, though :D
+    def __init__(
+        self,
+        name=None,
+        date=None,
+        setup=None,
+        ms_cal_results=None,
+        RE_vs_RHE=None,
+        A_el=None,
+        L=None,
+    ):
+        """
+        Args:
+            name (str): Name of the calibration
+            date (str): Date of the calibration
+            setup (str): Name of the setup where the calibration is made
+            ms_cal_results (list of MSCalResult): The mass spec calibrations
+            RE_vs_RHE (float): the RE potential in [V]
+            A_el (float): the geometric electrode area in [cm^2]
+            L (float): the working distance in [m]
+        """
+        super().__init__()
+        self.name = name or f"EC-MS calibration for {setup} on {date}"
+        self.date = date
+        self.setup = setup
+        self.ms_cal_results = ms_cal_results
+        self.RE_vs_RHE = RE_vs_RHE
+        self.A_el = A_el
+        self.L = L
+
+    def export(self, path_to_file=None):
+        """Export an ECMSCalibration as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
+
+    @classmethod
+    def read(cls, path_to_file):
+        """Read an ECMSCalibration from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        obj_as_dict["ms_cal_results"] = [
+            MSCalResult.from_dict(cal_as_dict)
+            for cal_as_dict in obj_as_dict["ms_cal_results"]
+        ]
+        return cls.from_dict(obj_as_dict)
+
+
