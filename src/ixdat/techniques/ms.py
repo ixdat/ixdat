@@ -50,7 +50,7 @@ class MSMeasurement(Measurement):
             tspan_bg (timespan): background time used to set masses
         """
         super().__init__(name, **kwargs)
-        self.calibration = None  # TODO: Not final implementation
+        self.calibration = calibration  # TODO: Not final implementation
         self.mass_aliases = mass_aliases or {}
         self.signal_bgs = signal_bgs or {}
         self.tspan_bg = tspan_bg
@@ -144,7 +144,7 @@ class MSMeasurement(Measurement):
         Args:
             mol (str): Name of the molecule.
             tspan (list): Timespan for which the signal is returned.
-            t_bg (list): Timespan that corresponds to the background signal.
+            tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
         """
@@ -162,6 +162,32 @@ class MSMeasurement(Measurement):
         )
         n_dot = y / F
         return x, n_dot
+
+    def grab_flux_for_t(
+        self,
+        mol,
+        t,
+        tspan_bg=None,
+        removebackground=False,
+        include_endpoints=False,
+    ):
+        """Return the flux of mol (calibrated signal) in [mol/s] for a given time vec
+
+        Args:
+            mol (str): Name of the molecule.
+            t (np.array): The time vector along which to give the flux
+            tspan_bg (tspan): Timespan that corresponds to the background signal.
+                If not given, no background is subtracted.
+            removebackground (bool): Whether to remove a pre-set background if available
+        """
+        t_0, y_0 = self.grab_flux(
+            mol,
+            tspan_bg=tspan_bg,
+            removebackground=removebackground,
+            include_endpoints=include_endpoints,
+        )
+        y = np.interp(t, t_0, y_0)
+        return y
 
     def integrate_signal(self, mass, tspan, tspan_bg, ax=None):
         """Integrate a ms signal with background subtraction and evt. plotting

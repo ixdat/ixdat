@@ -474,7 +474,7 @@ class Measurement(Saveable):
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
-        if tspan:
+        if tspan is not None:  # np arrays don't boolean well :(
             if include_endpoints:
                 if t[0] < tspan[0]:  # then add a point to include tspan[0]
                     v_0 = np.interp(tspan[0], t, v)

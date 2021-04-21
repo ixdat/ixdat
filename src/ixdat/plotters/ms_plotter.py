@@ -304,10 +304,10 @@ class MSPlotter(MPLPlotter):
             v_lists = mol_lists
         elif mass_list:
             quantified = False
-            v_list = mol_list
+            v_list = mass_list
         elif mass_lists:
             quantified = False
-            v_lists = mol_lists
+            v_lists = mass_lists
 
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
@@ -429,8 +429,10 @@ STANDARD_COLORS = {
     "CO2": "brown",
     "CH4": "r",
     "C2H4": "g",
+    "O2_M32": "k",
     "O2_M34": "r",
     "O2_M36": "g",
+    "CO2_M44": "brown",
     "CO2_M46": "purple",
     "CO2_M48": "darkslategray",
 }
