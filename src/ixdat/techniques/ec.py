@@ -161,6 +161,7 @@ class ECMeasurement(Measurement):
                 raw working electrode current. This is typically how the data
                 acquisition software saves current.
         """
+        calibration = self.calibration if hasattr(self, "calibration") else None
         super().__init__(
             name,
             technique=technique,
@@ -175,17 +176,20 @@ class ECMeasurement(Measurement):
             sample=sample,
             lablog=lablog,
             tstamp=tstamp,
-        )
+        )  # FIXME: The super init sets self.calibration to None but I can't see why.
+        self.calibration = calibration or ECCalibration(RE_vs_RHE, A_el)
+        if RE_vs_RHE is not None:  # if given as an arg RE_vs_RHE trumps calibration
+            self.RE_vs_RHE = RE_vs_RHE
+        if A_el is not None:
+            self.A_el = A_el
         self.ec_technique = ec_technique
         self.t_str = t_str
         self.E_str = E_str
         self.V_str = V_str
-        self.RE_vs_RHE = RE_vs_RHE
         self.R_Ohm = R_Ohm
         self.raw_potential_names = raw_potential_names
         self.I_str = I_str
         self.J_str = J_str
-        self.A_el = A_el
         self.raw_current_names = raw_current_names
         self.cycle_names = cycle_names
 
@@ -231,6 +235,22 @@ class ECMeasurement(Measurement):
                     )
                 )
                 self._populate_constants()  # So that everything has a cycle number
+
+    @property
+    def A_el(self):
+        return self.calibration.A_el
+
+    @A_el.setter
+    def A_el(self, A_el):
+        self.calibration.A_el = A_el
+
+    @property
+    def RE_vs_RHE(self):
+        return self.calibration.RE_vs_RHE
+
+    @RE_vs_RHE.setter
+    def RE_vs_RHE(self, RE_vs_RHE):
+        self.calibration.RE_vs_RHE = RE_vs_RHE
 
     def _populate_constants(self):
         """Replace any ConstantValues with ValueSeries on potential's tseries
@@ -438,7 +458,7 @@ class ECMeasurement(Measurement):
         fixed_V_str = raw_potential.name
         fixed_potential_data = raw_potential.data
         fixed_unit_name = raw_potential.unit_name
-        if self.RE_vs_RHE:
+        if self.RE_vs_RHE is not None:
             fixed_V_str = self.V_str
             fixed_potential_data = fixed_potential_data + self.RE_vs_RHE
             fixed_unit_name = "V <RHE>"
@@ -619,3 +639,11 @@ class ECMeasurement(Measurement):
         del self_as_dict["s_ids"]
         # Note, this works perfectly! All needed information is in self_as_dict :)
         return CyclicVoltammagram.from_dict(self_as_dict)
+
+
+class ECCalibration:
+    """A small container for RHE_vs_RE and A_el"""
+
+    def __init__(self, RE_vs_RHE=None, A_el=None):
+        self.RE_vs_RHE = RE_vs_RHE
+        self.A_el = A_el
