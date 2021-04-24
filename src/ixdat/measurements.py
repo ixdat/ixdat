@@ -143,11 +143,11 @@ class Measurement(Saveable):
         else:
             # Normally, we're going to want to make sure that we're in
             technique_class = cls
-        try:
-            measurement = technique_class(**obj_as_dict)
-        except Exception:
-            raise
-        return measurement
+
+        if technique_class is cls:
+            return cls(**obj_as_dict)
+        else:  # Then its from_dict() might have more than ours:
+            return technique_class.from_dict(obj_as_dict)
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -474,7 +474,7 @@ class Measurement(Saveable):
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
-        if tspan:
+        if tspan is not None:  # np arrays don't boolean well :(
             if include_endpoints:
                 if t[0] < tspan[0]:  # then add a point to include tspan[0]
                     v_0 = np.interp(tspan[0], t, v)
