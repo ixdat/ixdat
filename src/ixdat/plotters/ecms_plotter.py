@@ -85,7 +85,10 @@ class ECMSPlotter(MPLPlotter):
             )
 
         if not tspan:
-            if hasattr(measurement, "potential") and measurement.potential:
+            if (
+                hasattr(measurement, "potential")
+                and measurement.grab("potential")[0].any()
+            ):
                 t, _ = measurement.grab("potential")
                 tspan = [t[0], t[-1]]
             else:

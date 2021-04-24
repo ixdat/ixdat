@@ -732,8 +732,9 @@ class Measurement(Saveable):
         t_finish = None
         for tcol in self.time_names:
             t = self[tcol].data
-            t_start = min(t_start, t[0]) if t_start else t[0]
-            t_finish = max(t_finish, t[-1]) if t_finish else t[-1]
+            if t.any():
+                t_start = min(t_start, t[0]) if t_start else t[0]
+                t_finish = max(t_finish, t[-1]) if t_finish else t[-1]
         return t_start, t_finish
 
     def __add__(self, other):
