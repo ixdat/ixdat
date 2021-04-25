@@ -34,6 +34,7 @@ class MSMeasurement(Measurement):
         signal_bgs=None,
         tspan_bg=None,
         calibration=None,
+        normalization=None,
         **kwargs,
     ):
         """Initializes a MS Measurement
@@ -47,13 +48,16 @@ class MSMeasurement(Measurement):
             signal_bgs (dict): {mass: S_bg} where S_bg is the background signal
                 in [A] for the mass (typically set with a timespan by `set_bg()`)
             calibration (ECMSCalibration): A calibration for the MS signals
-            tspan_bg (timespan): background time used to set masses
-        """
+            tspan_bg (dict): {mass: tspan} where tspan is the tspan for the background signal
+            normalization (string): signal_name of signal to which other signals
+                are normalized by I_sig/I_norm"""
         super().__init__(name, **kwargs)
         self.calibration = calibration  # TODO: Not final implementation
         self.mass_aliases = mass_aliases or {}
         self.signal_bgs = signal_bgs or {}
-        self.tspan_bg = tspan_bg
+        self.tspan_bg = tspan_bg or {}
+        self.normalization = normalization
+        self.signal_bgs_norm = {}
 
     def __getitem__(self, item):
         """Adds to Measurement's lookup to check if item is an alias for a mass"""
@@ -68,10 +72,10 @@ class MSMeasurement(Measurement):
     def set_bg(self, tspan_bg=None, mass_list=None):
         """Set background values for mass_list to the average signal during tspan_bg."""
         mass_list = mass_list or self.mass_list
-        tspan_bg = tspan_bg or self.tspan_bg
         for mass in mass_list:
             t, v = self.grab(mass, tspan_bg)
             self.signal_bgs[mass] = np.mean(v)
+            self.tspan_bg[mass] = tspan_bg
 
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
@@ -79,6 +83,16 @@ class MSMeasurement(Measurement):
         for mass in mass_list:
             if mass in self.signal_bgs:
                 del self.signal_bgs[mass]
+                del self.tspan_bg[mass]
+
+    def set_normalization(self, signal_name):
+        """Sets signal to which all other signals are normalized"""
+        self.normalization = signal_name
+        for signal in self.signal_bgs:
+            _, v = self.grab_signal(
+                signal, tspan=self.tspan_bg[signal], normalization=True
+            )
+            self.signal_bgs_norm[signal] = np.mean(v)
 
     def grab_signal(
         self,
@@ -87,6 +101,7 @@ class MSMeasurement(Measurement):
         t_bg=None,
         removebackground=False,
         include_endpoints=False,
+        normalization=False,
     ):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
@@ -97,14 +112,27 @@ class MSMeasurement(Measurement):
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
             include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
+            normalization (bool): Whether to normalize to a given signal if available.
         """
-        time, value = self.grab(
-            signal_name, tspan=tspan, include_endpoints=include_endpoints
-        )
+        if normalization:
+            time, value = self.grab(
+                signal_name, tspan=tspan, include_endpoints=include_endpoints
+            )
+            value_norm = self.grab_for_t(self.normalization, time)
+            value = value / value_norm
+
+        else:
+            time, value = self.grab(
+                signal_name, tspan=tspan, include_endpoints=include_endpoints
+            )
 
         if t_bg is None:
             if removebackground and signal_name in self.signal_bgs:
-                return time, value - self.signal_bgs[signal_name]
+                if normalization:
+                    bg = self.signal_bgs_norm[signal_name]
+                else:
+                    bg = self.signal_bgs[signal_name]
+                return time, value - bg
             return time, value
 
         else:
