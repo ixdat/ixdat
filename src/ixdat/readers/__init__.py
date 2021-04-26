@@ -6,12 +6,31 @@ Constants:
         is the reader class for parsing files.
 """
 from ..techniques import TECHNIQUE_CLASSES
-from .ec_ms import EC_MS_CONVERTER
-from .zilien import ZilienTSVReader
+
+# ixdat
+from .ixdat_csv import IxdatCSVReader
+
+# potentiostats
 from .biologic import BiologicMPTReader
+from .autolab import NovaASCIIReader
+from .ivium import IviumDatasetReader
+
+# mass spectrometers
+from .pfeiffer import PVMassSpecReader
+from .cinfdata import CinfdataTXTReader
+
+# ec-ms
+from .zilien import ZilienTSVReader, ZilienTMPReader
+from .ec_ms_pkl import EC_MS_CONVERTER
 
 READER_CLASSES = {
-    "EC_MS": EC_MS_CONVERTER,
-    "zilien": ZilienTSVReader,
+    "ixdat": IxdatCSVReader,
     "biologic": BiologicMPTReader,
+    "autolab": NovaASCIIReader,
+    "ivium": IviumDatasetReader,
+    "pfeiffer": PVMassSpecReader,
+    "cinfdata": CinfdataTXTReader,
+    "zilien": ZilienTSVReader,
+    "zilien_tmp": ZilienTMPReader,
+    "EC_MS": EC_MS_CONVERTER,
 }

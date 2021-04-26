@@ -164,7 +164,7 @@ class Saveable:
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(id={self.id}, name={self.name})"
+        return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @property
     def backend_name(self):
@@ -230,6 +230,18 @@ class Saveable:
         """Save self and return the id. This sets self.backend_name and self.id"""
         db = db or self.db
         return db.save(self)
+
+    @classmethod
+    def get_all_column_attrs(cls):
+        """List all attributes of objects of cls that correspond to table columns"""
+        all_attrs = cls.column_attrs
+        if cls.extra_column_attrs:
+            for table, attrs in cls.extra_column_attrs.items():
+                all_attrs = all_attrs.union(attrs)
+        if cls.extra_linkers:
+            for table, (ref_table, attr) in cls.extra_linkers.items():
+                all_attrs.add(attr)
+        return all_attrs
 
     @classmethod
     def from_dict(cls, obj_as_dict):

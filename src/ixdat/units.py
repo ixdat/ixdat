@@ -8,7 +8,7 @@ class Unit:
     """TODO: flesh out this class or find an appropriate 3rd-party to use instead"""
 
     def __init__(self, name):
-        self.name = name
+        self.name = name or ""
         self.si_unit = None
         self.si_conversion_factor = None
 

@@ -6,6 +6,7 @@ variable corresponding to the rows of the array. The time variable itself is a s
 case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
+import numpy as np
 from .db import Saveable
 from .units import Unit
 from .exceptions import TimeError, AxisError
@@ -46,6 +47,8 @@ class DataSeries(Saveable):
             return ValueSeries(**obj_as_dict)
         elif "a_ids" in obj_as_dict:
             return Field(**obj_as_dict)
+        elif "value" in obj_as_dict:
+            return ConstantValue(**obj_as_dict)
         return cls(**obj_as_dict)
 
     def __repr__(self):
@@ -63,6 +66,14 @@ class DataSeries(Saveable):
         """The name of the data series' unit"""
         return self.unit.name
 
+    @property
+    def shape(self):
+        return self.data.shape
+
+    @property
+    def size(self):
+        return self.data.size
+
 
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
@@ -77,6 +88,10 @@ class TimeSeries(DataSeries):
         """
         super().__init__(name, unit_name, data)
         self.tstamp = tstamp
+
+    @property
+    def t(self):
+        return self.data
 
     @property
     def tseries(self):
@@ -235,3 +250,23 @@ class Field(DataSeries):
                     f"{len(self._data.shape)}-dimensional."
                 )
         return self._data
+
+
+class ConstantValue(DataSeries):
+    """This is a stand-in for a VSeries for when we know the value is constant"""
+
+    extra_column_attrs = {"constants": {"value"}}
+
+    def __init__(self, name, unit_name, data=None, value=None):
+        super().__init__(name=name, unit_name=unit_name, data=np.array([]))
+        if not np.array(value).size == 1:
+            raise AxisError(
+                f"Can't initiate {self} with data={self.value}. Data must have size 1."
+            )
+        self.value = value
+
+    def get_vseries(self, tseries):
+        data = self.value * np.ones(tseries.data.shape)
+        return ValueSeries(
+            name=self.name, unit_name=self.unit_name, data=data, tseries=tseries
+        )

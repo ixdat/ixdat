@@ -3,21 +3,18 @@
 Demonstrated/tested at the bottom under `if __name__ == "__main__":`
 """
 
+from pathlib import Path
 import re
-import time
 import numpy as np
 
 from . import TECHNIQUE_CLASSES
 from ..data_series import TimeSeries, ValueSeries
 from ..exceptions import ReadError
+from .reading_tools import timestamp_string_to_tstamp
 
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
 delim = "\t"
 t_str = "time/s"
-timestamp_form_strings = [
-    "%m/%d/%Y %H:%M:%S",  # like 07/29/2020 10:31:03
-    "%m-%d-%Y %H:%M:%S",  # like 01-31-2020 10:32:02
-]
 regular_expressions = {
     "N_header_lines": "Nb header lines : (.+)\n",
     "timestamp_string": "Acquisition started on : (.+)\n",
@@ -75,7 +72,7 @@ class BiologicMPTReader:
         self.file_has_been_read = False
         self.measurement = None
 
-    def read(self, path_to_file, name=None, **kwargs):
+    def read(self, path_to_file, name=None, cls=None, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -90,8 +87,13 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
-            **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
+            name (str): The name to use if not the file name
+            cls (Measurement subclass): The Measurement class to return an object of.
+                Defaults to `ECMeasurement` and should probably be a subclass thereof in
+                any case.
+            **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
+        path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
         if self.file_has_been_read:
             print(
                 f"This {self.__class__.__name__} has already read {self.path_to_file}."
@@ -99,9 +101,10 @@ class BiologicMPTReader:
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
-        self.name = name or path_to_file
+        self.name = name or path_to_file.name
         self.path_to_file = path_to_file
-        with open(path_to_file) as f:
+        self.measurement_class = cls or ECMeasurement
+        with open(self.path_to_file, "r", encoding="ISO-8859-1") as f:
             for line in f:
                 self.process_line(line)
         for name in self.column_names:
@@ -130,7 +133,7 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        init_kwargs = dict(
+        obj_as_dict = dict(
             name=self.name,
             technique="EC",
             reader=self,
@@ -138,9 +141,9 @@ class BiologicMPTReader:
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
         )
-        init_kwargs.update(kwargs)
+        obj_as_dict.update(kwargs)
 
-        self.measurement = ECMeasurement(**init_kwargs)
+        self.measurement = self.measurement_class.from_dict(obj_as_dict)
         self.file_has_been_read = True
 
         return self.measurement
@@ -172,7 +175,9 @@ class BiologicMPTReader:
             timestamp_match = re.search(regular_expressions["timestamp_string"], line)
             if timestamp_match:
                 self.timestamp_string = timestamp_match.group(1)
-                self.tstamp = timestamp_string_to_tstamp(self.timestamp_string)
+                self.tstamp = timestamp_string_to_tstamp(
+                    self.timestamp_string, forms=BIOLOGIC_TIMESTAMP_FORMS
+                )
             return
         loop_match = re.search(regular_expressions["loop"], line)
         if loop_match:
@@ -217,6 +222,9 @@ class BiologicMPTReader:
         header = "".join(self.header_lines)
         print(header)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.path_to_file})"
+
 
 def get_column_unit(column_name):
     """Return the unit name of a .mpt column, i.e the part of the name after the '/'"""
@@ -227,26 +235,52 @@ def get_column_unit(column_name):
     return unit_name
 
 
-def timestamp_string_to_tstamp(timestamp_string, form=None):
-    """Return the unix timestamp as a float by parsing timestamp_string
+BIOLOGIC_TIMESTAMP_FORMS = (
+    "%m/%d/%Y %H:%M:%S",  # like 07/29/2020 10:31:03
+    "%m-%d-%Y %H:%M:%S",  # like 01-31-2020 10:32:02
+)
 
-    Args:
-        timestamp_string (str): The timestamp as read in the .mpt file
-        form (str): The format string used by time.strptime (string-parse time)
-            TODO: EC-Lab saves time in a couple different ways based on version and
-                location. In the future this function will need to try multiple forms.
-    """
-    timestamp_forms = ([form] if form else []) + timestamp_form_strings
-    for form in timestamp_forms:
-        try:
-            struct = time.strptime(timestamp_string, form)
-        except ValueError:
-            continue
-        else:
-            break
-
-    tstamp = time.mktime(struct)
-    return tstamp
+# This tuple contains variable names encountered in .mpt files. The tuple can be used by
+#   other modules to tell which data is from biologic.
+BIOLOGIC_COLUMN_NAMES = (
+    "mode",
+    "ox/red",
+    "error",
+    "control changes",
+    "time/s",
+    "control/V",
+    "Ewe/V",
+    "<I>/mA",
+    "(Q-Qo)/C",
+    "P/W",
+    "loop number",
+    "I/mA",
+    "control/mA",
+    "Ns changes",
+    "counter inc.",
+    "cycle number",
+    "Ns",
+    "(Q-Qo)/mA.h",
+    "dQ/C",
+    "Q charge/discharge/mA.h",
+    "half cycle",
+    "Capacitance charge/µF",
+    "Capacitance discharge/µF",
+    "dq/mA.h",
+    "Q discharge/mA.h",
+    "Q charge/mA.h",
+    "Capacity/mA.h",
+    "file number",
+    "file_number",
+    "Ece/V",
+    "Ewe-Ece/V",
+    "<Ece>/V",
+    "<Ewe>/V",
+    "Energy charge/W.h",
+    "Energy discharge/W.h",
+    "Efficiency/%",
+    "Rcmp/Ohm",
+)
 
 
 if __name__ == "__main__":
@@ -258,7 +292,6 @@ if __name__ == "__main__":
         Script path = ...
     """
 
-    from pathlib import Path
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 
@@ -276,10 +309,10 @@ if __name__ == "__main__":
         path_to_file=path_to_test_file,
     )
 
-    t, v = ec_measurement.get_potential(tspan=[0, 100])
+    t, v = ec_measurement.grab_potential(tspan=[0, 100])
 
     ec_measurement.tstamp -= 20
-    t_shift, v_shift = ec_measurement.get_potential(tspan=[0, 100])
+    t_shift, v_shift = ec_measurement.grab_potential(tspan=[0, 100])
 
     fig, ax = plt.subplots()
     ax.plot(t, v, "k", label="original tstamp")
