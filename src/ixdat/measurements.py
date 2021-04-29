@@ -10,9 +10,9 @@ import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, ValueSeries
-from ixdat.projects.samples import Sample
-from ixdat.projects.lablogs import LabLog
-from ixdat.exporters.csv_exporter import CSVExporter
+from .projects.samples import Sample
+from .projects.lablogs import LabLog
+from .exporters.csv_exporter import CSVExporter
 from .exceptions import BuildError, SeriesNotFoundError  # , TechniqueError
 
 
@@ -523,11 +523,9 @@ class Measurement(Saveable):
         if not self._plotter:
             from .plotters import ValuePlotter
 
+            # FIXME: I had to import here to avoid running into circular import issues
+
             self._plotter = ValuePlotter(measurement=self)
-        # self.plot_measurement.__doc__ = self._plotter.plot_measurement.__doc__
-        # self.plot.__doc__ = self._plotter.plot_measurement.__doc__
-        # FIXME: Help! plot_measurement() needs to be wrapped with the plotter's
-        # plot_measu
         return self._plotter
 
     @property

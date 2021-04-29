@@ -1,9 +1,11 @@
 from pathlib import Path
 import re
 import pandas as pd
-from ..data_series import TimeSeries, ValueSeries
+import numpy as np
+from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques.ec_ms import ECMSMeasurement
-from .reading_tools import timestamp_string_to_tstamp
+from ..techniques.ms import MSSpectrum
+from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
 
 ZILIEN_TIMESTAMP_FORM = "%Y-%m-%d %H_%M_%S"  # like 2021-03-15 18_50_10
@@ -92,6 +94,52 @@ def series_list_from_tmp(path_to_file):
     tseries = TimeSeries(name=t_name, unit_name="s", data=t_data, tstamp=tstamp)
     vseries = ValueSeries(name=v_name, unit_name=unit, data=v_data, tseries=tseries)
     return [tseries, vseries]
+
+
+class ZilienSpectrumReader:
+    def __init__(self, path_to_spectrum=None):
+        self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
+
+    def read(self, path_to_spectrum, cls=None, **kwargs):
+        """Make a measurement from all the single-value .tsv files in a Zilien tmp dir
+
+        Args:
+            path_to_tmp_dir (Path or str): the path to the tmp dir
+            cls (Measurement class): Defaults to ECMSMeasurement
+        """
+        if path_to_spectrum:
+            self.path_to_spectrum = Path(path_to_spectrum)
+        cls = cls or MSSpectrum
+        df = pd.read_csv(
+            path_to_spectrum,
+            header=9,
+            delimiter="\t",
+        )
+        x_name = "Mass  [AMU]"
+        y_name = "Current [A]"
+        x = df[x_name].to_numpy()
+        y = df[y_name].to_numpy()
+        with open(self.path_to_spectrum, "r") as f:
+            for i in range(10):
+                line = f.readline()
+                if "Mass scan started at [s]" in line:
+                    tstamp_match = re.search(FLOAT_MATCH, line)
+                    tstamp = float(tstamp_match.group())
+        xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
+        tseries = TimeSeries(
+            data=np.array([0]), name="spectrum time / [s]", unit_name="s", tstamp=tstamp
+        )
+        field = Field(
+            data=y, name=y_name, unit_name="A", axes_series=[xseries, tseries]
+        )
+        obj_as_dict = {
+            "name": path_to_spectrum.name,
+            "technique": "MS",
+            "field": field,
+            "reader": self,
+        }
+        obj_as_dict.update(kwargs)
+        return cls.from_dict(obj_as_dict)
 
 
 if __name__ == "__main__":

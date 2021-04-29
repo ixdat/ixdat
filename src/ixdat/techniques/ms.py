@@ -1,6 +1,7 @@
 """Module for representation and analysis of MS measurements"""
 
 from ..measurements import Measurement
+from ..spectra import Spectrum
 from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
 from ..exceptions import SeriesNotFoundError, QuantificationError
 from ..constants import (
@@ -413,3 +414,11 @@ class MSInlet:
             cal_type="gas_flux_calibration",
             F=F,
         )
+
+
+class MSSpectrum(Spectrum):
+    """Nothing to add to normal spectrum yet.
+    TODO: Methods for co-plotting ref spectra from a database
+    """
+
+    pass

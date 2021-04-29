@@ -20,7 +20,7 @@ from .pfeiffer import PVMassSpecReader
 from .cinfdata import CinfdataTXTReader
 
 # ec-ms
-from .zilien import ZilienTSVReader, ZilienTMPReader
+from .zilien import ZilienTSVReader, ZilienTMPReader, ZilienSpectrumReader
 from .ec_ms_pkl import EC_MS_CONVERTER
 
 READER_CLASSES = {
@@ -32,5 +32,6 @@ READER_CLASSES = {
     "cinfdata": CinfdataTXTReader,
     "zilien": ZilienTSVReader,
     "zilien_tmp": ZilienTMPReader,
+    "zilien_spec": ZilienSpectrumReader,
     "EC_MS": EC_MS_CONVERTER,
 }

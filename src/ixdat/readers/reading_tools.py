@@ -10,6 +10,7 @@ from ..measurements import TimeSeries, ValueSeries
 
 STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'
 USA_TIMESTAMP_FORM = "%m/%d/%Y %H:%M:%S"  # like '12/31/2020 23:59:59'
+FLOAT_MATCH = "[-]?\\d+[\\.]?\\d*(?:e[-]?\\d+)?"  # matches floats like '5' or '-2.3e5'
 
 
 def timestamp_string_to_tstamp(

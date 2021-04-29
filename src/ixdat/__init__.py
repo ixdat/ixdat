@@ -1,6 +1,6 @@
 """initialize ixdat, giving top-level access to a few of the important structures
 """
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __title__ = "ixdat"
 __description__ = "The in-situ experimental data tool"
 __url__ = "https://github.com/ixdat/ixdat"
@@ -10,6 +10,7 @@ __email__ = "scott.soren@gmail.com"  # maybe we should get an orgianization emai
 __license__ = "MIT"
 
 from .measurements import Measurement
+from .spectra import Spectrum
 from . import db
 from . import techniques
 from . import plotters
