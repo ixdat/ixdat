@@ -97,15 +97,21 @@ def series_list_from_tmp(path_to_file):
 
 
 class ZilienSpectrumReader:
+    """A reader for individual Zilien spectra
+    TODO: A Zilien reader which loads all spectra at once in a SpectrumSeries object
+    """
+
     def __init__(self, path_to_spectrum=None):
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
     def read(self, path_to_spectrum, cls=None, **kwargs):
         """Make a measurement from all the single-value .tsv files in a Zilien tmp dir
+        FIXME: This reader was written hastily and could be designed better.
 
         Args:
             path_to_tmp_dir (Path or str): the path to the tmp dir
-            cls (Measurement class): Defaults to ECMSMeasurement
+            cls (Spectrum class): Defaults to MSSpectrum
+            kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         if path_to_spectrum:
             self.path_to_spectrum = Path(path_to_spectrum)
@@ -130,7 +136,10 @@ class ZilienSpectrumReader:
             data=np.array([0]), name="spectrum time / [s]", unit_name="s", tstamp=tstamp
         )
         field = Field(
-            data=y, name=y_name, unit_name="A", axes_series=[xseries, tseries]
+            data=np.array([y]),
+            name=y_name,
+            unit_name="A",
+            axes_series=[xseries, tseries],
         )
         obj_as_dict = {
             "name": path_to_spectrum.name,
