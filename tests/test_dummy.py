@@ -5,7 +5,7 @@ def test_dummy():
     pass
 
 
-def dont_test_blank_measurement():  # FIXME: tox can't handle matplotlib
+def test_blank_measurement():  # FIXME: tox can't handle matplotlib
 
     from ixdat.measurements import Measurement
 
