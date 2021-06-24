@@ -195,7 +195,8 @@ the development tools, so that will have to be set manually.
 
 First we should locate the path of the tools. In case a separate
 virtual environment is used, located e.g. in ``c:\venv\ixdat``, then
-``c:\venv\ixdat\Scripts`` will be the path of tools. TODO anaconda.
+``c:\venv\ixdat\Scripts`` will be the path of tools. If you are
+using conda, look below.
 
 Having found the path of the tools it needs to be added to the Bash
 configuration file like so::
@@ -227,6 +228,34 @@ Bash shell, navigation to the git archive and executing the command::
    py39: commands succeeded
    flake8: commands succeeded
    congratulations :)
+
+Anaconda Instructions
+---------------------
+
+If you are using Conda (Anaconda/Minicond) with windows, you will need to
+add two directories to your system PATH variable. See explanation of the PATH
+variable `here <https://superuser.com/questions/284342/what-are-path-and-other-environment-variables-and-how-can-i-set-or-use-them>`_
+
+For a full Anaconda installation with the default location for User "scott",
+the two paths to
+
+- C:\Users\scott\Anaconda3\Scripts
+- C:\Users\scott\Anaconda3
+
+After adding these to your PATH variable, they should appear in $PATH in git bash.
+To check, type::
+
+  echo $PATH
+
+in git bash and see if they appear in the output. Once that is there you should
+be able to run tox and the other tools and tool runners from git bash just by e.g.::
+
+  $ tox
+
+, and it should work in a pre-push hook.
+
+NOTE: There can be bugs. See https://github.com/ixdat/ixdat/issues/10
+
 
 Command quick tips
 ==================

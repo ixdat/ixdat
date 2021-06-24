@@ -9,6 +9,10 @@ def test_blank_measurement():  # FIXME: tox can't handle matplotlib
 
     from ixdat.measurements import Measurement
 
+    import matplotlib
+
+    print(f"mpl version is {matplotlib.__version__}")
+
     meas = Measurement(
         name="blank",
     )
@@ -18,4 +22,4 @@ def test_blank_measurement():  # FIXME: tox can't handle matplotlib
 
 if __name__ == "__main__":
     test_dummy()
-    # test_blank_measurement()
+    test_blank_measurement()
