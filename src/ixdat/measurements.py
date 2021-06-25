@@ -226,8 +226,8 @@ class Measurement(Saveable):
         """List of the TSeries in the measurement's DataSeries. NOT timeshifted!"""
         return [series for series in self.series_list if isinstance(series, TimeSeries)]
 
-    def __getitem__(self, item):
-        """Return the built measurement DataSeries with its name specified by item
+    def __getitem__(self, key):
+        """Return the built measurement DataSeries with its name specified by key
 
         The item is interpreted as the name of a series. VSeries names can have "-v"
         or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
@@ -238,20 +238,26 @@ class Measurement(Saveable):
         Args:
             item (str): The name of a DataSeries (see above)
         """
-        ss = [s for s in self.series_list if s.name == item]
-        if len(ss) == 1:
-            s = ss[0]
-        elif len(ss) > 1:
-            s = append_series(ss)
-        elif item[-2:] in ["-t", "-x", "-v", "-y"]:
-            ss = [s for s in self.series_list if s.name == item[:-2]]
-            if len(ss) == 1:
-                s = ss[0]
-            else:
-                s = append_series(ss)
+        if key in self._cached_series:
+            return self._cached_series[key]
+        for calibration in self._calibration_list:
+            series = calibration.calibrate_series(key, measurement=self)
+            # ^ the calibration will call this __getitem__ with the name of the
+            #   corresponding raw data and return a new series with calibrated data
+            #   if possible. Otherwise it will return None.
+            if series:
+                self._cached_series[key] = series
+                return series
+        # only if the requested series name is neither cached nor the name of
+        #   a calibrated series do we go into raw data:
+        if key in self._aliases:
+            keys = self._aliases[key]
         else:
-            raise SeriesNotFoundError(f"{self} has no series called {item}")
-        return time_shifted(s, self.tstamp)
+            keys = [key]
+        series_to_append = [s for s in self.series_list if s.name in keys]
+        series = append_series(series_to_append, tstamp=self.tstamp)
+        self._cached_series[key] = series
+        return series
 
     def __setitem__(self, series_name, series):
         """Append `series` with name=`series_name` to `series_list` and remove others."""
