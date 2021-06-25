@@ -262,14 +262,9 @@ if __name__ == "__main__":
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 
-    test_data_dir = (
-        Path(__file__).parent.parent.parent.parent
-        / "test_data/biologic_mpt_and_zilien_tsv"
-    )
+    test_data_dir = Path(__file__).parent.parent.parent.parent / "test_data/biologic"
 
-    path_to_test_file = (
-        test_data_dir / "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"
-    )
+    path_to_test_file = test_data_dir / "Pt_poly_cv.mpt"
 
     ec_measurement = Measurement.read(
         reader="biologic",
