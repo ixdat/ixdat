@@ -33,7 +33,7 @@ class ValuePlotter:
 
         for v_name in v_list:
             try:
-                v, t = measurement.get_t_and_v(v_name, tspan=tspan)
+                v, t = measurement.grab(v_name, tspan=tspan)
             except SeriesNotFoundError as e:
                 print(f"WARNING!!! {e}")
                 continue

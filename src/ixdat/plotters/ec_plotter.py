@@ -57,8 +57,8 @@ class ECPlotter:
         J_str = J_str or (
             measurement.J_str if measurement.A_el is not None else measurement.I_str
         )
-        t_v, v = measurement.get_t_and_v(V_str, tspan=tspan)
-        t_j, j = measurement.get_t_and_v(J_str, tspan=tspan)
+        t_v, v = measurement.grab(V_str, tspan=tspan)
+        t_j, j = measurement.grab(J_str, tspan=tspan)
         if axes:
             ax1, ax2 = axes
         else:
@@ -111,8 +111,8 @@ class ECPlotter:
         J_str = J_str or (
             measurement.J_str if measurement.A_el is not None else measurement.I_str
         )
-        t_v, v = measurement.get_t_and_v(V_str, tspan=tspan)
-        t_j, j = measurement.get_t_and_v(J_str, tspan=tspan)
+        t_v, v = measurement.grab(V_str, tspan=tspan)
+        t_j, j = measurement.grab(J_str, tspan=tspan)
 
         j_v = np.interp(t_v, t_j, j)
         if not ax:

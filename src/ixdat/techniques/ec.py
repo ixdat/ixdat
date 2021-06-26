@@ -461,7 +461,7 @@ class ECMeasurement(Measurement):
         """Return the time [s] and potential [V] vectors cut by tspan
 
         TODO: I think this is identical, now that __getitem__ finds potential, to
-            self.get_t_and_v("potential", tspan=tspan)
+            self.grab("potential", tspan=tspan)
         """
         t = self.potential.t.copy()
         v = self.potential.data.copy()

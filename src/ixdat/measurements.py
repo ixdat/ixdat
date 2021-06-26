@@ -1,9 +1,13 @@
-"""This module defines the Dataset class, the central data structure of ixdat
+"""This module defines the Measurement class, the central data structure of ixdat
 
-An ixdat Dataset is a collection of references to DataSeries with the metadata required
+An ixdat Measurement is a collection of references to DataSeries with the metadata required
 to combine them, i.e. "build" the combined dataset. It has a number of general methods
-to visualize and analyze the combined dataset. Dataset is also the base class for a
-number of technique-specific Dataset-derived classes.
+to visualize and analyze the combined dataset. Measurement is also the base class for a
+number of technique-specific Measurement-derived classes.
+
+A Measurement will typically be accompanied by one or more Calibration. This module
+also defines the base class for Calibration, while technique-specific Calibration
+classes will be defined in the corresponding module in ./techniques/
 """
 import json
 import numpy as np
@@ -12,7 +16,7 @@ from .data_series import DataSeries, TimeSeries, ValueSeries, append_series
 from .samples import Sample
 from .lablogs import LabLog
 from ixdat.exporters.csv_exporter import CSVExporter
-from .exceptions import BuildError, SeriesNotFoundError  # , TechniqueError
+from .exceptions import BuildError, SeriesNotFoundError
 
 
 class Measurement(Saveable):
@@ -101,6 +105,7 @@ class Measurement(Saveable):
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
         self.plot = self.plotter.plot_measurement
+        self.export = self.exporter.export
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -169,6 +174,38 @@ class Measurement(Saveable):
             return self.sample.name
 
     @property
+    def component_measurements(self):
+        """List of the component measurements of which this measurement is a combination
+
+        For a pure measurement (not a measurement set), this is itself in a list.
+        """
+        if not self._component_measurements:
+            return [self]
+        for i, m in enumerate(self._component_measurements):
+            if isinstance(m, PlaceHolderObject):
+                self._component_measurements[i] = m.get_object()
+        return self._component_measurements
+
+    @property
+    def m_ids(self):
+        """List of the id's of a combined measurement's component measurements"""
+        if not self._component_measurements:
+            return None
+        return [m.id for m in self._component_measurements]
+
+    @property
+    def calibration_list(self):
+        for i, c in enumerate(self._calibration_list):
+            if isinstance(c, PlaceHolderObject):
+                self._calibration_list[i] = c.get_object()
+        return self._calibration_list
+
+    @property
+    def c_ids(self):
+        """List of the id's of the measurement's Calibrations"""
+        return [c.id for c in self._calibration_list]
+
+    @property
     def series_list(self):
         """List of the DataSeries containing the measurement's data"""
         for i, s in enumerate(self._series_list):
@@ -177,36 +214,9 @@ class Measurement(Saveable):
         return self._series_list
 
     @property
-    def data_objects(self):
-        """This is what the DB backend knows to save separately, here the series"""
-        return self.series_list
-
-    @property
-    def component_measurements(self):
-        """List of the component measurements of which this measurement is a combination
-
-        For a pure measurement (not a measurement set), this is itself in a list.
-        """
-        if not self._component_measurements:
-            return [
-                self,
-            ]
-        for i, m in enumerate(self._component_measurements):
-            if isinstance(m, PlaceHolderObject):
-                self._component_measurements[i] = m.get_object()
-        return self._component_measurements
-
-    @property
     def s_ids(self):
         """List of the id's of the measurement's DataSeries"""
         return [series.id for series in self._series_list]
-
-    @property
-    def m_ids(self):
-        """List of the id's of a combined measurement's component measurements"""
-        if not self._component_measurements:
-            return None
-        return [m.id for m in self._component_measurements]
 
     @property
     def series_dict(self):
@@ -264,12 +274,17 @@ class Measurement(Saveable):
         else:
             keys = [key]
         series_to_append = [s for s in self.series_list if s.name in keys]
+        if not series_to_append:  # check if it's because they're using a suffix:
+            if key.endswith("-t") or key.endswith("-x"):
+                return self[key[:-2]].tseries
+            if key.endswith("-v") or key.endswith("-y"):
+                return self[key[:-2]]
         series = append_series(series_to_append, tstamp=self.tstamp)
         self._cached_series[key] = series
         return series
 
     def __setitem__(self, series_name, series):
-        """Append `series` with name=`series_name` to `series_list` and remove others."""
+        """Append `series` with name=`series_name` to `series_list` and remove others"""
         if not series.name == series_name:
             raise SeriesNotFoundError(
                 f"Can't set {self}[{series_name}] = {series}. Series names don't agree."
@@ -285,7 +300,7 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
-    def get_t_and_v(self, item, tspan=None):
+    def grab(self, item, tspan=None):
         """Return the time and value vectors for a given VSeries name cut by tspan"""
         vseries = self[item]
         tseries = vseries.tseries
@@ -308,10 +323,6 @@ class Measurement(Saveable):
             from .plotters import ValuePlotter
 
             self._plotter = ValuePlotter(measurement=self)
-        # self.plot_measurement.__doc__ = self._plotter.plot_measurement.__doc__
-        # self.plot.__doc__ = self._plotter.plot_measurement.__doc__
-        # FIXME: Help! plot_measurement() needs to be wrapped with the plotter's
-        # plot_measu
         return self._plotter
 
     @property
@@ -320,12 +331,6 @@ class Measurement(Saveable):
         if not self._exporter:
             self._exporter = CSVExporter(measurement=self)
         return self._exporter
-
-    def export(self, *args, exporter=None, **kwargs):
-        """Export the measurement using its exporter (see its Exporter for details)"""
-        if exporter:
-            return exporter.export_measurement(self, *args, **kwargs)
-        return self.exporter.export(*args, **kwargs)
 
     def get_original_m_id_of_series(self, series):
         """Return the id(s) of component measurements to which `series` belongs."""
@@ -428,7 +433,7 @@ class Measurement(Saveable):
         new_measurement = self
         ((series_name, value),) = kwargs.items()
 
-        t, v = self.get_t_and_v(series_name)
+        t, v = self.grab(series_name)
         mask = v == value  # linter doesn't realize this is a np array
         mask_prev = np.append(False, mask[:-1])
         mask_next = np.append(mask[1:], False)
@@ -519,7 +524,6 @@ class Measurement(Saveable):
         Note also that there is no difference between hyphenating (simultaneous EC and
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
-        TODO: Make sure with tests this is okay, differentiate using | operator if not.
         """
         obj_as_dict = self.as_dict()
         new_name = self.name + " AND " + other.name
@@ -548,12 +552,8 @@ class Measurement(Saveable):
         return cls.from_dict(obj_as_dict)
 
 
-class Calibration:
-    pass
-
-
-#  ------- Now come a few module-level functions for series manipulation ---------
-# TODO: move to an `ixdat.build` module or similar.
-#   There's a lot of stuff that should go there. Basically anything in ECMeasurement
-#   that can be reasonably converted to a module level function to decrease the
-#   awkwardness there.
+class Calibration(Saveable):
+    table_name = "calibration"
+    column_attrs = {
+        "tspan",
+    }
