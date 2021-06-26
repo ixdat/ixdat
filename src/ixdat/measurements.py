@@ -7,8 +7,8 @@ number of technique-specific Dataset-derived classes.
 """
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject
-from .data_series import DataSeries, TimeSeries, ValueSeries
+from .db import Saveable, PlaceHolderObject, fill_object_list
+from .data_series import DataSeries, TimeSeries, ValueSeries, append_series
 from .samples import Sample
 from .lablogs import LabLog
 from ixdat.exporters.csv_exporter import CSVExporter
@@ -27,8 +27,9 @@ class Measurement(Saveable):
         "tstamp",
     }
     extra_linkers = {
-        "measurement_series": ("data_series", "s_ids"),
         "component_measurements": ("measurements", "m_ids"),
+        "measurement_calibrations": ("calibration", "c_ids"),
+        "measurement_series": ("data_series", "s_ids"),
     }
 
     def __init__(
@@ -38,6 +39,8 @@ class Measurement(Saveable):
         metadata=None,
         s_ids=None,
         series_list=None,
+        c_ids=None,
+        calibration_list=None,
         m_ids=None,
         component_measurements=None,
         reader=None,
@@ -86,8 +89,14 @@ class Measurement(Saveable):
         self._component_measurements = fill_object_list(
             component_measurements, m_ids, cls=Measurement
         )
+        self._calibration_list = fill_object_list(
+            calibration_list, c_ids, cls=Calibration
+        )
         self.tstamp = tstamp
         self.sel_str = None  # the default thing to select on.
+
+        self._cached_series = {}
+        self._aliases = {}
 
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
@@ -539,134 +548,12 @@ class Measurement(Saveable):
         return cls.from_dict(obj_as_dict)
 
 
+class Calibration:
+    pass
+
+
 #  ------- Now come a few module-level functions for series manipulation ---------
 # TODO: move to an `ixdat.build` module or similar.
 #   There's a lot of stuff that should go there. Basically anything in ECMeasurement
 #   that can be reasonably converted to a module level function to decrease the
 #   awkwardness there.
-
-
-def append_series(series_list, sorted=True, tstamp=None):
-    """Return series appending series_list relative to series_list[0].tseries.tstamp
-
-    Args:
-        series_list (list of Series): The series to append (must all be of same type)
-        sorted (bool): Whether to sort the data so that time only goes forward
-        tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
-    """
-    s0 = series_list[0]
-    if isinstance(s0, TimeSeries):
-        return append_tseries(series_list, sorted=sorted, tstamp=tstamp)
-    elif isinstance(s0, ValueSeries):
-        return append_vseries_by_time(series_list, sorted=sorted, tstamp=tstamp)
-    raise BuildError(
-        f"An algorithm of append_series for series like {s0} is not yet implemented"
-    )
-
-
-def append_vseries_by_time(series_list, sorted=True, tstamp=None):
-    """Return new ValueSeries with the data in series_list appended
-
-    Args:
-        series_list (list of ValueSeries): The value series to append
-        sorted (bool): Whether to sort the data so that time only goes forward
-        tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
-    """
-    name = series_list[0].name
-    cls = series_list[0].__class__
-    unit = series_list[0].unit
-    data = np.array([])
-    tseries_list = [s.tseries for s in series_list]
-    tseries, sort_indeces = append_tseries(
-        tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
-    )
-
-    for s in series_list:
-        if not (s.unit == unit and s.__class__ == cls):
-            raise BuildError(f"can't append {series_list}")
-        data = np.append(data, s.data)
-    if sorted:
-        data = data[sort_indeces]
-
-    return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
-
-
-def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=None):
-    """Return new TimeSeries with the data appended.
-
-    Args:
-        series_list (list of TimeSeries): The time series to append
-        sorted (bool): Whether to sort the data so that time only goes forward
-        return_sort_indeces (bool): Whether to return the indeces that sort the data
-        tstamp (unix tstamp): The t=0 of the returned TimeSeries.
-    """
-    name = series_list[0].name
-    cls = series_list[0].__class__
-    unit = series_list[0].unit
-    tstamp = tstamp or series_list[0].tstamp
-    data = np.array([])
-
-    for s in series_list:
-        if not (s.unit == unit and s.__class__ == cls):
-            raise BuildError(f"can't append {series_list}")
-        data = np.append(data, s.data + s.tstamp - tstamp)
-
-    if sorted:
-        sort_indices = np.argsort(data)
-        data = data[sort_indices]
-    else:
-        sort_indices = None
-
-    tseries = cls(name=name, unit_name=unit.name, data=data, tstamp=tstamp)
-    if return_sort_indeces:
-        return tseries, sort_indices
-    return tseries
-
-
-def fill_object_list(object_list, obj_ids, cls=None):
-    """Add PlaceHolderObjects to object_list for any unrepresented obj_ids.
-
-    Args:
-        object_list (list of objects or None): The objects already known,
-            in a list. This is the list to be appended to. If None, an empty
-            list will be appended to.
-        obj_ids (list of ints or None): The id's of objects to ensure are in
-            the list. Any id in obj_ids not already represented in object_list
-            is added to the list as a PlaceHolderObject
-        cls (Saveable class): the class remembered by any PlaceHolderObjects
-            added to the object_list, so that eventually the right object will
-            be loaded.
-    """
-    cls = cls or object_list[0].__class__
-    object_list = object_list or []
-    provided_series_ids = [s.id for s in object_list]
-    if not obj_ids:
-        return object_list
-    for i in obj_ids:
-        if i not in provided_series_ids:
-            object_list.append(PlaceHolderObject(i=i, cls=cls))
-    return object_list
-
-
-def time_shifted(series, tstamp=None):
-    """Return a series with the time shifted to be relative to tstamp"""
-    if tstamp is None:
-        return series
-    if tstamp == series.tstamp:
-        return series
-    cls = series.__class__
-    if isinstance(series, TimeSeries):
-        return cls(
-            name=series.name,
-            unit_name=series.unit.name,
-            data=series.data + series.tstamp - tstamp,
-            tstamp=tstamp,
-        )
-    elif isinstance(series, ValueSeries):
-        series = cls(
-            name=series.name,
-            unit_name=series.unit.name,
-            data=series.data,
-            tseries=time_shifted(series.tseries, tstamp=tstamp),
-        )
-    return series

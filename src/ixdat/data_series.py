@@ -9,7 +9,7 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 import numpy as np
 from .db import Saveable
 from .units import Unit
-from .exceptions import TimeError, AxisError
+from .exceptions import TimeError, AxisError, BuildError
 
 
 class DataSeries(Saveable):
@@ -270,3 +270,104 @@ class ConstantValue(DataSeries):
         return ValueSeries(
             name=self.name, unit_name=self.unit_name, data=data, tseries=tseries
         )
+
+
+def append_series(series_list, sorted=True, tstamp=None):
+    """Return series appending series_list relative to series_list[0].tseries.tstamp
+
+    Args:
+        series_list (list of Series): The series to append (must all be of same type)
+        sorted (bool): Whether to sort the data so that time only goes forward
+        tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
+    """
+    s0 = series_list[0]
+    if isinstance(s0, TimeSeries):
+        return append_tseries(series_list, sorted=sorted, tstamp=tstamp)
+    elif isinstance(s0, ValueSeries):
+        return append_vseries_by_time(series_list, sorted=sorted, tstamp=tstamp)
+    raise BuildError(
+        f"An algorithm of append_series for series like {s0} is not yet implemented"
+    )
+
+
+def append_vseries_by_time(series_list, sorted=True, tstamp=None):
+    """Return new ValueSeries with the data in series_list appended
+
+    Args:
+        series_list (list of ValueSeries): The value series to append
+        sorted (bool): Whether to sort the data so that time only goes forward
+        tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
+    """
+    name = series_list[0].name
+    cls = series_list[0].__class__
+    unit = series_list[0].unit
+    data = np.array([])
+    tseries_list = [s.tseries for s in series_list]
+    tseries, sort_indeces = append_tseries(
+        tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
+    )
+
+    for s in series_list:
+        if not (s.unit == unit and s.__class__ == cls):
+            raise BuildError(f"can't append {series_list}")
+        data = np.append(data, s.data)
+    if sorted:
+        data = data[sort_indeces]
+
+    return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
+
+
+def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=None):
+    """Return new TimeSeries with the data appended.
+
+    Args:
+        series_list (list of TimeSeries): The time series to append
+        sorted (bool): Whether to sort the data so that time only goes forward
+        return_sort_indeces (bool): Whether to return the indeces that sort the data
+        tstamp (unix tstamp): The t=0 of the returned TimeSeries.
+    """
+    name = series_list[0].name
+    cls = series_list[0].__class__
+    unit = series_list[0].unit
+    tstamp = tstamp or series_list[0].tstamp
+    data = np.array([])
+
+    for s in series_list:
+        if not (s.unit == unit and s.__class__ == cls):
+            raise BuildError(f"can't append {series_list}")
+        data = np.append(data, s.data + s.tstamp - tstamp)
+
+    if sorted:
+        sort_indices = np.argsort(data)
+        data = data[sort_indices]
+    else:
+        sort_indices = None
+
+    tseries = cls(name=name, unit_name=unit.name, data=data, tstamp=tstamp)
+    if return_sort_indeces:
+        return tseries, sort_indices
+    return tseries
+
+
+def time_shifted(series, tstamp=None):
+    """Return a series with the time shifted to be relative to tstamp"""
+    if tstamp is None:
+        return series
+    if tstamp == series.tstamp:
+        return series
+    cls = series.__class__
+    if isinstance(series, TimeSeries):
+        return cls(
+            name=series.name,
+            unit_name=series.unit.name,
+            data=series.data + series.tstamp - tstamp,
+            tstamp=tstamp,
+        )
+    elif isinstance(series, ValueSeries):
+        series = cls(
+            name=series.name,
+            unit_name=series.unit.name,
+            data=series.data,
+            tseries=time_shifted(series.tseries, tstamp=tstamp),
+        )
+    return series

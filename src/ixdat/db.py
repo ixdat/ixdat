@@ -24,7 +24,6 @@ Note on terminology:
 from .exceptions import DataBaseError
 from .backends import DATABASE_BACKENDS
 
-
 MemoryBackend = DATABASE_BACKENDS["memory"]  # The default for a local not-yet-saved obj
 memory_backend = MemoryBackend()  # The backend to assign id's for in-memory objects
 DirBackend = DATABASE_BACKENDS["directory"]  # The default backend for saving
@@ -264,3 +263,28 @@ class PlaceHolderObject:
     def get_object(self):
         """Return the loaded real object represented by the PlaceHolderObject"""
         return self.cls.get(self.id)
+
+
+def fill_object_list(object_list, obj_ids, cls=None):
+    """Add PlaceHolderObjects to object_list for any unrepresented obj_ids.
+
+    Args:
+        object_list (list of objects or None): The objects already known,
+            in a list. This is the list to be appended to. If None, an empty
+            list will be appended to.
+        obj_ids (list of ints or None): The id's of objects to ensure are in
+            the list. Any id in obj_ids not already represented in object_list
+            is added to the list as a PlaceHolderObject
+        cls (Saveable class): the class remembered by any PlaceHolderObjects
+            added to the object_list, so that eventually the right object will
+            be loaded.
+    """
+    cls = cls or object_list[0].__class__
+    object_list = object_list or []
+    provided_series_ids = [s.id for s in object_list]
+    if not obj_ids:
+        return object_list
+    for i in obj_ids:
+        if i not in provided_series_ids:
+            object_list.append(PlaceHolderObject(i=i, cls=cls))
+    return object_list
