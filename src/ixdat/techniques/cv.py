@@ -1,7 +1,6 @@
 import numpy as np
 from .ec import ECMeasurement
 from ..data_series import ValueSeries
-from ..exceptions import SeriesNotFoundError
 
 
 class CyclicVoltammagram(ECMeasurement):

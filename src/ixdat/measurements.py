@@ -1,6 +1,6 @@
 """This module defines the Measurement class, the central data structure of ixdat
 
-An ixdat Measurement is a collection of references to DataSeries with the metadata required
+An ixdat Measurement is a collection of references to DataSeries with the metadata needed
 to combine them, i.e. "build" the combined dataset. It has a number of general methods
 to visualize and analyze the combined dataset. Measurement is also the base class for a
 number of technique-specific Measurement-derived classes.
@@ -45,7 +45,7 @@ class Measurement(Saveable):
         "measurement_series": ("data_series", "s_ids"),
     }
 
-    # ---- measurement class attributes, can be overwritten in inheriting classes -----
+    # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
     control_technique = None
     """Name of technique primarily used to control the experiment"""
     control_str = None
@@ -59,7 +59,7 @@ class Measurement(Saveable):
         "file_number": "_build_file_number",
         "selector": "_build_selector",
     }
-    """Series which should be constructed from other series by the specified method 
+    """Series which should be constructed from other series by the specified method
     and cached the first time they are looked up"""
     default_plotter_class = ValuePlotter
     default_exporter_class = CSVExporter
@@ -290,19 +290,21 @@ class Measurement(Saveable):
 
         The item is interpreted as the name of a series. VSeries names can have "-v"
         or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
-        get instead its corresponding TSeries. In any case, if there are more than one
-        series with the name specified by item, they are appended. The timestamp is
-        always shifted to the measurement's tstamp
+        get instead its corresponding TSeries.
+        The measurement also checks its `aliases` for other name(s) which may refer to
+        what is being looked up.
+        If there are more than one series with the name(s) specified, they are appended.
+        The timestamp is always shifted to the measurement's tstamp.
 
         Args:
-            item (str): The name of a DataSeries (see above)
+            key (str): The name of a DataSeries (see above)
         """
         if key in self._cached_series:
             return self._cached_series[key]
         if key in self.series_constructors:
             series = getattr(self, self.series_constructors[key])()
         else:
-            for calibration in self._calibration_list:
+            for calibration in self.calibration_list:
                 series = calibration.calibrate_series(key, measurement=self)
                 # ^ the calibration will call this __getitem__ with the name of the
                 #   corresponding raw data and return a new series with calibrated data
@@ -356,6 +358,9 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
+    def clear_cache(self):
+        self._cached_series = {}
+
     def grab(self, item, tspan=None):
         """Return the time and value vectors for a given VSeries name cut by tspan"""
         vseries = self[item]
@@ -402,9 +407,10 @@ class Measurement(Saveable):
         col_list = col_list or self.select_on
         for col in col_list:
             try:
-                values = self[col].data
+                vseries = self[col]
             except SeriesNotFoundError:
                 continue
+            values = vseries.data
             if len(values) == 0:
                 print("WARNING: " + col + " is empty")
                 continue
@@ -420,9 +426,13 @@ class Measurement(Saveable):
             name=sel_str,
             unit_name="",
             data=selector,
-            tseries=self.potential.tseries,
+            tseries=self[self.control_str].tseries,
         )
         return selector_series
+
+    @property
+    def selector(self):
+        return self[self.sel_str]
 
     @property
     def data_cols(self):
@@ -513,6 +523,8 @@ class Measurement(Saveable):
                     new_series_list.append(new_series)
         obj_as_dict["series_list"] = new_series_list
         del obj_as_dict["s_ids"]
+        obj_as_dict["calibration_list"] = self.calibration_list
+        del obj_as_dict["c_ids"]
         new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement
 
@@ -652,14 +664,25 @@ class Measurement(Saveable):
         else:
             cls = Measurement
 
-        new_series_list = self.series_list + other.series_list
-        new_component_measurements = (
-            self.component_measurements + other.component_measurements
+        new_series_list = list(set(self.series_list + other.series_list))
+        new_component_measurements = list(
+            set(self.component_measurements + other.component_measurements)
         )
+        new_calibration_list = list(
+            set(self._calibration_list + other._calibration_list)
+        )
+        new_aliases = self.aliases.copy()
+        for key, names in other.aliases.items():
+            if key in new_aliases:
+                new_aliases[key] = list(set(new_aliases[key] + other.aliases[key]))
+            else:
+                new_aliases[key] = other.aliases[key]
         obj_as_dict.update(
             name=new_name,
             series_list=new_series_list,
             component_measurements=new_component_measurements,
+            calibration_list=new_calibration_list,
+            aliases=new_aliases,
         )
         return cls.from_dict(obj_as_dict)
 
@@ -667,5 +690,12 @@ class Measurement(Saveable):
 class Calibration(Saveable):
     table_name = "calibration"
     column_attrs = {
-        "tspan",
+        "name",
+        "tstamp",
     }
+
+    def __init__(self, name=None, tstamp=None, measurement=None):
+        super().__init__()
+        self.name = name or f"{self.__class__.__name__}({measurement})"
+        self.tstamp = tstamp or (measurement.tstamp if measurement else None)
+        self.measurement = measurement

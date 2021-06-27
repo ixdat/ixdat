@@ -2,9 +2,8 @@
 
 import numpy as np
 
-from ..measurements import Measurement, append_series
-from ..data_series import ValueSeries, ConstantValue, time_shifted
-from ..exceptions import SeriesNotFoundError
+from ..measurements import Measurement, Calibration
+from ..data_series import ValueSeries, ConstantValue  # Shouldn't be needed here.
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
 
@@ -26,7 +25,7 @@ class ECMeasurement(Measurement):
         so that e.g. current can be seamlessly normalized to mass OR area.
 
     The main job of this class is making sure that the ValueSeries most essential for
-    visualizing and normal electrochemistry measurements (i.e. excluding impedance spec.,
+    visualizing and normal electrochemistry measurements (i.e. excluding impedance spec,
     RRDE, etc, which would need new classes) are always available in the correct form as
     the measurement is added with others, reduced to a selection, calibrated and
     normalized, etc. These most important ValueSeries are:
@@ -157,9 +156,7 @@ class ECMeasurement(Measurement):
 
         self.ec_technique = ec_technique
 
-        self.RE_vs_RHE = RE_vs_RHE
-        self.R_Ohm = R_Ohm
-        self.A_el = A_el
+        self.calibrate(RE_vs_RHE, A_el, R_Ohm)
 
         self.V_str = EC_FANCY_NAMES["potential"]
         self.J_str = EC_FANCY_NAMES["current"]
@@ -167,11 +164,6 @@ class ECMeasurement(Measurement):
         self.I_str = EC_FANCY_NAMES["raw_current"]
 
         self.plot_vs_potential = self.plotter.plot_vs_potential
-
-        self._raw_potential = None
-        self._raw_current = None
-        self._selector = None
-        self._file_number = None
 
     def _populate_constants(self):
         """Replace any ConstantValues with ValueSeries on potential's tseries
@@ -193,87 +185,108 @@ class ECMeasurement(Measurement):
         a.update({value: [key] for (key, value) in EC_FANCY_NAMES.items()})
         return a
 
-    def calibrate(self, RE_vs_RHE=None, A_el=None, R_Ohm=None):
+    @property
+    def calibration_list(self):
+        """The list of calibrations of the measurement"""
+        full_calibration_list = super().calibration_list
+        # The following is necessary to ensure that all EC Calibration parameters are
+        # joined in a single calibration when processing. So that "potential" is both
+        # calibrated to RHE and ohmic drop corrected, even if the two calibration
+        # parameters were added separately.
+        good_calibration_list = [self.ec_calibration]
+        for calibration in full_calibration_list:
+            if calibration.__class__ is ECCalibration:
+                # Then we have all we need from it
+                continue
+            good_calibration_list.append(calibration)
+        return good_calibration_list
+
+    @property
+    def ec_calibration(self):
+        """A calibration joining the first RE_vs_RHE, A_el, and R_Ohm"""
+        return ECCalibration(RE_vs_RHE=self.RE_vs_RHE, A_el=self.A_el, R_Ohm=self.R_Ohm)
+
+    @property
+    def RE_vs_RHE(self):
+        for calibration in self._calibration_list:
+            if hasattr(calibration, "RE_vs_RHE") and calibration.RE_vs_RHE is not None:
+                return calibration.RE_vs_RHE
+
+    @property
+    def A_el(self):
+        for calibration in self._calibration_list:
+            if hasattr(calibration, "A_el") and calibration.A_el is not None:
+                return calibration.A_el
+
+    @property
+    def R_Ohm(self):
+        for calibration in self._calibration_list:
+            if hasattr(calibration, "R_Ohm") and calibration.R_Ohm is not None:
+                return calibration.R_Ohm
+
+    def calibrate(
+        self,
+        RE_vs_RHE=None,
+        A_el=None,
+        R_Ohm=None,
+        tstamp=None,
+        cal_name=None,
+    ):
         """Calibrate the EC measurement (all args optional)
 
         Args:
             RE_vs_RHE (float): reference electode potential on RHE scale in [V]
             A_el (float): electrode area in [cm^2]
             R_Ohm (float): ohmic drop resistance in [Ohm]
+            tstamp (flaot): The timestamp at which the calibration was done (defaults
+                to now)
+            cal_name (str): The name of the calibration.
         """
-        if RE_vs_RHE:
-            self.calibrate_RE(RE_vs_RHE=RE_vs_RHE)
-        if A_el:
-            self.normalize_current(A_el=A_el)
-        if R_Ohm:
-            self.correct_ohmic_drop(R_Ohm=R_Ohm)
+        new_calibration = ECCalibration(
+            RE_vs_RHE=RE_vs_RHE or self.RE_vs_RHE,
+            A_el=A_el or self.A_el,
+            R_Ohm=R_Ohm or self.R_Ohm,
+            tstamp=tstamp,
+            name=cal_name,
+            measurement=self,
+        )
+        self._calibration_list = [new_calibration] + self._calibration_list
+        self.clear_cache()
 
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
-        self.RE_vs_RHE = RE_vs_RHE
+        new_calibration = ECCalibration(
+            RE_vs_RHE=RE_vs_RHE,
+            measurement=self,
+        )
+        self._calibration_list = [new_calibration] + self._calibration_list
+        self.clear_cache()
 
     def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
-        self.A_el = A_el
+        new_calibration = ECCalibration(
+            A_el=A_el,
+            measurement=self,
+        )
+        self._calibration_list = [new_calibration] + self._calibration_list
+        self.clear_cache()
 
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
-        self.R_Ohm = R_Ohm
+        new_calibration = ECCalibration(
+            R_Ohm=R_Ohm,
+            measurement=self,
+        )
+        self._calibration_list = [new_calibration] + self._calibration_list
+        self.clear_cache()
 
     @property
     def potential(self):
-        """The ValueSeries with the ECMeasurement's potential.
-
-        This is result of the following:
-        - Starts with `self.raw_potential`
-        - if the measurement is "calibrated" i.e. `RE_vs_RHE` is not None: add
-            `RE_vs_RHE` to the potential data and change its name from `E_str` to `V_str`
-        - if the measurement is "corrected" i.e. `R_Ohm` is not None: subtract
-            `R_Ohm` times the raw current from the potential and add " (corrected)" to
-            its name.
-        """
-        raw_potential = self["raw_potential"]
-        if self.RE_vs_RHE is None and self.R_Ohm is None:
-            return raw_potential
-        fixed_V_str = raw_potential.name
-        fixed_potential_data = raw_potential.data
-        fixed_unit_name = raw_potential.unit_name
-        if self.RE_vs_RHE:
-            fixed_V_str = self.V_str
-            fixed_potential_data = fixed_potential_data + self.RE_vs_RHE
-            fixed_unit_name = "V <RHE>"
-        if self.R_Ohm:
-            fixed_V_str += " (corrected)"
-            fixed_potential_data = (
-                fixed_potential_data - self.R_Ohm * self["raw_current"].data * 1e-3
-            )  # TODO: Units. The 1e-3 here is to bring raw_current.data from [mA] to [A]
-        return ValueSeries(
-            name=fixed_V_str,
-            data=fixed_potential_data,
-            unit_name=fixed_unit_name,
-            tseries=raw_potential.tseries,
-        )  # TODO: Better cache'ing. This is not cached at all.
+        return self["potential"]
 
     @property
     def current(self):
-        """The ValueSeries with the ECMeasurement's current.
-
-        This is result of the following:
-        - Starts with `self.raw_current`
-        - if the measurement is "normalized" i.e. `A_el` is not None: divide the current
-            data by `A_el`, change its name from `I_str` to `J_str`, and add `/cm^2` to
-            its unit.
-        """
-        raw_current = self["raw_current"]
-        if self.A_el is None:
-            return raw_current
-        else:
-            return ValueSeries(
-                name=self.J_str,
-                data=raw_current.data / self.A_el,
-                unit_name=raw_current.unit_name + "/cm^2",
-                tseries=raw_current.tseries,
-            )
+        return self["current"]
 
     def grab_potential(self, tspan=None):
         """Return the time [s] and potential [V] vectors cut by tspan
@@ -315,7 +328,66 @@ class ECMeasurement(Measurement):
 
         self_as_dict = self.as_dict()
         self_as_dict["series_list"] = self.series_list
+        self_as_dict["calibration_list"] = self._calibration_list
         self_as_dict["technique"] = "CV"
         del self_as_dict["s_ids"]
         # Note, this works perfectly! All needed information is in self_as_dict :)
         return CyclicVoltammagram.from_dict(self_as_dict)
+
+
+class ECCalibration(Calibration):
+    extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
+
+    def __init__(
+        self,
+        RE_vs_RHE=None,
+        A_el=None,
+        R_Ohm=None,
+        tstamp=None,
+        name=None,
+        measurement=None,
+    ):
+        super().__init__(name=name, tstamp=tstamp, measurement=measurement)
+        self.RE_vs_RHE = RE_vs_RHE
+        self.A_el = A_el
+        self.R_Ohm = R_Ohm
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(RE_vs_RHE={self.RE_vs_RHE}, A_el={self.A_el}, R_Ohm={self.R_Ohm})"
+        )
+
+    def calibrate_series(self, key, measurement=None):
+        measurement = measurement or self.measurement
+        if key == "potential":
+            raw_potential = measurement["raw_potential"]
+            name = raw_potential.name
+            v = raw_potential.data
+            if self.RE_vs_RHE:
+                v = v + self.RE_vs_RHE
+                name = measurement.V_str or EC_FANCY_NAMES["potential"]
+            if self.R_Ohm:
+                i_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
+                v = v - self.R_Ohm * i_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
+                name = name + " $_{ohm. corr.}$"
+            return ValueSeries(
+                name=name,
+                unit_name=raw_potential.unit_name,
+                data=v,
+                tseries=raw_potential.tseries,
+            )
+
+        if key == "current":
+            raw_current = measurement["raw_current"]
+            name = raw_current.name
+            v = raw_current.data
+            if self.A_el:
+                v = v / self.A_el
+                name = measurement.J_str or EC_FANCY_NAMES["current"]
+            return ValueSeries(
+                name=name,
+                unit_name=raw_current.unit_name,
+                data=v,
+                tseries=raw_current.tseries,
+            )
