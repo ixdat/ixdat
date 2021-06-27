@@ -283,8 +283,15 @@ class Measurement(Saveable):
                 return series
         # only if the requested series name is neither cached nor the name of
         #   a calibrated series do we go into raw data:
-        keys = self.get_series_names(key)  # uses self.aliases recursively
-        series_to_append = [s for s in self.series_list if s.name in keys]
+        series_to_append = []
+        if key in self.series_names:
+            series_to_append += [s for s in self.series_list if s.name == key]
+        elif key in self.aliases:
+            for k in self.aliases[key]:
+                try:
+                    series_to_append.append(self[k])
+                except SeriesNotFoundError:
+                    continue
         if not series_to_append:  # check if it's because they're using a suffix:
             if key.endswith("-t") or key.endswith("-x"):
                 return self[key[:-2]].tseries
