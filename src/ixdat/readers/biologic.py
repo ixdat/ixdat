@@ -24,6 +24,13 @@ regular_expressions = {
     "loop": "Loop ([0-9]+) from point number ([0-9]+) to ([0-9]+)",
 }
 
+BIOLOGIC_ALIASES = {
+    "t": ["time/s"],
+    "raw_potential": ["Ewe/V", "<Ewe>/V"],
+    "raw_current": ["I/mA", "<I>/mA"],
+    "cycle": ["cycle number"],
+}
+
 
 class BiologicMPTReader:
     """A class to read .mpt files written by Biologic's EC-Lab.
@@ -101,7 +108,7 @@ class BiologicMPTReader:
             return self.measurement
         self.name = name or path_to_file.name
         self.path_to_file = path_to_file
-        with open(path_to_file) as f:
+        with open(self.path_to_file, "r", encoding="ISO-8859-1") as f:
             for line in f:
                 self.process_line(line)
         for name in self.column_names:
@@ -137,6 +144,7 @@ class BiologicMPTReader:
             series_list=data_series_list,
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
+            aliases=BIOLOGIC_ALIASES,
         )
         init_kwargs.update(kwargs)
 

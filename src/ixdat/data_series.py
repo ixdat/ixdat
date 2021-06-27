@@ -272,33 +272,37 @@ class ConstantValue(DataSeries):
         )
 
 
-def append_series(series_list, sorted=True, tstamp=None):
+def append_series(series_list, sorted=True, name=None, tstamp=None):
     """Return series appending series_list relative to series_list[0].tseries.tstamp
 
     Args:
         series_list (list of Series): The series to append (must all be of same type)
         sorted (bool): Whether to sort the data so that time only goes forward
+        name (str): Name to give the appended series. Defualts to series_list[0].name
         tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
     """
     s0 = series_list[0]
     if isinstance(s0, TimeSeries):
-        return append_tseries(series_list, sorted=sorted, tstamp=tstamp)
+        return append_tseries(series_list, sorted=sorted, name=name, tstamp=tstamp)
     elif isinstance(s0, ValueSeries):
-        return append_vseries_by_time(series_list, sorted=sorted, tstamp=tstamp)
+        return append_vseries_by_time(
+            series_list, sorted=sorted, name=name, tstamp=tstamp
+        )
     raise BuildError(
         f"An algorithm of append_series for series like {s0} is not yet implemented"
     )
 
 
-def append_vseries_by_time(series_list, sorted=True, tstamp=None):
+def append_vseries_by_time(series_list, sorted=True, name=None, tstamp=None):
     """Return new ValueSeries with the data in series_list appended
 
     Args:
         series_list (list of ValueSeries): The value series to append
         sorted (bool): Whether to sort the data so that time only goes forward
+        name (str): Name to give the appended series. Defualts to series_list[0].name
         tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
     """
-    name = series_list[0].name
+    name = name or series_list[0].name
     cls = series_list[0].__class__
     unit = series_list[0].unit
     data = np.array([])
@@ -317,16 +321,19 @@ def append_vseries_by_time(series_list, sorted=True, tstamp=None):
     return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
 
 
-def append_tseries(series_list, sorted=True, return_sort_indeces=False, tstamp=None):
+def append_tseries(
+    series_list, sorted=True, return_sort_indeces=False, name=None, tstamp=None
+):
     """Return new TimeSeries with the data appended.
 
     Args:
         series_list (list of TimeSeries): The time series to append
         sorted (bool): Whether to sort the data so that time only goes forward
         return_sort_indeces (bool): Whether to return the indeces that sort the data
+        name (str): Name to give the appended series. Defualts to series_list[0].name
         tstamp (unix tstamp): The t=0 of the returned TimeSeries.
     """
-    name = series_list[0].name
+    name = name or series_list[0].name
     cls = series_list[0].__class__
     unit = series_list[0].unit
     tstamp = tstamp or series_list[0].tstamp

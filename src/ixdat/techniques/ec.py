@@ -2,10 +2,19 @@
 
 import numpy as np
 
-from ..measurements import Measurement, append_series, time_shifted
-from ..data_series import ValueSeries, ConstantValue
+from ..measurements import Measurement, append_series
+from ..data_series import ValueSeries, ConstantValue, time_shifted
 from ..exceptions import SeriesNotFoundError
 from ..exporters.ec_exporter import ECExporter
+
+
+EC_FANCY_NAMES = {
+    "t": "time / [s]",
+    "raw_potential": "raw potential / [V]",
+    "potential": "$U_{RHE}$ / [V]",
+    "raw_current": "raw current / [mA]",
+    "current": "J / [mA cm$^{-2}$]",
+}
 
 
 class ECMeasurement(Measurement):
@@ -79,9 +88,7 @@ class ECMeasurement(Measurement):
             "ec_technique",
             "RE_vs_RHE",
             "R_Ohm",
-            "raw_potential_names",
             "A_el",
-            "raw_current_names",
         }
     }
 
@@ -89,30 +96,11 @@ class ECMeasurement(Measurement):
         self,
         name,
         *,
-        technique=None,
-        metadata=None,
-        s_ids=None,
-        series_list=None,
-        m_ids=None,
-        component_measurements=None,
-        reader=None,
-        plotter=None,
-        exporter=None,
-        sample=None,
-        lablog=None,
-        tstamp=None,
         ec_technique=None,
-        t_str="time / [s]",
-        E_str="raw potential / [V]",
-        V_str="$U_{RHE}$ / [V]",
         RE_vs_RHE=None,
         R_Ohm=None,
-        raw_potential_names=("Ewe/V", "<Ewe>/V"),  # TODO: reader must define this
-        I_str="raw current / [mA]",
-        J_str="J / [mA cm$^{-2}$]",
         A_el=None,
-        raw_current_names=("I/mA", "<I>/mA"),  # TODO: reader must define this
-        cycle_names=("cycle number",),
+        **kwargs,
     ):
         """initialize an electrochemistry measurement
 
@@ -161,36 +149,21 @@ class ECMeasurement(Measurement):
                 raw working electrode current. This is typically how the data
                 acquisition software saves current.
         """
-        super().__init__(
-            name,
-            technique=technique,
-            metadata=metadata,
-            s_ids=s_ids,
-            series_list=series_list,
-            m_ids=m_ids,
-            component_measurements=component_measurements,
-            reader=reader,
-            plotter=plotter,
-            exporter=exporter,
-            sample=sample,
-            lablog=lablog,
-            tstamp=tstamp,
-        )
+        super().__init__(name, **kwargs)
+
         self.ec_technique = ec_technique
-        self.t_str = t_str
-        self.E_str = E_str
-        self.V_str = V_str
+
         self.RE_vs_RHE = RE_vs_RHE
         self.R_Ohm = R_Ohm
-        self.raw_potential_names = raw_potential_names
-        self.I_str = I_str
-        self.J_str = J_str
         self.A_el = A_el
-        self.raw_current_names = raw_current_names
-        self.cycle_names = cycle_names
 
         self.sel_str = "selector"
         self.cycle_str = "cycle_number"
+        self.t_str = EC_FANCY_NAMES["t"]
+        self.V_str = EC_FANCY_NAMES["potential"]
+        self.J_str = EC_FANCY_NAMES["current"]
+        self.E_str = EC_FANCY_NAMES["raw_potential"]
+        self.I_str = EC_FANCY_NAMES["raw_current"]
 
         self.plot_vs_potential = self.plotter.plot_vs_potential
 
@@ -198,35 +171,6 @@ class ECMeasurement(Measurement):
         self._raw_current = None
         self._selector = None
         self._file_number = None
-        if all(
-            [
-                (current_name not in self.series_names)
-                for current_name in self.raw_current_names
-            ]
-        ):
-            self.series_list.append(
-                ConstantValue(
-                    name=self.raw_current_names[0],
-                    unit_name="mA",
-                    value=0,
-                )
-            )
-            self._populate_constants()  # So that OCP currents are included as 0.
-            # TODO: I don't like this. ConstantValue was introduced to facilitate
-            #   ixdat's laziness, but I can't find anywhere else to put the call to
-            #   _populate_constants() that can find the right tseries. This is a
-            #   violation of laziness as bad as what it was meant to solve.
-        if all(
-            [(cycle_name not in self.series_names) for cycle_name in self.cycle_names]
-        ):
-            self.series_list.append(
-                ConstantValue(
-                    name=self.cycle_names[0],
-                    unit_name=None,
-                    value=0,
-                )
-            )
-            self._populate_constants()  # So that everything has a cycle number
 
     def _populate_constants(self):
         """Replace any ConstantValues with ValueSeries on potential's tseries
@@ -241,6 +185,12 @@ class ECMeasurement(Measurement):
                 tseries = self.potential.tseries
                 series = s.get_vseries(tseries=tseries)
                 self.series_list[i] = series
+
+    @property
+    def aliases(self):
+        a = self._aliases.copy()
+        a.update({value: [key] for (key, value) in EC_FANCY_NAMES.items()})
+        return a
 
     def __getitem__(self, item):
         """Return the (concatenated) (time-shifted) `DataSeries` with name `item`
@@ -299,8 +249,9 @@ class ECMeasurement(Measurement):
             might happen?* if the `TimeSeries` of a `ValueSeries` in `series_list` is
             not itself in `series_list`. But this results in redundant TimeSeries.
         """
+        raw_potential_names = self.get_series_names(self.E_str)
         potential_series_list = [
-            s for s in self.series_list if s.name in self.raw_potential_names
+            s for s in self.series_list if s.name in raw_potential_names
         ]
         if len(potential_series_list) == 1:
             self._raw_potential = time_shifted(
@@ -327,7 +278,7 @@ class ECMeasurement(Measurement):
         else:
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw potential."
-                f" Looked for series with names in {self.raw_potential_names}"
+                f" Looked for series with names in {raw_potential_names}"
             )
 
     @property
@@ -344,8 +295,9 @@ class ECMeasurement(Measurement):
         This works the way as `_find_or_build_raw_potential`. See the docstring there.
         FIXME: it also has the same problems.
         """
+        raw_current_names = self.get_series_names(self.I_str)
         current_series_list = [
-            s for s in self.series_list if s.name in self.raw_current_names
+            s for s in self.series_list if s.name in raw_current_names
         ]
         if len(current_series_list) == 1:
             self._raw_current = time_shifted(current_series_list[0], tstamp=self.tstamp)
@@ -372,7 +324,7 @@ class ECMeasurement(Measurement):
         else:
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw current."
-                f" Looked for series with names in {self.raw_current_names}"
+                f" Looked for series with names in {raw_current_names}"
             )
 
     def calibrate(self, RE_vs_RHE=None, A_el=None, R_Ohm=None):
@@ -556,7 +508,8 @@ class ECMeasurement(Measurement):
     @property
     def cycle_number(self):
         """The cycle number ValueSeries, requires building from component measurements"""
-        cycle_series_list = [s for s in self.series_list if s.name in self.cycle_names]
+        cycle_names = self.get_series_names("cycle")
+        cycle_series_list = [s for s in self.series_list if s.name in cycle_names]
         if len(cycle_series_list) == 1:
             return time_shifted(cycle_series_list[0], tstamp=self.tstamp)
         elif len(cycle_series_list) > 1:
@@ -570,7 +523,7 @@ class ECMeasurement(Measurement):
         else:
             raise SeriesNotFoundError(
                 f"{self} does not have a series corresponding to raw current."
-                f" Looked for series with names in {self.raw_current_names}"
+                f" Looked for series with names in {cycle_names}"
             )
         # TODO: better cache'ing. This one is not cache'd at all
 

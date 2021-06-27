@@ -27,6 +27,7 @@ class Measurement(Saveable):
         "name",
         "technique",
         "metadata",
+        "aliases",
         "sample_name",
         "tstamp",
     }
@@ -47,6 +48,7 @@ class Measurement(Saveable):
         calibration_list=None,
         m_ids=None,
         component_measurements=None,
+        aliases=None,
         reader=None,
         plotter=None,
         exporter=None,
@@ -100,7 +102,7 @@ class Measurement(Saveable):
         self.sel_str = None  # the default thing to select on.
 
         self._cached_series = {}
-        self._aliases = {}
+        self._aliases = aliases or {}
 
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
@@ -245,6 +247,18 @@ class Measurement(Saveable):
         """List of the TSeries in the measurement's DataSeries. NOT timeshifted!"""
         return [series for series in self.series_list if isinstance(series, TimeSeries)]
 
+    @property
+    def aliases(self):
+        """Dictionary of {key: series_names} pointing to where desired raw data is"""
+        return self._aliases
+
+    def get_series_names(self, key):
+        """Return list: series names for key found by (recursive) lookup in aliases"""
+        keys = [key] if key in self.series_names else []
+        for k in self.aliases.get(key, []):
+            keys += self.get_series_names(k)
+        return keys
+
     def __getitem__(self, key):
         """Return the built measurement DataSeries with its name specified by key
 
@@ -269,17 +283,15 @@ class Measurement(Saveable):
                 return series
         # only if the requested series name is neither cached nor the name of
         #   a calibrated series do we go into raw data:
-        if key in self._aliases:
-            keys = self._aliases[key]
-        else:
-            keys = [key]
+        keys = self.get_series_names(key)  # uses self.aliases recursively
         series_to_append = [s for s in self.series_list if s.name in keys]
         if not series_to_append:  # check if it's because they're using a suffix:
             if key.endswith("-t") or key.endswith("-x"):
                 return self[key[:-2]].tseries
             if key.endswith("-v") or key.endswith("-y"):
                 return self[key[:-2]]
-        series = append_series(series_to_append, tstamp=self.tstamp)
+            raise SeriesNotFoundError(f"{self} has no series named {key}.")
+        series = append_series(series_to_append, name=key, tstamp=self.tstamp)
         self._cached_series[key] = series
         return series
 

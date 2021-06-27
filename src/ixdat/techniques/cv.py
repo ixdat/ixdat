@@ -36,11 +36,9 @@ class CyclicVoltammagram(ECMeasurement):
                 print(f"you tried to get key = {key}.")
                 raise AttributeError
             return self.select(key)
-        try:
-            return super().__getitem__(item=key)
-        except SeriesNotFoundError:
-            if key == "cycle":
-                return self.cycle
+        if key == "cycle":
+            return self.cycle
+        return super().__getitem__(item=key)
 
     @property
     def cycle(self):
