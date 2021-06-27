@@ -21,7 +21,8 @@ from .data_series import (
 )
 from .samples import Sample
 from .lablogs import LabLog
-from ixdat.exporters.csv_exporter import CSVExporter
+from .exporters.csv_exporter import CSVExporter
+from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError
 
 
@@ -47,16 +48,21 @@ class Measurement(Saveable):
     # ---- measurement class attributes, can be overwritten in inheriting classes -----
     control_technique = None
     """Name of technique primarily used to control the experiment"""
-
-    t_str = None
-    """Name (or alias) for main time variable, typically of the control_technique"""
-
+    control_str = None
+    """Name (or alias) for main time variable or main time-dependent value variable,
+    typically of the control_technique"""
+    sel_str = "selector"
+    """Name of the default selector"""
+    select_on = ("file_number",)
+    """Name of the default things to use to construct the selector"""
     series_constructors = {
         "file_number": "_build_file_number",
         "selector": "_build_selector",
     }
     """Series which should be constructed from other series by the specified method 
     and cached the first time they are looked up"""
+    default_plotter_class = ValuePlotter
+    default_exporter_class = CSVExporter
 
     def __init__(
         self,
@@ -120,7 +126,6 @@ class Measurement(Saveable):
             calibration_list, c_ids, cls=Calibration
         )
         self.tstamp = tstamp
-        self.sel_str = None  # the default thing to select on.
 
         self._cached_series = {}
         self._aliases = aliases or {}
@@ -296,34 +301,41 @@ class Measurement(Saveable):
             return self._cached_series[key]
         if key in self.series_constructors:
             series = getattr(self, self.series_constructors[key])()
-            self._cached_series[key] = series
-            return series
-        for calibration in self._calibration_list:
-            series = calibration.calibrate_series(key, measurement=self)
-            # ^ the calibration will call this __getitem__ with the name of the
-            #   corresponding raw data and return a new series with calibrated data
-            #   if possible. Otherwise it will return None.
-            if series:
-                self._cached_series[key] = series
-                return series
-        # only if the requested series name is neither cached nor the name of
-        #   a calibrated series do we go into raw data:
-        series_to_append = []
-        if key in self.series_names:
-            series_to_append += [s for s in self.series_list if s.name == key]
-        elif key in self.aliases:
-            for k in self.aliases[key]:
-                try:
-                    series_to_append.append(self[k])
-                except SeriesNotFoundError:
-                    continue
-        if not series_to_append:  # check if it's because they're using a suffix:
-            if key.endswith("-t") or key.endswith("-x"):
-                return self[key[:-2]].tseries
-            if key.endswith("-v") or key.endswith("-y"):
-                return self[key[:-2]]
-            raise SeriesNotFoundError(f"{self} has no series named {key}.")
-        series = append_series(series_to_append, name=key, tstamp=self.tstamp)
+        else:
+            for calibration in self._calibration_list:
+                series = calibration.calibrate_series(key, measurement=self)
+                # ^ the calibration will call this __getitem__ with the name of the
+                #   corresponding raw data and return a new series with calibrated data
+                #   if possible. Otherwise it will return None.
+                if series:
+                    break
+            else:
+                # only if the requested series name is neither cached nor the name of
+                #   a calibrated series do we go into raw data:
+                series_to_append = []
+                if key in self.series_names:
+                    # Then we'll append any series matching the desired name
+                    series_to_append += [s for s in self.series_list if s.name == key]
+                elif key in self.aliases:
+                    # Then we'll look up the aliases instead and append them
+                    for k in self.aliases[key]:
+                        try:
+                            series_to_append.append(self[k])
+                        except SeriesNotFoundError:
+                            continue
+                # If the key is something in the data, by now we have series to append.
+                if not series_to_append:  # If not...
+                    # check if it's because key uses a suffix:
+                    if key.endswith("-t") or key.endswith("-x"):
+                        return self[key[:-2]].tseries
+                    if key.endswith("-v") or key.endswith("-y"):
+                        return self[key[:-2]]
+                    # if not, we've exhausted possibilities! Raise an error.
+                    raise SeriesNotFoundError(f"{self} has no series named {key}.")
+                # Now, append the series
+                name = key if len(set(s.name for s in series_to_append)) > 1 else None
+                series = append_series(series_to_append, name=name, tstamp=self.tstamp)
+        # Finally, wherever we found the series, cache it and return it.
         self._cached_series[key] = series
         return series
 
@@ -355,16 +367,24 @@ class Measurement(Saveable):
             t, v = t[mask], v[mask]
         return t, v
 
+    @property
+    def t(self):
+        return self[self.control_str].t
+
+    @property
+    def t_str(self):
+        return self[self.control_str].tseries.name
+
     def _build_file_number(self):
         series_to_append = []
         for i, m in enumerate(self.component_measurements):
             if self.control_technique and not m.technique == self.control_technique:
                 continue
-            if not self.t_str:
+            if not self.control_str:
                 tseries = m.time_series[0]
             else:
                 try:
-                    tseries = m[self.t_str]
+                    tseries = m[self.control_str].tseries
                 except KeyError:
                     continue
             series_to_append.append(
@@ -372,8 +392,37 @@ class Measurement(Saveable):
             )
         return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
 
-    def _build_selector(self):
-        return self["file_number"]
+    def _build_selector(self, sel_str=None, col_list=None):
+        """Build `selector` from col_list
+
+        See the class docstring for details.
+        """
+        sel_str = sel_str or self.sel_str
+        changes = np.tile(False, self.t.shape)
+        col_list = col_list or self.select_on
+        for col in col_list:
+            try:
+                values = self[col].data
+            except SeriesNotFoundError:
+                continue
+            if len(values) == 0:
+                print("WARNING: " + col + " is empty")
+                continue
+            elif not len(values) == len(changes):
+                print("WARNING: " + col + " has an unexpected length")
+                continue
+            n_down = np.append(
+                values[0], values[:-1]
+            )  # comparing with n_up instead puts selector a point ahead
+            changes = np.logical_or(changes, n_down < values)
+        selector = np.cumsum(changes)
+        selector_series = ValueSeries(
+            name=sel_str,
+            unit_name="",
+            data=selector,
+            tseries=self.potential.tseries,
+        )
+        return selector_series
 
     @property
     def data_cols(self):
@@ -384,16 +433,15 @@ class Measurement(Saveable):
     def plotter(self):
         """The default plotter for Measurement is ValuePlotter."""
         if not self._plotter:
-            from .plotters import ValuePlotter
+            self._plotter = self.default_plotter_class(measurement=self)
 
-            self._plotter = ValuePlotter(measurement=self)
         return self._plotter
 
     @property
     def exporter(self):
         """The default exporter for Measurement is CSVExporter."""
         if not self._exporter:
-            self._exporter = CSVExporter(measurement=self)
+            self._exporter = self.default_exporter_class(measurement=self)
         return self._exporter
 
     def get_original_m_id_of_series(self, series):

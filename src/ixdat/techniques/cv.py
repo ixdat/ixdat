@@ -15,13 +15,16 @@ class CyclicVoltammagram(ECMeasurement):
     - the default plot() is plot_vs_potential()
     """
 
+    sel_str = "cycle"
+    """Name of the default selector"""
+
     def __init__(self, *args, **kwargs):
         """Only reason to have an __init__ here is to set the default plot()"""
         super().__init__(*args, **kwargs)
         self.plot = self.plotter.plot_vs_potential  # gets the right docstrings! :D
 
-    start_potential = None  # see `redefine_cycle`
-    redox = None  # see `redefine_cycle`
+        self.start_potential = None  # see `redefine_cycle`
+        self.redox = None  # see `redefine_cycle`
 
     def __getitem__(self, key):
         """Given int list or slice key, return a CyclicVoltammagram with those cycles"""
@@ -36,14 +39,7 @@ class CyclicVoltammagram(ECMeasurement):
                 print(f"you tried to get key = {key}.")
                 raise AttributeError
             return self.select(key)
-        if key == "cycle":
-            return self.cycle
         return super().__getitem__(key)
-
-    @property
-    def cycle(self):
-        """ValueSeries: the cycle number. The default selector. see `redefine_cycle`"""
-        return self.selector
 
     def redefine_cycle(self, start_potential=None, redox=None):
         """Build `cycle` which iterates when passing through start_potential
@@ -59,7 +55,7 @@ class CyclicVoltammagram(ECMeasurement):
         self.start_potential = start_potential
         self.redox = redox
         if start_potential is None:
-            old_cycle_series = self.cycle
+            old_cycle_series = self["cycle_number"]
             new_cycle_series = ValueSeries(
                 name="cycle",
                 unit_name=old_cycle_series.unit_name,
@@ -102,6 +98,6 @@ class CyclicVoltammagram(ECMeasurement):
                 data=cycle_vec,
                 tseries=self.potential.tseries,
             )
+        if "cycle" in self._cached_series:
+            del [self._cached_series]
         self["cycle"] = new_cycle_series
-        self.sel_str = "cycle"
-        return self.cycle

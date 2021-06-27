@@ -6,6 +6,7 @@ from ..measurements import Measurement, append_series
 from ..data_series import ValueSeries, ConstantValue, time_shifted
 from ..exceptions import SeriesNotFoundError
 from ..exporters.ec_exporter import ECExporter
+from ..plotters.ec_plotter import ECPlotter
 
 
 EC_FANCY_NAMES = {
@@ -91,6 +92,9 @@ class ECMeasurement(Measurement):
             "A_el",
         }
     }
+    control_str = "raw_potential"
+    default_exporter_class = ECExporter
+    default_plotter_class = ECPlotter
 
     def __init__(
         self,
@@ -157,9 +161,6 @@ class ECMeasurement(Measurement):
         self.R_Ohm = R_Ohm
         self.A_el = A_el
 
-        self.sel_str = "selector"
-        self.cycle_str = "cycle_number"
-        self.t_str = EC_FANCY_NAMES["t"]
         self.V_str = EC_FANCY_NAMES["potential"]
         self.J_str = EC_FANCY_NAMES["current"]
         self.E_str = EC_FANCY_NAMES["raw_potential"]
@@ -274,7 +275,7 @@ class ECMeasurement(Measurement):
                 tseries=raw_current.tseries,
             )
 
-    def get_potential(self, tspan=None):
+    def grab_potential(self, tspan=None):
         """Return the time [s] and potential [V] vectors cut by tspan
 
         TODO: I think this is identical, now that __getitem__ finds potential, to
@@ -288,7 +289,7 @@ class ECMeasurement(Measurement):
             v = v[mask]
         return t, v
 
-    def get_current(self, tspan=None):
+    def grab_current(self, tspan=None):
         """Return the time [s] and current ([mA] or [mA/cm^2]) vectors cut by tspan"""
         t = self.current.t.copy()
         j = self.current.data.copy()
@@ -299,11 +300,6 @@ class ECMeasurement(Measurement):
         return t, j
 
     @property
-    def t(self):
-        """The definitive time np array of the measurement, corresponding to potential"""
-        return self.potential.t.copy()
-
-    @property
     def v(self):
         """The potential [V] numpy array of the measurement"""
         return self.potential.data.copy()
@@ -312,110 +308,6 @@ class ECMeasurement(Measurement):
     def j(self):
         """The current ([mA] or [mA/cm^2]) numpy array of the measurement"""
         return self.current.data.copy()
-
-    @property
-    def plotter(self):
-        """The default plotter for ECMeasurement is ECPlotter"""
-        if not self._plotter:
-            from ..plotters.ec_plotter import ECPlotter
-
-            self._plotter = ECPlotter(measurement=self)
-
-        return self._plotter
-
-    @property
-    def exporter(self):
-        """The default plotter for ECMeasurement is ECExporter"""
-        if not self._exporter:
-            self._exporter = ECExporter(measurement=self)
-        return self._exporter
-
-    @property
-    def selector(self):
-        """The ValuSeries which is used by default to select parts of the measurement.
-
-        See the class docstring for details.
-        """
-        if self.sel_str not in self.series_names:
-            self._build_selector()
-        return time_shifted(self[self.sel_str], tstamp=self.tstamp)
-
-    def _build_selector(self, sel_str=None):
-        """Build `selector` from `cycle number`, `loop_number`, and `file_number`
-
-        See the class docstring for details.
-        """
-        sel_str = sel_str or self.sel_str
-        changes = np.tile(False, self.t.shape)
-        col_list = ["cycle number", "loop_number", "file_number"]
-        for col in col_list:
-            if col in self.series_names:
-                values = self[col].data
-                if len(values) == 0:
-                    print("WARNING: " + col + " is empty")
-                    continue
-                elif not len(values) == len(changes):
-                    print("WARNING: " + col + " has an unexpected length")
-                    continue
-                n_down = np.append(
-                    values[0], values[:-1]
-                )  # comparing with n_up instead puts selector a point ahead
-                changes = np.logical_or(changes, n_down < values)
-        selector = np.cumsum(changes)
-        selector_series = ValueSeries(
-            name=sel_str,
-            unit_name="",
-            data=selector,
-            tseries=self.potential.tseries,
-        )
-        self[self.sel_str] = selector_series  # TODO: Better cache'ing. This gets saved.
-        return selector_series
-
-    @property
-    def cycle_number(self):
-        """The cycle number ValueSeries, requires building from component measurements"""
-        cycle_names = self.get_series_names("cycle")
-        cycle_series_list = [s for s in self.series_list if s.name in cycle_names]
-        if len(cycle_series_list) == 1:
-            return time_shifted(cycle_series_list[0], tstamp=self.tstamp)
-        elif len(cycle_series_list) > 1:
-            cycle = append_series(cycle_series_list, tstamp=self.tstamp)
-            return ValueSeries(
-                name=self.cycle_str,
-                data=cycle.data,
-                unit_name=cycle.unit_name,
-                tseries=cycle.tseries,
-            )
-        else:
-            raise SeriesNotFoundError(
-                f"{self} does not have a series corresponding to raw current."
-                f" Looked for series with names in {cycle_names}"
-            )
-        # TODO: better cache'ing. This one is not cache'd at all
-
-    @property
-    def file_number(self):
-        """The file number ValueSeries, requires building from component measurements."""
-        if "file_number" in self.series_names:
-            self._build_file_number()
-        return time_shifted(self["file_number"], tstamp=self.tstamp)
-
-    def _build_file_number(self):
-        """Build the """
-        file_number_series_list = []
-        for m in self.component_measurements:
-            vseries = m.potential
-            file_number_series = ValueSeries(
-                name="file_number",
-                unit_name="",
-                data=np.tile(m.id, vseries.t.shape),
-                tseries=vseries.tseries,
-            )
-            file_number_series_list.append(file_number_series)
-        file_number = append_series(file_number_series_list, tstamp=self.tstamp)
-        self[
-            "file_number"
-        ] = file_number  # TODO: better cache'ing. This one gets saved.
 
     def as_cv(self):
         """Convert self to a CyclicVoltammagram"""

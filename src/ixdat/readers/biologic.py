@@ -279,10 +279,10 @@ if __name__ == "__main__":
         path_to_file=path_to_test_file,
     )
 
-    t, v = ec_measurement.get_potential(tspan=[0, 100])
+    t, v = ec_measurement.grab_potential(tspan=[0, 100])
 
     ec_measurement.tstamp -= 20
-    t_shift, v_shift = ec_measurement.get_potential(tspan=[0, 100])
+    t_shift, v_shift = ec_measurement.grab_potential(tspan=[0, 100])
 
     fig, ax = plt.subplots()
     ax.plot(t, v, "k", label="original tstamp")
