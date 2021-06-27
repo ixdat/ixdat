@@ -45,12 +45,12 @@ if __name__ == "__main__":
 
     assert meas.technique == "EC"
     print("test")
-    assert len(meas["potential"].data) == len(meas["time/s"].data)
+    assert len(meas["raw_potential"].data) == len(meas["time/s"].data)
 
     meas.calibrate_RE(RE_vs_RHE=1)
     cv = meas.as_cv()
     cvs_1_plus_2 = cv[1] + cv[2]
     assert cvs_1_plus_2.RE_vs_RHE == meas.RE_vs_RHE
     assert len(cvs_1_plus_2.selector.data) == len(cvs_1_plus_2.t)
-    assert len(cvs_1_plus_2["potential"].data) == len(cvs_1_plus_2["time/s"].data)
+    assert len(cvs_1_plus_2["raw_potential"].data) == len(cvs_1_plus_2["time/s"].data)
     # ^ perfect! Tests that don't work now but should work after this restructure :D

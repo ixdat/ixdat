@@ -38,7 +38,7 @@ class CyclicVoltammagram(ECMeasurement):
             return self.select(key)
         if key == "cycle":
             return self.cycle
-        return super().__getitem__(item=key)
+        return super().__getitem__(key)
 
     @property
     def cycle(self):

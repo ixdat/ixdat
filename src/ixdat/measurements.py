@@ -12,7 +12,13 @@ classes will be defined in the corresponding module in ./techniques/
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
-from .data_series import DataSeries, TimeSeries, ValueSeries, append_series
+from .data_series import (
+    DataSeries,
+    TimeSeries,
+    ValueSeries,
+    ConstantValue,
+    append_series,
+)
 from .samples import Sample
 from .lablogs import LabLog
 from ixdat.exporters.csv_exporter import CSVExporter
@@ -22,6 +28,7 @@ from .exceptions import BuildError, SeriesNotFoundError
 class Measurement(Saveable):
     """The Measurement class"""
 
+    # ------ table description class attributes --------
     table_name = "measurement"
     column_attrs = {
         "name",
@@ -36,6 +43,20 @@ class Measurement(Saveable):
         "measurement_calibrations": ("calibration", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
+
+    # ---- measurement class attributes, can be overwritten in inheriting classes -----
+    control_technique = None
+    """Name of technique primarily used to control the experiment"""
+
+    t_str = None
+    """Name (or alias) for main time variable, typically of the control_technique"""
+
+    series_constructors = {
+        "file_number": "_build_file_number",
+        "selector": "_build_selector",
+    }
+    """Series which should be constructed from other series by the specified method 
+    and cached the first time they are looked up"""
 
     def __init__(
         self,
@@ -273,6 +294,10 @@ class Measurement(Saveable):
         """
         if key in self._cached_series:
             return self._cached_series[key]
+        if key in self.series_constructors:
+            series = getattr(self, self.series_constructors[key])()
+            self._cached_series[key] = series
+            return series
         for calibration in self._calibration_list:
             series = calibration.calibrate_series(key, measurement=self)
             # ^ the calibration will call this __getitem__ with the name of the
@@ -329,6 +354,26 @@ class Measurement(Saveable):
             mask = np.logical_and(tspan[0] < t, t < tspan[-1])
             t, v = t[mask], v[mask]
         return t, v
+
+    def _build_file_number(self):
+        series_to_append = []
+        for i, m in enumerate(self.component_measurements):
+            if self.control_technique and not m.technique == self.control_technique:
+                continue
+            if not self.t_str:
+                tseries = m.time_series[0]
+            else:
+                try:
+                    tseries = m[self.t_str]
+                except KeyError:
+                    continue
+            series_to_append.append(
+                ConstantValue(name="file_number", unit_name="", data=i, tseries=tseries)
+            )
+        return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
+
+    def _build_selector(self):
+        return self["file_number"]
 
     @property
     def data_cols(self):

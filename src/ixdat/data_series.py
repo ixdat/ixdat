@@ -252,24 +252,20 @@ class Field(DataSeries):
         return self._data
 
 
-class ConstantValue(DataSeries):
+class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
 
-    extra_column_attrs = {"constants": {"value"}}
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._expanded_data = None
 
-    def __init__(self, name, unit_name, data=None, value=None):
-        super().__init__(name=name, unit_name=unit_name, data=np.array([]))
-        if not np.array(value).size == 1:
-            raise AxisError(
-                f"Can't initiate {self} with data={self.value}. Data must have size 1."
-            )
-        self.value = value
-
-    def get_vseries(self, tseries):
-        data = self.value * np.ones(tseries.data.shape)
-        return ValueSeries(
-            name=self.name, unit_name=self.unit_name, data=data, tseries=tseries
-        )
+    @property
+    def data(self):
+        if self._expanded_data is None:
+            if self._data is None:
+                self._data = self.load_data()  # inherited from Saveable.
+            self._expanded_data = np.ones(self.t.shape) * self._data
+        return self._expanded_data
 
 
 def append_series(series_list, sorted=True, name=None, tstamp=None):

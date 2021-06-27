@@ -192,141 +192,6 @@ class ECMeasurement(Measurement):
         a.update({value: [key] for (key, value) in EC_FANCY_NAMES.items()})
         return a
 
-    def __getitem__(self, item):
-        """Return the (concatenated) (time-shifted) `DataSeries` with name `item`
-
-        If `item` matches one of the strings for managed series described in the class
-        docstring, item retrieval will still first look in `series_list` (see
-        `ixdat.Measurement.__getitem__()` for this inherited behavior), but will then
-        return the corresponding managed attribute of this `ECMeasurement`. (See
-        class docstring.) Only if `item` matches neither these strings nor the names of
-        the `DataSeries` in `series_list` is a `SeriesNotFoundError` raised.
-
-        TODO: I would like to decorate this with a with_time_shifted() decorator to
-            enforce here (rather than all over as now) that the time is referenced
-            to the measurement tstamp. But not obvious to me how the decorator would have
-            access to self.tstamp.
-        """
-        try:
-            return super().__getitem__(item)
-        except SeriesNotFoundError:
-            if item == self.t_str:  # master time (potential's tseries)
-                return self.potential.tseries
-            if item == self.E_str:  # raw potential
-                return self.raw_potential
-            elif item == self.V_str:  # (calibrated) (corrected) potential
-                return self.potential
-            elif item == self.I_str:  # raw current
-                return self.raw_current
-            elif item == self.J_str:  # (normalized) current
-                return self.current
-            elif item == self.sel_str:  # selector
-                return self.selector
-            elif item == "potential":
-                return self.potential
-            elif item == "current":
-                return self.current
-            raise SeriesNotFoundError(f"{self} doesn't have item '{item}'")
-
-    @property
-    def raw_potential(self):
-        """Return a time-shifted ValueSeries for the raw potential, built first time."""
-        if not self._raw_potential:
-            self._find_or_build_raw_potential()
-        return time_shifted(self._raw_potential, tstamp=self.tstamp)
-        # FIXME. Hidden attributes not scaleable cache'ing
-
-    def _find_or_build_raw_potential(self):
-        """Build the raw potential and store it data_series and as self._raw_potential()
-        # TODO, it should instead be stored in a `cached_series_list`.
-
-        This works by finding all the series that have names matching the raw potential
-        names list `self.raw_potential_names` (which should be provided by the Reader).
-        If there is only one, it just shifts it to t=0 at self.tstamp.
-        # FIXME
-            If there are multiple it appends them with t=0 at self.tstamp. In this
-            case it also appends the `TimeSeries` to `series_list` since *bad things
-            might happen?* if the `TimeSeries` of a `ValueSeries` in `series_list` is
-            not itself in `series_list`. But this results in redundant TimeSeries.
-        """
-        raw_potential_names = self.get_series_names(self.E_str)
-        potential_series_list = [
-            s for s in self.series_list if s.name in raw_potential_names
-        ]
-        if len(potential_series_list) == 1:
-            self._raw_potential = time_shifted(
-                potential_series_list[0], tstamp=self.tstamp
-            )
-        elif len(potential_series_list) > 1:
-            raw_potential = append_series(potential_series_list, tstamp=self.tstamp)
-            if self._raw_current and self._raw_current.tseries == raw_potential.tseries:
-                # Then we can re-use the tseries from raw_current rather than
-                # saving a new one :D
-                potential_tseries = self._raw_current.tseries
-            else:
-                potential_tseries = raw_potential.tseries
-                self.series_list.append(potential_tseries)
-            self._raw_potential = ValueSeries(
-                name=self.E_str,
-                data=raw_potential.data,
-                unit_name=raw_potential.unit_name,
-                tseries=potential_tseries,
-            )
-            self[
-                self.E_str
-            ] = self._raw_potential  # TODO: Better cache'ing. This saves.
-        else:
-            raise SeriesNotFoundError(
-                f"{self} does not have a series corresponding to raw potential."
-                f" Looked for series with names in {raw_potential_names}"
-            )
-
-    @property
-    def raw_current(self):
-        """Return a time-shifted ValueSeries for the raw current, built first time."""
-        if not self._raw_current:
-            self._find_or_build_raw_current()
-        return time_shifted(self._raw_current, tstamp=self.tstamp)
-        # FIXME. Hidden attributes not scaleable cache'ing
-
-    def _find_or_build_raw_current(self):
-        """Build the raw current and store it data_series and as self._raw_current()
-
-        This works the way as `_find_or_build_raw_potential`. See the docstring there.
-        FIXME: it also has the same problems.
-        """
-        raw_current_names = self.get_series_names(self.I_str)
-        current_series_list = [
-            s for s in self.series_list if s.name in raw_current_names
-        ]
-        if len(current_series_list) == 1:
-            self._raw_current = time_shifted(current_series_list[0], tstamp=self.tstamp)
-        elif len(current_series_list) > 1:
-            raw_current = append_series(current_series_list, tstamp=self.tstamp)
-            if self._raw_potential and (
-                self._raw_potential.tseries == raw_current.tseries
-            ):
-                # Then we can re-use the tseries from raw_potential rather than
-                # saving a new one :D
-                current_tseries = self._raw_potential.tseries
-            else:
-                current_tseries = raw_current.tseries
-                self.series_list.append(current_tseries)
-            self._raw_current = ValueSeries(
-                name=self.I_str,
-                data=raw_current.data,
-                unit_name=raw_current.unit_name,
-                tseries=current_tseries,
-            )
-            self[
-                self.I_str
-            ] = self._raw_current  # TODO: better cache'ing. This is saved
-        else:
-            raise SeriesNotFoundError(
-                f"{self} does not have a series corresponding to raw current."
-                f" Looked for series with names in {raw_current_names}"
-            )
-
     def calibrate(self, RE_vs_RHE=None, A_el=None, R_Ohm=None):
         """Calibrate the EC measurement (all args optional)
 
@@ -366,7 +231,7 @@ class ECMeasurement(Measurement):
             `R_Ohm` times the raw current from the potential and add " (corrected)" to
             its name.
         """
-        raw_potential = self.raw_potential
+        raw_potential = self["raw_potential"]
         if self.RE_vs_RHE is None and self.R_Ohm is None:
             return raw_potential
         fixed_V_str = raw_potential.name
@@ -379,7 +244,7 @@ class ECMeasurement(Measurement):
         if self.R_Ohm:
             fixed_V_str += " (corrected)"
             fixed_potential_data = (
-                fixed_potential_data - self.R_Ohm * self.raw_current.data * 1e-3
+                fixed_potential_data - self.R_Ohm * self["raw_current"].data * 1e-3
             )  # TODO: Units. The 1e-3 here is to bring raw_current.data from [mA] to [A]
         return ValueSeries(
             name=fixed_V_str,
@@ -398,7 +263,7 @@ class ECMeasurement(Measurement):
             data by `A_el`, change its name from `I_str` to `J_str`, and add `/cm^2` to
             its unit.
         """
-        raw_current = self.raw_current
+        raw_current = self["raw_current"]
         if self.A_el is None:
             return raw_current
         else:
@@ -504,6 +369,7 @@ class ECMeasurement(Measurement):
             tseries=self.potential.tseries,
         )
         self[self.sel_str] = selector_series  # TODO: Better cache'ing. This gets saved.
+        return selector_series
 
     @property
     def cycle_number(self):
