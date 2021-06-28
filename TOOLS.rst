@@ -232,15 +232,25 @@ Bash shell, navigation to the git archive and executing the command::
 Anaconda Instructions
 ---------------------
 
-If you are using Conda (Anaconda/Minicond) with windows, you will need to
-add two directories to your system PATH variable. See explanation of the PATH
-variable `here <https://superuser.com/questions/284342/what-are-path-and-other-environment-variables-and-how-can-i-set-or-use-them>`_
+If you are using Conda (Anaconda/Minicond) with Windows, you will need to
+add two directories either to your system PATH variable (se explanation
+`here <https://superuser.com/questions/284342/what-are-path-and-other-environment-variables-and-how-can-i-set-or-use-them>`_
+) or to your ``.bash_profile`` or ``.bashrc`` (see explanation
+`here <https://stackoverflow.com/questions/6883760/git-for-windows-bashrc-or-equivalent-configuration-files-for-git-bash-shell>`_
+).
 
 For a full Anaconda installation with the default location for User "scott",
-the two paths to
+the two paths to add are::
 
-- C:\Users\scott\Anaconda3\Scripts
-- C:\Users\scott\Anaconda3
+  - ``C:\Users\scott\Anaconda3\Scripts``
+  - ``C:\Users\scott\Anaconda3``
+
+And the two corresponding lines to add to ``~/.bash_profile``, using any text editor, are::
+
+  export PATH="$PATH:/c/ProgramData/Anaconda3/Scripts/"
+  export PATH="$PATH:/c/ProgramData/Anaconda3/"
+
+Note that ``C:\`` becomes ``/c/``.
 
 After adding these to your PATH variable, they should appear in $PATH in git bash.
 To check, type::
@@ -254,7 +264,7 @@ be able to run tox and the other tools and tool runners from git bash just by e.
 
 , and it should work in a pre-push hook.
 
-NOTE: There can be bugs. See https://github.com/ixdat/ixdat/issues/10
+NOTE: There can still be bugs. See https://github.com/ixdat/ixdat/issues/10
 
 
 Command quick tips

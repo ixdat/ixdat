@@ -1,6 +1,5 @@
 """Tests that an ECMeasurement read from test data behaves as it should"""
 from pathlib import Path
-from ixdat import Measurement
 import time
 
 
@@ -18,7 +17,26 @@ class TestLog:
 
 
 log = TestLog()
+
 log.print(f"cwd = {Path('.').absolute().resolve()}")
+
+import sys
+
+log.print(f"running from {sys.executable}")
+
+import sip
+
+log.print(f"sip = {sip}")
+log.print(f"sip.__file__ = {sip.__file__}")
+log.print(f"dir(sip) = {dir(sip)}")
+log.print(f"help(sip) = {help(sip)}")
+
+import matplotlib
+
+log.print(f"matplotlib = {matplotlib}")
+log.print(f"mpl version = {matplotlib.__version__}")
+
+from ixdat import Measurement
 
 
 def test_append_essential_series():
