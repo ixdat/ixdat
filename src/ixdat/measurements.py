@@ -44,6 +44,7 @@ class Measurement(Saveable):
         "measurement_calibrations": ("calibration", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
+    child_attrs = ["_component_measurements", "_calibration_list", "series_list"]
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
     control_technique = None
@@ -262,6 +263,11 @@ class Measurement(Saveable):
         return set([vseries.name for vseries in self.value_series])
 
     @property
+    def time_names(self):
+        """List of the names of the VSeries in the measurement's DataSeries"""
+        return set([tseries.name for tseries in self.time_series])
+
+    @property
     def value_series(self):
         """List of the VSeries in the measurement's DataSeries"""
         return [
@@ -372,6 +378,15 @@ class Measurement(Saveable):
             t, v = t[mask], v[mask]
         return t, v
 
+    def grab_for_t(self, item, t):
+        """Return a numpy array with the value of item interpolated to time t"""
+        vseries = self[item]
+        tseries = vseries.tseries
+        v_0 = vseries.data
+        t_0 = tseries.data + tseries.tstamp - self.tstamp
+        v = np.interp(t, t_0, v_0)
+        return v
+
     @property
     def t(self):
         return self[self.control_str].t
@@ -464,6 +479,17 @@ class Measurement(Saveable):
             return m_id_list[0]
         return m_id_list
 
+    @property
+    def tspan(self):
+        """The minimum timespan (with respect to self.tstamp) containing all the data"""
+        t_start = None
+        t_finish = None
+        for t_name in self.time_names:
+            t = self[t_name].data
+            t_start = min(t_start, t[0]) if t_start else t[0]
+            t_finish = max(t_finish, t.data[-1]) if t_finish else t[-1]
+        return [t_start, t_finish]
+
     def cut(self, tspan):
         """Return a new measurement with the data in the given time interval
 
@@ -525,6 +551,14 @@ class Measurement(Saveable):
         del obj_as_dict["s_ids"]
         obj_as_dict["calibration_list"] = self.calibration_list
         del obj_as_dict["c_ids"]
+        obj_as_dict["component_measurements"] = []
+        for m in self._component_measurements:
+            dt = m.tstamp - self.tstamp
+            tspan_m = [tspan[0] - dt, tspan[1] - dt]
+            if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
+                continue
+            obj_as_dict["component_measurements"].append(m.cut(tspan_m))
+        del obj_as_dict["m_ids"]
         new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement
 
@@ -684,6 +718,9 @@ class Measurement(Saveable):
             calibration_list=new_calibration_list,
             aliases=new_aliases,
         )
+        del obj_as_dict["c_ids"]
+        del obj_as_dict["m_ids"]
+        del obj_as_dict["s_ids"]
         return cls.from_dict(obj_as_dict)
 
 
@@ -691,11 +728,49 @@ class Calibration(Saveable):
     table_name = "calibration"
     column_attrs = {
         "name",
+        "technique",
         "tstamp",
     }
 
-    def __init__(self, name=None, tstamp=None, measurement=None):
+    def __init__(self, name=None, technique=None, tstamp=None, measurement=None):
         super().__init__()
         self.name = name or f"{self.__class__.__name__}({measurement})"
+        self.technique = technique
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement
+
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Return an object of the measurement class of the right technique
+
+        Args:
+              obj_as_dict (dict): The full serializaiton (rows from table and aux
+                tables) of the measurement. obj_as_dict["technique"] specifies the
+                technique class to use, from TECHNIQUE_CLASSES
+        """
+        # TODO: see if there isn't a way to put the import at the top of the module.
+        #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+        from .techniques import CALIBRATION_CLASSES
+
+        # certain objects stored in the Measurement, but only saved as their names.
+        #   __init__() will get the object from the name, but the argument is
+        #   called like the object either way. For example __init__() takes an argument
+        #   called `sample` which can be an ixdat.Sample or a string interpreted as the
+        #   name of the sample to load. Subsequently, the sample name is accessible as
+        #   the property `sample_name`. But in the database is only saved the sample's
+        #   name as a string with the key/column "sample_name". So
+        #   obj_as_dict["sample_name"] needs to be renamed obj_as_dict["sample"] before
+        #   obj_as_dict can be passed to __init__.
+        #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
+        #       DataSeries.unit_name) and as such should be moved to db.Saveable
+        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372
+
+        if obj_as_dict["technique"] in CALIBRATION_CLASSES:
+            calibration_class = CALIBRATION_CLASSES[obj_as_dict["technique"]]
+        else:
+            calibration_class = cls
+        try:
+            measurement = calibration_class(**obj_as_dict)
+        except Exception:
+            raise
+        return measurement

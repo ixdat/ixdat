@@ -76,10 +76,15 @@ class DirBackend(BackendBase):
 
     def save(self, obj):
         """Save the Saveable object as a file corresponding to a row in a table"""
-        if obj.data_objects:
-            # save any data objects first as this may change the references
-            for data_obj in obj.data_objects:
-                self.save_data_obj(data_obj)
+        if obj.child_attrs:
+            for child_list_name in obj.child_attrs:
+                # save any data objects first as this may change the references
+                child_list = getattr(obj, child_list_name) or []
+                for child_obj in child_list:
+                    if hasattr(child_obj, "data"):
+                        self.save_data_obj(child_obj)
+                    else:
+                        self.save(child_obj)
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
         i = self.add_row(obj_as_dict, table_name=table_name)

@@ -11,14 +11,14 @@ from ixdat import Measurement
 
 plt.close("all")
 
-if False:
+if True:
     data_dir = Path.home() / (
-        "Dropbox/ixdat_resources/20B12_Data_Analysis_Workshop/example data set/"
+        "Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/"
     )
 
-    ocp_file = data_dir / "01_Trimi1_cont_02_OCV_C01.mpt"
-    cv_file = data_dir / "01_Trimi1_cont_03_CVA_C01.mpt"
-    cp_file = data_dir / "01_Trimi1_cont_04_CP_C01.mpt"
+    ocp_file = data_dir / "01_demo_02_OCV_C01.mpt"
+    cv_file = data_dir / "01_demo_03_CVA_C01.mpt"
+    cp_file = data_dir / "01_demo_04_CP_C01.mpt"
 
     ocp_meas = Measurement.read(ocp_file, reader="biologic", name="Pt_demo_ocp")
     print("read ocp file!")
@@ -52,7 +52,7 @@ cut_meas.plot(J_str="selector")
 select_meas = cut_meas.select_values(selector=[7, 9])
 select_meas.correct_ohmic_drop(R_Ohm=200)
 select_meas.plot()
-if False:
+if True:
     select_meas.name = "selected_measurement"
     select_meas.save()  # this changes its ID!
     my_id = select_meas.id

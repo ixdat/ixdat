@@ -143,7 +143,7 @@ class Saveable:
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
     extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
-    data_objects = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
+    child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
     def __init__(self, **self_as_dict):
         """Initialize a Saveable object from its dictionary serialization

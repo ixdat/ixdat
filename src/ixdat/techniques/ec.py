@@ -340,6 +340,7 @@ class ECCalibration(Calibration):
 
     def __init__(
         self,
+        technique="EC",
         RE_vs_RHE=None,
         A_el=None,
         R_Ohm=None,
@@ -347,7 +348,9 @@ class ECCalibration(Calibration):
         name=None,
         measurement=None,
     ):
-        super().__init__(name=name, tstamp=tstamp, measurement=measurement)
+        super().__init__(
+            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+        )
         self.RE_vs_RHE = RE_vs_RHE
         self.A_el = A_el
         self.R_Ohm = R_Ohm

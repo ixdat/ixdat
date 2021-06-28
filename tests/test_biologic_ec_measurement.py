@@ -2,6 +2,7 @@
 from pathlib import Path
 import time
 from ixdat import Measurement
+
 #  If tox crashes when trying to import matplotlib, see:
 #    https://github.com/ixdat/ixdat/issues/10
 
