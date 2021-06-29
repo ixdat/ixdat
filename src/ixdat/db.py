@@ -181,6 +181,14 @@ class Saveable:
         return self._id
 
     @property
+    def identity(self):
+        return self.backend, self.id
+
+    @property
+    def full_identity(self):
+        return self.backend_type, self.backend.address, self.table_name, self.id
+
+    @property
     def backend(self):
         """The backend the Saveable object was loaded from or last saved to."""
         if not self._backend:

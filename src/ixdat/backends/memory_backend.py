@@ -2,6 +2,10 @@ from .backend_base import BackendBase
 
 
 class MemoryBackend(BackendBase):
+
+    backend_type = "memory"
+    address = "here"
+
     def __init__(self):
         """Initialize the backend with dict for {table_name (str): id_counter (int)}"""
         super().__init__()

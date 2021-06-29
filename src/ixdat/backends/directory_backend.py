@@ -76,7 +76,11 @@ class DirBackend(BackendBase):
     def name(self):
         return f"DirBackend({self.project_directory})"
 
-    def save(self, obj):
+    @property
+    def address(self):
+        return str(self.project_directory)
+
+    def save(self, obj, force=False):
         """Save the Saveable object as a file corresponding to a row in a table"""
         if obj.child_attrs:
             for child_list_name in obj.child_attrs:
@@ -86,13 +90,24 @@ class DirBackend(BackendBase):
                     if hasattr(child_obj, "data"):
                         self.save_data_obj(child_obj)
                     else:
-                        self.save(child_obj)
+                        self.save(child_obj, force=force)
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
-        i = self.add_row(obj_as_dict, table_name=table_name)
-        obj.set_id(i)
-        obj.set_backend(self)
-        return i
+        if obj.backend is self and self.contains(table_name, obj.id):
+            if not force:
+                yn = input(
+                    f"Are you sure you would like to overwrite "
+                    f"{self} table={table_name} id={obj.id} with {obj}? y for yes."
+                    " You can use save() with force=True to suppress this."
+                )
+                if not yn == "y":
+                    return
+            self.update_row(table_name, obj.id, obj_as_dict)
+            return obj.id
+        else:
+            i = self.add_row(table_name, obj_as_dict)
+            obj.set_id(i)
+            obj.set_backend(self)
 
     def get(self, cls, i):
         """Open a Saveable object represented as row i of table cls.table_name"""
@@ -121,13 +136,13 @@ class DirBackend(BackendBase):
     def save_data_obj(self, data_obj):
         """Save the object as a .ix for metadata and .ixdata for numerical data"""
         table_name = data_obj.table_name
-        if data_obj.backend == self and self.contains(table_name, data_obj.id):
+        if data_obj.backend is self and self.contains(table_name, data_obj.id):
             return data_obj.id  # already saved!
         obj_as_dict = data_obj.as_dict()
         data = obj_as_dict["data"]
         obj_as_dict["data"] = None
         # first we save the metadata and set the object's id:
-        i = self.add_row(obj_as_dict, table_name=table_name)
+        i = self.add_row(table_name, obj_as_dict)
         data_obj.set_id(i)
         data_obj.set_backend(self)
         #  ... and now we save the data
@@ -137,7 +152,7 @@ class DirBackend(BackendBase):
         np.save(folder / data_file_name, data)
         return i
 
-    def add_row(self, obj_as_dict, table_name):
+    def add_row(self, table_name, obj_as_dict):
         """Save object's serialization to the folder table_name (like adding a row)"""
         folder = self.project_directory / table_name
         if not folder.exists():
@@ -150,6 +165,17 @@ class DirBackend(BackendBase):
         with open(folder / file_name, "w") as f:
             json.dump(obj_as_dict, f, indent=4)
         return i
+
+    def update_row(self, table_name, i, obj_as_dict):
+        """Save object's serialization to the folder table_name (like adding a row)"""
+        folder = self.project_directory / table_name
+        if not folder.exists():
+            folder.mkdir()
+        obj_as_dict.update({"id": i})
+        fixed_name = fix_name_for_saving(obj_as_dict["name"])
+        file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
+        with open(folder / file_name, "w") as f:
+            json.dump(obj_as_dict, f, indent=4)
 
     def get_row_as_dict(self, table_name, i):
         """Return the serialization of the object represented in row i of table_name"""
@@ -181,7 +207,7 @@ class DirBackend(BackendBase):
                     pass
         return id_list
 
-    def get_next_available_id(self, table_name):
+    def get_next_available_id(self, table_name, obj=None):
         """Return the next available id for a given table"""
         id_list = self.get_id_list(table_name)
         if not id_list:

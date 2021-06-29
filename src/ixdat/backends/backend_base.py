@@ -20,6 +20,7 @@ class BackendBase:
     """
 
     backend_type = "none"
+    address = "none"
 
     def __init__(self):
         """Initialize the backend with dict for {table_name (str): id_counter (int)}"""
