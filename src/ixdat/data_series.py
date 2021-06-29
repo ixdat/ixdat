@@ -19,11 +19,8 @@ class DataSeries(Saveable):
     """
 
     table_name = "data_series"
-    column_attrs = {
-        "name",
-        "unit_name",
-        "data",
-    }
+    column_attrs = {"name", "unit_name", "data", "series_type"}
+    series_type = "series"
 
     def __init__(self, name, unit_name, data):
         """initialize a data series with its name, unit, and data (id handled by parent)
@@ -41,15 +38,10 @@ class DataSeries(Saveable):
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return the right type of DataSeries based on the info in its serialization"""
-        if "tstamp" in obj_as_dict:
-            return TimeSeries(**obj_as_dict)
-        elif "t_ids" in obj_as_dict:
-            return ValueSeries(**obj_as_dict)
-        elif "a_ids" in obj_as_dict:
-            return Field(**obj_as_dict)
-        elif "value" in obj_as_dict:
-            return ConstantValue(**obj_as_dict)
-        return cls(**obj_as_dict)
+        series_type = obj_as_dict["series_type"]
+        series_class = SERIES_CLASSES[series_type]
+        del obj_as_dict["series_type"]
+        return series_class(**obj_as_dict)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
@@ -79,6 +71,7 @@ class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
     extra_column_attrs = {"tstamps": {"tstamp"}}
+    series_type = "tseries"
 
     def __init__(self, name, unit_name, data, tstamp):
         """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
@@ -99,75 +92,6 @@ class TimeSeries(DataSeries):
         return self
 
 
-class ValueSeries(DataSeries):
-    """Class to store scalar values that are measured over time.
-
-    Characterized by a reference to the corresponding time series. This reference is
-    represented in relational databases as a row in an auxiliary linker table
-    """
-
-    extra_linkers = {"value_time": ("data_series", "t_ids")}
-
-    def __init__(self, name, unit_name, data, t_id=None, t_ids=None, tseries=None):
-        """Initiate a ValueSeries with a TimeSeries or a reference thereto
-
-        Args (in addition to those of parent):
-            t_id (int): The id of the corresponding TimeSeries, if not given directly
-            t_ids (list of int): [t_id], only so that a backend can pass t_id as a list
-            tseries (TimeSeries): The corresponding TimeSeries, if available
-        """
-        super().__init__(name, unit_name, data)
-        self._tseries = tseries
-        # TODO: This could probably be handled more nicely with PlaceHolderObjects
-        #   see: Measurement and
-        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
-        if t_ids and not t_id:
-            t_id = t_ids[0]
-        self._t_id = t_id
-        if tseries and not isinstance(tseries, TimeSeries):
-            raise BuildError(f"tried to use {tseries} as a TimeSeries")
-        if tseries and t_id:
-            if not t_id == tseries.id:
-                raise TimeError(f"{self} initiated with non-matching t_id and tseries")
-        if tseries is None and t_id is None:
-            raise TimeError(f"{self} initiated without t_id or tseries.")
-
-    @property
-    def t_id(self):
-        """int: the id of the TimeSeries"""
-        if self._tseries:
-            return self._tseries.id
-        return self._t_id
-
-    @property
-    def t_ids(self):
-        """list: the id of the TimeSeries, in a list for consistent linker table def."""
-        return [self.t_id]
-
-    @property
-    def tseries(self):
-        """The TimeSeries describing when the data in the ValueSeries was recorded"""
-        if not self._tseries:
-            self._tseries = TimeSeries.get(i=self.t_id)
-            self._t_id = None  # to avoid any confusion of two t_id's
-        return self._tseries
-
-    @property
-    def v(self):
-        """The value as a 1-d np array"""
-        return self.data
-
-    @property
-    def t(self):
-        """The measurement times as a 1-d np array"""
-        return self.tseries.data
-
-    @property
-    def tstamp(self):
-        """The timestamp, from the TimeSeries of the ValueSeries"""
-        return self.tseries.tstamp
-
-
 class Field(DataSeries):
     """Class for storing multi-dimensional data spanning 'axes'
 
@@ -176,6 +100,8 @@ class Field(DataSeries):
     """
 
     extra_linkers = {"field_axes": ("data_series", "a_ids")}
+    child_attrs = ["axes_series"]
+    series_type = "field"
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
         """Initiate the Field and check that the supplied axes make sense.
@@ -254,8 +180,78 @@ class Field(DataSeries):
         return self._data
 
 
+class ValueSeries(Field):
+    """Class to store scalar values that are measured over time.
+
+    Characterized by a reference to the corresponding time series. This reference is
+    represented in relational databases as a row in an auxiliary linker table
+    """
+
+    series_type = "vseries"
+
+    def __init__(
+        self,
+        name,
+        unit_name,
+        data,
+        t_id=None,
+        tseries=None,
+        a_ids=None,
+        axes_series=None,
+    ):
+        """Initiate a ValueSeries with a TimeSeries or a reference thereto
+
+        Args (in addition to those of parent):
+            t_id (int): The id of the corresponding TimeSeries, if not given directly
+            t_ids (list of int): [t_id], only so that a backend can pass t_id as a list
+            tseries (TimeSeries): The corresponding TimeSeries, if available
+        """
+        a_ids = a_ids or [t_id]
+        axes_series = axes_series or [tseries]
+        super().__init__(name, unit_name, data, a_ids, axes_series)
+        # TODO: This could probably be handled more nicely with PlaceHolderObjects
+        #   see: Measurement and
+        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
+
+    @property
+    def _tseries(self):
+        return self._axes_series[0]
+
+    @property
+    def _t_id(self):
+        return self._a_ids[0]
+
+    @property
+    def tseries(self):
+        return self.axes_series[0]
+
+    @property
+    def t_id(self):
+        """int: the id of the TimeSeries"""
+        if self._tseries:
+            return self._tseries.id
+        return self._t_id
+
+    @property
+    def v(self):
+        """The value as a 1-d np array"""
+        return self.data
+
+    @property
+    def t(self):
+        """The measurement times as a 1-d np array"""
+        return self.tseries.data
+
+    @property
+    def tstamp(self):
+        """The timestamp, from the TimeSeries of the ValueSeries"""
+        return self.tseries.tstamp
+
+
 class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
+
+    series_type = "constantvalue"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -268,6 +264,12 @@ class ConstantValue(ValueSeries):
                 self._data = self.load_data()  # inherited from Saveable.
             self._expanded_data = np.ones(self.t.shape) * self._data
         return self._expanded_data
+
+
+SERIES_CLASSES = {
+    cls.series_type: cls
+    for cls in [DataSeries, TimeSeries, Field, ValueSeries, ConstantValue]
+}
 
 
 def append_series(series_list, sorted=True, name=None, tstamp=None):

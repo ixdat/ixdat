@@ -49,9 +49,9 @@ combined_meas.plot(tspan=tspan)
 cut_meas = combined_meas.cut(tspan=tspan)
 cut_meas.plot(J_str="selector")
 
-select_meas = cut_meas.select_values(selector=[7, 9])
+select_meas = cut_meas.select_values(selector=[4, 8])
 select_meas.correct_ohmic_drop(R_Ohm=200)
-select_meas.plot()
+select_meas.plot_vs_potential()
 if True:
     select_meas.name = "selected_measurement"
     select_meas.save()  # this changes its ID!
@@ -63,5 +63,5 @@ del select_meas
 
 loaded_meas = Measurement.get(my_id)
 
-loaded_meas.plot(J_str="selector")
 loaded_meas.plot_vs_potential()
+loaded_meas.plot(J_str="selector")
