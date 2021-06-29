@@ -22,11 +22,11 @@ Note on terminology:
 """
 
 from .exceptions import DataBaseError
-from .backends import DATABASE_BACKENDS
+from .backends import BACKEND_CLASSES, database_backends
 
-MemoryBackend = DATABASE_BACKENDS["memory"]  # The default for a local not-yet-saved obj
+MemoryBackend = BACKEND_CLASSES["memory"]  # The default for a local not-yet-saved obj
 memory_backend = MemoryBackend()  # The backend to assign id's for in-memory objects
-DirBackend = DATABASE_BACKENDS["directory"]  # The default backend for saving
+DirBackend = BACKEND_CLASSES["directory"]  # The default backend for saving
 
 
 class DataBase:
@@ -62,8 +62,8 @@ class DataBase:
 
     def set_backend(self, backend_name, **db_kwargs):
         """Change backend to the class given by backend_name initiated with db_kwargs"""
-        if backend_name in DATABASE_BACKENDS:
-            BackendClass = DATABASE_BACKENDS[backend_name]
+        if backend_name in BACKEND_CLASSES:
+            BackendClass = BACKEND_CLASSES[backend_name]
         else:
             raise NotImplementedError(
                 f"ixdat doesn't recognize db_name = '{backend_name}'. If this is a new"
@@ -145,7 +145,7 @@ class Saveable:
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
-    def __init__(self, **self_as_dict):
+    def __init__(self, backend="none", **self_as_dict):
         """Initialize a Saveable object from its dictionary serialization
 
         This the default behavior, and should be overwritten using an argument-free
@@ -158,24 +158,21 @@ class Saveable:
             setattr(self, attr, value)
         if self_as_dict and not self.column_attrs:
             self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
-        self._backend = MemoryBackend  # SHOULD BE SET AFTER __INIT__ FOR LOADED OBJECT
-        self._id = None  # SHOULD BE SET AFTER THE __INIT__ OF INHERITING CLASSES
+        self._backend = backend
+        self._id = None  # SHOULD BE SET AFTER THE __INIT__ FOR LOADED OBJECTS
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @property
-    def backend_name(self):
-        """The name of the backend in which self has been saved to / loaded from"""
-        return self.backend.name
-
-    @property
     def id(self):
         """The principle-key identifier. Set by backend or counted in memory."""
         if not self._id:
-            if self.backend_name == "memory":
-                self._id = memory_backend.get_next_available_id(self.table_name)
+            if self.backend_type in ("none", "memory"):
+                self._id = self.backend.get_next_available_id(self.table_name, obj=self)
+                # TODO: Wouldn't it be better if the backend was always asked for the
+                #   ID by Saveable.__init__ ?
             else:
                 raise DataBaseError(
                     f"{self} comes from {self.backend_name} "
@@ -186,7 +183,25 @@ class Saveable:
     @property
     def backend(self):
         """The backend the Saveable object was loaded from or last saved to."""
+        if not self._backend:
+            self._backend = database_backends["none"]
+        elif isinstance(self._backend, str):
+            if self._backend in database_backends:
+                self._backend = database_backends[self._backend]
+            elif self._backend in BACKEND_CLASSES:
+                self._backend = BACKEND_CLASSES[self._backend]()
+            else:
+                print(f"WARNING! {self} has unrecognized backend = {self._backend}")
         return self._backend
+
+    @property
+    def backend_name(self):
+        """The name of the backend in which self has been saved to / loaded from"""
+        return self.backend.name
+
+    @property
+    def backend_type(self):
+        return self.backend.backend_type
 
     def set_id(self, i):
         """Backends set obj.id here after loading/saving a Saveable obj"""

@@ -6,12 +6,18 @@ Constants:
         is the backend class (inheriting from Backend) for saving and loading things.
 """
 
-from .memory_backend import BackendBase, MemoryBackend
+from .backend_base import BackendBase
+from .memory_backend import MemoryBackend
 from .directory_backend import DirBackend
 
 
-DATABASE_BACKENDS = {
-    "None": BackendBase,
+BACKEND_CLASSES = {
+    "none": BackendBase,
     "memory": MemoryBackend,
     "directory": DirBackend,
 }
+
+database_backends = {
+    "none": BackendBase(),
+    "memory": MemoryBackend(),
+}  # This will store the initiated

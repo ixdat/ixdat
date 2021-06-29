@@ -3,7 +3,7 @@
 import numpy as np
 
 from ..measurements import Measurement, Calibration
-from ..data_series import ValueSeries, ConstantValue  # Shouldn't be needed here.
+from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
 

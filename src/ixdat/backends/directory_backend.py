@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from .memory_backend import BackendBase
+from .backend_base import BackendBase
 from ..config import CFG
 
 
@@ -43,6 +43,8 @@ class DirBackend(BackendBase):
     TODO: refactor i with the standard id_ inside methods
         see github: https://github.com/ixdat/ixdat/pull/1#discussion_r546400226
     """
+
+    backend_type = "directory"
 
     def __init__(
         self,
