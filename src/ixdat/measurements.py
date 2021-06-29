@@ -45,6 +45,7 @@ class Measurement(Saveable):
         "measurement_series": ("data_series", "s_ids"),
     }
     child_attrs = ["_component_measurements", "_calibration_list", "series_list"]
+    # TODO: child_attrs should be derivable from extra_linkers?
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
     control_technique = None
@@ -233,7 +234,7 @@ class Measurement(Saveable):
         """List of the id's of a combined measurement's component measurements"""
         if not self._component_measurements:
             return None
-        return [m.id for m in self._component_measurements]
+        return [m.identity for m in self._component_measurements]
 
     @property
     def calibration_list(self):
@@ -245,7 +246,7 @@ class Measurement(Saveable):
     @property
     def c_ids(self):
         """List of the id's of the measurement's Calibrations"""
-        return [c.id for c in self._calibration_list]
+        return [c.identity for c in self._calibration_list]
 
     @property
     def series_list(self):
@@ -258,7 +259,7 @@ class Measurement(Saveable):
     @property
     def s_ids(self):
         """List of the id's of the measurement's DataSeries"""
-        return [series.id for series in self._series_list]
+        return [series.identity for series in self._series_list]
 
     @property
     def series_dict(self):

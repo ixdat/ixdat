@@ -47,9 +47,10 @@ class DataBase:
         """Save a Saveable object with the backend"""
         return self.backend.save(obj)
 
-    def get(self, cls, i):
+    def get(self, cls, i, backend=None):
         """Select and return object of Saveable class cls with id=i from the backend"""
-        obj = self.backend.get(cls, i)
+        backend = backend or self.backend
+        obj = backend.get(cls, i)
         # obj will already have obj.id = i and obj.backend = self.backend from backend
         return obj
 
@@ -182,6 +183,8 @@ class Saveable:
 
     @property
     def identity(self):
+        if self.backend is DB.backend:
+            return self.id
         return self.backend, self.id
 
     @property
@@ -259,10 +262,10 @@ class Saveable:
         return cls(**obj_as_dict)
 
     @classmethod
-    def get(cls, i, db=None):
+    def get(cls, i, backend=None):
         """Open an object of cls given its id (the table is cls.table_name)"""
-        db = db or cls.db
-        return db.get(cls, i)
+        backend = backend or DB.backend
+        return backend.get(cls, i)
 
     def load_data(self, db=None):
         """Load the data of the object, if ixdat in its laziness hasn't done so yet"""
@@ -273,7 +276,7 @@ class Saveable:
 class PlaceHolderObject:
     """A tool for ixdat's laziness, instances sit in for Saveable objects."""
 
-    def __init__(self, i, cls):
+    def __init__(self, i, cls, backend=None):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
@@ -282,10 +285,11 @@ class PlaceHolderObject:
         """
         self.id = i
         self.cls = cls
+        self.backend = backend
 
     def get_object(self):
         """Return the loaded real object represented by the PlaceHolderObject"""
-        return self.cls.get(self.id)
+        return self.cls.get(self.id, backend=self.backend)
 
 
 def fill_object_list(object_list, obj_ids, cls=None):
@@ -307,7 +311,12 @@ def fill_object_list(object_list, obj_ids, cls=None):
     provided_series_ids = [s.id for s in object_list]
     if not obj_ids:
         return object_list
-    for i in obj_ids:
+    for identity in obj_ids:
+        if isinstance(identity, int):
+            i = identity
+            backend = DB.backend
+        else:
+            backend, i = identity
         if i not in provided_series_ids:
-            object_list.append(PlaceHolderObject(i=i, cls=cls))
+            object_list.append(PlaceHolderObject(i=i, cls=cls, backend=backend))
     return object_list
