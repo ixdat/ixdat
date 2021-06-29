@@ -80,21 +80,20 @@ class DirBackend(BackendBase):
     def address(self):
         return str(self.project_directory)
 
-    def save(self, obj, force=False):
+    def save(self, obj, force=False, no_updates=True):
         """Save the Saveable object as a file corresponding to a row in a table"""
         if obj.child_attrs:
             for child_list_name in obj.child_attrs:
                 # save any data objects first as this may change the references
                 child_list = getattr(obj, child_list_name) or []
                 for child_obj in child_list:
-                    if hasattr(child_obj, "data"):
-                        self.save_data_obj(child_obj)
-                    else:
-                        self.save(child_obj, force=force)
+                    self.save(child_obj, force=force, no_updates=True)
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
         if obj.backend is self and self.contains(table_name, obj.id):
             if not force:
+                if no_updates:
+                    return obj.id
                 yn = input(
                     f"Are you sure you would like to overwrite "
                     f"{self} table={table_name} id={obj.id} with {obj}? y for yes."
@@ -108,6 +107,12 @@ class DirBackend(BackendBase):
             i = self.add_row(table_name, obj_as_dict)
             obj.set_id(i)
             obj.set_backend(self)
+            return i
+
+    def save_data(self, data, table_name, i, fixed_name=None):
+        folder = self.project_directory / table_name
+        data_file_name = f"{i}_{fixed_name}{self.data_suffix}"
+        np.save(folder / data_file_name, data)
 
     def get(self, cls, i):
         """Open a Saveable object represented as row i of table cls.table_name"""
@@ -133,25 +138,6 @@ class DirBackend(BackendBase):
             print(f"could not find file {path_to_row}")
             return
 
-    def save_data_obj(self, data_obj):
-        """Save the object as a .ix for metadata and .ixdata for numerical data"""
-        table_name = data_obj.table_name
-        if data_obj.backend is self and self.contains(table_name, data_obj.id):
-            return data_obj.id  # already saved!
-        obj_as_dict = data_obj.as_dict()
-        data = obj_as_dict["data"]
-        obj_as_dict["data"] = None
-        # first we save the metadata and set the object's id:
-        i = self.add_row(table_name, obj_as_dict)
-        data_obj.set_id(i)
-        data_obj.set_backend(self)
-        #  ... and now we save the data
-        folder = self.project_directory / table_name
-        fixed_name = fix_name_for_saving(data_obj.name)
-        data_file_name = f"{data_obj.id}_{fixed_name}{self.data_suffix}"
-        np.save(folder / data_file_name, data)
-        return i
-
     def add_row(self, table_name, obj_as_dict):
         """Save object's serialization to the folder table_name (like adding a row)"""
         folder = self.project_directory / table_name
@@ -160,8 +146,10 @@ class DirBackend(BackendBase):
         i = self.get_next_available_id(table_name)
         obj_as_dict.update({"id": i})
         fixed_name = fix_name_for_saving(obj_as_dict["name"])
+        if "data" in obj_as_dict:
+            self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
+            obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
-
         with open(folder / file_name, "w") as f:
             json.dump(obj_as_dict, f, indent=4)
         return i
@@ -173,6 +161,9 @@ class DirBackend(BackendBase):
             folder.mkdir()
         obj_as_dict.update({"id": i})
         fixed_name = fix_name_for_saving(obj_as_dict["name"])
+        if "data" in obj_as_dict:
+            self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
+            obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
         with open(folder / file_name, "w") as f:
             json.dump(obj_as_dict, f, indent=4)

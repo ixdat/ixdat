@@ -9,7 +9,7 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 import numpy as np
 from .db import Saveable
 from .units import Unit
-from .exceptions import TimeError, AxisError, BuildError
+from .exceptions import AxisError, BuildError
 
 
 class DataSeries(Saveable):
