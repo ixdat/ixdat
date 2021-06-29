@@ -11,13 +11,14 @@ classes will be defined in the corresponding module in ./techniques/
 """
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject, fill_object_list
+from .db import Saveable, PlaceHolderObject, fill_object_list, with_memory
 from .data_series import (
     DataSeries,
     TimeSeries,
     ValueSeries,
     ConstantValue,
     append_series,
+    time_shifted,
 )
 from .samples import Sample
 from .lablogs import LabLog
@@ -44,7 +45,7 @@ class Measurement(Saveable):
         "measurement_calibrations": ("calibration", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
-    child_attrs = ["_component_measurements", "_calibration_list", "series_list"]
+    child_attrs = ["component_measurements", "calibration_list", "series_list"]
     # TODO: child_attrs should be derivable from extra_linkers?
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
@@ -184,6 +185,7 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
+    @with_memory
     def read(cls, path_to_file, reader, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader"""
         if isinstance(reader, str):
@@ -222,8 +224,6 @@ class Measurement(Saveable):
 
         For a pure measurement (not a measurement set), this is itself in a list.
         """
-        if not self._component_measurements:
-            return [self]
         for i, m in enumerate(self._component_measurements):
             if isinstance(m, PlaceHolderObject):
                 self._component_measurements[i] = m.get_object()
@@ -234,7 +234,7 @@ class Measurement(Saveable):
         """List of the id's of a combined measurement's component measurements"""
         if not self._component_measurements:
             return None
-        return [m.identity for m in self._component_measurements]
+        return [m.identity for m in self.component_measurements]
 
     @property
     def calibration_list(self):
@@ -246,7 +246,7 @@ class Measurement(Saveable):
     @property
     def c_ids(self):
         """List of the id's of the measurement's Calibrations"""
-        return [c.identity for c in self._calibration_list]
+        return [c.identity for c in self.calibration_list]
 
     @property
     def series_list(self):
@@ -355,8 +355,12 @@ class Measurement(Saveable):
                     # if not, we've exhausted possibilities! Raise an error.
                     raise SeriesNotFoundError(f"{self} has no series named {key}.")
                 # Now, append the series
-                name = key if len(set(s.name for s in series_to_append)) > 1 else None
-                series = append_series(series_to_append, name=name, tstamp=self.tstamp)
+                if len(series_to_append) == 1:
+                    series = series_to_append[0]
+                    if series_to_append[0].tstamp == self.tstamp:
+                        return series
+                    return time_shifted(series, tstamp=self.tstamp)
+                series = append_series(series_to_append, name=key, tstamp=self.tstamp)
         # Finally, wherever we found the series, cache it and return it.
         self._cached_series[key] = series
         return series
@@ -514,8 +518,10 @@ class Measurement(Saveable):
                 long time vector that you have at hand to describe the time interval
                 you're looking for.
         """
-        new_series_list = []
         obj_as_dict = self.as_dict()
+
+        # first, cut the series list:
+        new_series_list = []
         time_cutting_stuff = {}  # {tseries_id: (mask, new_tseries)}
         for series in self.series_list:
             try:
@@ -525,18 +531,11 @@ class Measurement(Saveable):
             except AttributeError:  # series independent of time are uneffected by cut
                 new_series_list.append(series)
             else:
-                t_id = (tseries.id, tseries.backend_name)
-                # FIXME: Beautiful, met my first id clash here. Local memory and loaded
-                #    each had a timeseries with id=1, but different length. Previously
-                #    the above line of code was just t_id = tseries.id as you'd expect,
-                #    meaning that time_cutting_stuff appeared to already have the needed
-                #    tseries but didn't!
-                #    Note that the id together with the backend works but should be
-                #    replaced by a single Universal Unique Identifier, or perhaps just
-                #    a property `Saveable.uid`, returning `(self.id, self.backend_name)`
+                t_identity = tseries.identity
+                # Note: identity is backend (if different from DB.backend) AND id
 
-                if t_id in time_cutting_stuff:
-                    mask, new_tseries = time_cutting_stuff[t_id]
+                if t_identity in time_cutting_stuff:
+                    mask, new_tseries = time_cutting_stuff[t_identity]
                 else:
                     t = tseries.t + tseries.tstamp - self.tstamp
                     mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
@@ -546,12 +545,12 @@ class Measurement(Saveable):
                         tstamp=tseries.tstamp,
                         data=tseries.data[mask],
                     )
-                    time_cutting_stuff[t_id] = (mask, new_tseries)
+                    time_cutting_stuff[t_identity] = (mask, new_tseries)
                 if True not in mask:
                     continue
                 if False not in mask:
                     new_series_list.append(series)
-                elif (series.id, series.backend_name) == t_id:
+                elif series.identity == t_identity:
                     new_series_list.append(new_tseries)
                 else:
                     new_series = series.__class__(
@@ -562,17 +561,22 @@ class Measurement(Saveable):
                     )
                     new_series_list.append(new_series)
         obj_as_dict["series_list"] = new_series_list
-        del obj_as_dict["s_ids"]
-        obj_as_dict["calibration_list"] = self.calibration_list
-        del obj_as_dict["c_ids"]
+        del obj_as_dict["s_ids"]  # don't want the original series.
+
+        # then cut the component measurements.
         obj_as_dict["component_measurements"] = []
         for m in self._component_measurements:
+            # FIXME: This is perhaps overkill, to make new cut component measurements,
+            #    as it duplicates data (a big no)... especially bad because
+            #    new_measurement.save() saves them.
+            #    The step is here in order for file_number to get built correctly.
             dt = m.tstamp - self.tstamp
             tspan_m = [tspan[0] - dt, tspan[1] - dt]
             if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
                 continue
             obj_as_dict["component_measurements"].append(m.cut(tspan_m))
-        del obj_as_dict["m_ids"]
+        del obj_as_dict["m_ids"]  # don't want the original component measurements.
+
         new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement
 
@@ -697,7 +701,6 @@ class Measurement(Saveable):
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
         """
-        obj_as_dict = self.as_dict()
         new_name = self.name + " AND " + other.name
         new_technique = self.technique + " AND " + other.technique
 
@@ -714,7 +717,10 @@ class Measurement(Saveable):
 
         new_series_list = list(set(self.series_list + other.series_list))
         new_component_measurements = list(
-            set(self.component_measurements + other.component_measurements)
+            set(
+                (self.component_measurements or [self])
+                + (other.component_measurements or [other])
+            )
         )
         new_calibration_list = list(
             set(self._calibration_list + other._calibration_list)
@@ -725,6 +731,7 @@ class Measurement(Saveable):
                 new_aliases[key] = list(set(new_aliases[key] + other.aliases[key]))
             else:
                 new_aliases[key] = other.aliases[key]
+        obj_as_dict = self.as_dict()
         obj_as_dict.update(
             name=new_name,
             series_list=new_series_list,
@@ -732,6 +739,7 @@ class Measurement(Saveable):
             calibration_list=new_calibration_list,
             aliases=new_aliases,
         )
+        # don't want the original calibrations, component measurements, or series:
         del obj_as_dict["c_ids"]
         del obj_as_dict["m_ids"]
         del obj_as_dict["s_ids"]

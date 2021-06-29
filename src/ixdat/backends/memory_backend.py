@@ -19,5 +19,5 @@ class MemoryBackend(BackendBase):
         self.objects[table_name][i] = obj
         return i
 
-    def get(self, table_name, i):
-        return self.objects[table_name][i]
+    def get(self, cls, i):
+        return self.objects[cls.table_name][i]

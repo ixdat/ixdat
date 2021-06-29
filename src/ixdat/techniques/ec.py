@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..db import with_memory
 from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
@@ -175,7 +176,10 @@ class ECMeasurement(Measurement):
         # joined in a single calibration when processing. So that "potential" is both
         # calibrated to RHE and ohmic drop corrected, even if the two calibration
         # parameters were added separately.
-        good_calibration_list = [self.ec_calibration]
+        good_calibration_list = []
+        ec_calibration = self.ec_calibration
+        if ec_calibration.RE_vs_RHE or ec_calibration.A_el or ec_calibration.R_Ohm:
+            good_calibration_list.append(ec_calibration)
         for calibration in full_calibration_list:
             if calibration.__class__ is ECCalibration:
                 # Then we have all we need from it
@@ -206,6 +210,7 @@ class ECMeasurement(Measurement):
             if hasattr(calibration, "R_Ohm") and calibration.R_Ohm is not None:
                 return calibration.R_Ohm
 
+    @with_memory
     def calibrate(
         self,
         RE_vs_RHE=None,
@@ -235,6 +240,7 @@ class ECMeasurement(Measurement):
         self._calibration_list = [new_calibration] + self._calibration_list
         self.clear_cache()
 
+    @with_memory
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
         new_calibration = ECCalibration(
@@ -244,6 +250,7 @@ class ECMeasurement(Measurement):
         self._calibration_list = [new_calibration] + self._calibration_list
         self.clear_cache()
 
+    @with_memory
     def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
         new_calibration = ECCalibration(
@@ -253,6 +260,7 @@ class ECMeasurement(Measurement):
         self._calibration_list = [new_calibration] + self._calibration_list
         self.clear_cache()
 
+    @with_memory
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
         new_calibration = ECCalibration(
@@ -308,13 +316,10 @@ class ECMeasurement(Measurement):
         """Convert self to a CyclicVoltammagram"""
         from .cv import CyclicVoltammagram
 
-        self_as_dict = self.as_dict()
-        self_as_dict["series_list"] = self.series_list
-        self_as_dict["calibration_list"] = self._calibration_list
-        self_as_dict["technique"] = "CV"
-        del self_as_dict["s_ids"]
+        cv_as_dict = self.as_dict()
+        cv_as_dict["technique"] = "CV"
         # Note, this works perfectly! All needed information is in self_as_dict :)
-        return CyclicVoltammagram.from_dict(self_as_dict)
+        return CyclicVoltammagram.from_dict(cv_as_dict)
 
 
 class ECCalibration(Calibration):

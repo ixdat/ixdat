@@ -42,6 +42,7 @@ class DataBase:
     def __init__(self, backend=None):
         """Initialize the database with its backend"""
         self.backend = backend or DirBackend()
+        self.new_object_backend = "none"
 
     def save(self, obj):
         """Save a Saveable object with the backend"""
@@ -146,7 +147,7 @@ class Saveable:
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
-    def __init__(self, backend="none", **self_as_dict):
+    def __init__(self, backend=None, **self_as_dict):
         """Initialize a Saveable object from its dictionary serialization
 
         This the default behavior, and should be overwritten using an argument-free
@@ -159,7 +160,7 @@ class Saveable:
             setattr(self, attr, value)
         if self_as_dict and not self.column_attrs:
             self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
-        self._backend = backend
+        self._backend = backend or DB.new_object_backend
         self._id = None  # SHOULD BE SET AFTER THE __INIT__ FOR LOADED OBJECTS
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
@@ -276,7 +277,7 @@ class Saveable:
 class PlaceHolderObject:
     """A tool for ixdat's laziness, instances sit in for Saveable objects."""
 
-    def __init__(self, i, cls, backend=None):
+    def __init__(self, i, cls, backend):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
@@ -285,11 +286,21 @@ class PlaceHolderObject:
         """
         self.id = i
         self.cls = cls
+        if not backend or backend == "none" or backend is database_backends["none"]:
+            raise DataBaseError(
+                f"Can't make a PlaceHolderObject with backend={backend}"
+            )
         self.backend = backend
 
     def get_object(self):
         """Return the loaded real object represented by the PlaceHolderObject"""
         return self.cls.get(self.id, backend=self.backend)
+
+    @property
+    def identity(self):
+        if self.backend is DB.backend:
+            return self.id
+        return self.backend, self.id
 
 
 def fill_object_list(object_list, obj_ids, cls=None):
@@ -320,3 +331,15 @@ def fill_object_list(object_list, obj_ids, cls=None):
         if i not in provided_series_ids:
             object_list.append(PlaceHolderObject(i=i, cls=cls, backend=backend))
     return object_list
+
+
+def with_memory(function):
+    """Decorator for saving all new Saveable objects initiated in the memory backend"""
+
+    def function_with_memory(*args, **kwargs):
+        DB.new_object_backend = "memory"
+        to_return = function(*args, **kwargs)
+        DB.new_object_backend = "none"
+        return to_return
+
+    return function_with_memory
