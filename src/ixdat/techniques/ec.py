@@ -86,14 +86,17 @@ class ECMeasurement(Measurement):
     extra_column_attrs = {
         "ec_meaurements": {
             "ec_technique",
-            "RE_vs_RHE",
-            "R_Ohm",
-            "A_el",
         }
     }
     control_str = "raw_potential"
+    essential_series = ("t", "raw_potential", "raw_current", "cycle")
+    select_on = ("file_number", "loop_number", "cycle")
     default_exporter_class = ECExporter
     default_plotter_class = ECPlotter
+    V_str = EC_FANCY_NAMES["potential"]
+    J_str = EC_FANCY_NAMES["current"]
+    E_str = EC_FANCY_NAMES["raw_potential"]
+    I_str = EC_FANCY_NAMES["raw_current"]
 
     def __init__(
         self,
@@ -155,29 +158,8 @@ class ECMeasurement(Measurement):
         super().__init__(name, **kwargs)
 
         self.ec_technique = ec_technique
-
         self.calibrate(RE_vs_RHE, A_el, R_Ohm)
-
-        self.V_str = EC_FANCY_NAMES["potential"]
-        self.J_str = EC_FANCY_NAMES["current"]
-        self.E_str = EC_FANCY_NAMES["raw_potential"]
-        self.I_str = EC_FANCY_NAMES["raw_current"]
-
         self.plot_vs_potential = self.plotter.plot_vs_potential
-
-    def _populate_constants(self):
-        """Replace any ConstantValues with ValueSeries on potential's tseries
-
-        TODO: This function flagrantly violates laziness. Not only does it fill up all
-            the ConstantValue's with long vectors before they're needed, it also forces
-            raw_potential to be built before it is needed.
-            A lazier solution is needed.
-        """
-        for (i, s) in enumerate(self.series_list):
-            if isinstance(s, ConstantValue):
-                tseries = self.potential.tseries
-                series = s.get_vseries(tseries=tseries)
-                self.series_list[i] = series
 
     @property
     def aliases(self):

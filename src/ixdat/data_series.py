@@ -124,6 +124,8 @@ class ValueSeries(DataSeries):
         if t_ids and not t_id:
             t_id = t_ids[0]
         self._t_id = t_id
+        if tseries and not isinstance(tseries, TimeSeries):
+            raise BuildError(f"tried to use {tseries} as a TimeSeries")
         if tseries and t_id:
             if not t_id == tseries.id:
                 raise TimeError(f"{self} initiated with non-matching t_id and tseries")
@@ -303,13 +305,13 @@ def append_vseries_by_time(series_list, sorted=True, name=None, tstamp=None):
     unit = series_list[0].unit
     data = np.array([])
     tseries_list = [s.tseries for s in series_list]
+    if not all(isinstance(ts, TimeSeries) for ts in tseries_list):
+        raise BuildError(f"can't append {series_list} w tseries list = {tseries_list}")
     tseries, sort_indeces = append_tseries(
         tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
     )
 
     for s in series_list:
-        if not (s.unit == unit and s.__class__ == cls):
-            raise BuildError(f"can't append {series_list}")
         data = np.append(data, s.data)
     if sorted:
         data = data[sort_indeces]

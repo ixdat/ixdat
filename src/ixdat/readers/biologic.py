@@ -8,7 +8,7 @@ import time
 import numpy as np
 
 from . import TECHNIQUE_CLASSES
-from ..data_series import TimeSeries, ValueSeries
+from ..data_series import TimeSeries, ValueSeries, ConstantValue
 from ..exceptions import ReadError
 
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
@@ -82,7 +82,7 @@ class BiologicMPTReader:
         self.file_has_been_read = False
         self.measurement = None
 
-    def read(self, path_to_file, name=None, **kwargs):
+    def read(self, path_to_file, name=None, cls=ECMeasurement, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -97,6 +97,7 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            cls (Measurement class): The class of the measurement to return
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
         """
         if self.file_has_been_read:
@@ -137,18 +138,33 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        init_kwargs = dict(
+        series_names = [s.name for s in data_series_list]
+        aliases = {
+            key: [v for v in value if v in series_names]
+            for key, value in BIOLOGIC_ALIASES.items()
+        }
+        aliases = {key: value for key, value in aliases.items() if value}
+
+        for series_name in cls.essential_series:
+            if series_name not in series_names and series_name not in aliases:
+                name_0 = series_name + "=0"
+                data_series_list.append(
+                    ConstantValue(name=name_0, unit_name="", data=0, tseries=tseries)
+                )
+                aliases[series_name] = [name_0]
+
+        obj_as_dict = dict(
             name=self.name,
             technique="EC",
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
-            aliases=BIOLOGIC_ALIASES,
+            aliases=aliases,
         )
-        init_kwargs.update(kwargs)
+        obj_as_dict.update(kwargs)
 
-        self.measurement = ECMeasurement(**init_kwargs)  # cls.from_dict(**init_kwargs)
+        self.measurement = cls.from_dict(obj_as_dict)  # cls.from_dict(**init_kwargs)
         self.file_has_been_read = True
 
         return self.measurement

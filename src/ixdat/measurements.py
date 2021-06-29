@@ -62,6 +62,8 @@ class Measurement(Saveable):
     }
     """Series which should be constructed from other series by the specified method
     and cached the first time they are looked up"""
+    essential_series = None
+    """Series which should always be present"""
     default_plotter_class = ValuePlotter
     default_exporter_class = CSVExporter
 
@@ -189,7 +191,18 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        return reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
+        obj = reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
+
+        if obj.__class__.essential_series:
+            for series_name in obj.__class__.essential_series:
+                try:
+                    _ = obj[series_name]  # this also caches it.
+                except SeriesNotFoundError:
+                    raise SeriesNotFoundError(
+                        f"{reader} loaded without {obj.__class__.__name__} "
+                        f"essential series '{series_name}'"
+                    )
+        return obj
 
     @property
     def metadata_json_string(self):
@@ -751,19 +764,6 @@ class Calibration(Saveable):
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
         from .techniques import CALIBRATION_CLASSES
-
-        # certain objects stored in the Measurement, but only saved as their names.
-        #   __init__() will get the object from the name, but the argument is
-        #   called like the object either way. For example __init__() takes an argument
-        #   called `sample` which can be an ixdat.Sample or a string interpreted as the
-        #   name of the sample to load. Subsequently, the sample name is accessible as
-        #   the property `sample_name`. But in the database is only saved the sample's
-        #   name as a string with the key/column "sample_name". So
-        #   obj_as_dict["sample_name"] needs to be renamed obj_as_dict["sample"] before
-        #   obj_as_dict can be passed to __init__.
-        #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
-        #       DataSeries.unit_name) and as such should be moved to db.Saveable
-        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372
 
         if obj_as_dict["technique"] in CALIBRATION_CLASSES:
             calibration_class = CALIBRATION_CLASSES[obj_as_dict["technique"]]
