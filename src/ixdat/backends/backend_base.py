@@ -1,4 +1,4 @@
-"""This module implements the simplest backend, which just counts rows in memory"""
+"""This module implements the simplest backend, which just counts objects."""
 
 
 class BackendBase:
@@ -50,4 +50,7 @@ class BackendBase:
 
     @property
     def name(self):
-        return self.backend_type
+        return f"{self.__class__.__name__}({self.backend_type}, address={self.address})"
+
+    def __repr__(self):
+        return self.name

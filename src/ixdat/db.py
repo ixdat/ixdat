@@ -17,16 +17,12 @@ Note on terminology:
 
         `load` and `get` convention holds vertically - i.e. the Backend, the DataBase,
             up through the Saveable parent class for all ixdat classes corresponding to
-            database tables have `load` and `get` methods which call downwards.
+            database tables have `load` and `get` methods which call downwards. TODO.
     see: https://github.com/ixdat/ixdat/pull/1#discussion_r546400793
 """
 
 from .exceptions import DataBaseError
 from .backends import BACKEND_CLASSES, database_backends
-
-MemoryBackend = BACKEND_CLASSES["memory"]  # The default for a local not-yet-saved obj
-memory_backend = MemoryBackend()  # The backend to assign id's for in-memory objects
-DirBackend = BACKEND_CLASSES["directory"]  # The default backend for saving
 
 
 class DataBase:
@@ -41,7 +37,7 @@ class DataBase:
 
     def __init__(self, backend=None):
         """Initialize the database with its backend"""
-        self.backend = backend or DirBackend()
+        self.backend = backend or database_backends["directory"]
         self.new_object_backend = "none"
 
     def save(self, obj):
@@ -96,7 +92,7 @@ def get_database_name():
     return DB.backend.__class__.__name__
 
 
-class Saveable:
+class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later.
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
@@ -189,12 +185,18 @@ class Saveable:
 
     @property
     def identity(self):
+        """identity is the backend if different from the active backend, and the id
+
+        This is (usually) sufficient to tell if two objects refer to the same thing,
+        when used together with the class attribute table_name
+        """
         if self.backend is DB.backend:
             return self.id
         return self.backend, self.id
 
     @property
     def full_identity(self):
+        """The full immutable object identity as (str, str, str, int)"""
         return self.backend_type, self.backend.address, self.table_name, self.id
 
     @property
@@ -229,14 +231,18 @@ class Saveable:
         self._backend = backend
 
     def get_main_dict(self, exclude=None):
-        """Return dict: serializition only of the row of the object's main table"""
+        """Return dict: serializition only of the row of the object's main table
+
+        Args:
+            exclude (list): List of attribute names to leave out of the dict
+        """
         exclude = exclude or []
         if self.column_attrs is None:
             raise DataBaseError(
                 f"{self} can't be serialized because the class "
                 f"{self.__class__.__name__} hasn't defined column_attrs"
             )
-        self_as_dict = {
+        self_as_dict = {  # FIXME: probably better as loop, fix with table definitions.
             attr: getattr(self, attr)
             for attr in self.column_attrs
             if attr not in exclude
@@ -252,10 +258,11 @@ class Saveable:
         #   id's to a list.
         # FIXME: There would be a more precise and elegant way to do this if the id's
         #   and corresponding attributes could be connected through class attributes.
+        #   To do with table definitions.
         if self.child_attrs:
             for child_object_list_name in self.child_attrs:
                 for child_obj in getattr(self, child_object_list_name):
-                    if child_obj.backend_name in ("none", database_backends["none"]):
+                    if child_obj.backend in ("none", database_backends["none"]):
                         database_backends["memory"].remember(child_obj)
 
         exclude = exclude or []
@@ -328,6 +335,7 @@ class PlaceHolderObject:
 
     @property
     def identity(self):
+        """Placeholder also has an identity to check equivalence without loading"""
         if self.backend is DB.backend:
             return self.id
         return self.backend, self.id

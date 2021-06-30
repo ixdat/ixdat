@@ -1,10 +1,17 @@
+"""This module implements a local json-file-based representation of a relational db
+
+FIXME: Saving and/or loading get quite slow when the number of rows in a table (usually
+  data_series) grows to hundreds. How to figure out why that happens?
+"""
+
+
 import json
 import numpy as np
 from .backend_base import BackendBase
 from ..config import CFG
 
 
-char_substitutions = {
+char_substitutions = {  # substitutions needed to name .json file with data series name
     "/": "_DIV_",  # slash (divided by)
     "\\": "_BKSL_",  # backslash
     ".": "_DOT_",  # decimal
@@ -62,34 +69,37 @@ class DirBackend(BackendBase):
             data_suffix (str): The suffix to use for numpy-formatted data files
         """
         self.project_directory = directory / project_name
-        try:
-            self.project_directory.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            raise  # TODO, figure out what gets raised, then except with line below
-            # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
+        self.project_directory.mkdir(parents=True, exist_ok=True)
 
         self.metadata_suffix = metadata_suffix
         self.data_suffix = data_suffix
         super().__init__()
 
     @property
-    def name(self):
-        return f"DirBackend({self.project_directory})"
-
-    @property
     def address(self):
         return str(self.project_directory)
 
     def save(self, obj, force=False, no_updates=True):
-        """Save the Saveable object as a file corresponding to a row in a table"""
+        """Save the Saveable object as a file corresponding to a row in a table
+
+        Args:
+            obj (Saveable): an object
+        """
+        # First, we save any objects referenced by this object that need to survive a
+        # save-load cycle. These are listed in obj.child_attrs. They need to be saved
+        # first, so that they get their id's in this backend for the main object to
+        # correctly reference. This is done recursively.
         if obj.child_attrs:
             for child_list_name in obj.child_attrs:
                 # save any data objects first as this may change the references
                 child_list = getattr(obj, child_list_name) or []
                 for child_obj in child_list:
                     self.save(child_obj, force=force, no_updates=True)
+        # Now we're ready to save the main object.
+        # The table_name is the table, the as_dict is the info for the row in the table.
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
+        # check if it's already saved and decide what to do if so:
         if obj.backend is self and self.contains(table_name, obj.id):
             if not force:
                 if no_updates:
