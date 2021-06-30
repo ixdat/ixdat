@@ -164,7 +164,8 @@ class Measurement(Saveable):
         #   obj_as_dict can be passed to __init__.
         #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
         #       DataSeries.unit_name) and as such should be moved to db.Saveable
-        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372
+        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372.
+        #       Will be fixed with the table definition PR.
         objects_saved_as_their_name = [
             "sample",
         ]
@@ -225,6 +226,7 @@ class Measurement(Saveable):
         """
         for i, m in enumerate(self._component_measurements):
             if isinstance(m, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
                 self._component_measurements[i] = m.get_object()
         return self._component_measurements
 
@@ -240,13 +242,14 @@ class Measurement(Saveable):
         """List of calibrations (with placeholders filled)"""
         for i, c in enumerate(self._calibration_list):
             if isinstance(c, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
                 self._calibration_list[i] = c.get_object()
         return self._calibration_list
 
     @property
     def calibrations(self):
         """List of calibrations with any needed manipulation done."""
-        return
+        return self.calibration_list
 
     @property
     def c_ids(self):
@@ -258,6 +261,7 @@ class Measurement(Saveable):
         """List of the DataSeries containing the measurement's data"""
         for i, s in enumerate(self._series_list):
             if isinstance(s, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
                 self._series_list[i] = s.get_object()
         return self._series_list
 
@@ -316,15 +320,22 @@ class Measurement(Saveable):
         The item is interpreted as the name of a series. VSeries names can have "-v"
         or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
         get instead its corresponding TSeries.
-        The measurement also checks its `aliases` for other name(s) which may refer to
-        what is being looked up.
-        The measurement also checks its calibrations to see if they can get the desired
-        calibrated data.
-        If there are more than one series with the name(s) specified, they are appended.
+        If there are more than one series key refers to, they are appended.
         The timestamp is always shifted to the measurement's tstamp.
+
+        Before looking for raw data series named keys, the measurement checks
+        - its cache
+        - its calibrations to see if they can get the desired calibrated data.
+        - its `aliases` for other name(s) which may refer to what is being looked up.
 
         Args:
             key (str): The name of a DataSeries (see above)
+        Raises:
+            SeriesNotFoundError if none of the above lookups find the key.
+        Side-effects:
+            if key is not already in the cache, it gets added
+        Returns:
+            The (calibrated) (appended) dataseries for key with the right t=0.
         """
         if key in self._cached_series:
             return self._cached_series[key]
@@ -372,24 +383,8 @@ class Measurement(Saveable):
         self._cached_series[key] = series
         return series
 
-    def __setitem__(self, series_name, series):
-        """Append `series` with name=`series_name` to `series_list` and remove others"""
-        if not series.name == series_name:
-            raise SeriesNotFoundError(
-                f"Can't set {self}[{series_name}] = {series}. Series names don't agree."
-            )
-        del self[series_name]
-        self.series_list.append(series)
-
-    def __delitem__(self, series_name):
-        """Remove all series which have `series_name` as their name from series_list"""
-        new_series_list = []
-        for s in self.series_list:
-            if not s.name == series_name:
-                new_series_list.append(s)
-        self._series_list = new_series_list
-
     def clear_cache(self):
+        """Clear the cache so derived series are constructed again with updated info"""
         self._cached_series = {}
 
     def grab(self, item, tspan=None):
@@ -754,6 +749,8 @@ class Measurement(Saveable):
 
 
 class Calibration(Saveable):
+    """Base class for calibrations."""
+
     table_name = "calibration"
     column_attrs = {
         "name",
@@ -762,6 +759,14 @@ class Calibration(Saveable):
     }
 
     def __init__(self, name=None, technique=None, tstamp=None, measurement=None):
+        """Initiate a Calibration
+
+        Args:
+            name (str): The name of the calibration
+            technique (str): The technique of the calibration
+            tstamp (float): The time at which the calibration took place or is valid
+            measurement (Measurement): Optional. A measurement to calibrate by default.
+        """
         super().__init__()
         self.name = name or f"{self.__class__.__name__}({measurement})"
         self.technique = technique
@@ -770,7 +775,7 @@ class Calibration(Saveable):
 
     @classmethod
     def from_dict(cls, obj_as_dict):
-        """Return an object of the measurement class of the right technique
+        """Return an object of the Calibration class of the right technique
 
         Args:
               obj_as_dict (dict): The full serializaiton (rows from table and aux
@@ -790,3 +795,7 @@ class Calibration(Saveable):
         except Exception:
             raise
         return measurement
+
+    def calibrate_series(self, key, measurement=None):
+        """This should be overwritten in real calibration classes."""
+        raise NotImplementedError
