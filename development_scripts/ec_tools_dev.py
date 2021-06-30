@@ -59,7 +59,7 @@ if True:
 else:
     my_id = 4
 
-del select_meas
+# select_meas
 
 loaded_meas = Measurement.get(my_id)
 

@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from ..db import with_memory
 from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
@@ -159,7 +158,8 @@ class ECMeasurement(Measurement):
         super().__init__(name, **kwargs)
 
         self.ec_technique = ec_technique
-        self.calibrate(RE_vs_RHE, A_el, R_Ohm)
+        if RE_vs_RHE or A_el or R_Ohm:
+            self.calibrate(RE_vs_RHE, A_el, R_Ohm)
         self.plot_vs_potential = self.plotter.plot_vs_potential
 
     @property
@@ -169,17 +169,16 @@ class ECMeasurement(Measurement):
         return a
 
     @property
-    def calibration_list(self):
-        """The list of calibrations of the measurement"""
-        full_calibration_list = super().calibration_list
-        # The following is necessary to ensure that all EC Calibration parameters are
-        # joined in a single calibration when processing. So that "potential" is both
-        # calibrated to RHE and ohmic drop corrected, even if the two calibration
-        # parameters were added separately.
-        good_calibration_list = []
-        ec_calibration = self.ec_calibration
-        if ec_calibration.RE_vs_RHE or ec_calibration.A_el or ec_calibration.R_Ohm:
-            good_calibration_list.append(ec_calibration)
+    def calibrations(self):
+        """The list of calibrations of the measurement.
+
+        The following is necessary to ensure that all EC Calibration parameters are
+        joined in a single calibration when processing. So that "potential" is both
+        calibrated to RHE and ohmic drop corrected, even if the two calibration
+        parameters were added separately.
+        """
+        full_calibration_list = self.calibration_list
+        good_calibration_list = [self.ec_calibration]
         for calibration in full_calibration_list:
             if calibration.__class__ is ECCalibration:
                 # Then we have all we need from it
@@ -194,23 +193,22 @@ class ECMeasurement(Measurement):
 
     @property
     def RE_vs_RHE(self):
-        for calibration in self._calibration_list:
+        for calibration in self.calibration_list:
             if hasattr(calibration, "RE_vs_RHE") and calibration.RE_vs_RHE is not None:
                 return calibration.RE_vs_RHE
 
     @property
     def A_el(self):
-        for calibration in self._calibration_list:
+        for calibration in self.calibration_list:
             if hasattr(calibration, "A_el") and calibration.A_el is not None:
                 return calibration.A_el
 
     @property
     def R_Ohm(self):
-        for calibration in self._calibration_list:
+        for calibration in self.calibration_list:
             if hasattr(calibration, "R_Ohm") and calibration.R_Ohm is not None:
                 return calibration.R_Ohm
 
-    @with_memory
     def calibrate(
         self,
         RE_vs_RHE=None,
@@ -229,6 +227,9 @@ class ECMeasurement(Measurement):
                 to now)
             cal_name (str): The name of the calibration.
         """
+        if not (RE_vs_RHE or A_el or R_Ohm):
+            print("Warning! Ignoring attempt to calibrate without any parameters.")
+            return
         new_calibration = ECCalibration(
             RE_vs_RHE=RE_vs_RHE or self.RE_vs_RHE,
             A_el=A_el or self.A_el,
@@ -240,7 +241,6 @@ class ECMeasurement(Measurement):
         self._calibration_list = [new_calibration] + self._calibration_list
         self.clear_cache()
 
-    @with_memory
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
         new_calibration = ECCalibration(
@@ -250,7 +250,6 @@ class ECMeasurement(Measurement):
         self._calibration_list = [new_calibration] + self._calibration_list
         self.clear_cache()
 
-    @with_memory
     def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
         new_calibration = ECCalibration(
@@ -260,7 +259,6 @@ class ECMeasurement(Measurement):
         self._calibration_list = [new_calibration] + self._calibration_list
         self.clear_cache()
 
-    @with_memory
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
         new_calibration = ECCalibration(

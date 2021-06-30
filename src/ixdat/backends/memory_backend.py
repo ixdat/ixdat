@@ -21,3 +21,12 @@ class MemoryBackend(BackendBase):
 
     def get(self, cls, i):
         return self.objects[cls.table_name][i]
+
+    def remember(self, obj):
+        if obj.backend is self:
+            return obj.id
+        table_name = obj.table_name
+        i = self.get_next_available_id(table_name, obj)
+        obj.set_id(i)
+        obj.set_backend(self)
+        return i

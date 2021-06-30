@@ -11,7 +11,7 @@ classes will be defined in the corresponding module in ./techniques/
 """
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject, fill_object_list, with_memory
+from .db import Saveable, PlaceHolderObject, fill_object_list
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -185,7 +185,6 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    @with_memory
     def read(cls, path_to_file, reader, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader"""
         if isinstance(reader, str):
@@ -238,10 +237,16 @@ class Measurement(Saveable):
 
     @property
     def calibration_list(self):
+        """List of calibrations (with placeholders filled)"""
         for i, c in enumerate(self._calibration_list):
             if isinstance(c, PlaceHolderObject):
                 self._calibration_list[i] = c.get_object()
         return self._calibration_list
+
+    @property
+    def calibrations(self):
+        """List of calibrations with any needed manipulation done."""
+        return
 
     @property
     def c_ids(self):
@@ -313,6 +318,8 @@ class Measurement(Saveable):
         get instead its corresponding TSeries.
         The measurement also checks its `aliases` for other name(s) which may refer to
         what is being looked up.
+        The measurement also checks its calibrations to see if they can get the desired
+        calibrated data.
         If there are more than one series with the name(s) specified, they are appended.
         The timestamp is always shifted to the measurement's tstamp.
 
@@ -324,7 +331,7 @@ class Measurement(Saveable):
         if key in self.series_constructors:
             series = getattr(self, self.series_constructors[key])()
         else:
-            for calibration in self.calibration_list:
+            for calibration in self.calibrations:
                 series = calibration.calibrate_series(key, measurement=self)
                 # ^ the calibration will call this __getitem__ with the name of the
                 #   corresponding raw data and return a new series with calibrated data
@@ -518,7 +525,8 @@ class Measurement(Saveable):
                 long time vector that you have at hand to describe the time interval
                 you're looking for.
         """
-        obj_as_dict = self.as_dict()
+        obj_as_dict = self.as_dict(exclude=["s_ids", "m_ids"])
+        # ^ don't want original series (s_ids) or component_measurements (m_ids).
 
         # first, cut the series list:
         new_series_list = []
@@ -532,7 +540,7 @@ class Measurement(Saveable):
                 new_series_list.append(series)
             else:
                 t_identity = tseries.identity
-                # Note: identity is backend (if different from DB.backend) AND id
+                # Note: identity is backend (if different from self.backend) AND id
 
                 if t_identity in time_cutting_stuff:
                     mask, new_tseries = time_cutting_stuff[t_identity]
@@ -561,10 +569,9 @@ class Measurement(Saveable):
                     )
                     new_series_list.append(new_series)
         obj_as_dict["series_list"] = new_series_list
-        del obj_as_dict["s_ids"]  # don't want the original series.
 
         # then cut the component measurements.
-        obj_as_dict["component_measurements"] = []
+        new_component_measurements = []
         for m in self._component_measurements:
             # FIXME: This is perhaps overkill, to make new cut component measurements,
             #    as it duplicates data (a big no)... especially bad because
@@ -574,8 +581,8 @@ class Measurement(Saveable):
             tspan_m = [tspan[0] - dt, tspan[1] - dt]
             if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
                 continue
-            obj_as_dict["component_measurements"].append(m.cut(tspan_m))
-        del obj_as_dict["m_ids"]  # don't want the original component measurements.
+            new_component_measurements.append(m.cut(tspan_m))
+        obj_as_dict["component_measurements"] = new_component_measurements
 
         new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement

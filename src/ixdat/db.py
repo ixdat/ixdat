@@ -142,9 +142,14 @@ class Saveable:
 
     db = DB
     table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
+    # TODO: restructure column_attrs, extra_column_attrs, extra_linkers so that they are
+    #  sufficient to fully define the tables in an SQL backend
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
     extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
+    # TODO: derive child_attrs somehow from the above class attributes, adn have it in
+    #   a way where it's easy to tell which id goes with which attribute, i.e. s_ids
+    #   goes with series_list
     child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
     def __init__(self, backend=None, **self_as_dict):
@@ -223,33 +228,58 @@ class Saveable:
         """Backends set obj.backend here after loading/saving a Saveable obj"""
         self._backend = backend
 
-    def get_main_dict(self):
+    def get_main_dict(self, exclude=None):
         """Return dict: serializition only of the row of the object's main table"""
+        exclude = exclude or []
         if self.column_attrs is None:
             raise DataBaseError(
                 f"{self} can't be serialized because the class "
                 f"{self.__class__.__name__} hasn't defined column_attrs"
             )
-        self_as_dict = {attr: getattr(self, attr) for attr in self.column_attrs}
+        self_as_dict = {
+            attr: getattr(self, attr)
+            for attr in self.column_attrs
+            if attr not in exclude
+        }
         return self_as_dict
 
-    def as_dict(self):
+    def as_dict(self, exclude=None):
         """Return dict: serialization of the object main and auxiliary tables"""
-        self_as_dict = self.get_main_dict()
+
+        # So that a new object initiated constructed using the dictionary returned here
+        #   can find objects referenced by identities (i.e. s_ids for series_list),
+        #   we need to make sure they are saved in a real backend. Before adding the
+        #   id's to a list.
+        # FIXME: There would be a more precise and elegant way to do this if the id's
+        #   and corresponding attributes could be connected through class attributes.
+        if self.child_attrs:
+            for child_object_list_name in self.child_attrs:
+                for child_obj in getattr(self, child_object_list_name):
+                    if child_obj.backend_name in ("none", database_backends["none"]):
+                        database_backends["memory"].remember(child_obj)
+
+        exclude = exclude or []
+        self_as_dict = self.get_main_dict(exclude=exclude)
         if self.extra_column_attrs:
+            # FIXME: comprehension best as loop. Will be redone with proper table defs.
             aux_tables_dict = {
-                table_name: {attr: getattr(self, attr) for attr in extras}
+                table_name: {
+                    attr: getattr(self, attr) for attr in extras if attr not in exclude
+                }
                 for table_name, extras in self.extra_column_attrs.items()
             }
             for aux_dict in aux_tables_dict.values():
                 self_as_dict.update(**aux_dict)
         if self.extra_linkers:
+            # FIXME: comprehension best as loop. Will be redone with proper table defs.
             linker_tables_dict = {
                 (table_name, linked_table_name): {attr: getattr(self, attr)}
                 for table_name, (linked_table_name, attr) in self.extra_linkers.items()
+                if attr not in exclude
             }
             for linked_attrs in linker_tables_dict.values():
                 self_as_dict.update(**linked_attrs)
+
         return self_as_dict
 
     def save(self, db=None):
