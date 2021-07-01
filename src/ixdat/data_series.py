@@ -251,6 +251,12 @@ class Field(DataSeries):
                 )
         return self._data
 
+    @property
+    def tstamp(self):
+        for s in self.axes_series:
+            if isinstance(s, (ValueSeries, TimeSeries)):
+                return s.tstamp
+
 
 class ConstantValue(DataSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
