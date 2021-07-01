@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from .reading_tools import prompt_for_tstamp
+from ..techniques import TECHNIQUE_CLASSES
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques.analysis_tools import calc_t_using_scan_rate
 
@@ -16,32 +17,32 @@ class MsrhSECReader:
         tstamp=None,
         cls=None,
     ):
-        if not cls:
-            from ..techniques.spectroelectrochemistry import SpectroECMeasurement
 
-            cls = SpectroECMeasurement
+        measurement_class = TECHNIQUE_CLASSES["S-EC"]
+        if issubclass(cls, measurement_class):
+            measurement_class = cls
 
         path_to_file = Path(path_to_file)
         path_to_wl_file = Path(path_to_wl_file)
         path_to_jv_file = Path(path_to_jv_file)
 
         sec_df = pd.read_csv(path_to_file)
-        whitelight_df = pd.read_csv(path_to_wl_file, names=["wavelength", "intensity"])
+        ref_df = pd.read_csv(path_to_wl_file, names=["wavelength", "counts"])
         jv_df = pd.read_csv(path_to_jv_file, names=["v", "j"])
 
         spectra = sec_df.to_numpy()[:, 1:].swapaxes(0, 1)
 
-        wl = whitelight_df["wavelength"].to_numpy()
+        wl = ref_df["wavelength"].to_numpy()
         excess_wl_points = len(wl) - spectra.shape[1]
         wl = wl[excess_wl_points:]
-        whitelight = whitelight_df["intensity"].to_numpy()[excess_wl_points:]
+        ref_signal = ref_df["counts"].to_numpy()[excess_wl_points:]
 
-        wl_series = DataSeries("wavelength", "nm", wl)
-        white_series = Field(
-            "white_light",
+        wl_series = DataSeries("wavelength / [nm]", "nm", wl)
+        reference = Field(
+            "reference",
             "counts",
             axes_series=[wl_series],
-            data=np.array([whitelight]),
+            data=np.array([ref_signal]),
         )
 
         v = jv_df["v"].to_numpy()
@@ -55,8 +56,8 @@ class MsrhSECReader:
         tseries = TimeSeries(
             "time from scan rate", unit_name="s", data=t, tstamp=tstamp
         )
-        v_series = ValueSeries("raw_potential", "V", v, tseries=tseries)
-        j_series = ValueSeries("raw_current", "mA", j, tseries=tseries)
+        v_series = ValueSeries("raw potential / [V]", "V", v, tseries=tseries)
+        j_series = ValueSeries("raw current / [mA]", "mA", j, tseries=tseries)
         spectra = Field(
             name="spectra",
             unit_name="counts",
@@ -68,11 +69,11 @@ class MsrhSECReader:
             v_series,
             j_series,
             wl_series,
-            white_series,
+            reference,
             spectra,
         ]
 
-        measurement = cls(
+        measurement = measurement_class(
             name=str(path_to_file),
             tstamp=tstamp,
             series_list=series_list,

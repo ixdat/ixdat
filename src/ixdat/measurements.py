@@ -428,7 +428,9 @@ class Measurement(Saveable):
                 s = append_series(ss)
         else:
             raise SeriesNotFoundError(f"{self} has no series called {item}")
-        return time_shifted(s, self.tstamp)
+        if hasattr(s, "tstamp") and not s.tstamp == self.tstamp:
+            s = time_shifted(s, self.tstamp)
+        return s
 
     def __setitem__(self, series_name, series):
         """Append `series` with name=`series_name` to `series_list` and remove others."""

@@ -1,5 +1,5 @@
 from pathlib import Path
-from ixdat.readers.msrh_sec import MsrhSECReader
+from ixdat import Measurement
 
 data_dir = Path(r"C:\Users\scott\Dropbox\ixdat_resources\test_data\sec")
 
@@ -7,10 +7,16 @@ path_to_sec = data_dir / "test-7SEC.csv"
 path_to_wl = data_dir / "WL.csv"
 path_to_jv = data_dir / "test-7_JV.csv"
 
-sec_meas = MsrhSECReader().read(
-    path_to_sec, path_to_wl, path_to_jv, scan_rate=1, tstamp=1
+sec_meas = Measurement.read(
+    path_to_sec,
+    path_to_wl_file=path_to_wl,
+    path_to_jv_file=path_to_jv,
+    scan_rate=1,
+    tstamp=1,
+    reader="msrh_sec",
 )
 
-sec_meas.plot()
-sec_meas.whitelight_spectrum.plot()
-print(sec_meas["spectra"].data.shape)
+axes = sec_meas.plot_measurement(V_ref=0.66, cmap_name="inferno")
+axes[0].get_figure().savefig("sec_example.png")
+ax = sec_meas.plot_waterfall(V_ref=0.66, cmap_name="jet")
+ax.get_figure().savefig("sec_waterfall_example.png")
