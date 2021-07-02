@@ -12,11 +12,11 @@ The in-situ experimental data tool
 With ``ixdat``, you can import, combine, and export complex experimental datasets
 as simply as::
 
-    ms = Measurement.read("2021-03-30 16_59_35 MS data.tsv", reader="zilien")
-    ms.plot_measurement()
-
     ec = Measurement.read_set("awesome_EC_data", reader="biologic")
     ec.plot_measurement()
+
+    ms = Measurement.read("2021-03-30 16_59_35 MS data.tsv", reader="zilien")
+    ms.plot_measurement()
 
     ecms = ec + ms
     ecms.plot_measurement()
@@ -40,7 +40,7 @@ The documentation
 
 Welcome to the ``ixdat`` documentation. We hope that you can find what you are looking for here!
 
-The Introduction has a list of the techniques and file types supported so far.
+The :ref:`Introduction` has a list of the techniques and file types supported so far.
 
 This documentation, like ``ixdat`` itself, is a work in progress and we appreciate any
 feedback or requests `here <https://github.com/ixdat/ixdat/issues>`_.

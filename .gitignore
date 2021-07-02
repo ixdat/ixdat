@@ -1,7 +1,7 @@
 # Big files from tests
-*development_scripts/*.png
-*development_scripts/*.svg
-*docs/source/figures/big/*
+development_scripts/*.png
+development_scripts/*.svg
+docs/source/figures/big_src/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

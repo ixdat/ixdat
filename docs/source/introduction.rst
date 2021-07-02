@@ -1,3 +1,5 @@
+.. _Introduction:
+
 ============
 Introduction
 ============
@@ -23,21 +25,21 @@ Supported techniques
    * - Measurement technique
      - Status
      - Readers
-   * - Electrochemistry (EC)
+   * - :ref:`electrochemistry`
      - Released
      - - biologic: .mpt files from Biologic's EC-Lab software
        - autolab: ascii files from AutoLab's NOVA software
        - ivium: .txt files from Ivium's IviumSoft software
-   * - Mass Spectrometry (MS)
+   * - :ref:`mass-spec`
      - Released
      - - pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software
        - cinfdata: text export from DTU Physics' cinfdata system
        - zilien: .tsv files from Spectro Inlets' Zilien software
-   * - Electrochemistry - Mass Spectrometry (EC-MS)
+   * - :ref:`ec-ms`
      - Released
      - - zilien: .tsv files from Spectro Inlets' Zilien software
        - EC_MS: .pkl files from the legacy EC_MS python package
-   * - Spectroelectrochemistry (SEC)
+   * - :ref:`sec`
      - Development
      - - msrh_sec: .csv file sets from Imperial College London's SEC system
    * - X-ray photoelectron spectroscopy (XPS)

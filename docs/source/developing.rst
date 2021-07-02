@@ -1,3 +1,5 @@
+.. _developing:
+
 ================
 Developing ixdat
 ================
@@ -7,8 +9,8 @@ should support and doesn't, it might be because **you** haven't coded it yet.
 
 Here are a few resources to help you get started developing ixdat.
 
-Github
-******
+Git and Github
+**************
 
 The source code for ixdat (and this documentation) lives at:
 https://github.com/ixdat/ixdat
@@ -38,13 +40,17 @@ To develop ixdat, you will need to use git and github. This means
 
     pip install --upgrade ixdat
 
+- Check out the branch you want to work from. Note, this is also how to *use* a feature that is under development.::
+
+    git checkout branch_to_work_from
+
 - Make a branch using::
 
     git branch my_branch_name
     git checkout my_branch_name
 
 
-- Develop your feature, commiting regularly and pushing regularly to your github account.
+- Develop your feature, committing regularly and pushing regularly to your github account.
 
 - When it's ready (i.e., works like you want, and passes linting and testing), make a pull request!
   A pull request (PR) is an awesome open review process that gives others a chance to comment and suggest
