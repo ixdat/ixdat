@@ -1,5 +1,5 @@
-.. figure:: docs/sourc/figures/logo.svg
-    :width: 500
+.. figure:: docs/source/figures/logo.svg
+    :width: 200
 
 =============================================
 ``ixdat``: The In-situ Experimental Data Tool
