@@ -1,6 +1,6 @@
 
 .. figure:: figures/logo.svg
-    :width: 200
+    :width: 500
 
 
 Documentation for ``ixdat``
