@@ -45,6 +45,7 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
+    "sphinx.ext.viewcode",
 ]
 
 source_suffix = {".rst": "restructuredtext", ".txt": "restructuredtext"}
