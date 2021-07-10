@@ -6,7 +6,10 @@ from .ec_plotter import ECPlotter
 
 
 class SECPlotter(MPLPlotter):
-    """An spectroelectrochemsitry (SEC) matplotlib plotter."""
+    """An spectroelectrochemsitry (SEC) matplotlib plotter.
+
+    FIXME: This should make use of the code in spectrum_plotter.SpectrumSeriesPlotter
+    """
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""

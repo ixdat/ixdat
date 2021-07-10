@@ -1,6 +1,7 @@
 # Examples
 *.png
 *.csv
+docs/source/figures/big_src
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

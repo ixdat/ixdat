@@ -1,6 +1,7 @@
 import numpy as np
 from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
+from .exceptions import BuildError
 
 
 class Spectrum(Saveable):
@@ -8,9 +9,9 @@ class Spectrum(Saveable):
 
     A spectrum is a data structure including one-dimensional arrays of x and y variables
     of equal length. Typically, information about the state of a sample can be obtained
-    from a plot of y (e.g. adsorbance OR intensity OR counts) vs x (e.g energy OR
+    from a plot of y (e.g. absorbance OR intensity OR counts) vs x (e.g energy OR
     wavelength OR angle OR mass-to-charge ratio). Even though in reality it takes time
-    to require a spectrum, a spectrom is considered to represent one instance in time.
+    to require a spectrum, a spectrum is considered to represent one instance in time.
 
     In ixdat, the data of a spectrum is organized into a Field, where the y-data is
     considered to span a space defined by the x-data and the timestamp. If the x-data
@@ -27,6 +28,7 @@ class Spectrum(Saveable):
         "name",
         "technique",
         "metadata",
+        "tstamp",
         "sample_name",
         "field_id",
     }
@@ -38,6 +40,7 @@ class Spectrum(Saveable):
         metadata=None,
         sample_name=None,
         reader=None,
+        tstamp=None,
         field=None,
         field_id=None,
     ):
@@ -49,6 +52,7 @@ class Spectrum(Saveable):
             technique (str): The spectrum technique
             sample_name (str): The sample name
             reader (Reader): The reader, if read from file
+            tstamp (float): The unix epoch timestamp of the spectrum
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
@@ -57,6 +61,7 @@ class Spectrum(Saveable):
         self.name = name
         self.technique = technique
         self.metadata = metadata
+        self.tstamp = tstamp
         self.sample_name = sample_name
         self.reader = reader
         self._field = field or PlaceHolderObject(field_id, cls=Field)
@@ -117,7 +122,7 @@ class Spectrum(Saveable):
         y_name="y",
         x_unit_name=None,
         y_unit_name=None,
-        **kwargs
+        **kwargs,
     ):
         """Initiate a spectrum from data. Does so via cls.from_series
 
@@ -146,15 +151,13 @@ class Spectrum(Saveable):
             tstamp (timestamp): the timestamp of the spectrum. Defaults to None.
             kwargs: key-word arguments are passed on ultimately to cls.__init__
         """
-        tseries = TimeSeries(
-            data=np.array([0]), tstamp=tstamp, unit_name="s", name="spectrum time / [s]"
-        )
         field = Field(
-            data=np.array([yseries.data]),
-            axes_series=[xseries, tseries],
+            data=yseries.data,
+            axes_series=[xseries],
             name=yseries.name,
             unit_name=yseries.unit_name,
         )
+        kwargs.update(tstamp=tstamp)
         return cls.from_field(field, **kwargs)
 
     @classmethod
@@ -211,7 +214,7 @@ class Spectrum(Saveable):
     @property
     def y(self):
         """The y data is the data attribute of the field"""
-        return self.field.data[0]
+        return self.field.data
 
     @property
     def y_name(self):
@@ -220,11 +223,86 @@ class Spectrum(Saveable):
 
     @property
     def tseries(self):
-        """The TimeSeries is the second of the axes_series of the field"""
-        return self.field.axes_series[1]
+        """The TimeSeries of a spectrum is a single point [0] and its tstamp"""
+        return TimeSeries(
+            name="time / [s]", unit_name="s", data=np.array([0]), tstamp=self.tstamp
+        )
+
+    def __add__(self, other):
+        """Adding spectra makes a (2)x(N_x) SpectrumSeries. self comes before other."""
+        if not self.x == other.x:  # FIXME: Some depreciation here. How else?
+            raise BuildError(
+                "can't add spectra with different `x`. "
+                "Consider the function `append_spectra` instead."
+            )
+        t = np.array([0, other.tstamp - self.tstamp])
+        tseries = TimeSeries(
+            name="time / [s]", unit_name="s", data=t, tstamp=self.tstamp
+        )
+        new_field = Field(
+            name=self.name,
+            unit_name=self.field.unit_name,
+            data=np.array([self.y, other.y]),
+            axes_series=[tseries, self.xseries],
+        )
+        spectrum_series_as_dict = self.as_dict()
+        spectrum_series_as_dict["field"] = new_field
+        del spectrum_series_as_dict["field_id"]
+
+        return SpectrumSeries.from_dict(spectrum_series_as_dict)
+
+
+class SpectrumSeries(Spectrum):
+    @property
+    def yseries(self):
+        # Should this return an average or would that be counterintuitive?
+        raise BuildError(f"{self} has no single y-series. Index it to get a Spectrum.")
 
     @property
-    def tstamp(self):
-        """The value with respect to epoch of the field's single time point"""
-        tseries = self.tseries
-        return tseries.data[0] + tseries.tstamp
+    def tseries(self):
+        """The TimeSeries of a SectrumSeries is the 0'th axis of its field.
+        Note that its data is not sorted!
+        """
+        return self.field.axes_series[0]
+
+    @property
+    def t(self):
+        """The time array of a SectrumSeries is the data of its tseries.
+        Note that it it is not sorted!
+        """
+        return self.tseries.data
+
+    @property
+    def xseries(self):
+        """The x-axis DataSeries of a SectrumSeries is the 1'st axis of its field"""
+        return self.field.axes_series[1]
+
+    def __getitem__(self, key):
+        """Indexing a SpectrumSeries with an int n returns its n'th spectrum"""
+        if isinstance(key, int):
+            spectrum_as_dict = self.as_dict()
+            del spectrum_as_dict["field_id"]
+            spectrum_as_dict["field"] = Field(
+                name=self.y_name,
+                unit_name=self.field.unit_name,
+                data=self.y[key],
+                axes_series=[self.xseries],
+            )
+            spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
+            return Spectrum.from_dict(spectrum_as_dict)
+        raise KeyError
+
+    @property
+    def y_average(self):
+        return np.mean(self.y, axis=0)
+
+    @property
+    def plotter(self):
+        """The default plotter for Measurement is ValuePlotter."""
+        if not self._plotter:
+            from .plotters.spectrum_plotter import SpectrumSeriesPlotter
+
+            # FIXME: I had to import here to avoid running into circular import issues
+
+            self._plotter = SpectrumSeriesPlotter(spectrum_series=self)
+        return self._plotter

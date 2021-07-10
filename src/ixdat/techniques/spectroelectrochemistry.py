@@ -3,6 +3,7 @@ from ..spectra import Spectrum
 from ..data_series import Field
 import numpy as np
 from scipy.interpolate import interp1d
+from ..spectra import SpectrumSeries
 
 
 class SpectroECMeasurement(ECMeasurement):
@@ -12,7 +13,15 @@ class SpectroECMeasurement(ECMeasurement):
 
     @property
     def spectra(self):
+        """The Field that is the spectra of the SEC Measurement"""
         return self["spectra"]
+
+    @property
+    def spectrum_series(self):
+        """The SpectrumSeries that is the spectra of the SEC Measurement"""
+        return SpectrumSeries.from_field(
+            self.spectra, tstamp=self.tstamp, name=self.name + " spectra"
+        )
 
     @property
     def wavelength(self):
@@ -31,10 +40,12 @@ class SpectroECMeasurement(ECMeasurement):
             self._plotter = SECPlotter(measurement=self)
 
             self.plot_waterfall = self._plotter.plot_waterfall
+            # FIXME: The above line is in __init__ in other classes.
 
         return self._plotter
 
     def calc_dOD(self, V_ref=None):
+        """Calculate the optical density with respect to a given reference potential"""
         counts = self.spectra.data
         if V_ref:
             counts_interpolater = interp1d(self.v, counts, axis=0)
@@ -49,3 +60,32 @@ class SpectroECMeasurement(ECMeasurement):
             data=dOD,
         )
         return dOD_series
+
+    def get_spectrum(self, V=None, t=None, index=None):
+        if V and V in self.v:
+            index = int(np.argmax(self.v == V))
+        elif t and t in self.t:
+            index = int(np.argmax(self.t == t))
+        if index:
+            return self.spectrum_series[index]
+        counts = self.spectra.data
+        counts_interpolater = interp1d(self.v, counts, axis=0)
+        y = counts_interpolater(V)
+        field = Field(
+            data=y,
+            name=self.spectra.name,
+            unit_name=self.spectra.unit_name,
+            axes_series=[self.wavelength],
+        )
+        return Spectrum.from_field(field, tstamp=self.tstamp)
+
+    def get_dOD_spectrum(self, V=None, t=None, index=None, V_ref=None):
+        spectrum_ref = self.get_spectrum(V=V_ref)
+        spectrum = self.get_spectrum(V=V, t=t, index=index)
+        field = Field(
+            data=np.log10(spectrum.y / spectrum_ref.y),
+            name="$\Delta$ OD",
+            unit_name="",
+            axes_series=[self.wavelength],
+        )
+        return Spectrum.from_field(field)
