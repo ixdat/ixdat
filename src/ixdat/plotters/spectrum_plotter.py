@@ -38,23 +38,63 @@ class SpectrumSeriesPlotter(MPLPlotter):
     def heat_plot(
         self,
         spectrum_series=None,
+        field=None,
         tspan=None,
         xspan=None,
         ax=None,
         cmap_name="inferno",
         make_colorbar=False,
     ):
-        field = spectrum_series.field
-        tseries = field.axes_series[0]
-        t = tseries.data
+        return self.heat_plot_vs(
+            spectrum_series=spectrum_series,
+            field=field,
+            vspan=tspan,
+            xspan=xspan,
+            ax=ax,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            vs="t",
+        )
+
+    def heat_plot_vs(
+        self,
+        spectrum_series=None,
+        field=None,
+        vspan=None,
+        xspan=None,
+        ax=None,
+        cmap_name="inferno",
+        make_colorbar=False,
+        vs=None,
+    ):
+        spectrum_series = spectrum_series or self.spectrum_series
+        field = field or spectrum_series.field
+
         xseries = field.axes_series[1]
         x = xseries.data
-        data = field.data
+        tseries = field.axes_series[0]
 
-        if tspan:
-            t_mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[t_mask]
-            data = data[t_mask, :]
+        v_name = vs
+        if vs in ("t", tseries.tseries.name):
+            v = tseries.t
+            if hasattr(spectrum_series, "t_str") and spectrum_series.t_str:
+                v_name = spectrum_series.t_str
+        else:
+            v = spectrum_series.grab_for_t(vs, t=tseries.t)
+
+        data = field.data
+        # ^ FIXME: The heat plot will be distorted if spectra are not taken at even
+        #     spacing on the "vs" variable. They will be especially meaningless if
+        #     the v variable itself is not always increasing or decreasing.
+
+        if vspan:
+            v_mask = np.logical_and(vspan[0] < v, v < vspan[-1])
+            v = v[v_mask]
+            data = data[v_mask, :]
+            if (v[0] < v[-1]) != (vspan[0] < vspan[-1]):  # this is an XOR.
+                # Then we need to plot the data against v in the reverse direction:
+                v = np.flip(v, axis=0)
+                data = np.flip(data, axis=0)
         if xspan:
             wl_mask = np.logical_and(xspan[0] < x, x < xspan[-1])
             x = x[wl_mask]
@@ -64,13 +104,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
             data.swapaxes(0, 1),
             cmap=cmap_name,
             aspect="auto",
-            extent=(t[0], t[-1], x[0], x[-1]),
+            extent=(v[0], v[-1], x[0], x[-1]),
         )
-
-        ax.set_xlabel(
-            (spectrum_series.t_str if hasattr(spectrum_series, "t_str") else None)
-            or tseries.name
-        )
+        ax.set_xlabel(v_name)
         ax.set_ylabel(xseries.name)
         if make_colorbar:
             cmap = mpl.cm.get_cmap(cmap_name)
@@ -85,29 +121,42 @@ class SpectrumSeriesPlotter(MPLPlotter):
         return ax
 
     def plot_waterfall(
-        self, spectrum_series=None, cmap_name="jet", make_colorbar=True, ax=None
+        self,
+        spectrum_series=None,
+        field=None,
+        cmap_name="jet",
+        make_colorbar=True,
+        vs=None,
+        ax=None,
     ):
         spectrum_series = spectrum_series or self.spectrum_series
-        if not ax:
-            ax = self.new_ax()
-        field = spectrum_series.field
+        field = field or spectrum_series.field
+
         data = field.data
-        t = spectrum_series.t
-        wl = spectrum_series.wl
+        t = field.axes_series[0].t
+        x = field.axes_series[1].data
+
+        if vs:
+            v = spectrum_series.grab_for_t(vs, t=t)
+        else:
+            v = t
 
         cmap = mpl.cm.get_cmap(cmap_name)
-        norm = mpl.colors.Normalize(vmin=np.min(t), vmax=np.max(t))
+        norm = mpl.colors.Normalize(vmin=np.min(v), vmax=np.max(v))
 
-        for i, v_i in enumerate(t):
+        if not ax:
+            ax = self.new_ax()
+
+        for i, v_i in enumerate(v):
             spec = data[i]
             color = cmap(norm(v_i))
-            ax.plot(wl, spec, color=color)
+            ax.plot(x, spec, color=color)
 
-        ax.set_xlabel(spectrum_series.x_name)
-        ax.set_ylabel()
+        ax.set_xlabel(field.axes_series[1].name)
+        ax.set_ylabel(field.name)
 
         if make_colorbar:
             cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            cb.set_label(spectrum_series.potential.name)
+            cb.set_label(vs)
 
         return ax

@@ -192,5 +192,5 @@ def calc_t_using_scan_rate(v, dvdt):
     t_total_guess = (max(v) - min(v)) / dvdt
     result = minimize(error, np.array(t_total_guess))
 
-    t_total = result.x
+    t_total = result.x[0]
     return np.linspace(0, t_total, v.size)

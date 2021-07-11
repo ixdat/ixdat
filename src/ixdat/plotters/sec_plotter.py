@@ -3,6 +3,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 from .base_mpl_plotter import MPLPlotter
 from .ec_plotter import ECPlotter
+from .spectrum_plotter import SpectrumSeriesPlotter
 
 
 class SECPlotter(MPLPlotter):
@@ -15,6 +16,10 @@ class SECPlotter(MPLPlotter):
         """Initiate the plotter with its default Meausurement to plot"""
         self.measurement = measurement
         self.ec_plotter = ECPlotter(measurement=measurement)
+        self.spectrum_series_plotter = SpectrumSeriesPlotter(
+            spectrum_series=self.measurement
+            # FIXME: Maybe SpectrumSeries should inherit from Measurement?
+        )
 
     def plot_measurement(
         self,
@@ -43,72 +48,72 @@ class SECPlotter(MPLPlotter):
         )
 
         dOD_series = measurement.calc_dOD(V_ref=V_ref)
-        tseries = dOD_series.axes_series[0]
-        t = tseries.data
-        wlseries = dOD_series.axes_series[1]
-        wl = wlseries.data
-        dOD_data = dOD_series.data
-
-        if tspan:
-            t_mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[t_mask]
-            dOD_data = dOD_data[t_mask, :]
-        if wlspan:
-            wl_mask = np.logical_and(wlspan[0] < wl, wl < wlspan[-1])
-            wl = wl[wl_mask]
-            dOD_data = dOD_data[:, wl_mask]
-
-        axes[0].imshow(
-            dOD_data.swapaxes(0, 1),
-            cmap=cmap_name,
-            aspect="auto",
-            extent=(t[0], t[-1], wl[0], wl[-1]),
+        axes[0] = self.spectrum_series_plotter.heat_plot(
+            field=dOD_series,
+            tspan=tspan,
+            xspan=wlspan,
+            ax=axes[0],
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
         )
-
-        axes[0].set_xlabel(
-            (measurement.t_str if hasattr(measurement, "t_str") else None)
-            or tseries.name
-        )
-        axes[0].set_ylabel(wlseries.name)
         if make_colorbar:
-            cmap = mpl.cm.get_cmap(cmap_name)
-            norm = mpl.colors.Normalize(vmin=np.min(dOD_data), vmax=np.max(dOD_data))
-            cb = plt.colorbar(
-                mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
-                ax=[axes[0], axes[1]],
-                use_gridspec=True,
-                anchor=(0.75, 0),
-            )
-            cb.set_label("$\Delta$ opdical density")
+            pass  # TODO: adjust EC plot to be same width as heat plot despite colorbar.
+
         return axes
 
     def plot_waterfall(
         self, measurement=None, cmap_name="jet", make_colorbar=True, V_ref=0.66, ax=None
     ):
         measurement = measurement or self.measurement
-        if not ax:
-            ax = self.new_ax()
         dOD = measurement.calc_dOD(V_ref=V_ref)
-        dOD_data = dOD.data
-        v = measurement.v
-        wl = measurement.wl
 
-        cmap = mpl.cm.get_cmap(cmap_name)
-        norm = mpl.colors.Normalize(vmin=np.min(v), vmax=np.max(v))
+        return self.spectrum_series_plotter.plot_waterfall(
+            field=dOD,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            ax=ax,
+            vs=measurement.V_str,
+        )
 
-        for i, v_i in enumerate(v):
-            spec = dOD_data[i]
-            color = cmap(norm(v_i))
-            ax.plot(wl, spec, color=color)
+    def plot_vs_potential(
+        self,
+        measurement=None,
+        tspan=None,
+        vspan=None,
+        V_str=None,
+        J_str=None,
+        axes=None,
+        wlspan=None,
+        V_ref=None,
+        cmap_name="inferno",
+        make_colorbar=False,
+        **kwargs,
+    ):
+        measurement = measurement or self.measurement
 
-        ax.set_xlabel(measurement.wavelength.name)
-        ax.set_ylabel(dOD.name)
+        if not axes:
+            axes = self.new_two_panel_axes(
+                n_bottom=1,
+                n_top=1,
+                emphasis="top",
+            )
 
-        if make_colorbar:
-            cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
-            cb.set_label(measurement.potential.name)
+        self.ec_plotter.plot_vs_potential(
+            measurement=measurement,
+            tspan=tspan,
+            V_str=V_str,
+            J_str=J_str,
+            ax=axes[1],
+        )
 
-        return ax
-
-    def plot_vs_potential(self, *args, **kwargs):
-        return self.ec_plotter.plot_vs_potential(*args, **kwargs)
+        dOD_series = measurement.calc_dOD(V_ref=V_ref)
+        axes[0] = self.spectrum_series_plotter.heat_plot_vs(
+            field=dOD_series,
+            vspan=vspan,
+            xspan=wlspan,
+            ax=axes[0],
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            vs=V_str or measurement.V_str,
+        )
+        axes[1].set_xlim(axes[0].get_xlim())
