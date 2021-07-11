@@ -24,7 +24,7 @@ from .zilien import ZilienTSVReader, ZilienTMPReader, ZilienSpectrumReader
 from .ec_ms_pkl import EC_MS_CONVERTER
 
 # spectroelectrochemistry
-from .msrh_sec import MsrhSECReader
+from .msrh_sec import MsrhSECReader, MsrhSECDecayReader
 
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
@@ -38,4 +38,5 @@ READER_CLASSES = {
     "zilien_spec": ZilienSpectrumReader,
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
+    "msrh_sec_decay": MsrhSECDecayReader,
 }

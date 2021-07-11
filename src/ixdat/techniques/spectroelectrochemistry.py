@@ -69,8 +69,17 @@ class SpectroECMeasurement(ECMeasurement):
         if index:
             return self.spectrum_series[index]
         counts = self.spectra.data
-        counts_interpolater = interp1d(self.v, counts, axis=0)
-        y = counts_interpolater(V)
+        if V:
+            counts_interpolater = interp1d(self.v, counts, axis=0)
+            # FIXME: This requires that potential and spectra have same tseries!
+            y = counts_interpolater(V)
+        elif t:
+            t_spec = self.spectra.axes_series[0].t
+            counts_interpolater = interp1d(t_spec, counts, axis=0)
+            y = counts_interpolater(t)
+        else:
+            raise TypeError(f"Need t or v or index to select a spectrum!")
+
         field = Field(
             data=y,
             name=self.spectra.name,
@@ -80,7 +89,10 @@ class SpectroECMeasurement(ECMeasurement):
         return Spectrum.from_field(field, tstamp=self.tstamp)
 
     def get_dOD_spectrum(self, V=None, t=None, index=None, V_ref=None):
-        spectrum_ref = self.get_spectrum(V=V_ref)
+        if V_ref:
+            spectrum_ref = self.get_spectrum(V=V_ref)
+        else:
+            spectrum_ref = self.reference_spectrum
         spectrum = self.get_spectrum(V=V, t=t, index=index)
         field = Field(
             data=np.log10(spectrum.y / spectrum_ref.y),

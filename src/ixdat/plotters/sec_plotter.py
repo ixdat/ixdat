@@ -59,10 +59,12 @@ class SECPlotter(MPLPlotter):
         if make_colorbar:
             pass  # TODO: adjust EC plot to be same width as heat plot despite colorbar.
 
+        axes[1].set_xlim(axes[0].get_xlim())
+
         return axes
 
     def plot_waterfall(
-        self, measurement=None, cmap_name="jet", make_colorbar=True, V_ref=0.66, ax=None
+        self, measurement=None, cmap_name="jet", make_colorbar=True, V_ref=None, ax=None
     ):
         measurement = measurement or self.measurement
         dOD = measurement.calc_dOD(V_ref=V_ref)
@@ -104,6 +106,7 @@ class SECPlotter(MPLPlotter):
             V_str=V_str,
             J_str=J_str,
             ax=axes[1],
+            **kwargs,
         )
 
         dOD_series = measurement.calc_dOD(V_ref=V_ref)
@@ -117,3 +120,4 @@ class SECPlotter(MPLPlotter):
             vs=V_str or measurement.V_str,
         )
         axes[1].set_xlim(axes[0].get_xlim())
+        return axes

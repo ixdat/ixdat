@@ -7,8 +7,8 @@ data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/sec"
 
 sec_meas = Measurement.read(
     data_dir / "test-7SEC.csv",
-    path_to_wl_file=data_dir / "WL.csv",
-    path_to_jv_file=data_dir / "test-7_JV.csv",
+    path_to_ref_spec_file=data_dir / "WL.csv",
+    path_to_V_J_file=data_dir / "test-7_JV.csv",
     scan_rate=1,
     tstamp=1,
     reader="msrh_sec",
@@ -30,5 +30,5 @@ axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=Fa
 axes2 = sec_meas.plot_vs_potential(
     V_ref=0.66, vspan=[0.5, 2], cmap_name="jet", make_colorbar=False
 )
-
+axes2[0].get_figure().savefig("sec_vs_potential.png")
 sec_meas.get_dOD_spectrum(V=1.5, V_ref=1.2).plot(color="k")
