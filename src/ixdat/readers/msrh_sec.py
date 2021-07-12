@@ -45,11 +45,11 @@ class MsrhSECReader:
             data=np.array(ref_signal),
         )
 
-        v = jv_df["v"].to_numpy()
-        j = jv_df["j"].to_numpy()
-        excess_jv_points = len(v) - spectra.shape[0]
-        v = v[:-excess_jv_points]
-        j = j[:-excess_jv_points] * 1e3  # convert [A] to [mA]
+        v_0 = jv_df["v"].to_numpy()
+        j_0 = jv_df["j"].to_numpy()
+        # v = v[:-excess_jv_points]   # WRONG!!!
+        v = np.array([float(key) for key in sec_df.keys()])[1:]
+        j = np.flip(j_0)[-len(v) :]
         t = calc_t_using_scan_rate(v, dvdt=scan_rate * 1e-3)
 
         tstamp = tstamp or prompt_for_tstamp(path_to_file)

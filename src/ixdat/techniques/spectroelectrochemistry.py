@@ -52,7 +52,7 @@ class SpectroECMeasurement(ECMeasurement):
             ref_counts = counts_interpolater(V_ref)
         else:
             ref_counts = self.reference_spectrum.y
-        dOD = np.log10(counts / ref_counts)
+        dOD = -np.log10(counts / ref_counts)  # check the sign!
         dOD_series = Field(
             name="$\Delta$ O.D.",
             unit_name="",
@@ -95,7 +95,7 @@ class SpectroECMeasurement(ECMeasurement):
             spectrum_ref = self.reference_spectrum
         spectrum = self.get_spectrum(V=V, t=t, index=index)
         field = Field(
-            data=np.log10(spectrum.y / spectrum_ref.y),
+            data=-np.log10(spectrum.y / spectrum_ref.y),
             name="$\Delta$ OD",
             unit_name="",
             axes_series=[self.wavelength],
