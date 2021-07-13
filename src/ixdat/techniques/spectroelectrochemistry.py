@@ -1,6 +1,6 @@
 from .ec import ECMeasurement
 from ..spectra import Spectrum
-from ..data_series import Field
+from ..data_series import Field, ValueSeries
 import numpy as np
 from scipy.interpolate import interp1d
 from ..spectra import SpectrumSeries
@@ -13,7 +13,9 @@ class SpectroECMeasurement(ECMeasurement):
         ECMeasurement.__init__(self, *args, **kwargs)
         self._reference_spectrum = None
         self.tracked_wavelengths = []
-        self.plot_waterfall = self._plotter.plot_waterfall
+        self.plot_waterfall = self.plotter.plot_waterfall
+        self.plot_wavelengths = self.plotter.plot_wavelengths
+        self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
         self.technique = "S-EC"
 
     @property
@@ -130,9 +132,9 @@ class SpectroECMeasurement(ECMeasurement):
 
         Return Spectrum: The spectrum. The data is (spectrum.x, spectrum.y)
         """
-        if V and V in self.v:  # woohoo, can skip interolation!
+        if V and V in self.v:  # woohoo, can skip interpolation!
             index = int(np.argmax(self.v == V))
-        elif t and t in self.t:  # woohoo, can skip interolation!
+        elif t and t in self.t:  # woohoo, can skip interpolation!
             index = int(np.argmax(self.t == t))
         if index:  # then we're done:
             return self.spectrum_series[index]
@@ -198,3 +200,36 @@ class SpectroECMeasurement(ECMeasurement):
             axes_series=[self.wavelength],
         )
         return Spectrum.from_field(field)
+
+    def track_wavelength(self, wl, width=10, V_ref=None, t_ref=None, index_ref=None):
+        if V_ref or t_ref or index_ref:
+            spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
+        else:
+            spectrum_ref = self.reference_spectrum
+        x = self.wl
+        if width:  # averaging
+            wl_mask = np.logical_and(wl - width / 2 < x, x < wl + width / 2)
+            counts_ref = np.mean(spectrum_ref.y[wl_mask])
+            counts_wl = np.mean(self.spectra.data[:, wl_mask], axis=1)
+        else:  # interpolation
+            counts_ref = np.interp(wl, spectrum_ref.x, spectrum_ref.y)
+            counts_wl = []
+            for counts_i in self.spectra.data:
+                c = np.interp(wl, x, counts_i)
+                counts_wl.append(c)
+            counts_wl = np.array(counts_wl)
+        dOD_wl = -np.log10(counts_wl / counts_ref)
+        raw_name = f"w{int(wl)} raw"
+        dOD_name = f"w{int(wl)}"
+        tseries = self.spectra.axes_series[0]
+        raw_vseries = ValueSeries(
+            name=raw_name, unit_name="counts", data=counts_wl, tseries=tseries
+        )
+        dOD_vseries = ValueSeries(
+            name=dOD_name, unit_name="", data=dOD_wl, tseries=tseries
+        )
+        self[raw_name] = raw_vseries
+        self[dOD_name] = dOD_vseries
+        self.tracked_wavelengths.append(dOD_name)
+
+        return dOD_vseries

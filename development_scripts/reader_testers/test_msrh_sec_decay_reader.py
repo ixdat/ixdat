@@ -6,26 +6,35 @@ from ixdat import Measurement
 data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/sec"
 
 sec_meas = Measurement.read(
-    data_dir / "decay/PDtest-1.35-1OSP-SP.csv",
+    # data_dir / "decay/PDtest-1.35-1OSP-SP.csv",
+    data_dir / "decay/PDtest-1.33-1OSP-SP.csv",
     path_to_ref_spec_file=data_dir / "WL.csv",
-    path_to_t_V_file=data_dir / "decay/PDtest-1.35-1OSP-E-t.csv",
-    path_to_t_J_file=data_dir / "decay/PDtest-1.35-1OSP-J-t.csv",
+    # path_to_t_V_file=data_dir / "decay/PDtest-1.35-1OSP-E-t.csv",
+    # path_to_t_J_file=data_dir / "decay/PDtest-1.35-1OSP-J-t.csv",
+    path_to_t_V_file=data_dir / "decay/PDtest-1.33-1OSP-E-t.csv",
+    path_to_t_J_file=data_dir / "decay/PDtest-1.33-1OSP-J-t.csv",
     tstamp=1,
     reader="msrh_sec_decay",
 )
+
+sec_meas.calibrate_RE(RE_vs_RHE=0.26)
 
 sec_meas.set_reference_spectrum(t_ref=5)
 
 axes = sec_meas.plot_measurement(
     # V_ref=0.66,  # can't do a V_ref for this as can't interpolate on potential..
     # So OD will be calculated using the reference spectrum in WL.csv
-    cmap_name="jet",
+    # cmap_name="jet",
+    cmap_name="inferno",
     make_colorbar=False,
 )
 # axes[0].get_figure().savefig("decay_vs_t.png")
 
+axes = sec_meas.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
+
 ax_w = sec_meas.plot_waterfall()
 
+exit()
 # ax_w.get_figure().savefig("decay_waterfall.png")
 
 ref_spec = sec_meas.reference_spectrum

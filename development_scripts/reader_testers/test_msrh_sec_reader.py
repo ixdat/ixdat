@@ -7,9 +7,7 @@ from matplotlib import pyplot as plt
 
 plt.close("all")
 
-
 data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/sec"
-
 sec_meas = Measurement.read(
     data_dir / "test-7SEC.csv",
     path_to_ref_spec_file=data_dir / "WL.csv",
@@ -20,12 +18,19 @@ sec_meas = Measurement.read(
 )
 
 sec_meas.calibrate_RE(RE_vs_RHE=0.26)  # provide RE potential in [V] vs RHE
-sec_meas.normalize_current(A_el=2)  # provide electrode area in [cm^2]
+sec_meas.normalize_current(A_el=1)  # provide electrode area in [cm^2]
 
 export_name = "exported_sec.csv"
 sec_meas.export(export_name)
-ixdat_sec = Measurement.read(export_name, reader="ixdat")
-ixdat_sec.plot_measurement(V_ref=0.4, cmap_name="jet")
+
+ixdat_sec = Measurement.read("exported_sec.csv", reader="ixdat")
+
+ixdat_sec.plot_measurement(V_ref=0.4, cmap_name="inferno")
+axes = ixdat_sec.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
+axes = ixdat_sec.plot_wavelengths_vs_potential(
+    wavelengths=["w500", "w600", "w700", "w800"]
+)
+
 
 axes = sec_meas.plot_measurement(
     V_ref=0.4,

@@ -1,9 +1,9 @@
-import numpy as np
 import matplotlib as mpl
-from matplotlib import pyplot as plt
+
 from .base_mpl_plotter import MPLPlotter
 from .ec_plotter import ECPlotter
 from .spectrum_plotter import SpectrumSeriesPlotter
+from ..exceptions import SeriesNotFoundError
 
 
 class SECPlotter(MPLPlotter):
@@ -202,3 +202,66 @@ class SECPlotter(MPLPlotter):
         )
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
+
+    def plot_wavelengths(
+        self,
+        measurement=None,
+        wavelengths=None,
+        axes=None,
+        cmap_name="jet",
+        tspan=None,
+        **kwargs,
+    ):
+        measurement = measurement or self.measurement
+        wavelengths = wavelengths or measurement.tracked_wavelengths
+
+        cmap = mpl.cm.get_cmap(cmap_name)
+        norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
+
+        if not axes:
+            axes = self.new_two_panel_axes(n_bottom=2)
+        for wl_str in wavelengths:
+            x = float(wl_str[1:])
+            try:
+                t, y = measurement.grab(wl_str, tspan=tspan)
+            except SeriesNotFoundError:
+                measurement.track_wavelength(x)
+                t, y = measurement.grab(wl_str, tspan=tspan)
+            axes[0].plot(t, y, color=cmap(norm(x)), label=wl_str)
+        axes[0].legend()
+
+        self.ec_plotter.plot_measurement(
+            measurement=measurement, axes=axes[1:], tspan=tspan, **kwargs
+        )
+
+    def plot_wavelengths_vs_potential(
+        self,
+        measurement=None,
+        wavelengths=None,
+        axes=None,
+        cmap_name="jet",
+        tspan=None,
+        **kwargs,
+    ):
+        measurement = measurement or self.measurement
+        wavelengths = wavelengths or measurement.tracked_wavelengths
+
+        cmap = mpl.cm.get_cmap(cmap_name)
+        norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
+
+        if not axes:
+            axes = self.new_two_panel_axes()
+        for wl_str in wavelengths:
+            x = float(wl_str[1:])
+            try:
+                t, y = measurement.grab(wl_str, tspan=tspan)
+            except SeriesNotFoundError:
+                measurement.track_wavelength(x)
+                t, y = measurement.grab(wl_str, tspan=tspan)
+            v = measurement.v
+            axes[0].plot(v, y, color=cmap(norm(x)), label=wl_str)
+        axes[0].legend()
+
+        self.ec_plotter.plot_vs_potential(
+            measurement=measurement, ax=axes[1], tspan=tspan, **kwargs
+        )
