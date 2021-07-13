@@ -19,6 +19,9 @@ sec_meas = Measurement.read(
     reader="msrh_sec",
 )
 
+sec_meas.calibrate_RE(RE_vs_RHE=0.26)  # provide RE potential in [V] vs RHE
+sec_meas.normalize_current(A_el=2)  # provide electrode area in [cm^2]
+
 axes = sec_meas.plot_measurement(
     V_ref=0.4,
     cmap_name="jet",
@@ -33,10 +36,11 @@ ax = sec_meas.plot_waterfall(
 
 axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=False)
 axes2 = sec_meas.plot_vs_potential(
-    V_ref=0.4, vspan=[0.5, 2], cmap_name="jet", make_colorbar=False
+    V_ref=0.66, vspan=[1.4, 2], cmap_name="jet", make_colorbar=False
 )
 
-ax = sec_meas.get_dOD_spectrum(V_ref=0.4, V=0.8).plot(color="b", label="species 1")
-sec_meas.get_dOD_spectrum(V_ref=0.8, V=1.2).plot(color="g", ax=ax, label="species 2")
-sec_meas.get_dOD_spectrum(V_ref=1.2, V=1.49).plot(color="r", ax=ax, label="species 3")
+ax = sec_meas.get_dOD_spectrum(V_ref=0.66, V=1.0).plot(color="b", label="species 1")
+sec_meas.get_dOD_spectrum(V_ref=1.0, V=1.45).plot(color="g", ax=ax, label="species 2")
+sec_meas.get_dOD_spectrum(V_ref=1.45, V=1.75).plot(color="r", ax=ax, label="species 3")
+
 ax.legend()

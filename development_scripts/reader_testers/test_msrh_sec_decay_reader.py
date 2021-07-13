@@ -14,17 +14,7 @@ sec_meas = Measurement.read(
     reader="msrh_sec_decay",
 )
 
-if True:  # Replace reference with spectrum at t=5
-    from ixdat.data_series import Field
-
-    ref_spec = sec_meas.get_spectrum(t=5)
-    reference = Field(
-        name="reference",
-        unit_name="counts",
-        data=ref_spec.field.data,
-        axes_series=ref_spec.field.axes_series,
-    )
-    sec_meas["reference"] = reference
+sec_meas.set_reference_spectrum(t_ref=5)
 
 axes = sec_meas.plot_measurement(
     # V_ref=0.66,  # can't do a V_ref for this as can't interpolate on potential..

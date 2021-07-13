@@ -5,10 +5,19 @@ from .base_mpl_plotter import MPLPlotter
 
 
 class SpectrumPlotter(MPLPlotter):
+    """A plotter for spectrums"""
+
     def __init__(self, spectrum=None):
         self.spectrum = spectrum
 
     def plot(self, spectrum=None, ax=None, **kwargs):
+        """Plot a spectrum as y (signal) vs x (scanning variable)
+
+        Args:
+            spectrum (Spectrum): The spectrum to plot if different from self.spectrum
+            ax (mpl.Axis): The axis to plot on. A new one is made by default.
+            kwargs: additional key-word arguments are given to ax.plot()
+        """
         spectrum = spectrum or self.spectrum
         if not ax:
             ax = self.new_ax()
@@ -19,14 +28,18 @@ class SpectrumPlotter(MPLPlotter):
 
 
 class SpectrumSeriesPlotter(MPLPlotter):
+    """A plotter for spectrum series, f.ex. spectra taken continuously over time"""
+
     def __init__(self, spectrum_series=None):
         self.spectrum_series = spectrum_series
 
     @property
     def plot(self):
+        """The default plot of a SpectrumSeries is heat_plot"""
         return self.heat_plot
 
     def plot_average(self, spectrum_series=None, ax=None, **kwargs):
+        """Take an average of the spectra and plot that."""
         spectrum_series = spectrum_series or self.spectrum_series
         if not ax:
             ax = self.new_ax()
@@ -45,6 +58,10 @@ class SpectrumSeriesPlotter(MPLPlotter):
         cmap_name="inferno",
         make_colorbar=False,
     ):
+        """Plot with time as x, the scanning variable as y, and color as signal
+
+        See SpectrumSeriesPlotter.heat_plot_vs(). This function calls it with vs="t".
+        """
         return self.heat_plot_vs(
             spectrum_series=spectrum_series,
             field=field,
@@ -67,6 +84,29 @@ class SpectrumSeriesPlotter(MPLPlotter):
         make_colorbar=False,
         vs=None,
     ):
+        """Plot an SECMeasurement in two panels with time as x-asis.
+
+        The top panel is a heat plot with wavelength on y-axis and color representing
+        spectrum. At most one of V_ref and t_ref should be given, and if neither are
+        given the measurement's default reference_spectrum is used to calculate the
+        optical density.
+
+        Args:
+            spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
+                different from self.spectrum_series.
+                FIXME: spectrum_series needs to actually be a Measurement to have other
+                    series to plot against if vs isn't in field.series_axes
+            field (Field): The field to be plotted, if different from
+                spectrum_series.field
+            xspan (iterable): The span of the spectral data to plot
+            ax (mpl.Axis): The axes to plot on. A new one is made by default
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
+                which ranges from black through red and orange to yellow-white. "jet"
+                is also good.
+            make_colorbar (bool): Whether to make a colorbar.
+                FIXME: colorbar at present mis-alignes axes
+            vs (str): The ValueSeries or TimeSeries to plot against.
+        """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
 
@@ -129,6 +169,22 @@ class SpectrumSeriesPlotter(MPLPlotter):
         vs=None,
         ax=None,
     ):
+        """Plot a SpectrumSeries as spectra colored by the value at which they are taken
+
+        Args:
+            spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
+                different from self.spectrum_series.
+                FIXME: spectrum_series needs to actually be a Measurement to have other
+                    series to plot against if vs isn't in field.series_axes
+            field (Field): The field to be plotted, if different from
+                spectrum_series.field
+            ax (matplotlib Axis): The axes to plot on. A new one is made by default.
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
+                which ranges from black through red and orange to yellow-white. "jet"
+                is also good.
+            make_colorbar (bool): Whether to make a colorbar.
+            vs (str): The name of the value to use for the color scale. Defaults to time
+        """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
 

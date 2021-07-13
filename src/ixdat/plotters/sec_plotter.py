@@ -28,10 +28,37 @@ class SECPlotter(MPLPlotter):
         wlspan=None,
         axes=None,
         V_ref=None,
+        t_ref=None,
         cmap_name="inferno",
         make_colorbar=False,
         **kwargs,
     ):
+        """Plot an SECMeasurement in two panels with time as x-asis.
+
+        The top panel is a heat plot with wavelength on y-axis and color representing
+        spectrum. At most one of V_ref and t_ref should be given, and if neither are
+        given the measurement's default reference_spectrum is used to calculate the
+        optical density.
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            tspan (timespan): The timespan of data to keep for the measurement.
+            wlspan (iterable): The wavelength span of spectral data to plot
+            axes (list of mpl.Axis): The axes to plot on. axes[0] is for the heat
+                plot, axes[1] for potential, and axes[2] for current. The axes are
+                optional and a new set of axes, where axes[1] and axes[2] are twinned on
+                x, are generated if not provided.
+            V_ref (float): potential to use as reference for calculating optical density
+            t_ref (float): time to use as a reference for calculating optical density
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
+                which ranges from black through red and orange to yellow-white. "jet"
+                is also good.
+            make_colorbar (bool): Whether to make a colorbar.
+                FIXME: colorbar at present mis-alignes axes
+            kwargs: Additional key-word arguments are passed on to
+                ECPlotter.plot_measurement().
+        """
         measurement = measurement or self.measurement
 
         if not axes:
@@ -47,7 +74,7 @@ class SECPlotter(MPLPlotter):
             **kwargs,
         )
 
-        dOD_series = measurement.calc_dOD(V_ref=V_ref)
+        dOD_series = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref)
         axes[0] = self.spectrum_series_plotter.heat_plot(
             field=dOD_series,
             tspan=tspan,
@@ -64,10 +91,38 @@ class SECPlotter(MPLPlotter):
         return axes
 
     def plot_waterfall(
-        self, measurement=None, cmap_name="jet", make_colorbar=True, V_ref=None, ax=None
+        self,
+        measurement=None,
+        ax=None,
+        V_ref=None,
+        t_ref=None,
+        cmap_name="jet",
+        make_colorbar=True,
     ):
+        """Plot an SECMeasurement as spectra colored based on potential.
+
+        The top panel is a heat plot with wavelength on y-axis and color representing
+        spectrum. At most one of V_ref and t_ref should be given, and if neither are
+        given the measurement's default reference_spectrum is used to calculate the
+        optical density.
+
+        This uses SpectrumSeriesPlotter.plot_waterfall()
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            tspan (timespan): The timespan of data to keep for the measurement.
+            wlspan (iterable): The wavelength span of spectral data to plot
+            ax (matplotlib Axis): The axes to plot on. A new one is made by default.
+            V_ref (float): potential to use as reference for calculating optical density
+            t_ref (float): time to use as a reference for calculating optical density
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
+                which ranges from black through red and orange to yellow-white. "jet"
+                is also good.
+            make_colorbar (bool): Whether to make a colorbar.
+        """
         measurement = measurement or self.measurement
-        dOD = measurement.calc_dOD(V_ref=V_ref)
+        dOD = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref)
 
         return self.spectrum_series_plotter.plot_waterfall(
             field=dOD,
@@ -91,6 +146,32 @@ class SECPlotter(MPLPlotter):
         make_colorbar=False,
         **kwargs,
     ):
+        """Plot an SECMeasurement in two panels with potential as x-asis.
+
+        The top panel is a heat plot with wavelength on y-axis and color representing
+        spectrum. At most one of V_ref and t_ref should be given, and if neither are
+        given the measurement's default reference_spectrum is used to calculate the
+        optical density.
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            tspan (timespan): The timespan of data to keep for the measurement.
+            vspan (timespan): The potential span of data to keep for the measurement.
+            V_str (str): Optional. The name of the data series to use as potential.
+            J_str (str): Optional. The name of the data series to use as current.
+            wlspan (iterable): The wavelength span of spectral data to plot
+            axes (list of numpy Axes): The axes to plot on. axes[0] is for the heat
+                plot and axes[1] for potential. New are made by default.
+            V_ref (float): potential to use as reference for calculating optical density
+            t_ref (float): time to use as a reference for calculating optical density
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
+                which ranges from black through red and orange to yellow-white. "jet"
+                is also good.
+            make_colorbar (bool): Whether to make a colorbar.
+            kwargs: Additional key-word arguments are passed on to
+                ECPlotter.plot_vs_potential().
+        """
         measurement = measurement or self.measurement
 
         if not axes:
