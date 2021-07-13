@@ -273,9 +273,21 @@ class SpectrumSeries(Spectrum):
         return self.tseries.data
 
     @property
+    def t_name(self):
+        return self.tseries.name
+
+    @property
     def xseries(self):
         """The x-axis DataSeries of a SectrumSeries is the 1'st axis of its field"""
         return self.field.axes_series[1]
+
+    @property
+    def x(self):
+        return self.xseries.data
+
+    @property
+    def x_name(self):
+        return self.xseries.name
 
     def __getitem__(self, key):
         """Indexing a SpectrumSeries with an int n returns its n'th spectrum"""

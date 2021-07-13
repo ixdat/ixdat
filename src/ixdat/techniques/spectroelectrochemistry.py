@@ -4,6 +4,7 @@ from ..data_series import Field
 import numpy as np
 from scipy.interpolate import interp1d
 from ..spectra import SpectrumSeries
+from ..exporters.sec_exporter import SECExporter
 
 
 class SpectroECMeasurement(ECMeasurement):
@@ -11,6 +12,7 @@ class SpectroECMeasurement(ECMeasurement):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
         ECMeasurement.__init__(self, *args, **kwargs)
         self._reference_spectrum = None
+        self.tracked_wavelengths = []
         self.plot_waterfall = self._plotter.plot_waterfall
 
     @property
@@ -77,6 +79,13 @@ class SpectroECMeasurement(ECMeasurement):
             self._plotter = SECPlotter(measurement=self)
 
         return self._plotter
+
+    @property
+    def exporter(self):
+        """The default plotter for SpectroECMeasurement is SECExporter"""
+        if not self._exporter:
+            self._exporter = SECExporter(measurement=self)
+        return self._exporter
 
     def calc_dOD(self, V_ref=None, t_ref=None, index_ref=None):
         """Calculate the optical density with respect to a reference

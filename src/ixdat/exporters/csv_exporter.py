@@ -5,40 +5,59 @@ from pathlib import Path
 class CSVExporter:
     """The default exporter, which writes delimited measurement data row-wise to file"""
 
-    def __init__(self, measurement=None, delim=",\t", default_v_list=None):
+    default_v_list = None  # This will typically be overwritten by inheriting Exporters
+
+    def __init__(self, measurement=None, delim=",\t"):
         """Initiate the exported with a measurement (Measurement) and delimiter (str)"""
         self.measurement = measurement
         self.delim = delim
-        self._default_v_list = default_v_list
+        self.header_lines = None
+        self.s_list = None
+        self.columns_data = None
+        self.path_to_file = None
 
-    @property
-    def default_v_list(self):
-        """This will typically be overwritten by inheriting Exporters"""
-        return self._default_v_list
-
-    def export(self, *args, **kwargs):
-        """Export the exporter's measurement via exporter.export_measurement()"""
-        return self.export_measurement(self.measurement, *args, **kwargs)
-
-    def export_measurement(self, measurement, path_to_file, v_list=None, tspan=None):
+    def export(self, measurement=None, path_to_file=None, v_list=None, tspan=None):
         """Export a given measurement to a specified file.
 
+        To improve flexibility with inheritance, this method allocates its work to:
+        - CSVExporter.prepare_header_and_data()
+        - CSVExporter.write_header()
+        - CSVExporter.write_data()
+
         Args:
-            measurement (Measurement): The measurement to export
-            path_to_file (Path): The path to the file to measure. If it has no suffix,
-                a .csv suffix is appended.
+            measurement (Measurement): The measurement to export.
+                Defaults to self.measurement.
+            path_to_file (Path): The path to the file to write. If it has no suffix,
+                a .csv suffix is appended. Defaults to "{measurement.name}.csv"
             v_list (list of str): The names of the data series to include. Defaults in
                 CSVExporter to all VSeries and TSeries in the measurement. This default
                 may be overwritten in inheriting exporters.
             tspan (timespan): The timespan to include in the file, defaults to all of it
         """
-        columns_data = {}
-        s_list = []
-        v_list = v_list or self.default_v_list or list(measurement.data_cols)
+        measurement = measurement or self.measurement
+        if not path_to_file:
+            path_to_file = input("enter name of file to export.")
         if isinstance(path_to_file, str):
             path_to_file = Path(path_to_file)
         if not path_to_file.suffix:
             path_to_file = path_to_file.with_suffix(".csv")
+        self.path_to_file = path_to_file
+        self.prepare_header_and_data(measurement, v_list, tspan)
+        self.prepare_column_header()
+        self.write_header()
+        self.write_data()
+
+    def prepare_header_and_data(self, measurement, v_list, tspan):
+        """Prepare self.header_lines to include metadata and value-time pairs
+
+        Args:
+            measurement (Measurement): The measurement being exported
+            v_list (list of str): The names of the ValueSeries to include
+            tspan (timespan): The timespan of the data to include in the export
+        """
+        columns_data = {}
+        s_list = []
+        v_list = v_list or self.default_v_list or list(measurement.value_names)
 
         timecols = {}
         for v_name in v_list:
@@ -64,28 +83,39 @@ class CSVExporter:
                 + "\n"
             )
             header_lines.append(line)
+        self.header_lines = header_lines
+        self.s_list = s_list
+        self.columns_data = columns_data
 
-        N_header_lines = len(header_lines) + 3
-        header_lines.append(f"N_header_lines = {N_header_lines}\n")
-        header_lines.append("\n")
+    def prepare_column_header(self):
+        """Prepare the column header line and finish the header_lines"""
+        N_header_lines = len(self.header_lines) + 3
+        self.header_lines.append(f"N_header_lines = {N_header_lines}\n")
+        self.header_lines.append("\n")
 
         col_header_line = (
-            "".join([s_name + self.delim for s_name in s_list])[: -len(self.delim)]
+            "".join([s_name + self.delim for s_name in self.s_list])[: -len(self.delim)]
             + "\n"
         )
-        header_lines.append(col_header_line)
+        self.header_lines.append(col_header_line)
 
-        lines = header_lines
-        max_length = max([len(data) for data in columns_data.values()])
+    def write_header(self):
+        """Create the file and write the header lines."""
+        with open(self.path_to_file, "w") as f:
+            f.writelines(self.header_lines)
+
+    def write_data(self):
+        """Write data to the file one line at a time."""
+        max_length = max([len(data) for data in self.columns_data.values()])
         for n in range(max_length):
             line = ""
-            for s_name in s_list:
-                if len(columns_data[s_name]) > n:
-                    line = line + str(columns_data[s_name][n]) + self.delim
+            for s_name in self.s_list:
+                if len(self.columns_data[s_name]) > n:
+                    # Then there's more data to write for this series
+                    line = line + str(self.columns_data[s_name][n]) + self.delim
                 else:
+                    # Then all this series is written. Just leave space.
                     line = line + self.delim
             line = line + "\n"
-            lines.append(line)
-
-        with open(path_to_file, "w") as f:
-            f.writelines(lines)
+            with open(self.path_to_file, "a") as f:
+                f.write(line)
