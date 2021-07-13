@@ -36,7 +36,7 @@ class Spectrum(Saveable):
     def __init__(
         self,
         name,
-        technique=None,
+        technique="spectrum",
         metadata=None,
         sample_name=None,
         reader=None,
@@ -108,9 +108,7 @@ class Spectrum(Saveable):
         FIXME: with backend-specifying id's, field could check for itself whether
             its axes_series are already in the database.
         """
-        series_list = self.field.axes_series
-        series_list.append(self.field)
-        return series_list
+        return self.series_list
 
     @classmethod
     def from_data(
@@ -195,6 +193,10 @@ class Spectrum(Saveable):
         return self.field.axes_series[0]
 
     @property
+    def series_list(self):
+        return [self.field] + self.field.axes_series
+
+    @property
     def x(self):
         """The x data is the data attribute of the xseries"""
         return self.xseries.data
@@ -253,6 +255,11 @@ class Spectrum(Saveable):
 
 
 class SpectrumSeries(Spectrum):
+    def __init__(self, *args, **kwargs):
+        if not "technique" in kwargs:
+            kwargs["technique"] = "spectra"
+        super().__init__(*args, **kwargs)
+
     @property
     def yseries(self):
         # Should this return an average or would that be counterintuitive?

@@ -14,6 +14,7 @@ class SpectroECMeasurement(ECMeasurement):
         self._reference_spectrum = None
         self.tracked_wavelengths = []
         self.plot_waterfall = self._plotter.plot_waterfall
+        self.technique = "S-EC"
 
     @property
     def reference_spectrum(self):
@@ -57,7 +58,9 @@ class SpectroECMeasurement(ECMeasurement):
     def spectrum_series(self):
         """The SpectrumSeries that is the spectra of the SEC Measurement"""
         return SpectrumSeries.from_field(
-            self.spectra, tstamp=self.tstamp, name=self.name + " spectra"
+            self.spectra,
+            tstamp=self.tstamp,
+            name=self.name + " spectra",
         )
 
     @property

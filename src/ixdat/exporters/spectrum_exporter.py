@@ -25,7 +25,7 @@ class SpectrumExporter:
         with open(path_to_file, "w") as f:
             f.writelines(header_lines)
         with open(path_to_file, "a") as f:
-            df.to_csv(f, index=False, sep=self.delim, line_terminator="")
+            df.to_csv(f, index=False, sep=self.delim, line_terminator="\n")
 
         print(f"wrote {path_to_file}!")
 
@@ -51,7 +51,7 @@ class SpectrumSeriesExporter:
             header_lines.append(line)
 
         header_lines.append(
-            f"values are '{field.name}' with units [{field.unit_name}]\n"
+            f"values are y='{field.name}' with units [{field.unit_name}]\n"
         )
 
         if spectra_as_rows:  # columns are ValueSeries
@@ -60,10 +60,10 @@ class SpectrumSeriesExporter:
             ]
             df = pd.DataFrame(OrderedDict(data_as_list_of_tuples))
             header_lines.append(
-                f"first row is '{xseries.name}' with units [{xseries.unit_name}]\n"
+                f"first row is x='{xseries.name}' with units [{xseries.unit_name}]\n"
             )
             header_lines.append(
-                f"first column '{tseries.name}' with units [{tseries.unit_name}]\n"
+                f"first column is t='{tseries.name}' with units [{tseries.unit_name}]\n"
             )
         else:  # spectra as columns. rows are ValueSeries
             data_as_list_of_tuples = [(spectrum_series.x_name, x)] + [
@@ -71,10 +71,10 @@ class SpectrumSeriesExporter:
             ]
             df = pd.DataFrame(OrderedDict(data_as_list_of_tuples))
             header_lines.append(
-                f"first row is '{tseries.name}' with units [{tseries.unit_name}]\n"
+                f"first row is t='{tseries.name}' with units [{tseries.unit_name}]\n"
             )
             header_lines.append(
-                f"first column is '{xseries.name}' with units [{xseries.unit_name}]\n"
+                f"first column is x='{xseries.name}' with units [{xseries.unit_name}]\n"
             )
 
         N_header_lines = len(header_lines) + 3

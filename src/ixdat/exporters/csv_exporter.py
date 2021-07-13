@@ -16,7 +16,7 @@ class CSVExporter:
         self.columns_data = None
         self.path_to_file = None
 
-    def export(self, measurement=None, path_to_file=None, v_list=None, tspan=None):
+    def export(self, path_to_file=None, measurement=None, v_list=None, tspan=None):
         """Export a given measurement to a specified file.
 
         To improve flexibility with inheritance, this method allocates its work to:
