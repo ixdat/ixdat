@@ -25,3 +25,4 @@ A full list of the techniques and there names is in the ``TECHNIQUE_CLASSES`` di
     electrochemistry
     mass_spec
     ec_ms
+    sec

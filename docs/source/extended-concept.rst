@@ -1,9 +1,15 @@
 .. _concept:
 
+================
 Extended concept
-----------------
-*By Soren B. Scott, 20H03 (August 3, 2020)*
+================
 
+.. figure:: figures/ixdat_profile_pic.svg
+    :width: 200
+
+    The power of combining techniques (fig made with ``EC_Xray``, an ``ixdat`` precursor)
+
+*By Soren B. Scott, 20H03 (August 3, 2020)*
 
 My idea is that ``ixdat`` will have two "faces":
 
