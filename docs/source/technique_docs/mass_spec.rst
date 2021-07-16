@@ -14,7 +14,7 @@ The main TechniqueMeasurement class for MID data is the :ref:`MSMeasurement`.
 Classes dealing with spectra are under development.
 
 The ``ms`` module
-........................
+.................
 
 .. automodule:: ixdat.techniques.ms
     :members:
