@@ -202,6 +202,26 @@ class SpectroECMeasurement(ECMeasurement):
         return Spectrum.from_field(field)
 
     def track_wavelength(self, wl, width=10, V_ref=None, t_ref=None, index_ref=None):
+        """Return and cache a ValueSeries for the dOD for a specific wavelength.
+
+        The cacheing adds wl_str to the SECMeasurement's data series, where
+            wl_str = "w" + int(wl)
+            This is dOD. The raw is also added as wl_str + "_raw".
+        So, to get the raw counts for a specific wavelength, call this function as
+            and then use __getitem__, as in: sec_meas[wl_str + "_raw"]
+        If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
+            to. Otherwise, dOD is referenced to the SECMeasurement's reference_spectrum.
+
+        Args:
+            wl (float): The wavelength to track in [nm]
+            width (float): The width around wl to average. For example, if wl=400 and
+                width = 20, the spectra will be averaged between 390 and 410 nm to get
+                the values. Defaults to 10
+            V_ref (float): The potential at which to get the reference spectrum
+            t_ref (float): The time at which to get the reference spectrum
+            index_ref (int): The index of the reference spectrum
+        Returns ValueSeries: The dOD value of the spectrum at wl.
+        """
         if V_ref or t_ref or index_ref:
             spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
         else:
@@ -229,7 +249,9 @@ class SpectroECMeasurement(ECMeasurement):
             name=dOD_name, unit_name="", data=dOD_wl, tseries=tseries
         )
         self[raw_name] = raw_vseries
+        # FIXME: better caching. See https://github.com/ixdat/ixdat/pull/11
         self[dOD_name] = dOD_vseries
-        self.tracked_wavelengths.append(dOD_name)
+        # FIXME: better caching. See https://github.com/ixdat/ixdat/pull/11
+        self.tracked_wavelengths.append(dOD_name)  # For the exporter.
 
         return dOD_vseries

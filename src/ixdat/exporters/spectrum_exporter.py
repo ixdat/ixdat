@@ -3,11 +3,28 @@ from collections import OrderedDict
 
 
 class SpectrumExporter:
+    """An ixdat CSV exporter for spectra. Uses pandas."""
+
     def __init__(self, spectrum, delim=","):
+        """Initiate the SpectrumExporter.
+
+        Args:
+            spectrum (Spectrum): The spectrum to export by default
+            delim (char): The separator for the .csv file. Note that this cannot be
+                the ",\t" used by ixdat's main exporter since pandas only accepts single
+                character delimiters.
+        """
         self.spectrum = spectrum
         self.delim = delim
 
     def export(self, spectrum, path_to_file):
+        """Export spectrum to path_to_file.
+
+        Args:
+            spectrum (Spectrum): The spectrum to export if different from self.spectrum
+            path_to_file (str or Path): The path of the file to export to. Note that if a
+                file already exists with this path, it will be overwritten.
+        """
         spectrum = spectrum or self.spectrum
         df = pd.DataFrame({spectrum.x_name: spectrum.x, spectrum.y_name: spectrum.y})
 
@@ -31,11 +48,32 @@ class SpectrumExporter:
 
 
 class SpectrumSeriesExporter:
+    """An exporter for ixdat spectrum series."""
+
     def __init__(self, spectrum_series, delim=","):
+        """Initiate the SpectrumSeriesExporter.
+
+        Args:
+            spectrum_series (SpectrumSeries): The spectrum to export by default
+            delim (char): The separator for the .csv file. Note that this cannot be
+                the ",\t" used by ixdat's main exporter since pandas only accepts single
+                character delimiters.
+        """
         self.spectrum_series = spectrum_series
         self.delim = delim
 
     def export(self, spectrum_series=None, path_to_file=None, spectra_as_rows=True):
+        """Export spectrum to path_to_file.
+
+        spectrum (Spectrum): The spectrum to export if different from self.spectrum
+        path_to_file (str or Path): The path of the file to export to. Note that if a
+            file already exists with this path, it will be overwritten.
+        spectra_as_rows (bool): This specifies the orientation of the data exported.
+            If True, the scanning variabe (e.g. wavelength) increases to the right and
+            the time variable increases downward. If False, the scanning variable
+            increases downwards and the time variable increases to the right. Either
+            way it is clarified in the file header. Defaults to True.
+        """
 
         spectrum_series = spectrum_series or self.spectrum_series
 

@@ -25,7 +25,9 @@ sec_meas.export(export_name)
 
 ixdat_sec = Measurement.read("exported_sec.csv", reader="ixdat")
 
-ixdat_sec.plot_measurement(V_ref=0.4, cmap_name="inferno")
+axes = ixdat_sec.plot_measurement(V_ref=0.4, cmap_name="inferno")
+axes[0].get_figure().savefig("sec_plot.png")
+
 axes = ixdat_sec.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
 axes = ixdat_sec.plot_wavelengths_vs_potential(
     wavelengths=["w500", "w600", "w700", "w800"]
@@ -43,6 +45,7 @@ ax = sec_meas.plot_waterfall(
     cmap_name="jet",
     make_colorbar=True,
 )
+ax.get_figure().savefig("sec_waterfall.png")
 
 axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=False)
 axes2 = sec_meas.plot_vs_potential(

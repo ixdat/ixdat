@@ -89,7 +89,13 @@ class IxdatCSVReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            name (str): The name of the measurement to return (defaults to path_to_file)
+            cls (Measurement subclass): The class of measurement to return. By default,
+                cls will be determined from the technique specified in the header of
+                path_to_file.
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
+
+        Returns cls: a Measurement of type cls
         """
         path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
         if self.file_has_been_read:
@@ -233,6 +239,7 @@ class IxdatCSVReader:
                 self.column_data[name].append(value)
 
     def read_aux_file(self, path_to_aux_file, name):
+        """Read an auxiliary file and include its series list in the measurement"""
         spec = IxdatSpectrumReader().read(path_to_aux_file, name=name)
         self.aux_series_list += spec.series_list
 
@@ -253,7 +260,24 @@ def get_column_unit(column_name):
 
 
 class IxdatSpectrumReader(IxdatCSVReader):
+    """A reader for ixdat spectra."""
+
     def read(self, path_to_file, name=None, cls=None, **kwargs):
+        """Read an ixdat spectrum.
+
+        This reads the header with the process_line() function inherited from
+        IxdatCSVReader. Then it uses pandas to read the data.
+
+        Args:
+            path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            name (str): The name of the measurement to return (defaults to path_to_file)
+            cls (Spectrum subclass): The class of measurement to return. By default,
+                cls will be determined from the technique specified in the header of
+                path_to_file.
+            **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
+
+        Returns cls: a Spectrum of type cls
+        """
         with open(path_to_file, "r") as f:
             for line in f:
                 if self.place_in_file == "header":
@@ -263,11 +287,12 @@ class IxdatSpectrumReader(IxdatCSVReader):
 
         df = pd.read_csv(path_to_file, sep=",", header=self.N_header_lines - 2)
         if self.technique == "spectrum":
+            # FIXME: in the future, this needs to cover all spectrum classes
             x_name, y_name = tuple(df.keys())
             x = df[x_name].to_numpy()
             y = df[y_name].to_numpy()
             cls = cls or Spectrum
-            return cls.from_data(
+            return cls.from_data(  # see Spectrum.from_data()
                 x,
                 y,
                 self.tstamp,
@@ -279,6 +304,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
             )
 
         elif self.technique == "spectra":
+            # FIXME: in the future, this needs to cover all spectrum series classes
             names = {}
             units = {}
             swap_axes = False
@@ -295,6 +321,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
             z0 = z1_and_y[:, 0]
             y = z1_and_y[:, 1:]
             if swap_axes:
+                # This is the case if the file was export with spectra_as_rows = False.
                 t = z1
                 x = z0
                 y = y.swapaxes(0, 1)
@@ -312,6 +339,6 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 axes_series=[tseries, xseries],
             )
             cls = cls or SpectrumSeries
-            return cls.from_field(
+            return cls.from_field(  # see SpectrumSeries.from_field()
                 field, name=self.name, technique=self.technique, tstamp=self.tstamp
             )

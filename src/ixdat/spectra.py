@@ -194,6 +194,7 @@ class Spectrum(Saveable):
 
     @property
     def series_list(self):
+        """A Spectrum's series list includes its field and its axes_series."""
         return [self.field] + self.field.axes_series
 
     @property
@@ -281,6 +282,7 @@ class SpectrumSeries(Spectrum):
 
     @property
     def t_name(self):
+        """The name of the time variable of the spectrum series"""
         return self.tseries.name
 
     @property
@@ -290,10 +292,12 @@ class SpectrumSeries(Spectrum):
 
     @property
     def x(self):
+        """The x (scanning variable) data"""
         return self.xseries.data
 
     @property
     def x_name(self):
+        """The name of the scanning variable"""
         return self.xseries.name
 
     def __getitem__(self, key):
@@ -313,6 +317,7 @@ class SpectrumSeries(Spectrum):
 
     @property
     def y_average(self):
+        """The y-data of the average spectrum"""
         return np.mean(self.y, axis=0)
 
     @property

@@ -21,7 +21,14 @@ class SECExporter(CSVExporter):
         return v_list
 
     def prepare_header_and_data(self, measurement, v_list, tspan):
-        """Add lines pointing to the 'spectra' and 'reference' spectrum"""
+        """Do the standard ixdat csv export header preparation, plus SEC stuff.
+
+        The SEC stuff is:
+            - export the spectroelectrochemistry spectra
+            - export the actual reference spectrum
+            - add lines to the main file header pointing to the files with the
+                above two exports.
+        """
         super().prepare_header_and_data(measurement, v_list, tspan)
         path_to_spectra_file = self.path_to_file.parent / (
             self.path_to_file.stem + "_spectra.csv"
