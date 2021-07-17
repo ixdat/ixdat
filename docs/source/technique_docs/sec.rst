@@ -4,9 +4,11 @@ Spectro-Electrochemistry
 ========================
 
 Spectro-Electrochemsitry (S-EC) can refer to (i) a broad range of in-situ techniques
-hyphenating electrochemistry to some kind of spectrometry or (ii) more specifically,
+hyphenating electrochemistry to some kind of spectrometry (see e.g.
+`Lozeman et al, 2020 <https://doi.org/10.1039/c9an02105a>`_
+) or (ii) more specifically,
 the combination of electrochemistry and visible-light spectroscopy. In ``ixdat``, we
-use the latter term.
+use the latter meaning.
 
 S-EC data is organized in a ``SpectroECMeasurement``, which inherits from ``ECMeasurement``
 (see :ref:`electrochemistry`) and uses a ``SpectrumSeries`` (see :ref:`Spectra <spectra>`)
