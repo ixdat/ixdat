@@ -118,7 +118,7 @@ class SpectroECMeasurement(ECMeasurement):
         )
         return dOD_series
 
-    def get_spectrum(self, V=None, t=None, index=None):
+    def get_spectrum(self, V=None, t=None, index=None, name=None):
         """Return the Spectrum at a given potential V, time t, or index
 
         Exactly one of V, t, and index should be given. If V (t) is out of the range of
@@ -129,6 +129,7 @@ class SpectroECMeasurement(ECMeasurement):
                 be monotonically increasing for this to work.
             t (float): The time at which to get the spectrum
             index (int): The index of the spectrum
+            name (str): Optional. name to give the new spectrum if interpolated
 
         Return Spectrum: The spectrum. The data is (spectrum.x, spectrum.y)
         """
@@ -138,7 +139,7 @@ class SpectroECMeasurement(ECMeasurement):
             index = int(np.argmax(self.t == t))
         if index:  # then we're done:
             return self.spectrum_series[index]
-        # now, we have to interpolate:
+        # otherwise, we have to interpolate:
         counts = self.spectra.data
         end_spectra = (self.spectrum_series[0].y, self.spectrum_series[-1].y)
         if V:
@@ -147,18 +148,20 @@ class SpectroECMeasurement(ECMeasurement):
             )
             # FIXME: This requires that potential and spectra have same tseries!
             y = counts_interpolater(V)
+            name = name or f"{self.spectra.name}_{V}V"
         elif t:
             t_spec = self.spectra.axes_series[0].t
             counts_interpolater = interp1d(
                 t_spec, counts, axis=0, fill_value=end_spectra, bounds_error=False
             )
             y = counts_interpolater(t)
+            name = name or f"{self.spectra.name}_{t}s"
         else:
             raise ValueError(f"Need t or V or index to select a spectrum!")
 
         field = Field(
             data=y,
-            name=self.spectra.name,
+            name=name,
             unit_name=self.spectra.unit_name,
             axes_series=[self.wavelength],
         )
@@ -207,8 +210,8 @@ class SpectroECMeasurement(ECMeasurement):
         The cacheing adds wl_str to the SECMeasurement's data series, where
             wl_str = "w" + int(wl)
             This is dOD. The raw is also added as wl_str + "_raw".
-        So, to get the raw counts for a specific wavelength, call this function as
-            and then use __getitem__, as in: sec_meas[wl_str + "_raw"]
+        So, to get the raw counts for a specific wavelength, call this function and
+            then use __getitem__, as in: sec_meas[wl_str + "_raw"]
         If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
             to. Otherwise, dOD is referenced to the SECMeasurement's reference_spectrum.
 
@@ -216,7 +219,8 @@ class SpectroECMeasurement(ECMeasurement):
             wl (float): The wavelength to track in [nm]
             width (float): The width around wl to average. For example, if wl=400 and
                 width = 20, the spectra will be averaged between 390 and 410 nm to get
-                the values. Defaults to 10
+                the values. Defaults to 10. To interpolate at the exact wavelength
+                rather than averaging, specify `width=0`.
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum

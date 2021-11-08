@@ -306,7 +306,9 @@ class SpectrumSeries(Spectrum):
             spectrum_as_dict = self.as_dict()
             del spectrum_as_dict["field_id"]
             spectrum_as_dict["field"] = Field(
-                name=self.y_name,
+                # note that it's important in some cases that the spectrum does not have
+                # the same name as the spectrum series:
+                name=self.y_name + "_" + str(key),
                 unit_name=self.field.unit_name,
                 data=self.y[key],
                 axes_series=[self.xseries],

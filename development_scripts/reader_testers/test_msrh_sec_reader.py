@@ -20,19 +20,20 @@ sec_meas = Measurement.read(
 sec_meas.calibrate_RE(RE_vs_RHE=0.26)  # provide RE potential in [V] vs RHE
 sec_meas.normalize_current(A_el=1)  # provide electrode area in [cm^2]
 
+sec_meas.set_reference_spectrum(V_ref=0.66)
+ax = sec_meas.get_dOD_spectrum(V=1.0, V_ref=0.66).plot(color="b", label="species 1")
+sec_meas.get_dOD_spectrum(V=1.4, V_ref=1.0).plot(color="g", label="species 2", ax=ax)
+sec_meas.get_dOD_spectrum(V=1.7, V_ref=1.4).plot(color="r", label="species 3", ax=ax)
+ax.legend()
+
 export_name = "exported_sec.csv"
 sec_meas.export(export_name)
 
-ixdat_sec = Measurement.read("exported_sec.csv", reader="ixdat")
+sec_reloaded = Measurement.read(export_name, reader="ixdat")
 
-axes = ixdat_sec.plot_measurement(V_ref=0.4, cmap_name="inferno")
-axes[0].get_figure().savefig("sec_plot.png")
+sec_reloaded.set_reference_spectrum(V_ref=0.66)
 
-axes = ixdat_sec.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
-axes = ixdat_sec.plot_wavelengths_vs_potential(
-    wavelengths=["w500", "w600", "w700", "w800"]
-)
-
+sec_reloaded.plot_vs_potential(cmap_name="jet")
 
 axes = sec_meas.plot_measurement(
     V_ref=0.4,

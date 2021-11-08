@@ -30,7 +30,7 @@ class MsrhSECReader:
             path_to_ref_spec_file (Path or str): The full path to the file containing
                 the wavelenth data, together usually with the adsorption-free spectrum.
                 The length of the columns should be the same as in the spectrum data
-                but in practice is a few points longer. The excess points at the ends
+                but in practice is a few points longer. The excess points at the starts
                 of the columns are discarded.
             path_to_V_J_file (Path or str): The full path to the file containing the
                 current data vs potential. The columns may be reversed in order. In the
@@ -84,8 +84,8 @@ class MsrhSECReader:
         wl_series = DataSeries("wavelength / [nm]", "nm", wl)
         # The reference spectrum spans a space defined by wavelength:
         reference = Field(
-            "reference",
-            "counts",
+            name="reference",
+            unit_name="counts",
             axes_series=[wl_series],
             data=ref_signal,
         )
@@ -159,7 +159,7 @@ class MsrhSECDecayReader:
             path_to_ref_spec_file (Path or str): The full path to the file containing
                 the wavelenth data, together usually with the adsorption-free spectrum.
                 The length of the columns should be the same as in the spectrum data
-                but in practice is a few points longer. The excess points at the ends
+                but in practice is a few points longer. The excess points at the starts
                 of the columns are discarded.
             path_to_t_V_file (Path or str): The full path to the file containing the
                 potential data vs time.

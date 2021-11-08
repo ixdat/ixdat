@@ -212,6 +212,19 @@ class SECPlotter(MPLPlotter):
         tspan=None,
         **kwargs,
     ):
+        """Plot the dO.D. for specific wavelength in the top panel and EC in bottom
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            wavelengths (list of str): The names of the wavelengths to track as strings,
+                e.g. "w400" for 400 nm
+            axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
+            cmap_name (str): Name of the colormap. Defaults to "jet"
+            tspan (timespan): The timespan to plot
+            **kwargs: Additional key-word arguments are passed on to
+                ECPlotter.plot_measurement
+        """
         measurement = measurement or self.measurement
         wavelengths = wavelengths or measurement.tracked_wavelengths
 
@@ -229,6 +242,7 @@ class SECPlotter(MPLPlotter):
                 t, y = measurement.grab(wl_str, tspan=tspan)
             axes[0].plot(t, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
+        axes[0].set_ylabel("$\Delta$O.D.")
 
         self.ec_plotter.plot_measurement(
             measurement=measurement, axes=axes[1:], tspan=tspan, **kwargs
@@ -243,6 +257,19 @@ class SECPlotter(MPLPlotter):
         tspan=None,
         **kwargs,
     ):
+        """Plot the dO.D. for specific wavelength in the top panel vs potential
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            wavelengths (list of str): The names of the wavelengths to track as strings,
+                e.g. "w400" for 400 nm
+            axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
+            cmap_name (str): Name of the colormap. Defaults to "jet"
+            tspan (timespan): The timespan to plot
+            **kwargs: Additional key-word arguments are passed on to
+                ECPlotter.plot_vs_potential
+        """
         measurement = measurement or self.measurement
         wavelengths = wavelengths or measurement.tracked_wavelengths
 
@@ -261,6 +288,7 @@ class SECPlotter(MPLPlotter):
             v = measurement.v
             axes[0].plot(v, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
+        axes[0].set_ylabel("$\Delta$O.D.")
 
         self.ec_plotter.plot_vs_potential(
             measurement=measurement, ax=axes[1], tspan=tspan, **kwargs
