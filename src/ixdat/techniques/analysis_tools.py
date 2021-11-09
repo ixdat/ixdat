@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import minimize
 
 
 def tspan_passing_through(t, v, vspan, direction=None, t_i=None, v_res=None):
@@ -165,3 +166,31 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
             i_start += res_points
 
     return sections
+
+
+def calc_t_using_scan_rate(v, dvdt):
+    """Return a numpy array describing the time corresponding to v given scan rate dvdt
+
+    This is useful for data sets where time is missing. It depends on another value
+    having a constant absolute rate of change (such as electrode potential in cyclic
+    voltammatry).
+    It uses the `calc_sharp_v_scan` algorithm to match the scan rate implied by the
+    timevector returned with the given scan rate.
+    Args:
+        v (np array): The value
+        dvdt (float): The scan rate in units of v's unit per second
+    Returns:
+        np array: t, the time vector corresponding to v
+    """
+
+    def error(t_tot):
+        t = np.linspace(0, t_tot[0], v.size)
+        dvdt_calc = np.abs(calc_sharp_v_scan(t, v))
+        error = np.sum(dvdt_calc ** 2 - dvdt ** 2)
+        return error
+
+    t_total_guess = (max(v) - min(v)) / dvdt
+    result = minimize(error, np.array(t_total_guess))
+
+    t_total = result.x[0]
+    return np.linspace(0, t_total, v.size)

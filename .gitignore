@@ -1,7 +1,9 @@
-# Big files from tests
-development_scripts/*.png
-development_scripts/*.svg
-docs/source/figures/big_src/*
+
+# Big files from tests and docs prep
+development_scripts/*/*.png
+development_scripts/*/*.svg
+development_scripts/*/*.csv
+docs/source/figures/big_src/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

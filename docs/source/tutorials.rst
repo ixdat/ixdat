@@ -1,3 +1,5 @@
+.. _tutorials:
+
 =========
 Tutorials
 =========
@@ -15,7 +17,6 @@ both based on electrochemistry data:
 
 Loading, selecting, calibrating, and exporting data
 ***************************************************
-
 Location: `loading_appending_and_saving/export_demo_data_as_csv.ipynb <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_
 
 This tutorial shows with electrochemistry data how to load, append, and export data.
@@ -41,6 +42,19 @@ It demonstrates, with CO stripping as an example, the following features:
 It reads ixdat-exported data directly from github.
 A worked example based on the methods in this tutorial
 
+
+Spectroelectrochemistry
+***********************
+
+.. _sec-tutorial:
+
+Location:`spectroelectrochemistry/ <https://github.com/ixdat/tutorials/blob/main/spectroelectrochemistry/>`_
+
+This tutorial demonstrates importing, plotting, and exporting spectroelectrochemistry (S-EC) data
+It shows delta optical density calculation and both calculation and plotting of the full 2-D data field and
+cross sections (i.e. spectra and wavelength-vs-time).
+
+The example data is not yet publically available.
 
 Article repositories
 --------------------

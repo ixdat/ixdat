@@ -52,4 +52,24 @@ The ``ecms_plotter`` module
 .. automodule:: ixdat.plotters.ecms_plotter
     :members:
 
+Spectra
+-------
 
+The ``spectrum_plotter`` module
+...............................
+
+.. _spectrum-plotter:
+
+.. automodule:: ixdat.plotters.spectrum_plotter
+    :members:
+
+Spectroelectrochemistry
+-----------------------
+
+.. _sec-plotter:
+
+The ``sec_plotter`` module
+..........................
+
+.. automodule:: ixdat.plotters.sec_plotter
+    :members:

@@ -41,6 +41,8 @@ The ``cinfdata`` module
 
 Electrochemistry and sub-techniques
 ------------------------------------
+These are readers which by default return an ``ECMeasurement``.
+(See :ref:`electrochemistry`)
 
 The ``biologic`` module
 ........................
@@ -55,13 +57,15 @@ The ``autolab`` module
     :members:
 
 The ``ivium`` module
-........................
+....................
 
 .. automodule:: ixdat.readers.ivium
     :members:
 
 Mass Spectrometry and sub-techniques
 ------------------------------------
+These are readers which by default return an ``MSMeasurement``.
+(See :ref:`mass-spec`)
 
 The ``pfeiffer`` module
 ........................
@@ -71,6 +75,8 @@ The ``pfeiffer`` module
 
 EC-MS and sub-techniques
 ------------------------
+These are readers which by default return an ``ECMSMeasurement``.
+(See :ref:`ec-ms`)
 
 The ``zilien`` module
 ........................
@@ -85,3 +91,13 @@ The ``ec_ms_pkl`` module
     :members:
 
 
+EC-MS and sub-techniques
+------------------------
+These are readers which by default return a ``SpectroECMeasurement``.
+(See :ref:`s-ec`)
+
+The ``msrh_sec`` module
+.......................
+
+.. automodule:: ixdat.readers.msrh_sec
+    :members:

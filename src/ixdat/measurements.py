@@ -428,7 +428,9 @@ class Measurement(Saveable):
                 s = append_series(ss)
         else:
             raise SeriesNotFoundError(f"{self} has no series called {item}")
-        return time_shifted(s, self.tstamp)
+        if hasattr(s, "tstamp") and not s.tstamp == self.tstamp:
+            s = time_shifted(s, self.tstamp)
+        return s
 
     def __setitem__(self, series_name, series):
         """Append `series` with name=`series_name` to `series_list` and remove others."""
@@ -787,6 +789,22 @@ class Measurement(Saveable):
             component_measurements=new_component_measurements,
         )
         return cls.from_dict(obj_as_dict)
+
+    def join(self, other, join_on=None):
+        """Join two measurements based on a shared data series
+
+        This involves projecting all timeseries from other's data series so that the
+        variable named by `join_on` is shared between all data series.
+        This is analogous to an explicit inner join.
+
+        Args:
+            other (Measurement): a second measurement to join to self
+            join_on (str or tuple): Either a string, if the value to join on is called
+                the same thing in both measurements, or a tuple of two strings if it is
+                not.
+                The variable described by join_on must be monotonically increasing in
+                both measurements.
+        """
 
 
 #  ------- Now come a few module-level functions for series manipulation ---------

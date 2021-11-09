@@ -17,6 +17,7 @@ A full list of the techniques and there names is in the ``TECHNIQUE_CLASSES`` di
         'CV': <class 'ixdat.techniques.cv.CyclicVoltammagram'>,
         'MS': <class 'ixdat.techniques.ms.MSMeasurement'>,
         'EC-MS': <class 'ixdat.techniques.ec_ms.ECMSMeasurement'>
+        'S-EC': <class 'ixdat.techniques.ec_ms.SpectroECMeasurement'>
     }
 
 .. toctree::
@@ -26,3 +27,4 @@ A full list of the techniques and there names is in the ``TECHNIQUE_CLASSES`` di
     mass_spec
     ec_ms
     sec
+    spectra

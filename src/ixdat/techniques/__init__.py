@@ -11,6 +11,7 @@ from .ec import ECMeasurement
 from .cv import CyclicVoltammagram
 from .ms import MSMeasurement
 from .ec_ms import ECMSMeasurement
+from .spectroelectrochemistry import SpectroECMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
 
 # TODO: Is something like DecoMeasurement a Measurement or something else?
@@ -21,4 +22,5 @@ TECHNIQUE_CLASSES = {
     "CV": CyclicVoltammagram,
     "MS": MSMeasurement,
     "EC-MS": ECMSMeasurement,
+    "S-EC": SpectroECMeasurement,
 }
