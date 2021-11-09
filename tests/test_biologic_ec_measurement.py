@@ -13,7 +13,7 @@ change_database("directory", project_name="test_biologic_ec_measurement")
 
 
 class TestLog:
-    def __init__(self, path_to_file="~/ixdat_test_output.txt"):
+    def __init__(self, path_to_file="~/git/ixdat_test_output.txt"):
         self.path_to_file = Path(path_to_file).expanduser()
         with open(self.path_to_file, "w") as f:
             f.write("\n" + "-" * 80 + "\n")
