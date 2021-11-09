@@ -263,7 +263,7 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
             for child_object_list_name in self.child_attrs:
                 for child_obj in getattr(self, child_object_list_name):
                     if child_obj.backend in ("none", database_backends["none"]):
-                        database_backends["memory"].remember(child_obj)
+                        database_backends["memory"].save(child_obj)
 
         exclude = exclude or []
         self_as_dict = self.get_main_dict(exclude=exclude)

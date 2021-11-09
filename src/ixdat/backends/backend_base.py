@@ -15,7 +15,7 @@ class BackendBase:
     Saveable objects will by default be initiated with this base (backend="none")
     backend. Objects which ixdat should keep track of for use in multiple places in
     a workflow should instead be initiated with MemoryBackend (backend="memory").
-    Other backends are imply an object is saved to or loaded form a database including
+    Other backends imply an object is saved to or loaded form a database including
     ixdat's directory backend (backend="directory")
     """
 

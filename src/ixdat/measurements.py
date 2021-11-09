@@ -410,7 +410,7 @@ class Measurement(Saveable):
             key (str): The key to look up
 
         Returns DataSeries: the data series corresponding to key
-        Raises SeriesNotFoundError if non
+        Raises SeriesNotFoundError if no series found for key
         """
         # A
         if key in self.series_constructors:
@@ -418,7 +418,7 @@ class Measurement(Saveable):
         # B
         for calibration in self.calibrations:
             series = calibration.calibrate_series(key, measurement=self)
-            # ^ the calibration will call this __getitem__ with the name of the
+            # ^ the calibration will call __getitem__ with the name of the
             #   corresponding raw data and return a new series with calibrated data
             #   if possible. Otherwise it will return None.
             if series:
@@ -457,10 +457,9 @@ class Measurement(Saveable):
 
     def grab(self, item, tspan=None):
         """Return the time and value vectors for a given VSeries name cut by tspan"""
-        vseries = self[item]
-        tseries = vseries.tseries
-        v = vseries.data
-        t = tseries.data + tseries.tstamp - self.tstamp
+        series = self[item]
+        v = series.v
+        t = series.t
         if tspan:
             mask = np.logical_and(tspan[0] < t, t < tspan[-1])
             t, v = t[mask], v[mask]
@@ -468,10 +467,9 @@ class Measurement(Saveable):
 
     def grab_for_t(self, item, t):
         """Return a numpy array with the value of item interpolated to time t"""
-        vseries = self[item]
-        tseries = vseries.tseries
-        v_0 = vseries.data
-        t_0 = tseries.data + tseries.tstamp - self.tstamp
+        series = self[item]
+        v_0 = series.v
+        t_0 = series.t
         v = np.interp(t, t_0, v_0)
         return v
 

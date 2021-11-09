@@ -22,3 +22,8 @@ class Config:
 
 
 CFG = Config()
+
+
+def prompt_for_permission(prompt):
+    yn = input(prompt + "\nEnter y for yes or anything else for no.")
+    return yn in ["y", "yes", "Y", "Yes"]

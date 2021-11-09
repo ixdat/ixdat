@@ -2,13 +2,14 @@
 
 FIXME: Saving and/or loading get quite slow when the number of rows in a table (usually
   data_series) grows to hundreds. How to figure out why that happens?
+  # see https://github.com/ixdat/ixdat/pull/11#discussion_r663468719
 """
 
 
 import json
 import numpy as np
 from .backend_base import BackendBase
-from ..config import CFG
+from ..config import CFG, prompt_for_permission
 
 
 char_substitutions = {  # substitutions needed to name .json file with data series name
@@ -20,7 +21,7 @@ char_substitutions = {  # substitutions needed to name .json file with data seri
     ">": "_GTS_",  # greater-than sign
 }
 # TODO: consider implementing some kind of general solution with a tmp dir
-#    see: https://github.com/ixdat/ixdat/pull/5#discussion_r565075588
+#   see: https://github.com/ixdat/ixdat/pull/5#discussion_r565075588
 
 
 def fix_name_for_saving(name):
@@ -77,6 +78,7 @@ class DirBackend(BackendBase):
 
     @property
     def address(self):
+        """"""
         return str(self.project_directory)
 
     def save(self, obj, force=False, no_updates=True):
@@ -84,6 +86,10 @@ class DirBackend(BackendBase):
 
         Args:
             obj (Saveable): an object
+            force (bool): Whether to force updates if the object is already saved
+            no_updates (bool): Whether to allow updates if the object is already saved.
+                If both force and no_updates are False, the user will be prompted on
+                whether to save.
         """
         # First, we save any objects referenced by this object that need to survive a
         # save-load cycle. These are listed in obj.child_attrs. They need to be saved
@@ -101,18 +107,20 @@ class DirBackend(BackendBase):
         obj_as_dict = obj.as_dict()
         # check if it's already saved and decide what to do if so:
         if obj.backend is self and self.contains(table_name, obj.id):
-            if not force:
-                if no_updates:
-                    return obj.id
-                yn = input(
+            okay_to_update = not no_updates
+            update_the_row = force or (
+                okay_to_update
+                and prompt_for_permission(
                     f"Are you sure you would like to overwrite "
-                    f"{self} table={table_name} id={obj.id} with {obj}? y for yes."
-                    " You can use save() with force=True to suppress this."
+                    f"{self} table={table_name} id={obj.id} with {obj}? "
+                    f"(You can use save() with force=True to suppress this.)"
                 )
-                if not yn == "y":
-                    return
-            self.update_row(table_name, obj.id, obj_as_dict)
-            return obj.id
+            )
+            if update_the_row:
+                self.update_row(table_name, obj.id, obj_as_dict)
+                return obj.id  # return the id of the updated row
+            else:
+                return  # return nothing since nothing was done
         else:
             i = self.add_row(table_name, obj_as_dict)
             obj.set_id(i)
@@ -120,6 +128,14 @@ class DirBackend(BackendBase):
             return i
 
     def save_data(self, data, table_name, i, fixed_name=None):
+        """Save the data item of a given row, by default as .ix.npy
+
+        Args:
+            data (Array): the numerical data
+            table_name (str): The name of the table to save in
+            i (int): The id of the row to save in
+            fixed_name (the name of the data, just used for the file name
+        """
         folder = self.project_directory / table_name
         data_file_name = f"{i}_{fixed_name}{self.data_suffix}"
         np.save(folder / data_file_name, data)
@@ -165,7 +181,7 @@ class DirBackend(BackendBase):
         return i
 
     def update_row(self, table_name, i, obj_as_dict):
-        """Save object's serialization to the folder table_name (like adding a row)"""
+        """Update a file specified by `i` in the folder specified by `table_name`"""
         folder = self.project_directory / table_name
         if not folder.exists():
             folder.mkdir()

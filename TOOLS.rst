@@ -176,13 +176,9 @@ Windows version of the hook, is the line at the top that indicates the
 executable that should run the program).
 
 Then there is a bit of difference depending on how git is used. If the
-main interface to git is via powershell (or mayby Command Prompt) and
+main interface to git is via powershell (or maybe Command Prompt) and
 a virtual environment is being used and is active, then the commit
 hook will just work.
-
-For this reason, we recommend using **Anaconda Powershell Prompt** for
-Windows users to push their work. However, it needs to be used in
-**administrator mode** or flake8 raises a "permission denied" error.
 
 If the development is done elsewhere, but still somehow relies on a
 virtual environment (either a separate virtual environment or an
