@@ -26,10 +26,7 @@ class SpectroECMeasurement(ECMeasurement):
         return self._reference_spectrum
 
     def set_reference_spectrum(
-        self,
-        spectrum=None,
-        t_ref=None,
-        V_ref=None,
+        self, spectrum=None, t_ref=None, V_ref=None,
     ):
         """Set the spectrum used as the reference when calculating dOD.
 
@@ -60,9 +57,7 @@ class SpectroECMeasurement(ECMeasurement):
     def spectrum_series(self):
         """The SpectrumSeries that is the spectra of the SEC Measurement"""
         return SpectrumSeries.from_field(
-            self.spectra,
-            tstamp=self.tstamp,
-            name=self.name + " spectra",
+            self.spectra, tstamp=self.tstamp, name=self.name + " spectra",
         )
 
     @property
@@ -168,13 +163,7 @@ class SpectroECMeasurement(ECMeasurement):
         return Spectrum.from_field(field, tstamp=self.tstamp)
 
     def get_dOD_spectrum(
-        self,
-        V=None,
-        t=None,
-        index=None,
-        V_ref=None,
-        t_ref=None,
-        index_ref=None,
+        self, V=None, t=None, index=None, V_ref=None, t_ref=None, index_ref=None,
     ):
         """Return the delta optical density Spectrum given a point and reference point.
 

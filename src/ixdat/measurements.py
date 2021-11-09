@@ -681,8 +681,8 @@ class Measurement(Saveable):
         can be single acceptable values or lists of acceptable values. In the latter
         case, each acceptable value is selected for on its own and the resulting
         measurements added together.
-        # FIXME: That is sloppy because it mutliplies the number of DataSeries
-            containing the same amount of data.
+        FIXME: That is sloppy because it multiplies the number of DataSeries
+        FIXME:  containing the same amount of data.
         If no key-word is given, the series name is assumed to
         be the default selector, which is named by self.sel_str. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
@@ -693,6 +693,7 @@ class Measurement(Saveable):
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
         """
+
         if len(args) >= 1:
             if not self.sel_str:
                 raise BuildError(
@@ -717,7 +718,7 @@ class Measurement(Saveable):
         return new_measurement
 
     def select(self, *args, tspan=None, **kwargs):
-        """`cut` (with tspan) and `select_values` (with *args and/or **kwargs)."""
+        """`cut` (with tspan) and `select_values` (with args and/or kwargs)."""
         new_measurement = self
         if tspan:
             new_measurement = new_measurement.cut(tspan=tspan)
@@ -727,7 +728,7 @@ class Measurement(Saveable):
 
     @property
     def tspan(self):
-        """Return (t_start, t_finish) for all data in the measurement"""
+        """Return `(t_start, t_finish)` interval including all data in the measurement"""
         t_start = None
         t_finish = None
         for tcol in self.time_names:
@@ -756,6 +757,7 @@ class Measurement(Saveable):
         all the raw series (or their placeholders) are just stored in the lists.
         TODO: Make sure with tests this is okay, differentiate using | operator if not.
         """
+
         # First we prepare a dictionary for all but the series_list.
         # This has both dicts, but prioritizes self's dict for all that appears twice.
         obj_as_dict = self.as_dict()

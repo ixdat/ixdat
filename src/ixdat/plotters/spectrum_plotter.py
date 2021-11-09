@@ -95,7 +95,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
             spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
                 different from self.spectrum_series.
                 FIXME: spectrum_series needs to actually be a Measurement to have other
-                    series to plot against if vs isn't in field.series_axes
+                FIXME:  series to plot against if vs isn't in field.series_axes
             field (Field): The field to be plotted, if different from
                 spectrum_series.field
             xspan (iterable): The span of the spectral data to plot
@@ -175,7 +175,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
             spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
                 different from self.spectrum_series.
                 FIXME: spectrum_series needs to actually be a Measurement to have other
-                    series to plot against if vs isn't in field.series_axes
+                FIXME: ...series to plot against if vs isn't in field.series_axes
             field (Field): The field to be plotted, if different from
                 spectrum_series.field
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.

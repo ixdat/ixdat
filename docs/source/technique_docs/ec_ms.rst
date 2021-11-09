@@ -5,7 +5,7 @@ Electrochemistry - Mass Spectrometry (EC-MS)
 
 The main class for EC-MS data is the ECMSMeasurement.
 
-It comes with the :ref:`EC-MS plotter <ec_ms-plotter>` which makes EC-MS plots like this one:
+It comes with the :ref:`EC-MS plotter <ecms-plotter>` which makes EC-MS plots like this one:
 
 .. figure:: ../figures/ec_ms_annotated.svg
     :width: 600
@@ -24,7 +24,7 @@ based on an electrochemical cyclic voltammatry program that are implemented in `
 Deconvolution, described in a publication under review, is implemented in the deconvolution module,
 in a class inheriting from ``ECMSMeasurement``.
 
-ixdat will soon have all the functionality and more for EC-MS data and analysis as the
+``ixdat`` will soon have all the functionality and more for EC-MS data and analysis as the
 legacy `EC_MS <https://github.com/ScottSoren/EC_MS>`_ package. This includes the tools
 behind the EC-MS analysis and visualization in the puplications:
 
@@ -38,9 +38,11 @@ behind the EC-MS analysis and visualization in the puplications:
 
 - Anna Winiwarter, et al.  **CO as a Probe Molecule to Study Surface Adsorbates during Electrochemical Oxidation of Propene**. `ChemElectroChem, 2021 <https://doi.org/10.1002/celc.202001162>`_.
 
-- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part I: Oxygen exchange via CO2 hydration**. `Electrochimica Acta, 2021 <https://doi.org/10.1016/j.electacta.2021.137842>`_.
+``ixdat`` is used for the following articles:
 
-- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part II: Lattice oxygen reactivity in oxides of Pt and Ir**. `Electrochimica Acta, 2021 <https://doi.org/10.1016/j.electacta.2021.137844>`_.
+- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part I: Oxygen exchange via CO2 hydration**. `Electrochimica Acta, 2021a <https://doi.org/10.1016/j.electacta.2021.137842>`_.
+
+- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part II: Lattice oxygen reactivity in oxides of Pt and Ir**. `Electrochimica Acta, 2021b <https://doi.org/10.1016/j.electacta.2021.137844>`_.
 
 
 The ``ec_ms`` module

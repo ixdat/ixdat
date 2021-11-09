@@ -42,6 +42,7 @@ class ECMSPlotter(MPLPlotter):
             - variable subplot sizing (emphasizing EC or MS)
             - plotting of calibrated data (mol_list instead of mass_list)
             - units!
+
         Args:
             measurement (ECMSMeasurement): defaults to the measurement to which the
                 plotter is bound (self.measurement)
@@ -165,6 +166,7 @@ class ECMSPlotter(MPLPlotter):
             - variable subplot sizing (emphasizing EC or MS)
             - plotting of calibrated data (mol_list instead of mass_list)
             - units!
+        
         Args:
             measurement (ECMSMeasurement): defaults to the measurement to which the
                 plotter is bound (self.measurement)

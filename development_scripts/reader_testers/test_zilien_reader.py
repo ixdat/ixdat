@@ -5,11 +5,7 @@ path_to_file = (
     "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"
 )
 
-m = ECMeasurement.read(
-    path_to_file,
-    reader="biologic",
-    name="ec_tools_test",
-)
+m = ECMeasurement.read(path_to_file, reader="biologic", name="ec_tools_test",)
 
 # ax = m.plot()
 

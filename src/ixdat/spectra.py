@@ -106,7 +106,7 @@ class Spectrum(Saveable):
         For a field to be correctly saved and loaded, its axes_series must be saved
         first. So there are three series in the data_objects to return
         FIXME: with backend-specifying id's, field could check for itself whether
-            its axes_series are already in the database.
+        FIXME:  its axes_series are already in the database.
         """
         return self.series_list
 

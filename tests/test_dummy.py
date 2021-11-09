@@ -9,9 +9,7 @@ def dont_test_blank_measurement():  # FIXME: tox can't handle matplotlib
 
     from ixdat.measurements import Measurement
 
-    meas = Measurement(
-        name="blank",
-    )
+    meas = Measurement(name="blank",)
     print(meas)
     assert len(meas.value_names) == 0
 

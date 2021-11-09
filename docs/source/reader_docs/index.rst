@@ -1,7 +1,7 @@
 .. _readers:
 
 Readers: getting data into ``ixdat``
-==================================
+====================================
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/readers
 
 A full list of the readers thus accessible and their names can be viewed by typing:
@@ -34,7 +34,7 @@ in the future it will also have a reader which downloads from the website given 
 setup and date.
 
 The ``cinfdata`` module
-........................
+.......................
 
 .. automodule:: ixdat.readers.cinfdata
     :members:
@@ -51,7 +51,7 @@ The ``biologic`` module
     :members:
 
 The ``autolab`` module
-........................
+......................
 
 .. automodule:: ixdat.readers.autolab
     :members:
@@ -79,7 +79,7 @@ These are readers which by default return an ``ECMSMeasurement``.
 (See :ref:`ec-ms`)
 
 The ``zilien`` module
-........................
+.....................
 
 .. automodule:: ixdat.readers.zilien
     :members:
@@ -94,7 +94,7 @@ The ``ec_ms_pkl`` module
 EC-MS and sub-techniques
 ------------------------
 These are readers which by default return a ``SpectroECMeasurement``.
-(See :ref:`s-ec`)
+(See :ref:`sec`)
 
 The ``msrh_sec`` module
 .......................

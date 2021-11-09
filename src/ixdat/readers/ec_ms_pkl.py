@@ -37,11 +37,7 @@ class EC_MS_CONVERTER:
 
 
 def measurement_from_ec_ms_dataset(
-    ec_ms_dict,
-    name=None,
-    cls=ECMSMeasruement,
-    reader=None,
-    **kwargs,
+    ec_ms_dict, name=None, cls=ECMSMeasruement, reader=None, **kwargs,
 ):
     """Return an ixdat Measurement with the data from an EC_MS data dictionary.
 
@@ -100,12 +96,7 @@ def measurement_from_ec_ms_dataset(
             print(f"Not including '{col}' due to mismatch size with {tseries}")
             continue
         cols_list.append(
-            ValueSeries(
-                name=v_name,
-                data=data,
-                unit_name=unit_name,
-                tseries=tseries,
-            )
+            ValueSeries(name=v_name, data=data, unit_name=unit_name, tseries=tseries,)
         )
 
     obj_as_dict = dict(

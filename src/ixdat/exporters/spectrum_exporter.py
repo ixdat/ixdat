@@ -65,14 +65,15 @@ class SpectrumSeriesExporter:
     def export(self, spectrum_series=None, path_to_file=None, spectra_as_rows=True):
         """Export spectrum to path_to_file.
 
-        spectrum (Spectrum): The spectrum to export if different from self.spectrum
-        path_to_file (str or Path): The path of the file to export to. Note that if a
-            file already exists with this path, it will be overwritten.
-        spectra_as_rows (bool): This specifies the orientation of the data exported.
-            If True, the scanning variabe (e.g. wavelength) increases to the right and
-            the time variable increases downward. If False, the scanning variable
-            increases downwards and the time variable increases to the right. Either
-            way it is clarified in the file header. Defaults to True.
+        Args:
+            spectrum (Spectrum): The spectrum to export if different from self.spectrum
+            path_to_file (str or Path): The path of the file to export to. Note that if a
+                file already exists with this path, it will be overwritten.
+            spectra_as_rows (bool): This specifies the orientation of the data exported.
+                If True, the scanning variabe (e.g. wavelength) increases to the right
+                and the time variable increases downward. If False, the scanning
+                variable increases downwards and the time variable increases to the
+                right. Either way it is clarified in the file header. Defaults to True.
         """
 
         spectrum_series = spectrum_series or self.spectrum_series

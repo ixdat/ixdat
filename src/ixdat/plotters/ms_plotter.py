@@ -29,13 +29,14 @@ class MSPlotter(MPLPlotter):
     ):
         """Plot m/z signal vs time (MID) data and return the axis.
 
-        There are four ways to specify what to plot. Only specify one of these:
+        There are four ways to specify what to plot. Only specify one of these::
             mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
             mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
             mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
             mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
-        Two axes refers to seperate left and right y-axes. Default is to use all
-        availeable masses as mass_list.
+
+        Two axes refers to separate left and right y-axes. Default is to use all
+        available masses as mass_list.
 
         Args:
             measurement (MSMeasurement): defaults to the one that initiated the plotter
@@ -157,13 +158,14 @@ class MSPlotter(MPLPlotter):
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
 
-        There are four ways to specify what to plot. Only specify one of these:
+        There are four ways to specify what to plot. Only specify one of these::
             mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
             mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
             mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
             mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
+
         Two axes refers to seperate left and right y-axes. Default is to use all
-        availeable masses as mass_list.
+        available masses as mass_list.
 
         Args:
             x_name (str): Name of the variable to plot on the x-axis

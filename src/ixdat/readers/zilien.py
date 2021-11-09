@@ -116,11 +116,7 @@ class ZilienSpectrumReader:
         if path_to_spectrum:
             self.path_to_spectrum = Path(path_to_spectrum)
         cls = cls or MSSpectrum
-        df = pd.read_csv(
-            path_to_spectrum,
-            header=9,
-            delimiter="\t",
-        )
+        df = pd.read_csv(path_to_spectrum, header=9, delimiter="\t",)
         x_name = "Mass  [AMU]"
         y_name = "Current [A]"
         x = df[x_name].to_numpy()
@@ -170,8 +166,7 @@ if __name__ == "__main__":
     )
 
     ecms_measurement = Measurement.read(
-        reader="zilien",
-        path_to_file=path_to_test_file,
+        reader="zilien", path_to_file=path_to_test_file,
     )
 
     ecms_measurement.plot_measurement()

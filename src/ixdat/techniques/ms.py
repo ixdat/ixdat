@@ -22,10 +22,7 @@ class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
     extra_column_attrs = {
-        "ms_meaurements": {
-            "mass_aliases",
-            "signal_bgs",
-        },
+        "ms_meaurements": {"mass_aliases", "signal_bgs",},
     }
 
     def __init__(
@@ -165,12 +162,7 @@ class MSMeasurement(Measurement):
         return x, n_dot
 
     def grab_flux_for_t(
-        self,
-        mol,
-        t,
-        tspan_bg=None,
-        removebackground=False,
-        include_endpoints=False,
+        self, mol, t, tspan_bg=None, removebackground=False, include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s] for a given time vec
 
@@ -255,12 +247,7 @@ class MSCalResult(Saveable):
     column_attrs = {"name", "mol", "mass", "cal_type", "F"}
 
     def __init__(
-        self,
-        name=None,
-        mol=None,
-        mass=None,
-        cal_type=None,
-        F=None,
+        self, name=None, mol=None, mass=None, cal_type=None, F=None,
     ):
         super().__init__()
         self.name = name
@@ -380,13 +367,7 @@ class MSInlet:
         return n_dot
 
     def gas_flux_calibration(
-        self,
-        measurement,
-        mol,
-        mass,
-        tspan=None,
-        tspan_bg=None,
-        ax=None,
+        self, measurement, mol, mass, tspan=None, tspan_bg=None, ax=None,
     ):
         """
         Args:

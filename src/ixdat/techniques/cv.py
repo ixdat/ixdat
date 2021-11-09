@@ -14,8 +14,8 @@ class CyclicVoltammagram(ECMeasurement):
 
     Onto ECMeasurement, this adds:
     - a property `cycle` which is a ValueSeries on the same TimeSeries as potential,
-        which counts cycles. "cycle" becomes the Measurement's `sel_str`. Indexing with
-        integer or iterable selects according to `cycle`.
+    which counts cycles. "cycle" becomes the Measurement's `sel_str`. Indexing with
+    integer or iterable selects according to `cycle`.
     - functions for quantitatively comparing cycles (like a stripping cycle, base cycle)
     - the default plot() is plot_vs_potential()
     """
@@ -133,12 +133,7 @@ class CyclicVoltammagram(ECMeasurement):
                 If vspan[-1] < vspan[0], a reductive sweep is returned.
             t_i (float): Optional. Time before which the sweep can't start.
         """
-        tspan = tspan_passing_through(
-            t=self.t,
-            v=self.v,
-            vspan=vspan,
-            t_i=t_i,
-        )
+        tspan = tspan_passing_through(t=self.t, v=self.v, vspan=vspan, t_i=t_i,)
         return self.cut(tspan=tspan)
 
     def integrate(self, item, tspan=None, vspan=None, ax=None):

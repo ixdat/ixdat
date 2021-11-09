@@ -28,7 +28,7 @@ The ``ecms_exporter`` module
     :members:
 
 The ``spectrum_exporter`` module
-...........................
+................................
 .. _spectrum-exporter:
 
 .. automodule:: ixdat.exporters.spectrum_exporter

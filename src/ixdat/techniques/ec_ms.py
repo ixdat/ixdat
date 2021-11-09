@@ -120,11 +120,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
-            name=f"{mol}_{mass}",
-            mol=mol,
-            mass=mass,
-            cal_type="ecms_calibration",
-            F=F,
+            name=f"{mol}_{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
         )
         return cal
 

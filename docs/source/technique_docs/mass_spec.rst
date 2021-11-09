@@ -9,7 +9,7 @@ types of data - spectra, where intensity is taken while scanning over m/z, and
 mass intensity detection (MID) where the intensity of a small set of m/z values are
 tracked in time.
 
-The main TechniqueMeasurement class for MID data is the :ref:`MSMeasurement`.
+The main TechniqueMeasurement class for MID data is the ``MSMeasurement``.
 
 Classes dealing with spectra are under development.
 

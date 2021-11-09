@@ -37,7 +37,7 @@ Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec.p
   :width: 600
   :alt: Example plots. left: ``ECMeasurement.plot_vs_potential()`` right: ``ECMeasurement.plot_measurement()``
 
-  left: ``ECMeasurement.plot_vs_potential()`` right: ``ECMeasurement.plot_measurement()``. `Tutorial <https://github.com/ixdat/tutorials/blob/main/simple_ec_analysis/difference_between_two_cvs.ipynb>`_
+  left: ``ECMeasurement.plot_vs_potential()`` right: ``ECMeasurement.plot_measurement()``. `See tutorial <https://github.com/ixdat/tutorials/blob/main/simple_ec_analysis/difference_between_two_cvs.ipynb>`_
 
 .. automodule:: ixdat.techniques.ec
     :members:
@@ -52,7 +52,7 @@ Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/cv.p
   :width: 300
   :alt: Example ``CyclicVoltammagramDiff`` plot
 
-  ``CyclicVoltammagramDiff.plot()``.  `Tutorial <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_.
+  output of ``CyclicVoltammagramDiff.plot()``.  `Tutorial <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_.
 
 .. automodule:: ixdat.techniques.cv
     :members:

@@ -11,9 +11,8 @@ from ..exporters.ec_exporter import ECExporter
 class ECMeasurement(Measurement):
     """Class implementing electrochemistry measurements
 
-    TODO:
-        Implement a unit library for current and potential, A_el and RE_vs_RHE
-        so that e.g. current can be seamlessly normalized to mass OR area.
+    TODO: Implement a unit library for current and potential, A_el and RE_vs_RHE
+    TODO:   so that e.g. current can be seamlessly normalized to mass OR area.
 
     The main job of this class is making sure that the ValueSeries most essential for
     visualizing and normal electrochemistry measurements (i.e. excluding impedance spec.,
@@ -22,36 +21,41 @@ class ECMeasurement(Measurement):
     normalized, etc. These most important ValueSeries are:
 
     - `potential`: The working-electrode potential typically in [V].
+      If `ec_meas` is an `ECMeasurement`, then `ec_meas["potential"]` always returns a
+      `ValueSeries` characterized by:
 
-        If `ec_meas` is an `ECMeasurement`, then `ec_meas["potential"]` always returns a
-        `ValueSeries` characterized by:
         - calibrated and/or corrected, if the measurement has been calibrated with the
-            reference electrode potential (`RE_vs_RHE`, see `calibrate`) and/or corrected
-            for ohmic drop (`R_Ohm`, see `correct_ohmic_drop`).
+          reference electrode potential (`RE_vs_RHE`, see `calibrate`) and/or corrected
+          for ohmic drop (`R_Ohm`, see `correct_ohmic_drop`).
         - A name that makes clear any calibration and/or correction
         - Data which spans the entire timespan of the measurement - i.e. whenever EC data
-            is being recorded, `potential` is there, even the name of the raw
-            `ValueSeries` (what the acquisition software calls it) changes. Indeed
-            `ec_meas["potential"].tseries` is the measurement's definitive time variable.
+          is being recorded, `potential` is there, even the name of the raw
+          `ValueSeries` (what the acquisition software calls it) changes. Indeed
+          `ec_meas["potential"].tseries` is the measurement's definitive time variable.
+
     - `current`: The working-electrode current typically in [mA] or [mA/cm^2].
-        `ec_meas["current"]` always returns a `ValueSeries` characterized by:
+      `ec_meas["current"]` always returns a `ValueSeries` characterized by:
+
         - normalized if the measurement has been normalized with the electrode area
-            (`A_el`, see `normalize`)
+          (`A_el`, see `normalize`)
         - A name that makes clear whether it is normalized
         - Data which spans the entire timespan of the measurement
+
     - `selector`: A counter series distinguishing sections of the measurement program.
-        This is essential for analysis of complex measurements as it allows for
-        corresponding parts of experiments to be isolated and treated identically.
-        `selector` in `ECMeasurement` is defined to incriment each time one or more of
-        the following changes:
+      This is essential for analysis of complex measurements as it allows for
+      corresponding parts of experiments to be isolated and treated identically.
+      `selector` in `ECMeasurement` is defined to incriment each time one or more of
+      the following changes:
+
         - `loop_number`: A parameter saved by some potentiostats (e.g. BioLogic) which
-            allow complex looped electrochemistry programs.
+          allow complex looped electrochemistry programs.
         - `file_number`: The id of the component measurement from which each section of
-            the data (the origin of each `ValueSeries` concatenated to `potential`)
+          the data (the origin of each `ValueSeries` concatenated to `potential`)
         - `cycle_number`: An incrementer within a file saved by a potentiostat.
 
     The names of these ValueSeries, which can also be used to index the measurement, are
     conveniently available as properties:
+
     - `ec_meas.t_str` is the name of the definitive time, which corresponds to potential.
     - `ec_meas.E_str` is the name of the raw potential
     - `ec_meas.V_str` is the name to the calibrated and/or corrected potential
@@ -60,9 +64,10 @@ class ECMeasurement(Measurement):
     - `ec_meas.sel_str` is the name of the default selector, i.e. "selector"
 
     Numpy arrays from important `DataSeries` are also directly accessible via attributes:
+
     - `ec_meas.t` for `ec_meas["potential"].t`
     - `ec_meas.v` for `ec_meas["potential"].data`
-    - `ec_meas.j` for `ec_meas["current"].data
+    - `ec_meas.j` for `ec_meas["current"].data`
 
     `ECMeasurement` comes with an `ECPlotter` which either plots `potential` and
     `current` against time (`ec_meas.plot_measurement()`) or plots `current` against
@@ -119,7 +124,7 @@ class ECMeasurement(Measurement):
         Args:
             name (str): The name of the measurement
                 TODO: Decide if metadata needs the json string option.
-                    See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
+                TODO:   See: https://github.com/ixdat/ixdat/pull/1#discussion_r546436991
             metadata (dict): Free-form measurement metadata
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
@@ -155,12 +160,13 @@ class ECMeasurement(Measurement):
             J_str (str): Name of normalized current
             A_el (float): Area of electrode in [cm^2].
                 If A_el is not None, the measurement is considered *normalized*,
-                and will use the calibrated potential `self[self.V_str]` by default
+                and will use the calibrated current `self[self.J_str]` by default
                 TODO: Unit
             raw_current_names (tuple of str): The names of the VSeries which represent
                 raw working electrode current. This is typically how the data
                 acquisition software saves current.
         """
+
         calibration = self.calibration if hasattr(self, "calibration") else None
         super().__init__(
             name,
@@ -211,9 +217,7 @@ class ECMeasurement(Measurement):
             ):
                 self.series_list.append(
                     ConstantValue(
-                        name=self.raw_current_names[0],
-                        unit_name="mA",
-                        value=0,
+                        name=self.raw_current_names[0], unit_name="mA", value=0,
                     )
                 )
                 self._populate_constants()  # So that OCP currents are included as 0.
@@ -228,11 +232,7 @@ class ECMeasurement(Measurement):
                 ]
             ):
                 self.series_list.append(
-                    ConstantValue(
-                        name=self.cycle_names[0],
-                        unit_name=None,
-                        value=0,
-                    )
+                    ConstantValue(name=self.cycle_names[0], unit_name=None, value=0,)
                 )
                 self._populate_constants()  # So that everything has a cycle number
 
@@ -329,7 +329,7 @@ class ECMeasurement(Measurement):
         This works by finding all the series that have names matching the raw potential
         names list `self.raw_potential_names` (which should be provided by the Reader).
         If there is only one, it just shifts it to t=0 at self.tstamp.
-        # FIXME
+        FIXME:
             If there are multiple it appends them with t=0 at self.tstamp. In this
             case it also appends the `TimeSeries` to `series_list` since *bad things
             might happen?* if the `TimeSeries` of a `ValueSeries` in `series_list` is
@@ -445,11 +445,12 @@ class ECMeasurement(Measurement):
         This is result of the following:
         - Starts with `self.raw_potential`
         - if the measurement is "calibrated" i.e. `RE_vs_RHE` is not None: add
-            `RE_vs_RHE` to the potential data and change its name from `E_str` to `V_str`
+        `RE_vs_RHE` to the potential data and change its name from `E_str` to `V_str`
         - if the measurement is "corrected" i.e. `R_Ohm` is not None: subtract
-            `R_Ohm` times the raw current from the potential and add " (corrected)" to
-            its name.
+        `R_Ohm` times the raw current from the potential and add " (corrected)" to
+        its name.
         """
+
         if self.V_str in self.series_names:
             return self[self.V_str]
         raw_potential = self.raw_potential
@@ -482,8 +483,8 @@ class ECMeasurement(Measurement):
         This is result of the following:
         - Starts with `self.raw_current`
         - if the measurement is "normalized" i.e. `A_el` is not None: divide the current
-            data by `A_el`, change its name from `I_str` to `J_str`, and add `/cm^2` to
-            its unit.
+        data by `A_el`, change its name from `I_str` to `J_str`, and add `/cm^2` to
+        its unit.
         """
         if self.J_str in self.series_names:
             return self[self.J_str]
@@ -577,10 +578,7 @@ class ECMeasurement(Measurement):
                 changes = np.logical_or(changes, n_down < values)
         selector = np.cumsum(changes)
         selector_series = ValueSeries(
-            name=sel_str,
-            unit_name="",
-            data=selector,
-            tseries=self.potential.tseries,
+            name=sel_str, unit_name="", data=selector, tseries=self.potential.tseries,
         )
         self[self.sel_str] = selector_series  # TODO: Better cache'ing. This gets saved.
 
