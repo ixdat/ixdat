@@ -4,3 +4,4 @@ sphinx
 sphinx_rtd_theme
 readthedocs-sphinx-search
 ixdat
+docutils<0.18  # see https://github.com/sphinx-doc/sphinx/issues/9727

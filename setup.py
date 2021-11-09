@@ -1,13 +1,4 @@
 """Initial setup.py
-
-TODO: This file is rudimentary and setup mainly to enable tox to
-run. The main points missing are:
-
-* Proper and correct trove classifiers (https://pypi.org/classifiers/)
-* A read through of metadata in ``__init__.py``
-* Handling of data files (necessary for the package to run, not for
-  development) when we start to get those
-
 """
 
 import os
