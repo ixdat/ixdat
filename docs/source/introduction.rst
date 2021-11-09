@@ -40,7 +40,7 @@ Supported techniques
      - - zilien: .tsv files from Spectro Inlets' Zilien software
        - EC_MS: .pkl files from the legacy EC_MS python package
    * - :ref:`sec`
-     - Development
+     - Released
      - - msrh_sec: .csv file sets from Imperial College London's SEC system
    * - X-ray photoelectron spectroscopy (XPS)
      - Future

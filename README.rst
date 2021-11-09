@@ -45,23 +45,27 @@ thought into every level.
    :widths: 20 15 50
    :header-rows: 1
 
+
    * - Measurement technique
      - Status
      - Readers
-   * - Electrochemistry (EC)
+   * - Electrochemistry
      - Released
      - - biologic: .mpt files from Biologic's EC-Lab software
        - autolab: ascii files from AutoLab's NOVA software
        - ivium: .txt files from Ivium's IviumSoft software
-   * - Mass Spectrometry (MS)
+   * - Mass Spectrometry
      - Released
      - - pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software
        - cinfdata: text export from DTU Physics' cinfdata system
        - zilien: .tsv files from Spectro Inlets' Zilien software
-   * - EC-MS
+   * - Electrochemistry - Mass Spectrometry
      - Released
      - - zilien: .tsv files from Spectro Inlets' Zilien software
        - EC_MS: .pkl files from the legacy EC_MS python package
+   * - Spectroelectrochemistry
+     - Released
+     - - msrh_sec: .csv file sets from Imperial College London's SEC system
    * - X-ray photoelectron spectroscopy (XPS)
      - Future
      -
