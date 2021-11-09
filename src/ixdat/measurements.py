@@ -317,16 +317,65 @@ class Measurement(Saveable):
     def __getitem__(self, key):
         """Return the built measurement DataSeries with its name specified by key
 
-        The item is interpreted as the name of a series. VSeries names can have "-v"
-        or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
-        get instead its corresponding TSeries.
-        If there are more than one series key refers to, they are appended.
-        The timestamp is always shifted to the measurement's tstamp.
+        This method does the following:
+        1. check if `key` is in in the cache. If so return the cached data series
+        2. find or build the desired data series by the first possible of:
+            A. Check if `key` corresponds to a method in `series_constructors`. If
+                so, build the data series with that method.
+            B. Check if the `calibration`'s `calibrate_series` returns a data series
+                for `key` given the data in this measurement. (Note that the
+                `calibration` will typically start with raw data looked C, below.)
+            C. Generate a list of data series and append them:
+                i. Check if `key` is in `aliases`. If so, append all the data series
+                    returned for each key in `aliases[key]`.
+                ii. Otherwise, check if there are data series in `series_list` that
+                    have `key` as their `name`. If so, append them.
+            D. Finally, check if the user is using a suffix.
+                i. If `key` ends with "-y" or "-v", look it up with the suffix removed.
+                ii. If `key` ends with "-x" or "-t", look up `key` with the suffix
+                    removed and use instead the corresponding `tseries`.
+        3. Cache and return the data series found or built in (2).
 
-        Before looking for raw data series named keys, the measurement checks
-        - its cache
-        - its calibrations to see if they can get the desired calibrated data.
-        - its `aliases` for other name(s) which may refer to what is being looked up.
+        Step (2) above, the searching step, is outsourced to the method
+        `get_series(key)`.
+        Notice that some calls of `__getitem__` can be recursive. For example, we
+        suppose that a new `ECMeasurement` is read from a source that calls raw
+        potential `Ewe/V`, and that this measurement is then calibrated:
+
+        >>> ec_meas = Measurement.read(...)
+        >>> ec_meas.aliases
+        {..., 'raw_potential': ['Ewe/V'], ...}
+        >>> ec_meas["raw_potential"]  # first lookup, explained below
+        ValueSeries("Ewe/V", ...)
+        >>> ec_meas.calibrate_RE(RE_vs_RHE=0.7)
+        >>> ec_meas["potential"]   # second lookup, explained below
+        ValueSeries("U_{RHE} / [V]", ...)
+
+        - The first lookup, with `key="raw_potential"`, (1) checks for
+        "raw_potential" in the cache, doesn't find it; then (2A) checks in
+        `series_constructors`, doesn't find it; (2B) asks the calibration for
+        "raw_potential" and doesn't get anything back; and finally (2Ci) checks
+        `aliases` for raw potential where it finds that "raw_potential" is called
+        "Ewe/V". Then it looks up again, this time with `key="Ewe/V"`, which it doesn't
+        find in (1) the cache, (2A) `series_consturctors`, (2B) the calibration, or
+        (2Ci) `aliases`, but does find in (2Cii) `series_list`. There is only one
+        data series named "Ewe/V" so no appending is necessary, but it does ensure that
+        the series has the measurement's `tstamp` before cache'ing and returning it.
+        Now we're back in the original lookup, from which __getitem__ (3) caches
+        the data series (which still has the name "Ewe/V") as "raw_potential" and
+        returns it.
+        - The second lookup, with `key="potential"`, (1) checks for "potential" in the
+        cache, doesn't find it; then (2A) checks in `series_constructors`, doesn't find
+        it; and then (2B) asks the calibration for "potential". The calibration knows
+        that when asked for "potential" it should look for "raw_potential" and add
+        `RE_vs_RHE`. So it does a lookup with `key="raw_potential"` and (1) finds it
+        in the cache. The calibration does the math and returns a new data series for
+        the calibrated potential, bringing us back to the original lookup. The data
+        series returned by the calibration is then (3) cached and returned to the user.
+
+        Note that, if the user had not looked up "raw_potential" before looking up
+        "potential", "raw_potential" would not have been in the cache and the first
+        lookup above would have been nested in the second.
 
         Args:
             key (str): The name of a DataSeries (see above)
@@ -337,51 +386,70 @@ class Measurement(Saveable):
         Returns:
             The (calibrated) (appended) dataseries for key with the right t=0.
         """
+        # step 1
         if key in self._cached_series:
             return self._cached_series[key]
-        if key in self.series_constructors:
-            series = getattr(self, self.series_constructors[key])()
-        else:
-            for calibration in self.calibrations:
-                series = calibration.calibrate_series(key, measurement=self)
-                # ^ the calibration will call this __getitem__ with the name of the
-                #   corresponding raw data and return a new series with calibrated data
-                #   if possible. Otherwise it will return None.
-                if series:
-                    break
-            else:
-                # only if the requested series name is neither cached nor the name of
-                #   a calibrated series do we go into raw data:
-                series_to_append = []
-                if key in self.series_names:
-                    # Then we'll append any series matching the desired name
-                    series_to_append += [s for s in self.series_list if s.name == key]
-                elif key in self.aliases:
-                    # Then we'll look up the aliases instead and append them
-                    for k in self.aliases[key]:
-                        try:
-                            series_to_append.append(self[k])
-                        except SeriesNotFoundError:
-                            continue
-                # If the key is something in the data, by now we have series to append.
-                if not series_to_append:  # If not...
-                    # check if it's because key uses a suffix:
-                    if key.endswith("-t") or key.endswith("-x"):
-                        return self[key[:-2]].tseries
-                    if key.endswith("-v") or key.endswith("-y"):
-                        return self[key[:-2]]
-                    # if not, we've exhausted possibilities! Raise an error.
-                    raise SeriesNotFoundError(f"{self} has no series named {key}.")
-                # Now, append the series
-                if len(series_to_append) == 1:
-                    series = series_to_append[0]
-                    if series_to_append[0].tstamp == self.tstamp:
-                        return series
-                    return time_shifted(series, tstamp=self.tstamp)
-                series = append_series(series_to_append, name=key, tstamp=self.tstamp)
+        # step 2
+        series = self.get_series(key)
         # Finally, wherever we found the series, cache it and return it.
+        # step 3.
         self._cached_series[key] = series
         return series
+
+    def get_series(self, key):
+        """Find or build the data series corresponding to key without direct cache'ing
+
+        See more detailed documentation under `__getitem__`, for which this is a
+        helper method. This method (A) looks for a method for `key` in the measurement's
+        `series_constructors`; (B) requests its `calibration` for `key`; and if those
+        fails appends the data series that either (Ci) are returned by looking up the
+        key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
+        user was using a key with a suffix.
+
+        Args:
+            key (str): The key to look up
+
+        Returns DataSeries: the data series corresponding to key
+        Raises SeriesNotFoundError if non
+        """
+        # A
+        if key in self.series_constructors:
+            return getattr(self, self.series_constructors[key])()
+        # B
+        for calibration in self.calibrations:
+            series = calibration.calibrate_series(key, measurement=self)
+            # ^ the calibration will call this __getitem__ with the name of the
+            #   corresponding raw data and return a new series with calibrated data
+            #   if possible. Otherwise it will return None.
+            if series:
+                return series
+        # C
+        series_to_append = []
+        if key in self.aliases:  # i
+            # Then we'll look up the aliases instead and append them
+            for k in self.aliases[key]:
+                try:
+                    series_to_append.append(self[k])
+                except SeriesNotFoundError:
+                    continue
+        elif key in self.series_names:  # ii
+            # Then we'll append any series matching the desired name
+            series_to_append += [s for s in self.series_list if s.name == key]
+        # If the key is something in the data, by now we have series to append.
+        if series_to_append:
+            # the following if's are to do as little extra manipulation as possible:
+            if len(series_to_append) == 1:  # no appending needed
+                if series_to_append[0].tstamp == self.tstamp:  # no time-shifting needed
+                    return series_to_append[0]
+                return time_shifted(series_to_append[0], tstamp=self.tstamp)
+            return append_series(series_to_append, name=key, tstamp=self.tstamp)
+        # D
+        if key.endswith("-t") or key.endswith("-x"):
+            return self[key[:-2]].tseries
+        if key.endswith("-v") or key.endswith("-y"):
+            return self[key[:-2]]
+
+        raise SeriesNotFoundError(f"{self} does not contain '{key}'")
 
     def clear_cache(self):
         """Clear the cache so derived series are constructed again with updated info"""
