@@ -186,11 +186,18 @@ class Savable:  # FIXME: Savable is misspelled :( . Should be "Savable". Later.
 
     @property
     def short_identity(self):
-        """short_identity is the backend and the id
+        """short_identity is the backend if different from the active backend and the id
 
+        FIXME: The overloaded return here is annoying and dangerous, but necessary for
+          `Measurement.from_dict(m.as_dict())` to work as a copy, since the call to
+          `fill_object_list` has to specify where the objects represented by
+          PlaceHolderObjects live. Note that calling save() on a Savable object will
+          turn the backends into DB.backend, so this will only give id's when saving.
         This is (usually) sufficient to tell if two objects refer to the same thing,
         when used together with the class attribute table_name
         """
+        if self.backend is DB.backend:
+            return self.id
         return self.backend, self.id
 
     @property

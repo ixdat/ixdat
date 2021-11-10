@@ -233,11 +233,12 @@ class Measurement(Savable):
     @property
     def m_ids(self):
         """List of the id's of a combined measurement's component measurements
-        FIXME: Doesn't tell us which backend
+        FIXME: m.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
         """
         if not self._component_measurements:
             return None
-        return [m.id for m in self.component_measurements]
+        return [m.short_identity for m in self.component_measurements]
 
     @property
     def calibration_list(self):
@@ -256,9 +257,10 @@ class Measurement(Savable):
     @property
     def c_ids(self):
         """List of the id's of the measurement's Calibrations
-        FIXME: Doesn't tell us which backend
+        FIXME: c.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
         """
-        return [c.id for c in self.calibration_list]
+        return [c.short_identity for c in self.calibration_list]
 
     @property
     def series_list(self):
@@ -272,9 +274,10 @@ class Measurement(Savable):
     @property
     def s_ids(self):
         """List of the id's of the measurement's DataSeries
-        FIXME: Doesn't tell us which backend
+        FIXME: m.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
         """
-        return [series.id for series in self._series_list]
+        return [series.short_identity for series in self._series_list]
 
     @property
     def series_dict(self):
