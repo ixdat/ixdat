@@ -52,16 +52,18 @@ class CSVExporter:
             "".join([s_name + self.delim for s_name in s_list])[: -len(self.delim)]
             + "\n"
         )
-        #  TODO: Header may have to indicate which time goes with which value.
 
         lines = [header_line]
+        # All columns must have the length of the longest vector to keep data aligned:
         max_length = max([len(data) for data in columns_data.values()])
         for n in range(max_length):
             line = ""
             for s_name in s_list:
                 if len(columns_data[s_name]) > n:
+                    # Then put the data there:
                     line = line + str(columns_data[s_name][n]) + self.delim
                 else:
+                    # No more data in this column. Just hold alignment:
                     line = line + self.delim
             line = line + "\n"
             lines.append(line)

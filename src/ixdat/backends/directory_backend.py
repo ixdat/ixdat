@@ -82,10 +82,10 @@ class DirBackend(BackendBase):
         return str(self.project_directory)
 
     def save(self, obj, force=False, no_updates=True):
-        """Save the Saveable object as a file corresponding to a row in a table
+        """Save the Savable object as a file corresponding to a row in a table
 
         Args:
-            obj (Saveable): an object
+            obj (Savable): an object
             force (bool): Whether to force updates if the object is already saved
             no_updates (bool): Whether to allow updates if the object is already saved.
                 If both force and no_updates are False, the user will be prompted on
@@ -141,7 +141,7 @@ class DirBackend(BackendBase):
         np.save(folder / data_file_name, data)
 
     def get(self, cls, i):
-        """Open a Saveable object represented as row i of table cls.table_name"""
+        """Open a Savable object represented as row i of table cls.table_name"""
         table_name = cls.table_name
         obj_as_dict = self.get_row_as_dict(table_name, i)
         i = obj_as_dict.pop("id", i)

@@ -16,7 +16,7 @@ Note on terminology:
         managed attribute, from an object in memory.
 
         `load` and `get` convention holds vertically - i.e. the Backend, the DataBase,
-            up through the Saveable parent class for all ixdat classes corresponding to
+            up through the Savable parent class for all ixdat classes corresponding to
             database tables have `load` and `get` methods which call downwards. TODO.
     see: https://github.com/ixdat/ixdat/pull/1#discussion_r546400793
 """
@@ -41,21 +41,21 @@ class DataBase:
         self.new_object_backend = "none"
 
     def save(self, obj):
-        """Save a Saveable object with the backend"""
+        """Save a Savable object with the backend"""
         return self.backend.save(obj)
 
     def get(self, cls, i, backend=None):
-        """Select and return object of Saveable class cls with id=i from the backend"""
+        """Select and return object of Savable class cls with id=i from the backend"""
         backend = backend or self.backend
         obj = backend.get(cls, i)
         # obj will already have obj.id = i and obj.backend = self.backend from backend
         return obj
 
     def load(self, cls, name):
-        """Select and return object of Saveable class cls with name=name from backend"""
+        """Select and return object of Savable class cls with name=name from backend"""
 
     def load_obj_data(self, obj):
-        """Load and return the numerical data (obj.data) for a Saveable object"""
+        """Load and return the numerical data (obj.data) for a Savable object"""
         return self.backend.load_obj_data(obj)
 
     def set_backend(self, backend_name, **db_kwargs):
@@ -92,7 +92,7 @@ def get_database_name():
     return DB.backend.__class__.__name__
 
 
-class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later.
+class Savable:  # FIXME: Savable is misspelled :( . Should be "Savable". Later.
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
@@ -143,15 +143,15 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
     extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
-    # TODO: derive child_attrs somehow from the above class attributes, adn have it in
+    # TODO: derive child_attrs somehow from the above class attributes, and have it in
     #   a way where it's easy to tell which id goes with which attribute, i.e. s_ids
     #   goes with series_list
     child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
     def __init__(self, backend=None, **self_as_dict):
-        """Initialize a Saveable object from its dictionary serialization
+        """Initialize a Savable object from its dictionary serialization
 
-        This the default behavior, and should be overwritten using an argument-free
+        This is the default behavior, and should be overwritten using an argument-free
         call to super().__init__() in inheriting classes.
 
         Args:
@@ -161,7 +161,8 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
             setattr(self, attr, value)
         if self_as_dict and not self.column_attrs:
             self.column_attrs = {attr: attr for attr in self_as_dict.keys()}
-        self._backend = backend or DB.new_object_backend
+        self._backend = None
+        self.backend = backend  # backend's setter will look up the backend name
         self._id = None  # SHOULD BE SET AFTER THE __INIT__ FOR LOADED OBJECTS
         self.name = None  # MUST BE SET IN THE __INIT__ OF INHERITING CLASSES
 
@@ -175,7 +176,7 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
             if self.backend_type in ("none", "memory"):
                 self._id = self.backend.get_next_available_id(self.table_name, obj=self)
                 # TODO: Wouldn't it be better if the backend was always asked for the
-                #   ID by Saveable.__init__ ?
+                #   ID by Savable.__init__ ?
             else:
                 raise DataBaseError(
                     f"{self} comes from {self.backend_name} "
@@ -184,34 +185,41 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
         return self._id
 
     @property
-    def identity(self):
-        """identity is the backend if different from the active backend, and the id
+    def short_identity(self):
+        """short_identity is the backend and the id
 
         This is (usually) sufficient to tell if two objects refer to the same thing,
         when used together with the class attribute table_name
         """
-        if self.backend is DB.backend:
-            return self.id
         return self.backend, self.id
 
     @property
     def full_identity(self):
-        """The full immutable object identity as (str, str, str, int)"""
+        """The full immutable object short_identity as (str, str, str, int)
+
+        Specifically: (backend_type, backend.address, table_name, id)
+        """
         return self.backend_type, self.backend.address, self.table_name, self.id
 
     @property
     def backend(self):
-        """The backend the Saveable object was loaded from or last saved to."""
+        """The backend the Savable object was loaded from or last saved to."""
         if not self._backend:
             self._backend = database_backends["none"]
-        elif isinstance(self._backend, str):
-            if self._backend in database_backends:
-                self._backend = database_backends[self._backend]
-            elif self._backend in BACKEND_CLASSES:
-                self._backend = BACKEND_CLASSES[self._backend]()
-            else:
-                print(f"WARNING! {self} has unrecognized backend = {self._backend}")
         return self._backend
+
+    @backend.setter
+    def backend(self, new_backend):
+        """"""
+        new_backend = new_backend or DB.new_object_backend
+        if isinstance(new_backend, str):
+            if new_backend in database_backends:
+                new_backend = database_backends[new_backend]
+            elif new_backend in BACKEND_CLASSES:
+                new_backend = BACKEND_CLASSES[new_backend]()
+            else:
+                print(f"WARNING! {self} given unrecognized backend = {new_backend}")
+        self._backend = new_backend
 
     @property
     def backend_name(self):
@@ -223,12 +231,12 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
         return self.backend.backend_type
 
     def set_id(self, i):
-        """Backends set obj.id here after loading/saving a Saveable obj"""
+        """Backends set obj.id here after loading/saving a Savable obj"""
         self._id = i
 
     def set_backend(self, backend):
-        """Backends set obj.backend here after loading/saving a Saveable obj"""
-        self._backend = backend
+        """Backends set obj.backend here after loading/saving a Savable obj"""
+        self.backend = backend
 
     def get_main_dict(self, exclude=None):
         """Return dict: serializition only of the row of the object's main table
@@ -252,7 +260,7 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
     def as_dict(self, exclude=None):
         """Return dict: serialization of the object main and auxiliary tables"""
 
-        # So that a new object initiated constructed using the dictionary returned here
+        # So that a new object initiated using the dictionary returned here
         #   can find objects referenced by identities (i.e. s_ids for series_list),
         #   we need to make sure they are saved in a real backend. Before adding the
         #   id's to a list.
@@ -262,7 +270,7 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
         if self.child_attrs:
             for child_object_list_name in self.child_attrs:
                 for child_obj in getattr(self, child_object_list_name):
-                    if child_obj.backend in ("none", database_backends["none"]):
+                    if child_obj.backend is database_backends["none"]:
                         database_backends["memory"].save(child_obj)
 
         exclude = exclude or []
@@ -312,14 +320,14 @@ class Saveable:  # FIXME: Saveable is misspelled :( . Should be "Savable". Later
 
 
 class PlaceHolderObject:
-    """A tool for ixdat's laziness, instances sit in for Saveable objects."""
+    """A tool for ixdat's laziness, instances sit in for Savable objects."""
 
     def __init__(self, i, cls, backend):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
             i (int): The id (principle key) of the object represented
-            cls (class): Class inheriting from Saveable and thus specifiying the table
+            cls (class): Class inheriting from Savable and thus specifiying the table
         """
         self.id = i
         self.cls = cls
@@ -335,7 +343,7 @@ class PlaceHolderObject:
 
     @property
     def identity(self):
-        """Placeholder also has an identity to check equivalence without loading"""
+        """Placeholder also has an short_identity to check equivalence without loading"""
         if self.backend is DB.backend:
             return self.id
         return self.backend, self.id
@@ -351,9 +359,9 @@ def fill_object_list(object_list, obj_ids, cls=None):
         obj_ids (list of ints or None): The id's of objects to ensure are in
             the list. Any id in obj_ids not already represented in object_list
             is added to the list as a PlaceHolderObject
-        cls (Saveable class): the class remembered by any PlaceHolderObjects
+        cls (Savable class): the class remembered by any PlaceHolderObjects
             added to the object_list, so that eventually the right object will
-            be loaded.
+            be loaded. Must be specified if object_list is empty.
     """
     cls = cls or object_list[0].__class__
     object_list = object_list or []
@@ -372,7 +380,7 @@ def fill_object_list(object_list, obj_ids, cls=None):
 
 
 def with_memory(function):
-    """Decorator for saving all new Saveable objects initiated in the memory backend"""
+    """Decorator for saving all new Savable objects initiated in the memory backend"""
 
     def function_with_memory(*args, **kwargs):
         DB.new_object_backend = "memory"

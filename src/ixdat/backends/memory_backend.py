@@ -4,10 +4,10 @@ from .backend_base import BackendBase
 class MemoryBackend(BackendBase):
     """A backend that assigns id's and keeps track of objects for later access.
 
-    This means that a Saveable object can make a serializable representation of itself
-    that includes the identity in the memory backend of objects that it references, and
-    a new Saveable object made from this representation can find the original objects.
-    See db.Saveable.as_dict(), which ensures that "child objects" are in memory.
+    This means that a Savable object can make a serializable representation of itself
+    that includes the short_identity in the memory backend of objects that it references, and
+    a new Savable object made from this representation can find the original objects.
+    See db.Savable.as_dict(), which ensures that "child objects" are in memory.
     """
 
     backend_type = "memory"

@@ -7,12 +7,12 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
 import numpy as np
-from .db import Saveable
+from .db import Savable
 from .units import Unit
 from .exceptions import AxisError, BuildError
 
 
-class DataSeries(Saveable):
+class DataSeries(Savable):
     """The base class for all numerical data representation in ixdat.
 
     These class's objects are saved and loaded as rows in the data_series table
@@ -38,9 +38,8 @@ class DataSeries(Saveable):
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return the right type of DataSeries based on the info in its serialization"""
-        series_type = obj_as_dict["series_type"]
+        series_type = obj_as_dict.pop("series_type")
         series_class = SERIES_CLASSES[series_type]
-        del obj_as_dict["series_type"]
         return series_class(**obj_as_dict)
 
     def __repr__(self):
@@ -50,7 +49,7 @@ class DataSeries(Saveable):
     def data(self):
         """The data as a np.array, loaded the first time it is needed."""
         if self._data is None:
-            self._data = self.load_data()  # inherited from Saveable.
+            self._data = self.load_data()  # inherited from Savable.
         return self._data
 
     @property
@@ -76,7 +75,7 @@ class TimeSeries(DataSeries):
     def __init__(self, name, unit_name, data, tstamp):
         """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
 
-        Args (in addition to those of parent):
+        Args (in addition to those of parent, :class:`.DataSeries`):
             tstamp (float): The unix timestamp of the time at which t=0 in the data
         """
         super().__init__(name, unit_name, data)
@@ -106,7 +105,7 @@ class Field(DataSeries):
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
         """Initiate the Field and check that the supplied axes make sense.
 
-        Args (in addition to those of parent):
+        Args (in addition to those of parent, :class:`.DataSeries`):
             a_ids (list of int): The ids of the corresponding axes DataSeries, if not
                 the series are not given directly as `axes_series`
             axes_series (list of DataSeries): The DataSeries describing the axes which
@@ -201,10 +200,11 @@ class ValueSeries(Field):
     ):
         """Initiate a ValueSeries with a TimeSeries or a reference thereto
 
-        Args (in addition to those of parent):
+        Args (in addition to those of :class:`.Field`):
             t_id (int): The id of the corresponding TimeSeries, if not given directly
-            t_ids (list of int): [t_id], only so that a backend can pass t_id as a list
+                (can also be supplied as `a_ids[0]`)
             tseries (TimeSeries): The corresponding TimeSeries, if available
+                (can also be supplied as `axes_series[0]`)
         """
         a_ids = a_ids or [t_id]
         axes_series = axes_series or [tseries]
@@ -214,23 +214,15 @@ class ValueSeries(Field):
         #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
 
     @property
-    def _tseries(self):
-        return self._axes_series[0]
-
-    @property
-    def _t_id(self):
-        return self._a_ids[0]
-
-    @property
     def tseries(self):
         return self.axes_series[0]
 
     @property
     def t_id(self):
         """int: the id of the TimeSeries"""
-        if self._tseries:
-            return self._tseries.id
-        return self._t_id
+        if self._axes_seriess:
+            return self.tseries.id
+        return self.a_ids[0]
 
     @property
     def v(self):
@@ -261,7 +253,7 @@ class ConstantValue(ValueSeries):
     def data(self):
         if self._expanded_data is None:
             if self._data is None:
-                self._data = self.load_data()  # inherited from Saveable.
+                self._data = self.load_data()  # inherited from Savable.
             self._expanded_data = np.ones(self.t.shape) * self._data
         return self._expanded_data
 
@@ -278,7 +270,7 @@ def append_series(series_list, sorted=True, name=None, tstamp=None):
     Args:
         series_list (list of Series): The series to append (must all be of same type)
         sorted (bool): Whether to sort the data so that time only goes forward
-        name (str): Name to give the appended series. Defualts to series_list[0].name
+        name (str): Name to give the appended series. Defaults to series_list[0].name
         tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
     """
     s0 = series_list[0]
@@ -299,7 +291,7 @@ def append_vseries_by_time(series_list, sorted=True, name=None, tstamp=None):
     Args:
         series_list (list of ValueSeries): The value series to append
         sorted (bool): Whether to sort the data so that time only goes forward
-        name (str): Name to give the appended series. Defualts to series_list[0].name
+        name (str): Name to give the appended series. Defaults to series_list[0].name
         tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
     """
     name = name or series_list[0].name
@@ -308,7 +300,9 @@ def append_vseries_by_time(series_list, sorted=True, name=None, tstamp=None):
     data = np.array([])
     tseries_list = [s.tseries for s in series_list]
     if not all(isinstance(ts, TimeSeries) for ts in tseries_list):
-        raise BuildError(f"can't append {series_list} w tseries list = {tseries_list}")
+        raise BuildError(
+            f"can't append {series_list} w incompatible tseries list = {tseries_list}"
+        )
     tseries, sort_indeces = append_tseries(
         tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
     )
@@ -330,7 +324,7 @@ def append_tseries(
         series_list (list of TimeSeries): The time series to append
         sorted (bool): Whether to sort the data so that time only goes forward
         return_sort_indeces (bool): Whether to return the indeces that sort the data
-        name (str): Name to give the appended series. Defualts to series_list[0].name
+        name (str): Name to give the appended series. Defaults to series_list[0].name
         tstamp (unix tstamp): The t=0 of the returned TimeSeries.
     """
     name = name or series_list[0].name
@@ -364,10 +358,11 @@ def time_shifted(series, tstamp=None):
         return series
     cls = series.__class__
     if isinstance(series, TimeSeries):
+        new_data = series.data + series.tstamp - tstamp  # shift the time.
         return cls(
             name=series.name,
             unit_name=series.unit.name,
-            data=series.data + series.tstamp - tstamp,
+            data=new_data,
             tstamp=tstamp,
         )
     elif isinstance(series, ValueSeries):

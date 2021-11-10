@@ -1,7 +1,7 @@
-from .db import Saveable
+from .db import Savable
 
 
-class LabLog(Saveable):
+class LabLog(Savable):
     """TODO: flush out this class"""
 
     table_name = "lablog"

@@ -11,7 +11,7 @@ classes will be defined in the corresponding module in ./techniques/
 """
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject, fill_object_list
+from .db import Savable, PlaceHolderObject, fill_object_list
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -27,7 +27,7 @@ from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError
 
 
-class Measurement(Saveable):
+class Measurement(Savable):
     """The Measurement class"""
 
     # ------ table description class attributes --------
@@ -163,7 +163,7 @@ class Measurement(Saveable):
         #   obj_as_dict["sample_name"] needs to be renamed obj_as_dict["sample"] before
         #   obj_as_dict can be passed to __init__.
         #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
-        #       DataSeries.unit_name) and as such should be moved to db.Saveable
+        #       DataSeries.unit_name) and as such should be moved to db.Savable
         #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372.
         #       Will be fixed with the table definition PR.
         objects_saved_as_their_name = [
@@ -232,10 +232,12 @@ class Measurement(Saveable):
 
     @property
     def m_ids(self):
-        """List of the id's of a combined measurement's component measurements"""
+        """List of the id's of a combined measurement's component measurements
+        FIXME: Doesn't tell us which backend
+        """
         if not self._component_measurements:
             return None
-        return [m.identity for m in self.component_measurements]
+        return [m.id for m in self.component_measurements]
 
     @property
     def calibration_list(self):
@@ -253,8 +255,10 @@ class Measurement(Saveable):
 
     @property
     def c_ids(self):
-        """List of the id's of the measurement's Calibrations"""
-        return [c.identity for c in self.calibration_list]
+        """List of the id's of the measurement's Calibrations
+        FIXME: Doesn't tell us which backend
+        """
+        return [c.id for c in self.calibration_list]
 
     @property
     def series_list(self):
@@ -267,8 +271,10 @@ class Measurement(Saveable):
 
     @property
     def s_ids(self):
-        """List of the id's of the measurement's DataSeries"""
-        return [series.identity for series in self._series_list]
+        """List of the id's of the measurement's DataSeries
+        FIXME: Doesn't tell us which backend
+        """
+        return [series.id for series in self._series_list]
 
     @property
     def series_dict(self):
@@ -600,8 +606,7 @@ class Measurement(Saveable):
             except AttributeError:  # series independent of time are uneffected by cut
                 new_series_list.append(series)
             else:
-                t_identity = tseries.identity
-                # Note: identity is backend (if different from self.backend) AND id
+                t_identity = tseries.full_identity
 
                 if t_identity in time_cutting_stuff:
                     mask, new_tseries = time_cutting_stuff[t_identity]
@@ -619,7 +624,7 @@ class Measurement(Saveable):
                     continue
                 if False not in mask:
                     new_series_list.append(series)
-                elif series.identity == t_identity:
+                elif series.full_identity == t_identity:
                     new_series_list.append(new_tseries)
                 else:
                     new_series = series.__class__(
@@ -814,7 +819,7 @@ class Measurement(Saveable):
         return cls.from_dict(obj_as_dict)
 
 
-class Calibration(Saveable):
+class Calibration(Savable):
     """Base class for calibrations."""
 
     table_name = "calibration"
