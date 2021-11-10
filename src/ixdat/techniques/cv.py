@@ -14,7 +14,7 @@ class CyclicVoltammagram(ECMeasurement):
     - the default plot() is plot_vs_potential()
     """
 
-    sel_str = "cycle"
+    selector_name = "cycle"
     """Name of the default selector"""
 
     def __init__(self, *args, **kwargs):

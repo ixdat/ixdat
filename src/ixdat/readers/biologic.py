@@ -121,10 +121,7 @@ class BiologicMPTReader:
                 f"This reader only works for files with a '{t_str}' column"
             )
         tseries = TimeSeries(
-            name=t_str,
-            data=self.column_data[t_str],
-            tstamp=self.tstamp,
-            unit_name="s",
+            name=t_str, data=self.column_data[t_str], tstamp=self.tstamp, unit_name="s",
         )
         data_series_list = [tseries]
         for column_name, data in self.column_data.items():
@@ -291,8 +288,7 @@ if __name__ == "__main__":
     path_to_test_file = test_data_dir / "Pt_poly_cv.mpt"
 
     ec_measurement = Measurement.read(
-        reader="biologic",
-        path_to_file=path_to_test_file,
+        reader="biologic", path_to_file=path_to_test_file,
     )
 
     t, v = ec_measurement.grab_potential(tspan=[0, 100])

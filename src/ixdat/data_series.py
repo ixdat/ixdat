@@ -360,10 +360,7 @@ def time_shifted(series, tstamp=None):
     if isinstance(series, TimeSeries):
         new_data = series.data + series.tstamp - tstamp  # shift the time.
         return cls(
-            name=series.name,
-            unit_name=series.unit.name,
-            data=new_data,
-            tstamp=tstamp,
+            name=series.name, unit_name=series.unit.name, data=new_data, tstamp=tstamp,
         )
     elif isinstance(series, ValueSeries):
         series = cls(
@@ -373,3 +370,23 @@ def time_shifted(series, tstamp=None):
             tseries=time_shifted(series.tseries, tstamp=tstamp),
         )
     return series
+
+
+def get_tspans_from_mask(t, mask):
+    """Return a list of tspans for time intervals remaining when mask is applied to t
+
+    FIXME: This is pure numpy manipulation and probably belongs somewhere else.
+    """
+    mask_prev = np.append(False, mask[:-1])  # the mask shifted right by one
+    mask_next = np.append(mask[1:], False)  # the mask shifted left by one
+    # An array that is True where intervals meeting the criteria start:
+    #   (This includes at [0] if mask[0] is True.)
+    interval_starts_here = np.logical_and(np.logical_not(mask_prev), mask)
+    # An array that is True where intervals meeting the criteria finish:
+    #   (This includes at [-1] if mask[-1] is True.)
+    interval_ends_here = np.logical_and(mask, np.logical_not(mask_next))
+
+    t_starts = list(t[interval_starts_here])  # the start times implied by the mask
+    t_ends = list(t[interval_ends_here])  # the finish times implied by the mask
+    tspans = zip(t_starts, t_ends)  # and, the timespans where the criteria is met!
+    return tspans

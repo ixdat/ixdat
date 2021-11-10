@@ -19,6 +19,7 @@ from .data_series import (
     ConstantValue,
     append_series,
     time_shifted,
+    get_tspans_from_mask,
 )
 from .samples import Sample
 from .lablogs import LabLog
@@ -49,25 +50,25 @@ class Measurement(Savable):
     # TODO: child_attrs should be derivable from extra_linkers?
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
-    control_technique = None
-    """Name of technique primarily used to control the experiment"""
-    control_str = None
+    control_technique_name = None
+    """Name of the control technique, the one primarily used to control the experiment"""
+    control_series_name = None
     """Name (or alias) for main time variable or main time-dependent value variable,
-    typically of the control_technique"""
-    sel_str = "selector"
+    typically of the control technique"""
+    selector_name = "selector"
     """Name of the default selector"""
-    select_on = ("file_number",)
+    selection_series_names = ("file_number",)
     """Name of the default things to use to construct the selector"""
     series_constructors = {
-        "file_number": "_build_file_number",
-        "selector": "_build_selector",
+        "file_number": "_build_file_number_series",
+        "selector": "_build_selector_series",
     }
     """Series which should be constructed from other series by the specified method
     and cached the first time they are looked up"""
     essential_series = None
     """Series which should always be present"""
-    default_plotter_class = ValuePlotter
-    default_exporter_class = CSVExporter
+    default_plotter = ValuePlotter
+    default_exporter = CSVExporter
 
     def __init__(
         self,
@@ -97,11 +98,15 @@ class Measurement(Savable):
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
             series_list (list of DataSeries): The measurement's DataSeries
+            c_ids (list of int): The id's of the measurement's Calibrations, if
+                to be loaded (instead of given directly in calibration_list)
+            calibration_list: The measurement's Calibrations
             m_ids (list of int): The id's of the component measurements, if to be
                 loaded. None unless this is a combined measurement (typically
                 corresponding to more than one file).
             component_measurements (list of Measurements): The measurements of which
                 this measurement is a combination
+            aliases (dict): Alternative names for DataSeries for versatile access
             reader (Reader): The file reader (None unless read from a file)
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
@@ -115,8 +120,6 @@ class Measurement(Savable):
         self.technique = technique
         self.metadata = metadata or {}
         self.reader = reader
-        self._plotter = plotter
-        self._exporter = exporter
         if isinstance(sample, str):
             sample = Sample.load_or_make(sample)
         self.sample = sample
@@ -135,6 +138,8 @@ class Measurement(Savable):
         self._cached_series = {}
         self._aliases = aliases or {}
 
+        self.plotter = plotter or self.__class__.default_plotter(measurement=self)
+        self.exporter = exporter or self.__class__.default_exporter(measurement=self)
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
         self.plot = self.plotter.plot_measurement
@@ -179,10 +184,7 @@ class Measurement(Savable):
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
         else:
             technique_class = cls
-        try:
-            measurement = technique_class(**obj_as_dict)
-        except Exception:
-            raise
+        measurement = technique_class(**obj_as_dict)
         return measurement
 
     @classmethod
@@ -235,6 +237,7 @@ class Measurement(Savable):
         """List of the id's of a combined measurement's component measurements
         FIXME: m.id can be (backend, id) if it's not on the active backend.
             This is as of now necessary to find it if you're only given self.as_dict()
+            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
         if not self._component_measurements:
             return None
@@ -259,6 +262,7 @@ class Measurement(Savable):
         """List of the id's of the measurement's Calibrations
         FIXME: c.id can be (backend, id) if it's not on the active backend.
             This is as of now necessary to find it if you're only given self.as_dict()
+             see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
         return [c.short_identity for c in self.calibration_list]
 
@@ -276,32 +280,28 @@ class Measurement(Savable):
         """List of the id's of the measurement's DataSeries
         FIXME: m.id can be (backend, id) if it's not on the active backend.
             This is as of now necessary to find it if you're only given self.as_dict()
+            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
         return [series.short_identity for series in self._series_list]
 
     @property
-    def series_dict(self):
-        """Dictionary mapping the id's of the measurement's series to the DataSeries"""
-        return {(s.id, s.backend_name): s for s in self.series_list}
-
-    @property
     def series_names(self):
-        """List of the names of the series in the measurement"""
+        """Set of the names of the series in the measurement"""
         return set([series.name for series in self.series_list])
 
     @property
     def value_names(self):
-        """List of the names of the VSeries in the measurement's DataSeries"""
+        """Set of the names of the VSeries in the measurement's DataSeries"""
         return set([vseries.name for vseries in self.value_series])
 
     @property
     def time_names(self):
-        """List of the names of the VSeries in the measurement's DataSeries"""
+        """Set of the names of the VSeries in the measurement's DataSeries"""
         return set([tseries.name for tseries in self.time_series])
 
     @property
     def value_series(self):
-        """List of the VSeries in the measurement's DataSeries"""
+        """Set of the VSeries in the measurement's DataSeries"""
         return [
             series for series in self.series_list if isinstance(series, ValueSeries)
         ]
@@ -313,8 +313,11 @@ class Measurement(Savable):
 
     @property
     def aliases(self):
-        """Dictionary of {key: series_names} pointing to where desired raw data is"""
-        return self._aliases
+        """Dictionary of {key: series_names} pointing to where desired raw data is
+
+        TODO: get the possible aliases based on calibrations, etc, in here.
+        """
+        return self._aliases.copy()
 
     def get_series_names(self, key):
         """Return list: series names for key found by (recursive) lookup in aliases"""
@@ -484,22 +487,26 @@ class Measurement(Savable):
 
     @property
     def t(self):
-        return self[self.control_str].t
+        return self[self.control_series_name].t
 
     @property
     def t_str(self):
-        return self[self.control_str].tseries.name
+        return self[self.control_series_name].tseries.name
 
-    def _build_file_number(self):
+    def _build_file_number_series(self):
+        """Build a `file_number` series based on component measurements times."""
         series_to_append = []
         for i, m in enumerate(self.component_measurements):
-            if self.control_technique and not m.technique == self.control_technique:
+            if (
+                self.control_technique_name
+                and not m.technique == self.control_technique_name
+            ):
                 continue
-            if not self.control_str:
+            if not self.control_series_name:
                 tseries = m.time_series[0]
             else:
                 try:
-                    tseries = m[self.control_str].tseries
+                    tseries = m[self.control_series_name].tseries
                 except KeyError:
                     continue
             series_to_append.append(
@@ -507,14 +514,33 @@ class Measurement(Savable):
             )
         return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
 
-    def _build_selector(self, sel_str=None, col_list=None):
-        """Build `selector` from col_list
+    def _build_selector_series(
+        self, selector_string=None, col_list=None, extra_col_list=None
+    ):
+        """Build a `selector` series which demarcates the data.
 
-        See the class docstring for details.
+        The `selector` is a series which can be used to conveniently and powerfully
+        grab sections of the data. It is built up from less powerful demarcation series
+        in the raw data (like `cycle_number`, `step_number`, `loop_number`, etc) and
+        `file_number` by counting the cumulative changes in those series.
+        See slide 3 of:
+        https://www.dropbox.com/s/sjxzr52fw8yml5k/21E18_DWS3_cont.pptx?dl=0
+
+        Args:
+            selector_string (str): The name to use for the selector series
+            col_list (list): The list of demarcation series. The demarcation series have
+                to have the same tseries, which should be the one pointed to by the
+                meausrement's `control_series_name`.
+            extra_col_list (list): Extra demarcation series to include if needed.
         """
-        sel_str = sel_str or self.sel_str
+        # the name of the selector series:
+        selector_string = selector_string or self.selector_name
+        # a vector that will be True at the points where a series changes:
         changes = np.tile(False, self.t.shape)
-        col_list = col_list or self.select_on
+        # the names of the series which help demarcate the data
+        col_list = col_list or self.selection_series_names
+        if extra_col_list:
+            col_list += extra_col_list
         for col in col_list:
             try:
                 vseries = self[col]
@@ -527,51 +553,38 @@ class Measurement(Savable):
             elif not len(values) == len(changes):
                 print("WARNING: " + col + " has an unexpected length")
                 continue
-            n_down = np.append(
-                values[0], values[:-1]
-            )  # comparing with n_up instead puts selector a point ahead
-            changes = np.logical_or(changes, n_down < values)
-        selector = np.cumsum(changes)
+            # a vector which is shifted one.
+            last_value = np.append(values[0], values[:-1])
+            # comparing value and last_value shows where in the vector changes occur:
+            changes = np.logical_or(changes, last_value != values)
+        # taking the cumsum makes a vector that increases 1 each time one of the
+        #   original demarcation vector changes
+        selector_data = np.cumsum(changes)
         selector_series = ValueSeries(
-            name=sel_str,
+            name=selector_string,
             unit_name="",
-            data=selector,
-            tseries=self[self.control_str].tseries,
+            data=selector_data,
+            tseries=self[self.control_series_name].tseries,
         )
         return selector_series
 
     @property
     def selector(self):
-        return self[self.sel_str]
+        return self[self.selector_name]
 
     @property
     def data_cols(self):
         """Return a set of the names of all of the measurement's VSeries and TSeries"""
         return set([s.name for s in (self.value_series + self.time_series)])
 
-    @property
-    def plotter(self):
-        """The default plotter for Measurement is ValuePlotter."""
-        if not self._plotter:
-            self._plotter = self.default_plotter_class(measurement=self)
-
-        return self._plotter
-
-    @property
-    def exporter(self):
-        """The default exporter for Measurement is CSVExporter."""
-        if not self._exporter:
-            self._exporter = self.default_exporter_class(measurement=self)
-        return self._exporter
-
     def get_original_m_id_of_series(self, series):
-        """Return the id(s) of component measurements to which `series` belongs."""
+        """Return a list of id's of component measurements to which `series` belongs."""
         m_id_list = []
         for m in self.component_measurements:
-            if series.id in m.s_ids:
+            if series.short_identity in m.s_ids:
+                # FIXME: the whole id vs identity issue
+                #   see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
                 m_id_list.append(m.id)
-        if len(m_id_list) == 1:
-            return m_id_list[0]
         return m_id_list
 
     @property
@@ -595,8 +608,9 @@ class Measurement(Savable):
                 long time vector that you have at hand to describe the time interval
                 you're looking for.
         """
+        # Start with self's dictionary representation, but
+        # we don't want original series (s_ids) or component_measurements (m_ids):
         obj_as_dict = self.as_dict(exclude=["s_ids", "m_ids"])
-        # ^ don't want original series (s_ids) or component_measurements (m_ids).
 
         # first, cut the series list:
         new_series_list = []
@@ -656,59 +670,72 @@ class Measurement(Savable):
         new_measurement = self.__class__.from_dict(obj_as_dict)
         return new_measurement
 
+    def multicut(self, tspans):
+        """Return a selection of the measurement including each of the given tspans"""
+        # go through the tspans, cuting the measurement and appending the results
+        new_measurement = None
+        for tspan in tspans:
+            if new_measurement:
+                new_measurement = new_measurement + self.cut(tspan)
+            else:
+                new_measurement = self.cut(tspan)
+        return new_measurement
+
     def select_value(self, *args, **kwargs):
-        """Return a new Measurement with the time(s) meeting criteria.
+        """Return a selection of the measurement where a criterion is matched.
+
+        Specifically, this method returns a new Measurement where the time(s) returned
+        are those where the values match the provided criteria, i.e. the part of the
+        measurement where `self[series_name] == value`
 
         Can only take one arg or kwarg!
-        The `series_name` is `self.sel_str` if given an arg, kw if given a kwarg.
+        The `series_name` is `self.selector_name` if given an argument without keyword.
+        If given a keyword argument, the kyword is the name of the series to select on.
         Either way the argument is the `value` to be selected for.
 
         The method finds all time intervals for which `self[series_name] == value`
         It then cuts the measurement according to each time interval and adds these
-        segments together. TODO: This can be done better, i.e. without chopping series.
-
-        TODO: greater-than and less-than kwargs.
+        segments together.
+        TODO: This can maybe be done better, i.e. without chopping series.
+        TODO: Some way of less than and greater than kwargs.
             Ideally you should be able to say e.g., `select(cycle=1, 0.5<potential<1)`
+            But this is hard,
+            see: https://github.com/ixdat/ixdat/pull/11#discussion_r677272239
         """
-        if len(args) >= 1:
-            if not self.sel_str:
+        if len(args) + len(kwargs) != 1:
+            raise BuildError("Need exactly 1 arg. Use `select_values` for more.")
+        if args:
+            if not self.selector_name:
                 raise BuildError(
                     f"{self} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
-            kwargs[self.sel_str] = args
-        if len(kwargs) > 1:
-            raise BuildError(
-                f"select_value got kwargs={kwargs} but can only be used for one value "
-                f"at a time. Use select_values for more."
-            )
-        new_measurement = self
+            kwargs[self.selector_name] = args[0]
+
         ((series_name, value),) = kwargs.items()
 
+        # The time and values of the series to be selected on:
         t, v = self.grab(series_name)
+        # This mask is true everywhere on `t` that the condition is met:
         mask = v == value  # linter doesn't realize this is a np array
-        mask_prev = np.append(False, mask[:-1])
-        mask_next = np.append(mask[1:], False)
-        interval_starts_here = np.logical_and(
-            np.logical_not(mask_prev), mask
-        )  # True at [0] if mask[0] is True.
-        interval_ends_here = np.logical_and(
-            mask, np.logical_not(mask_next)
-        )  # True at [-1] if mask[-1] is True.
-        t_starts = list(t[interval_starts_here])
-        t_ends = list(t[interval_ends_here])
-        tspans = zip(t_starts, t_ends)
-        meas = None
-        for tspan in tspans:
-            if meas:
-                meas = meas + new_measurement.cut(tspan)
-            else:
-                meas = new_measurement.cut(tspan)
-        new_measurement = meas
-        return new_measurement
+
+        # Now we have to convert that to timespans on which `t` is met. This means
+        #  finding the start and finish times of the intervals on which mask is True.
+        #  this is done with a helper function:
+        tspans = get_tspans_from_mask(t, mask)
+
+        # now we go through the tspans, cuting the measurement and appending the results:
+        return self.multicut(tspans)
 
     def select_values(self, *args, **kwargs):
-        """Return a new Measurement with the time(s) in the measurement meeting criteria
+        """Return a selection of the measurement based on one or several criteria
+
+        Specifically, this method returns a new Measurement where the time(s) returned
+        are those where the values match the provided criteria, i.e. the part of the
+        measurement where `self[series_name] == value`
+
+        TODO: Testing and documentation with examples like those suggested here:
+            https://github.com/ixdat/ixdat/pull/11#discussion_r677324246
 
         Any series can be selected for using the series name as a key-word. Arguments
         can be single acceptable values or lists of acceptable values. In the latter
@@ -716,8 +743,8 @@ class Measurement(Savable):
         measurements added together.
         # FIXME: That is sloppy because it mutliplies the number of DataSeries
             containing the same amount of data.
-        If no key-word is given, the series name is assumed to
-        be the default selector, which is named by self.sel_str. Multiple criteria are
+        Arguments without key-word are considered valid values of the default selector,
+        which is named by `self.selelector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
 
         Args:
@@ -726,31 +753,50 @@ class Measurement(Savable):
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
         """
-        if len(args) >= 1:
-            if not self.sel_str:
+        if args:
+            if not self.selector_name:
                 raise BuildError(
                     f"{self} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
-            if len(args) == 1:
-                args = args[0]
-            kwargs[self.sel_str] = args
-        new_measurement = self
+            flat_args = []
+            for arg in args:
+                if hasattr(arg, "__iter__"):
+                    flat_args += list(arg)
+                else:
+                    flat_args.append(arg)
+            if self.selector_name in kwargs:
+                raise BuildError(
+                    "Don't call select values with both arguments and "
+                    "'{self.selector_name}' as a key-word argument"
+                )
+            kwargs[self.selector_name] = flat_args
+
+        t = self.t
+        mask = np.tile(np.array([True]), t.shape)
         for series_name, allowed_values in kwargs.items():
             if not hasattr(allowed_values, "__iter__"):
                 allowed_values = [allowed_values]
-            meas = None
-            for value in allowed_values:
-                m = new_measurement.select_value(**{series_name: value})
-                if meas:
-                    meas = meas + m
-                else:
-                    meas = m
-            new_measurement = meas
-        return new_measurement
+            v = self.grab_for_t(series_name, t)
+            submask = np.tile(np.array([False]), t.shape)
+            for allowed_value in allowed_values:
+                submask = np.logical_or(submask, v == allowed_value)
+            mask = np.logical_and(mask, submask)
+
+        tspans = get_tspans_from_mask(t, mask)
+
+        return self.multicut(tspans)
 
     def select(self, *args, tspan=None, **kwargs):
-        """`cut` (with tspan) and `select_values` (with *args and/or **kwargs)."""
+        """`cut` (with tspan) and `select_values` (with *args and/or **kwargs).
+
+        These all work:
+        - `meas.select_values(1, 2)`
+        - `meas.select_values(tspan=[200, 300])`
+        - `meas.select_values(range(10))`
+        - `meas.select_values(cycle=4)`
+        - `meas.select_values(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
+        """
         new_measurement = self
         if tspan:
             new_measurement = new_measurement.cut(tspan=tspan)
@@ -871,5 +917,8 @@ class Calibration(Savable):
         return measurement
 
     def calibrate_series(self, key, measurement=None):
-        """This should be overwritten in real calibration classes."""
+        """This should be overwritten in real calibration classes.
+
+        FIXME: Add more documentation about how to write this in inheriting classes.
+        """
         raise NotImplementedError
