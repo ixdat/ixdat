@@ -15,12 +15,12 @@ my_id = 5
 loaded_meas = Measurement.get(my_id)
 
 cv = loaded_meas.as_cv()
-cv.plot_measurement(J_str="cycle")
+cv.plot_measurement(j_name="cycle")
 cv_selection = cv[10:16]
 
-cv_selection.plot_measurement(J_str="cycle")
+cv_selection.plot_measurement(j_name="cycle")
 cv_selection.redefine_cycle(start_potential=0.4, redox=1)
-cv_selection.plot_measurement(J_str="cycle")
+cv_selection.plot_measurement(j_name="cycle")
 
 ax = cv_selection[1].plot(label="cycle 1")
 cv_selection[2].plot(ax=ax, linestyle="--", label="cycle 2")

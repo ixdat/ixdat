@@ -51,7 +51,7 @@ class Measurement(Savable):
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
     control_technique_name = None
-    """Name of the control technique, the one primarily used to control the experiment"""
+    """Name of the control technique primarily used to control the experiment"""
     control_series_name = None
     """Name (or alias) for main time variable or main time-dependent value variable,
     typically of the control technique"""
@@ -65,7 +65,7 @@ class Measurement(Savable):
     }
     """Series which should be constructed from other series by the specified method
     and cached the first time they are looked up"""
-    essential_series = None
+    essential_series_names = None
     """Series which should always be present"""
     default_plotter = ValuePlotter
     default_exporter = CSVExporter
@@ -198,8 +198,8 @@ class Measurement(Savable):
             reader = READER_CLASSES[reader]()
         obj = reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
 
-        if obj.__class__.essential_series:
-            for series_name in obj.__class__.essential_series:
+        if obj.__class__.essential_series_names:
+            for series_name in obj.__class__.essential_series_names:
                 try:
                     _ = obj[series_name]  # this also caches it.
                 except SeriesNotFoundError:
@@ -254,7 +254,7 @@ class Measurement(Savable):
 
     @property
     def calibrations(self):
-        """List of calibrations with any needed manipulation done."""
+        """For overriding: List of calibrations with any needed manipulation done."""
         return self.calibration_list
 
     @property
@@ -265,6 +265,9 @@ class Measurement(Savable):
              see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
         return [c.short_identity for c in self.calibration_list]
+
+    def add_calibration(self, calibration):
+        self._calibration_list = [calibration] + self._calibration_list
 
     @property
     def series_list(self):

@@ -10,8 +10,7 @@ def color_axis(ax, color, lr="right", xy="y"):
     xy (str): whether to color the "x" axis or the "y". Defaults to "y".
     """
     ax.spines[lr].set_color(color)
-    ax.tick_params(axis=xy, color=color)
-    ax.tick_params(axis=xy, labelcolor=color)
+    ax.tick_params(axis=xy, color=color, labelcolor=color)
     if xy == "y":
         ax.yaxis.label.set_color(color)
     if xy == "x":

@@ -20,76 +20,87 @@ EC_FANCY_NAMES = {
 class ECMeasurement(Measurement):
     """Class implementing electrochemistry measurements
 
-    TODO:
-        Implement a unit library for current and potential, A_el and RE_vs_RHE
-        so that e.g. current can be seamlessly normalized to mass OR area.
-
+    TODO: Implement a unit library for current and potential, A_el and RE_vs_RHE
+    TODO:   so that e.g. current can be seamlessly normalized to mass OR area.
     The main job of this class is making sure that the ValueSeries most essential for
-    visualizing and normal electrochemistry measurements (i.e. excluding impedance spec,
+    visualizing and normal electrochemistry measurements (i.e. excluding impedance spec.,
     RRDE, etc, which would need new classes) are always available in the correct form as
     the measurement is added with others, reduced to a selection, calibrated and
     normalized, etc. These most important ValueSeries are:
 
     - `potential`: The working-electrode potential typically in [V].
-        If `ec_meas` is an `ECMeasurement`, then `ec_meas["potential"]` always returns a
-        `ValueSeries` characterized by:
+      If `ec_meas` is an `ECMeasurement`, then `ec_meas["potential"]` always returns a
+      `ValueSeries` characterized by:
+
         - calibrated and/or corrected, if the measurement has been calibrated with the
-            reference electrode potential (`RE_vs_RHE`, see `calibrate`) and/or corrected
-            for ohmic drop (`R_Ohm`, see `correct_ohmic_drop`).
+          reference electrode potential (`RE_vs_RHE`, see `calibrate`) and/or corrected
+          for ohmic drop (`R_Ohm`, see `correct_ohmic_drop`).
         - A name that makes clear any calibration and/or correction
         - Data which spans the entire timespan of the measurement - i.e. whenever EC data
-            is being recorded, `potential` is there, even the name of the raw
-            `ValueSeries` (what the acquisition software calls it) changes. Indeed
-            `ec_meas["potential"].tseries` is the measurement's definitive time variable.
+          is being recorded, `potential` is there, even if the name of the raw
+          `ValueSeries` (what the acquisition software calls it) changes. Indeed
+          `ec_meas["potential"].tseries` is the measurement's definitive time variable.
+
     - `current`: The working-electrode current typically in [mA] or [mA/cm^2].
-        `ec_meas["current"]` always returns a `ValueSeries` characterized by:
+      `ec_meas["current"]` always returns a `ValueSeries` characterized by:
+
         - normalized if the measurement has been normalized with the electrode area
-            (`A_el`, see `normalize`)
+          (`A_el`, see `normalize`)
         - A name that makes clear whether it is normalized
         - Data which spans the entire timespan of the measurement
+
     - `selector`: A counter series distinguishing sections of the measurement program.
-        This is essential for analysis of complex measurements as it allows for
-        corresponding parts of experiments to be isolated and treated identically.
-        `selector` in `ECMeasurement` is defined to incriment each time one or more of
-        the following changes:
+      This is essential for analysis of complex measurements as it allows for
+      corresponding parts of experiments to be isolated and treated identically.
+      `selector` in `ECMeasurement` is defined to increment each time one or more of
+      the following changes:
+
         - `loop_number`: A parameter saved by some potentiostats (e.g. BioLogic) which
-            allow complex looped electrochemistry programs.
+          allow complex looped electrochemistry programs.
         - `file_number`: The id of the component measurement from which each section of
-            the data (the origin of each `ValueSeries` concatenated to `potential`)
+          the data (the origin of each `ValueSeries` concatenated to `potential`)
         - `cycle_number`: An incrementer within a file saved by a potentiostat.
 
     The names of these ValueSeries, which can also be used to index the measurement, are
     conveniently available as properties:
-    - `ec_meas.t_str` is the name of the definitive time, which corresponds to potential.
-    - `ec_meas.E_str` is the name of the raw potential
-    - `ec_meas.V_str` is the name to the calibrated and/or corrected potential
-    - `ec_meas.I_str` is the name of the raw current
-    - `ec_meas.J_str` is the name of the normalized current.
-    - `ec_meas.sel_str` is the name of the default selector, i.e. "selector"
+
+    - `ec_meas.t_name` is the name of the definitive time, i.e. that of the potential
+    - `ec_meas.E_name` is the name of the raw potential
+    - `ec_meas.v_name` is the name of the calibrated and/or corrected potential
+    - `ec_meas.I_name` is the name of the raw current
+    - `ec_meas.j_name` is the name of the normalized current
+    - `ec_meas.selector_name` is the name of the default selector, i.e. "selector"
 
     Numpy arrays from important `DataSeries` are also directly accessible via attributes:
+
     - `ec_meas.t` for `ec_meas["potential"].t`
     - `ec_meas.v` for `ec_meas["potential"].data`
-    - `ec_meas.j` for `ec_meas["current"].data
+    - `ec_meas.j` for `ec_meas["current"].data`
 
     `ECMeasurement` comes with an `ECPlotter` which either plots `potential` and
     `current` against time (`ec_meas.plot_measurement()`) or plots `current` against
     `potential (`ec_meas.plot_vs_potential()`).
 
-    More exciting electrochemistry-related functionality should be implemented in
-    inheriting classes such as `CyclicVoltammagram`.
+    It turns out that keeping track of current, potential, and selector when combining
+    datasets is enough of a job to fill a class. Thus, the more exciting
+    electrochemistry-related functionality should be implemented in inheriting classes
+    such as `CyclicVoltammagram`.
     """
 
-    extra_column_attrs = {"ec_meaurements": {"ec_technique",}}
+    extra_column_attrs = {
+        "ec_meaurements": {
+            "ec_technique",
+        }
+    }
     control_series_name = "raw_potential"
-    essential_series = ("t", "raw_potential", "raw_current", "cycle")
+    essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
     selection_series_names = ("file_number", "loop_number", "cycle")
     default_exporter = ECExporter
     default_plotter = ECPlotter
-    V_str = EC_FANCY_NAMES["potential"]
-    J_str = EC_FANCY_NAMES["current"]
-    E_str = EC_FANCY_NAMES["raw_potential"]
-    I_str = EC_FANCY_NAMES["raw_current"]
+    v_name = EC_FANCY_NAMES["potential"]
+    j_name = EC_FANCY_NAMES["current"]
+    E_name = EC_FANCY_NAMES["raw_potential"]
+    I_name = EC_FANCY_NAMES["raw_current"]
 
     def __init__(
         self,
@@ -105,6 +116,12 @@ class ECMeasurement(Measurement):
 
         Args:
             name (str): The name of the measurement
+            ec_technique (str): The electrochemistry sub-technique
+            RE_vs_RHE (float): The reference electrode potential on the RHE scale in [V]
+            R_Ohm (float): The ohmic drop resistance in [Ohm]
+            A_el (float): The electrode area in [cm^2]
+
+        Kwargs, passed on to `Measurement.__init__` (see :class:`.Measurement`):
             metadata (dict): Free-form measurement metadata. Must be json-compatible.
             technique (str): The measurement technique
             s_ids (list of int): The id's of the measurement's DataSeries, if
@@ -122,10 +139,6 @@ class ECMeasurement(Measurement):
             lablog (LabLog): The log entry with e.g. notes taken during the measurement
             tstamp (float): The nominal starting time of the measurement, used for
                 data selection, visualization, and exporting.
-            ec_technique (str): The electrochemsitry sub-technique
-            RE_vs_RHE (float): The refernce electrode potential on the RHE scale in [V]
-            A_el (float): The electrode area in [cm^2]
-            R_Ohm (float): The ohmic drop resistance in [Ohm]
         """
         super().__init__(name, **kwargs)
 
@@ -137,7 +150,7 @@ class ECMeasurement(Measurement):
     @property
     def aliases(self):
         """A dictionary with the names of other data series a given name can refer to"""
-        a = self._aliases.copy()
+        a = super().aliases.copy()
         a.update({value: [key] for (key, value) in EC_FANCY_NAMES.items()})
         return a
 
@@ -168,25 +181,30 @@ class ECMeasurement(Measurement):
     def RE_vs_RHE(self):
         """The refernce electrode potential on the RHE scale in [V]"""
         for calibration in self.calibration_list:
-            if hasattr(calibration, "RE_vs_RHE") and calibration.RE_vs_RHE is not None:
+            if getattr(calibration, "RE_vs_RHE", None) is not None:
                 return calibration.RE_vs_RHE
 
     @property
     def A_el(self):
         """The electrode area in [cm^2]"""
         for calibration in self.calibration_list:
-            if hasattr(calibration, "A_el") and calibration.A_el is not None:
+            if getattr(calibration, "A_el", None) is not None:
                 return calibration.A_el
 
     @property
     def R_Ohm(self):
         """The ohmic drop resistance in [Ohm]"""
         for calibration in self.calibration_list:
-            if hasattr(calibration, "R_Ohm") and calibration.R_Ohm is not None:
+            if getattr(calibration, "R_Ohm", None) is not None:
                 return calibration.R_Ohm
 
     def calibrate(
-        self, RE_vs_RHE=None, A_el=None, R_Ohm=None, tstamp=None, cal_name=None,
+        self,
+        RE_vs_RHE=None,
+        A_el=None,
+        R_Ohm=None,
+        tstamp=None,
+        cal_name=None,
     ):
         """Calibrate the EC measurement (all args optional)
 
@@ -209,25 +227,34 @@ class ECMeasurement(Measurement):
             name=cal_name,
             measurement=self,
         )
-        self._calibration_list = [new_calibration] + self._calibration_list
+        self.add_calibration(new_calibration)
         self.clear_cache()
 
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
-        new_calibration = ECCalibration(RE_vs_RHE=RE_vs_RHE, measurement=self,)
-        self._calibration_list = [new_calibration] + self._calibration_list
+        new_calibration = ECCalibration(
+            RE_vs_RHE=RE_vs_RHE,
+            measurement=self,
+        )
+        self.add_calibration(new_calibration)
         self.clear_cache()
 
     def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
-        new_calibration = ECCalibration(A_el=A_el, measurement=self,)
-        self._calibration_list = [new_calibration] + self._calibration_list
+        new_calibration = ECCalibration(
+            A_el=A_el,
+            measurement=self,
+        )
+        self.add_calibration(new_calibration)
         self.clear_cache()
 
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
-        new_calibration = ECCalibration(R_Ohm=R_Ohm, measurement=self,)
-        self._calibration_list = [new_calibration] + self._calibration_list
+        new_calibration = ECCalibration(
+            R_Ohm=R_Ohm,
+            measurement=self,
+        )
+        self.add_calibration(new_calibration)
         self.clear_cache()
 
     @property
@@ -286,6 +313,7 @@ class ECCalibration(Calibration):
     """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
 
     extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
+    # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
 
     def __init__(
         self,
@@ -304,7 +332,7 @@ class ECCalibration(Calibration):
             technique (str): The technique of the calibration
             tstamp (float): The time at which the calibration took place or is valid
             measurement (ECMeasurement): Optional. A measurement to calibrate by default.
-            RE_vs_RHE (float): The refernce electrode potential on the RHE scale in [V]
+            RE_vs_RHE (float): The reference electrode potential on the RHE scale in [V]
             A_el (float): The electrode area in [cm^2]
             R_Ohm (float): The ohmic drop resistance in [Ohm]
         """
@@ -316,6 +344,7 @@ class ECCalibration(Calibration):
         self.R_Ohm = R_Ohm
 
     def __repr__(self):
+        # TODO: make __repr__'s consistent throught ixdat
         return (
             f"{self.__class__.__name__}"
             f"(RE_vs_RHE={self.RE_vs_RHE}, A_el={self.A_el}, R_Ohm={self.R_Ohm})"
@@ -341,7 +370,7 @@ class ECCalibration(Calibration):
             v = raw_potential.data
             if self.RE_vs_RHE:
                 v = v + self.RE_vs_RHE
-                name = measurement.V_str or EC_FANCY_NAMES["potential"]
+                name = measurement.v_name or EC_FANCY_NAMES["potential"]
             if self.R_Ohm:
                 i_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
                 v = v - self.R_Ohm * i_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
@@ -359,7 +388,7 @@ class ECCalibration(Calibration):
             v = raw_current.data
             if self.A_el:
                 v = v / self.A_el
-                name = measurement.J_str or EC_FANCY_NAMES["current"]
+                name = measurement.j_name or EC_FANCY_NAMES["current"]
             return ValueSeries(
                 name=name,
                 unit_name=raw_current.unit_name,

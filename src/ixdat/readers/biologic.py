@@ -121,7 +121,10 @@ class BiologicMPTReader:
                 f"This reader only works for files with a '{t_str}' column"
             )
         tseries = TimeSeries(
-            name=t_str, data=self.column_data[t_str], tstamp=self.tstamp, unit_name="s",
+            name=t_str,
+            data=self.column_data[t_str],
+            tstamp=self.tstamp,
+            unit_name="s",
         )
         data_series_list = [tseries]
         for column_name, data in self.column_data.items():
@@ -136,13 +139,13 @@ class BiologicMPTReader:
             data_series_list.append(vseries)
 
         series_names = [s.name for s in data_series_list]
-        aliases = {
-            key: [v for v in value if v in series_names]
-            for key, value in BIOLOGIC_ALIASES.items()
-        }
-        aliases = {key: value for key, value in aliases.items() if value}
+        aliases = {}
+        for name, potential_aliases in BIOLOGIC_ALIASES.items():
+            found_aliases = [pa for pa in potential_aliases if pa in series_names]
+            if found_aliases:
+                aliases[name] = found_aliases
 
-        for series_name in cls.essential_series:
+        for series_name in cls.essential_series_names:
             if series_name not in series_names and series_name not in aliases:
                 name_0 = series_name + "=0"
                 data_series_list.append(
@@ -288,7 +291,8 @@ if __name__ == "__main__":
     path_to_test_file = test_data_dir / "Pt_poly_cv.mpt"
 
     ec_measurement = Measurement.read(
-        reader="biologic", path_to_file=path_to_test_file,
+        reader="biologic",
+        path_to_file=path_to_test_file,
     )
 
     t, v = ec_measurement.grab_potential(tspan=[0, 100])
