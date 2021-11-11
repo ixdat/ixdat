@@ -8,7 +8,7 @@ class ECExporter(CSVExporter):
     def default_v_list(self):
         """The default v_list for ECExporter is V_str, J_str, and sel_str"""
         return [
-            # self.measurement.t_str,
+            # self.measurement.t_name,
             self.measurement.v_name,
             self.measurement.j_name,
             self.measurement.selector_name,

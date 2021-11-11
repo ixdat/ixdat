@@ -21,6 +21,7 @@ class BackendBase:
 
     backend_type = "none"
     address = "none"
+    """A location uniquely identifying the backend together with its type"""
 
     def __init__(self):
         """Initialize the backend with dict for {table_name (str): id_counter (int)}"""

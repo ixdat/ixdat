@@ -349,8 +349,8 @@ class PlaceHolderObject:
         return self.cls.get(self.id, backend=self.backend)
 
     @property
-    def identity(self):
-        """Placeholder also has an short_identity to check equivalence without loading"""
+    def short_identity(self):
+        """Placeholder also has a short_identity to check equivalence without loading"""
         if self.backend is DB.backend:
             return self.id
         return self.backend, self.id

@@ -5,10 +5,10 @@ from pathlib import Path
 class CSVExporter:
     """The default exporter, which writes delimited measurement data row-wise to file"""
 
-    def __init__(self, measurement=None, delim=",\t", default_v_list=None):
+    def __init__(self, measurement=None, delimiter=",\t", default_v_list=None):
         """Initiate the exported with a measurement (Measurement) and delimiter (str)"""
         self.measurement = measurement
-        self.delim = delim
+        self.delimiter = delimiter
         self._default_v_list = default_v_list
 
     @property
@@ -49,7 +49,9 @@ class CSVExporter:
             s_list.append(v_name)
 
         header_line = (
-            "".join([s_name + self.delim for s_name in s_list])[: -len(self.delim)]
+            "".join([s_name + self.delimiter for s_name in s_list])[
+                : -len(self.delimiter)
+            ]
             + "\n"
         )
 
@@ -61,10 +63,10 @@ class CSVExporter:
             for s_name in s_list:
                 if len(columns_data[s_name]) > n:
                     # Then put the data there:
-                    line = line + str(columns_data[s_name][n]) + self.delim
+                    line = line + str(columns_data[s_name][n]) + self.delimiter
                 else:
                     # No more data in this column. Just hold alignment:
-                    line = line + self.delim
+                    line = line + self.delimiter
             line = line + "\n"
             lines.append(line)
 

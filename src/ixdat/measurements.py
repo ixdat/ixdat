@@ -493,7 +493,7 @@ class Measurement(Savable):
         return self[self.control_series_name].t
 
     @property
-    def t_str(self):
+    def t_name(self):
         return self[self.control_series_name].tseries.name
 
     def _build_file_number_series(self):
@@ -580,12 +580,12 @@ class Measurement(Savable):
         """Return a set of the names of all of the measurement's VSeries and TSeries"""
         return set([s.name for s in (self.value_series + self.time_series)])
 
-    def get_original_m_id_of_series(self, series):
+    def get_original_m_ids_of_series(self, series):
         """Return a list of id's of component measurements to which `series` belongs."""
         m_id_list = []
         for m in self.component_measurements:
             if series.short_identity in m.s_ids:
-                # FIXME: the whole id vs identity issue
+                # FIXME: the whole id vs short_identity issue
                 #   see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
                 m_id_list.append(m.id)
         return m_id_list
@@ -806,6 +806,10 @@ class Measurement(Savable):
         if args or kwargs:
             new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
+
+    def copy(self):
+        """Make a copy of the Measurement via its dictionary representation"""
+        return self.__class__.from_dict(self.as_dict())
 
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.

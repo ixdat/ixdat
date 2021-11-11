@@ -78,7 +78,7 @@ class DirBackend(BackendBase):
 
     @property
     def address(self):
-        """"""
+        """The directory containing the tables (folders) and rows (.ix files)"""
         return str(self.project_directory)
 
     def save(self, obj, force=False, no_updates=True):

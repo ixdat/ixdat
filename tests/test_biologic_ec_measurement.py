@@ -10,28 +10,16 @@ from ixdat.db import change_database
 
 path_to_file = Path(__file__).parent.parent / "test_data/biologic/Pt_poly_cv.mpt"
 change_database("directory", project_name="test_biologic_ec_measurement")
+# TODO: Use a temporary directory.
+#   see: https://github.com/ixdat/ixdat/pull/11#discussion_r677567528
 
-
-class TestLog:
-    def __init__(self, path_to_file="~/git/ixdat_test_output.txt"):
-        self.path_to_file = Path(path_to_file).expanduser()
-        with open(self.path_to_file, "w") as f:
-            f.write("\n" + "-" * 80 + "\n")
-            f.write(f"RUNNING MODULE {__file__} AT t={time.time()}\n")
-            f.write("-" * 80 + "\n")
-
-    def print(self, s):
-        with open(self.path_to_file, "a") as f:
-            f.write(s + "\n")
-
-
-log = TestLog()
-log.print(f"cwd = {Path('.').absolute().resolve()}")
+print(f"cwd = {Path('.').absolute().resolve()}")
 
 
 def test_append_essential_series():
+    # TODO: break this up into functions testing specific things.
     meas = Measurement.read(path_to_file, reader="biologic")
-    log.print(f"successfully read {meas}")
+    print(f"successfully read {meas}")
 
     assert meas.technique == "EC"
     assert len(meas["potential"].data) == len(meas["time/s"].data)
@@ -55,8 +43,9 @@ def test_append_essential_series():
 
 
 def test_save_load():
+    # TODO: break this up into functions testing specific things.
     meas = Measurement.read(path_to_file, reader="biologic")
-    log.print(f"successfully read {meas}")
+    print(f"successfully read {meas}")
 
     # To make it complex, we first select a couple cycles, this time with select(),
     # and append them:
@@ -107,8 +96,10 @@ def test_save_load():
 
 
 if __name__ == "__main__":
+    # TODO: probably doesn't beling here.
+    #   See https://github.com/ixdat/ixdat/pull/11#discussion_r677996529
     meas = Measurement.read(path_to_file, reader="biologic")
-    log.print(f"successfully read {meas}")
+    print(f"successfully read {meas}")
 
     # To make it complex, we first select a couple cycles, this time with select(),
     # and append them:
