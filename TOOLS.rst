@@ -6,6 +6,7 @@ Tools used
 The following is a list of specific tools used during ixdat
 development:
 
+* **black** is used for formatting code
 * **pytest** is used for running tests
 * **flake8** is used for linting
 * **sphinx** is used to build documentation
@@ -20,7 +21,7 @@ The following is a list of "tool and commands runners":
   before push or by continuous integration (CI) tools
 
 Install instructions
---------------------
+====================
 
 Install all development tools by executing::
 
@@ -53,19 +54,24 @@ it is (see Windows instructions below under git hooks).
 https://flake8.pycqa.org/en/latest/
 This includes
 syntax errors, but also programming errors like using a variable which
-has not been defined, and style errors. flake8 can be a bit over-zeleous
-and even a bit stupid, so even perfectly formatted (i.e. black-formatted)
-code can sometimes
+has not been defined, and style errors. flake8 can be a bit over-zeleous,
+so even perfectly formatted (i.e. black-formatted) code can sometimes
 trigger it. An example is unused import statements in __init__.py, which
 are fine practice to make it quicker to import the most important parts of
 a package. To allow these, we have added to the project's setup.cfg, the line
 `--per-file-ignores = src/*/__init__.py:F401`
 Additional allowances may need to be added there.
-flake8 also enforces a maximum line length of 89, chosen by Soren to match the
+flake8 also enforces a maximum line length of 89, chosen to match the
 default setting of black (+/- 1 char).
 
 **pytest** is a suite of stuff used to write and run software tests.
 https://docs.pytest.org/en/stable/
+
+**sphinx** is a tool for building the documentation into html and other
+formats from restructured text (.rst). It also enables automatic documentation
+generation from the doc-strings in the code. Read The Docs uses sphinx to compile
+the documentation (ixdat/docs/source/index.rst) to make the will-be-beautiful
+ixdat documentation at https://ixdat.readthedocs.io/
 
 Tool runners
 ------------
@@ -129,9 +135,15 @@ Git hooks
 
 The version control system ``git`` has the option of having check done
 before certain important actions, like a commit or a push. These are
-referred to as ``hooks``. For xidat a pre-push is recommended (as
+referred to as ``hooks``. For ixdat, a pre-push is recommended (as
 opposed to a pre-commit hook, which take time to run the tests on
 every commit). The pre-push hooks are located in ``tools/hooks``.
+
+While the pre-push hook is optional for developers, we will require
+that any pull request to a branch supported for users passes linting
+and pytesting. If you are using a pre-push hook, you enforce with
+yourself that your work passes these checks the whole time, avoiding
+extra work later.
 
 Git hooks cannot be distributed automatically, so it will need to be
 "installed".
@@ -164,7 +176,7 @@ Windows version of the hook, is the line at the top that indicates the
 executable that should run the program).
 
 Then there is a bit of difference depending on how git is used. If the
-main interface to git is via powershell (or mayby Command Prompt) and
+main interface to git is via powershell (or maybe Command Prompt) and
 a virtual environment is being used and is active, then the commit
 hook will just work.
 
@@ -172,12 +184,15 @@ If the development is done elsewhere, but still somehow relies on a
 virtual environment (either a separate virtual environment or an
 anaconda environment), and git is used via the Git Bash program that
 is installed along with Git for Windows, then a bit more work is
-required. The problem is that Git Bash does not know about the path of
+required. This can be buggy.
+
+The problem is that Git Bash does not know about the path of
 the development tools, so that will have to be set manually.
 
 First we should locate the path of the tools. In case a separate
 virtual environment is used, located e.g. in ``c:\venv\ixdat``, then
-``c:\venv\ixdat\Scripts`` will be the path of tools. TODO anaconda.
+``c:\venv\ixdat\Scripts`` will be the path of tools. If you are
+using conda, look below.
 
 Having found the path of the tools it needs to be added to the Bash
 configuration file like so::
@@ -209,6 +224,44 @@ Bash shell, navigation to the git archive and executing the command::
    py39: commands succeeded
    flake8: commands succeeded
    congratulations :)
+
+Anaconda Instructions
+---------------------
+
+If you are using Conda (Anaconda/Minicond) with Windows, you will need to
+add two directories either to your system PATH variable (se explanation
+`here <https://superuser.com/questions/284342/what-are-path-and-other-environment-variables-and-how-can-i-set-or-use-them>`_
+) or to your ``.bash_profile`` or ``.bashrc`` (see explanation
+`here <https://stackoverflow.com/questions/6883760/git-for-windows-bashrc-or-equivalent-configuration-files-for-git-bash-shell>`_
+).
+
+For a full Anaconda installation with the default location for User "scott",
+the two paths to add are::
+
+  - ``C:\Users\scott\Anaconda3\Scripts``
+  - ``C:\Users\scott\Anaconda3``
+
+And the two corresponding lines to add to ``~/.bash_profile``, using any text editor, are::
+
+  export PATH="$PATH:/c/ProgramData/Anaconda3/Scripts/"
+  export PATH="$PATH:/c/ProgramData/Anaconda3/"
+
+Note that ``C:\`` becomes ``/c/``.
+
+After adding these to your PATH variable, they should appear in $PATH in git bash.
+To check, type::
+
+  echo $PATH
+
+in git bash and see if they appear in the output. Once that is there you should
+be able to run tox and the other tools and tool runners from git bash just by e.g.::
+
+  $ tox
+
+, and it should work in a pre-push hook.
+
+NOTE: There can still be bugs. See https://github.com/ixdat/ixdat/issues/10
+
 
 Command quick tips
 ==================

@@ -1,10 +1,18 @@
+"""This module implements a local json-file-based representation of a relational db
+
+FIXME: Saving and/or loading get quite slow when the number of rows in a table (usually
+  data_series) grows to hundreds. How to figure out why that happens?
+  # see https://github.com/ixdat/ixdat/pull/11#discussion_r663468719
+"""
+
+
 import json
 import numpy as np
-from .memory_backend import BackendBase
-from ..config import CFG
+from .backend_base import BackendBase
+from ..config import CFG, prompt_for_permission
 
 
-char_substitutions = {
+char_substitutions = {  # substitutions needed to name .json file with data series name
     "/": "_DIV_",  # slash (divided by)
     "\\": "_BKSL_",  # backslash
     ".": "_DOT_",  # decimal
@@ -13,7 +21,7 @@ char_substitutions = {
     ">": "_GTS_",  # greater-than sign
 }
 # TODO: consider implementing some kind of general solution with a tmp dir
-#    see: https://github.com/ixdat/ixdat/pull/5#discussion_r565075588
+#   see: https://github.com/ixdat/ixdat/pull/5#discussion_r565075588
 
 
 def fix_name_for_saving(name):
@@ -44,6 +52,8 @@ class DirBackend(BackendBase):
         see github: https://github.com/ixdat/ixdat/pull/1#discussion_r546400226
     """
 
+    backend_type = "directory"
+
     def __init__(
         self,
         directory=CFG.standard_data_directory,
@@ -60,35 +70,78 @@ class DirBackend(BackendBase):
             data_suffix (str): The suffix to use for numpy-formatted data files
         """
         self.project_directory = directory / project_name
-        try:
-            self.project_directory.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            raise  # TODO, figure out what gets raised, then except with line below
-            # raise ConfigError(f"Cannot make dir '{self.standard_data_directory}'")
+        self.project_directory.mkdir(parents=True, exist_ok=True)
 
         self.metadata_suffix = metadata_suffix
         self.data_suffix = data_suffix
         super().__init__()
 
     @property
-    def name(self):
-        return f"DirBackend({self.project_directory})"
+    def address(self):
+        """The directory containing the tables (folders) and rows (.ix files)"""
+        return str(self.project_directory)
 
-    def save(self, obj):
-        """Save the Saveable object as a file corresponding to a row in a table"""
-        if obj.data_objects:
-            # save any data objects first as this may change the references
-            for data_obj in obj.data_objects:
-                self.save_data_obj(data_obj)
+    def save(self, obj, force=False, no_updates=True):
+        """Save the Savable object as a file corresponding to a row in a table
+
+        Args:
+            obj (Savable): an object
+            force (bool): Whether to force updates if the object is already saved
+            no_updates (bool): Whether to allow updates if the object is already saved.
+                If both force and no_updates are False, the user will be prompted on
+                whether to save.
+        """
+        # First, we save any objects referenced by this object that need to survive a
+        # save-load cycle. These are listed in obj.child_attrs. They need to be saved
+        # first, so that they get their id's in this backend for the main object to
+        # correctly reference. This is done recursively.
+        if obj.child_attrs:
+            for child_list_name in obj.child_attrs:
+                # save any data objects first as this may change the references
+                child_list = getattr(obj, child_list_name) or []
+                for child_obj in child_list:
+                    self.save(child_obj, force=force, no_updates=True)
+        # Now we're ready to save the main object.
+        # The table_name is the table, the as_dict is the info for the row in the table.
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
-        i = self.add_row(obj_as_dict, table_name=table_name)
-        obj.set_id(i)
-        obj.set_backend(self)
-        return i
+        # check if it's already saved and decide what to do if so:
+        if obj.backend is self and self.contains(table_name, obj.id):
+            okay_to_update = not no_updates
+            update_the_row = force or (
+                okay_to_update
+                and prompt_for_permission(
+                    f"Are you sure you would like to overwrite "
+                    f"{self} table={table_name} id={obj.id} with {obj}? "
+                    f"(You can use save() with force=True to suppress this.)"
+                )
+            )
+            if update_the_row:
+                self.update_row(table_name, obj.id, obj_as_dict)
+                return obj.id  # return the id of the updated row
+            else:
+                return  # return nothing since nothing was done
+        else:
+            i = self.add_row(table_name, obj_as_dict)
+            obj.set_id(i)
+            obj.set_backend(self)
+            return i
+
+    def save_data(self, data, table_name, i, fixed_name=None):
+        """Save the data item of a given row, by default as .ix.npy
+
+        Args:
+            data (Array): the numerical data
+            table_name (str): The name of the table to save in
+            i (int): The id of the row to save in
+            fixed_name (the name of the data, just used for the file name
+        """
+        folder = self.project_directory / table_name
+        data_file_name = f"{i}_{fixed_name}{self.data_suffix}"
+        np.save(folder / data_file_name, data)
 
     def get(self, cls, i):
-        """Open a Saveable object represented as row i of table cls.table_name"""
+        """Open a Savable object represented as row i of table cls.table_name"""
         table_name = cls.table_name
         obj_as_dict = self.get_row_as_dict(table_name, i)
         i = obj_as_dict.pop("id", i)
@@ -111,26 +164,7 @@ class DirBackend(BackendBase):
             print(f"could not find file {path_to_row}")
             return
 
-    def save_data_obj(self, data_obj):
-        """Save the object as a .ix for metadata and .ixdata for numerical data"""
-        table_name = data_obj.table_name
-        if data_obj.backend == self and self.contains(table_name, data_obj.id):
-            return data_obj.id  # already saved!
-        obj_as_dict = data_obj.as_dict()
-        data = obj_as_dict["data"]
-        obj_as_dict["data"] = None
-        # first we save the metadata and set the object's id:
-        i = self.add_row(obj_as_dict, table_name=table_name)
-        data_obj.set_id(i)
-        data_obj.set_backend(self)
-        #  ... and now we save the data
-        folder = self.project_directory / table_name
-        fixed_name = fix_name_for_saving(data_obj.name)
-        data_file_name = f"{data_obj.id}_{fixed_name}{self.data_suffix}"
-        np.save(folder / data_file_name, data)
-        return i
-
-    def add_row(self, obj_as_dict, table_name):
+    def add_row(self, table_name, obj_as_dict):
         """Save object's serialization to the folder table_name (like adding a row)"""
         folder = self.project_directory / table_name
         if not folder.exists():
@@ -138,11 +172,27 @@ class DirBackend(BackendBase):
         i = self.get_next_available_id(table_name)
         obj_as_dict.update({"id": i})
         fixed_name = fix_name_for_saving(obj_as_dict["name"])
+        if "data" in obj_as_dict:
+            self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
+            obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
-
         with open(folder / file_name, "w") as f:
             json.dump(obj_as_dict, f, indent=4)
         return i
+
+    def update_row(self, table_name, i, obj_as_dict):
+        """Update a file specified by `i` in the folder specified by `table_name`"""
+        folder = self.project_directory / table_name
+        if not folder.exists():
+            folder.mkdir()
+        obj_as_dict.update({"id": i})
+        fixed_name = fix_name_for_saving(obj_as_dict["name"])
+        if "data" in obj_as_dict:
+            self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
+            obj_as_dict["data"] = None  # FIXME this could instead point to the data.
+        file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
+        with open(folder / file_name, "w") as f:
+            json.dump(obj_as_dict, f, indent=4)
 
     def get_row_as_dict(self, table_name, i):
         """Return the serialization of the object represented in row i of table_name"""
@@ -174,7 +224,7 @@ class DirBackend(BackendBase):
                     pass
         return id_list
 
-    def get_next_available_id(self, table_name):
+    def get_next_available_id(self, table_name, obj=None):
         """Return the next available id for a given table"""
         id_list = self.get_id_list(table_name)
         if not id_list:

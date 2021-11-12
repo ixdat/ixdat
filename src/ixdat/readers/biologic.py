@@ -8,7 +8,7 @@ import time
 import numpy as np
 
 from . import TECHNIQUE_CLASSES
-from ..data_series import TimeSeries, ValueSeries
+from ..data_series import TimeSeries, ValueSeries, ConstantValue
 from ..exceptions import ReadError
 
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
@@ -22,6 +22,13 @@ regular_expressions = {
     "N_header_lines": "Nb header lines : (.+)\n",
     "timestamp_string": "Acquisition started on : (.+)\n",
     "loop": "Loop ([0-9]+) from point number ([0-9]+) to ([0-9]+)",
+}
+
+BIOLOGIC_ALIASES = {
+    "t": ["time/s"],
+    "raw_potential": ["Ewe/V", "<Ewe>/V"],
+    "raw_current": ["I/mA", "<I>/mA"],
+    "cycle": ["cycle number"],
 }
 
 
@@ -75,7 +82,7 @@ class BiologicMPTReader:
         self.file_has_been_read = False
         self.measurement = None
 
-    def read(self, path_to_file, name=None, **kwargs):
+    def read(self, path_to_file, name=None, cls=ECMeasurement, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -90,6 +97,7 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            cls (Measurement class): The class of the measurement to return
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
         """
         if self.file_has_been_read:
@@ -99,9 +107,9 @@ class BiologicMPTReader:
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
-        self.name = name or path_to_file
+        self.name = name or path_to_file.name
         self.path_to_file = path_to_file
-        with open(path_to_file) as f:
+        with open(self.path_to_file, "r", encoding="ISO-8859-1") as f:
             for line in f:
                 self.process_line(line)
         for name in self.column_names:
@@ -113,10 +121,7 @@ class BiologicMPTReader:
                 f"This reader only works for files with a '{t_str}' column"
             )
         tseries = TimeSeries(
-            name=t_str,
-            data=self.column_data[t_str],
-            tstamp=self.tstamp,
-            unit_name="s",
+            name=t_str, data=self.column_data[t_str], tstamp=self.tstamp, unit_name="s",
         )
         data_series_list = [tseries]
         for column_name, data in self.column_data.items():
@@ -130,17 +135,33 @@ class BiologicMPTReader:
             )
             data_series_list.append(vseries)
 
-        init_kwargs = dict(
+        series_names = [s.name for s in data_series_list]
+        aliases = {}
+        for name, potential_aliases in BIOLOGIC_ALIASES.items():
+            found_aliases = [pa for pa in potential_aliases if pa in series_names]
+            if found_aliases:
+                aliases[name] = found_aliases
+
+        for series_name in cls.essential_series_names:
+            if series_name not in series_names and series_name not in aliases:
+                name_0 = series_name + "=0"
+                data_series_list.append(
+                    ConstantValue(name=name_0, unit_name="", data=0, tseries=tseries)
+                )
+                aliases[series_name] = [name_0]
+
+        obj_as_dict = dict(
             name=self.name,
             technique="EC",
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
             ec_technique=self.ec_technique,
+            aliases=aliases,
         )
-        init_kwargs.update(kwargs)
+        obj_as_dict.update(kwargs)
 
-        self.measurement = ECMeasurement(**init_kwargs)
+        self.measurement = cls.from_dict(obj_as_dict)  # cls.from_dict(**init_kwargs)
         self.file_has_been_read = True
 
         return self.measurement
@@ -262,24 +283,18 @@ if __name__ == "__main__":
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 
-    test_data_dir = (
-        Path(__file__).parent.parent.parent.parent
-        / "test_data/biologic_mpt_and_zilien_tsv"
-    )
+    test_data_dir = Path(__file__).parent.parent.parent.parent / "test_data/biologic"
 
-    path_to_test_file = (
-        test_data_dir / "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"
-    )
+    path_to_test_file = test_data_dir / "Pt_poly_cv.mpt"
 
     ec_measurement = Measurement.read(
-        reader="biologic",
-        path_to_file=path_to_test_file,
+        reader="biologic", path_to_file=path_to_test_file,
     )
 
-    t, v = ec_measurement.get_potential(tspan=[0, 100])
+    t, v = ec_measurement.grab_potential(tspan=[0, 100])
 
     ec_measurement.tstamp -= 20
-    t_shift, v_shift = ec_measurement.get_potential(tspan=[0, 100])
+    t_shift, v_shift = ec_measurement.grab_potential(tspan=[0, 100])
 
     fig, ax = plt.subplots()
     ax.plot(t, v, "k", label="original tstamp")
