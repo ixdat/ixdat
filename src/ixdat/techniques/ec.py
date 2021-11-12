@@ -87,11 +87,7 @@ class ECMeasurement(Measurement):
     such as `CyclicVoltammagram`.
     """
 
-    extra_column_attrs = {
-        "ec_meaurements": {
-            "ec_technique",
-        }
-    }
+    extra_column_attrs = {"ec_meaurements": {"ec_technique",}}
     control_series_name = "raw_potential"
     essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
     selection_series_names = ("file_number", "loop_number", "cycle")
@@ -199,12 +195,7 @@ class ECMeasurement(Measurement):
                 return calibration.R_Ohm
 
     def calibrate(
-        self,
-        RE_vs_RHE=None,
-        A_el=None,
-        R_Ohm=None,
-        tstamp=None,
-        cal_name=None,
+        self, RE_vs_RHE=None, A_el=None, R_Ohm=None, tstamp=None, cal_name=None,
     ):
         """Calibrate the EC measurement (all args optional)
 
@@ -232,28 +223,19 @@ class ECMeasurement(Measurement):
 
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
-        new_calibration = ECCalibration(
-            RE_vs_RHE=RE_vs_RHE,
-            measurement=self,
-        )
+        new_calibration = ECCalibration(RE_vs_RHE=RE_vs_RHE, measurement=self,)
         self.add_calibration(new_calibration)
         self.clear_cache()
 
     def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
-        new_calibration = ECCalibration(
-            A_el=A_el,
-            measurement=self,
-        )
+        new_calibration = ECCalibration(A_el=A_el, measurement=self,)
         self.add_calibration(new_calibration)
         self.clear_cache()
 
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
-        new_calibration = ECCalibration(
-            R_Ohm=R_Ohm,
-            measurement=self,
-        )
+        new_calibration = ECCalibration(R_Ohm=R_Ohm, measurement=self,)
         self.add_calibration(new_calibration)
         self.clear_cache()
 

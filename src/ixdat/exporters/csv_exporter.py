@@ -66,8 +66,8 @@ class CSVExporter:
                     line = line + str(columns_data[s_name][n]) + self.delimiter
                 else:
                     # No more data in this column. Just hold alignment:
-                    line = line + self.delimiter
-            line = line + "\n"
+                    line += self.delimiter
+            line += "\n"
             lines.append(line)
 
         with open(path_to_file, "w") as f:

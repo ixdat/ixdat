@@ -360,10 +360,7 @@ def time_shifted(series, tstamp=None):
     if isinstance(series, TimeSeries):
         new_data = series.data + series.tstamp - tstamp  # shift the time.
         return cls(
-            name=series.name,
-            unit_name=series.unit.name,
-            data=new_data,
-            tstamp=tstamp,
+            name=series.name, unit_name=series.unit.name, data=new_data, tstamp=tstamp,
         )
     elif isinstance(series, ValueSeries):
         series = cls(

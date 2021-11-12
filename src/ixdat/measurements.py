@@ -601,7 +601,7 @@ class Measurement(Savable):
             t_finish = max(t_finish, t.data[-1]) if t_finish else t[-1]
         return [t_start, t_finish]
 
-    def cut(self, tspan):
+    def cut(self, tspan, t_zero=None):
         """Return a new measurement with the data in the given time interval
 
         Args:
@@ -610,6 +610,9 @@ class Measurement(Savable):
                 time of the interval. Using tspan[-1] means you can directly use a
                 long time vector that you have at hand to describe the time interval
                 you're looking for.
+            t_zero (float or str): The time in the measurement to set to t=0. If a
+                float, it is interpreted as wrt the original tstamp. String options
+                include "start", which puts t=0 at the start of the cut interval.
         """
         # Start with self's dictionary representation, but
         # we don't want original series (s_ids) or component_measurements (m_ids):
@@ -671,6 +674,11 @@ class Measurement(Savable):
         obj_as_dict["component_measurements"] = new_component_measurements
 
         new_measurement = self.__class__.from_dict(obj_as_dict)
+        if t_zero:
+            if t_zero == "start":
+                new_measurement.tstamp += tspan[0]
+            else:
+                new_measurement.tstamp += t_zero
         return new_measurement
 
     def multicut(self, tspans):

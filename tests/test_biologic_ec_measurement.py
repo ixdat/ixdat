@@ -6,7 +6,8 @@ from ixdat.db import change_database
 
 #  If tox crashes when trying to import matplotlib, see:
 #    https://github.com/ixdat/ixdat/issues/10
-
+# TODO: better tests!
+#   See https://github.com/ixdat/ixdat/pull/11#discussion_r747823991
 
 path_to_file = Path(__file__).parent.parent / "test_data/biologic/Pt_poly_cv.mpt"
 change_database("directory", project_name="test_biologic_ec_measurement")
