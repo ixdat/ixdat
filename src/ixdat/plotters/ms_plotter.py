@@ -85,10 +85,16 @@ class MSPlotter(MPLPlotter):
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
         unit_factor = specs_this_axis["unit_factor"]
-        for v_name in v_list:
+        for v_or_v_name in v_list:
+            if isinstance(v_or_v_name, str):
+                v_name = v_or_v_name
+                color = STANDARD_COLORS.get(v_name, "k")
+            else:
+                v_name = v_or_v_name.name
+                color = v_or_v_name.color
             if quantified:
                 t, v = measurement.grab_flux(
-                    v_name,
+                    v_or_v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
                     removebackground=removebackground,
@@ -96,7 +102,7 @@ class MSPlotter(MPLPlotter):
                 )
             else:
                 t, v = measurement.grab_signal(
-                    v_name,
+                    v_or_v_name,
                     tspan=tspan,
                     t_bg=tspan_bg,
                     removebackground=removebackground,
@@ -107,7 +113,7 @@ class MSPlotter(MPLPlotter):
             ax.plot(
                 t,
                 v * unit_factor,
-                color=STANDARD_COLORS.get(v_name, "k"),
+                color=color,
                 label=v_name,
                 **kwargs,
             )

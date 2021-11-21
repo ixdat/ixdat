@@ -449,6 +449,17 @@ class Measurement(Saveable):
                 new_series_list.append(s)
         self._series_list = new_series_list
 
+    def correct_data(self, value_name, new_data):
+        """Replace the old data for ´value_name´ (str) with ´new_data` (np array)"""
+        old_vseries = self[value_name]
+        new_vseries = ValueSeries(
+            name=value_name,
+            unit_name=old_vseries.unit_name,
+            data=new_data,
+            tseries=old_vseries.tseries
+        )
+        self[value_name] = new_vseries
+
     def grab(self, item, tspan=None, include_endpoints=False):
         """Return a value vector with the corresponding time vector
 

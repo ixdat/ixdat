@@ -193,6 +193,23 @@ class CyclicVoltammagram(ECMeasurement):
             )
         return timed_sweeps
 
+    def calc_capacitance(self, vspan):
+        """Return the capacitance in [F], calculated by the first sweeps through vspan
+
+        Args:
+            vspan (iterable): The potential range in [V] to use for capacitance
+        """
+        sweep_1 = self.select_sweep(vspan)
+        v_scan_1 = np.mean(sweep_1.grab("scan_rate")[1])  # [V/s]
+        I_1 = np.mean(sweep_1.grab("raw_current")[1])  # [mA] -> [A]
+
+        sweep_2 = self.select_sweep([vspan[-1], vspan[0]])
+        v_scan_2 = np.mean(sweep_2.grab("scan_rate")[1])  # [V/s]
+        I_2 = np.mean(sweep_2.grab("raw_current")[1]) * 1e-3  # [mA] -> [A]
+
+        cap = 1/2 * (I_1 / v_scan_1 + I_2 / v_scan_2)  # [A] / [V/s] = [C/V] = [F]
+        return cap
+
     def diff_with(self, other, v_list=None, cls=None, v_scan_res=0.001, res_points=10):
         """Return a CyclicVotammagramDiff of this CyclicVotammagram with another one
 

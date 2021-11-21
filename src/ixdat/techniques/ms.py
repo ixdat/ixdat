@@ -144,17 +144,24 @@ class MSMeasurement(Measurement):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Args:
-            mol (str): Name of the molecule.
+            mol (str or MSCalResult): Name of the molecule or a calibration thereof
             tspan (list): Timespan for which the signal is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
         """
-        if not self.calibration or mol not in self.calibration:
-            raise QuantificationError(
-                f"Can't quantify {mol} in {self}: Not in calibration={self.calibration}"
-            )
-        mass, F = self.calibration.get_mass_and_F(mol)
+        if isinstance(mol, str):
+            if not self.calibration or mol not in self.calibration:
+                raise QuantificationError(
+                    f"Can't quantify {mol} in {self}: "
+                    f"Not in calibration={self.calibration}"
+                )
+            mass, F = self.calibration.get_mass_and_F(mol)
+        elif isinstance(mol, MSCalResult):
+            mass = mol.mass
+            F = mol.F
+        else:
+            raise TypeError("mol must be str or MSCalResult")
         x, y = self.grab_signal(
             mass,
             tspan=tspan,
@@ -271,7 +278,7 @@ class MSCalResult(Saveable):
         self, name=None, mol=None, mass=None, cal_type=None, F=None,
     ):
         super().__init__()
-        self.name = name
+        self.name = name or f"{mol} at {mass}"
         self.mol = mol
         self.mass = mass
         self.cal_type = cal_type
@@ -282,6 +289,10 @@ class MSCalResult(Saveable):
             f"{self.__class__.__name__}(name={self.name}, mol={self.mol}, "
             f"mass={self.mass}, F={self.F})"
         )
+
+    @property
+    def color(self):
+        return STANDARD_COLORS[self.mass]
 
 
 class MSInlet:
