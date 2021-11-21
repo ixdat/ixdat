@@ -13,6 +13,7 @@ from ..constants import (
     MOLECULAR_DIAMETERS,
     MOLAR_MASSES,
 )
+from ..data_series import TimeSeries, ValueSeries
 from ..db import Saveable
 import re
 import numpy as np
@@ -54,12 +55,15 @@ class MSMeasurement(Measurement):
         self.tspan_bg = tspan_bg
 
     def __getitem__(self, item):
-        """Adds to Measurement's lookup to check if item is an alias for a mass"""
+        """Try standard lookup, then check if item is a flux or alias for a mass"""
         try:
             return super().__getitem__(item)
         except SeriesNotFoundError:
             if item in self.mass_aliases:
                 return self[self.mass_aliases[item]]
+            if item.startswith("n_"):  # it's a flux!
+                mol = item.split("_")[-1]
+                return self.get_flux_series(mol)
             else:
                 raise
 
@@ -181,6 +185,23 @@ class MSMeasurement(Measurement):
         )
         y = np.interp(t, t_0, y_0)
         return y
+
+    def get_flux_series(self, mol, tspan=None):
+        """Return a ValueSeries with the calibrated flux of mol during tspan"""
+        t, n_dot = self.grab_flux(mol, tspan=tspan)
+        tseries = TimeSeries(
+            name="n_dot_" + mol + "-t",
+            unit_name="s",
+            data=t,
+            tstamp=self.tstamp
+        )
+        vseries = ValueSeries(
+            name="n_dot_" + mol,
+            unit_name="mol/s",
+            data=n_dot,
+            tseries=tseries
+        )
+        return vseries
 
     def integrate_signal(self, mass, tspan, tspan_bg, ax=None):
         """Integrate a ms signal with background subtraction and evt. plotting
