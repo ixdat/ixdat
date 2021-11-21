@@ -14,9 +14,11 @@ from .ixdat_csv import IxdatCSVReader
 from .biologic import BiologicMPTReader
 from .autolab import NovaASCIIReader
 from .ivium import IviumDatasetReader
+from .chi import CHInstrumentsTXTReader
 
 # mass spectrometers
 from .pfeiffer import PVMassSpecReader
+from .rgasoft import StanfordRGASoftReader
 from .cinfdata import CinfdataTXTReader
 
 # ec-ms
@@ -31,7 +33,9 @@ READER_CLASSES = {
     "biologic": BiologicMPTReader,
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
+    "chi": CHInstrumentsTXTReader,
     "pfeiffer": PVMassSpecReader,
+    "rgasoft": StanfordRGASoftReader,
     "cinfdata": CinfdataTXTReader,
     "zilien": ZilienTSVReader,
     "zilien_tmp": ZilienTMPReader,
