@@ -6,7 +6,7 @@ from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
-
+from ..tools import dict_is_close, value_is_close
 
 EC_FANCY_NAMES = {
     "t": "time / [s]",
@@ -87,7 +87,11 @@ class ECMeasurement(Measurement):
     such as `CyclicVoltammagram`.
     """
 
-    extra_column_attrs = {"ec_meaurements": {"ec_technique",}}
+    extra_column_attrs = {
+        "ec_meaurements": {
+            "ec_technique",
+        }
+    }
     control_series_name = "raw_potential"
     essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
     selection_series_names = ("file_number", "loop_number", "cycle")
@@ -195,7 +199,12 @@ class ECMeasurement(Measurement):
                 return calibration.R_Ohm
 
     def calibrate(
-        self, RE_vs_RHE=None, A_el=None, R_Ohm=None, tstamp=None, cal_name=None,
+        self,
+        RE_vs_RHE=None,
+        A_el=None,
+        R_Ohm=None,
+        tstamp=None,
+        cal_name=None,
     ):
         """Calibrate the EC measurement (all args optional)
 
@@ -223,19 +232,28 @@ class ECMeasurement(Measurement):
 
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
-        new_calibration = ECCalibration(RE_vs_RHE=RE_vs_RHE, measurement=self,)
+        new_calibration = ECCalibration(
+            RE_vs_RHE=RE_vs_RHE,
+            measurement=self,
+        )
         self.add_calibration(new_calibration)
         self.clear_cache()
 
     def normalize_current(self, A_el):
         """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
-        new_calibration = ECCalibration(A_el=A_el, measurement=self,)
+        new_calibration = ECCalibration(
+            A_el=A_el,
+            measurement=self,
+        )
         self.add_calibration(new_calibration)
         self.clear_cache()
 
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
-        new_calibration = ECCalibration(R_Ohm=R_Ohm, measurement=self,)
+        new_calibration = ECCalibration(
+            R_Ohm=R_Ohm,
+            measurement=self,
+        )
         self.add_calibration(new_calibration)
         self.clear_cache()
 
@@ -377,3 +395,30 @@ class ECCalibration(Calibration):
                 data=v,
                 tseries=raw_current.tseries,
             )
+
+    def __eq__(self, other):
+        """Return whether this Calibration is equal to another
+
+        .. note::
+           This comparison ignores the `measurement` property, to avoid circular references
+
+        """
+        if self is other:
+            return True
+
+        if self.__class__ != other.__class__:
+            return False
+
+        for property_name in (
+            "technique",
+            "tstamp",
+            "name",
+            "RE_vs_RHE",
+            "A_el",
+            "R_Ohm",
+        ):
+            if not value_is_close(
+                getattr(self, property_name), getattr(other, property_name)
+            ):
+                return False
+        return True
