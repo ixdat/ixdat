@@ -168,7 +168,7 @@ class DirBackend(BackendBase):
         """Save object's serialization to the folder table_name (like adding a row)"""
         folder = self.project_directory / table_name
         if not folder.exists():
-            folder.mkdir()
+            folder.mkdir(parents=True)
         i = self.get_next_available_id(table_name)
         obj_as_dict.update({"id": i})
         fixed_name = fix_name_for_saving(obj_as_dict["name"])
