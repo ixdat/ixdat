@@ -1,18 +1,24 @@
-from ixdat.techniques import ECMeasurement
+from pathlib import Path
 
-path_to_file = (
-    "../test_data/biologic_mpt_and_zilien_tsv/"
-    "2020-07-29 10_30_39 Pt_poly_cv_01_02_CVA_C01.mpt"
+from ixdat import Measurement
+from ixdat.techniques import MSMeasurement
+
+data_dir = Path(r"C:\Users\scott\Dropbox\ixdat_resources\test_data\zilien_with_ec")
+
+path_to_file = data_dir / "2021-02-01 17_44_12.tsv"
+
+# This imports it with the EC data
+ecms = Measurement.read(path_to_file, reader="zilien")
+ecms.plot_measurement()
+
+# This imports it without the EC data:
+ms = MSMeasurement.read(path_to_file, reader="zilien")
+ms.plot_measurement()  # nice. one panel, no MS :)
+
+# This adds in the EC data from Biologic:
+
+ec = Measurement.read_set(
+    data_dir / "2021-02-01 17_44_12", reader="biologic", suffix=".mpt"
 )
-
-m = ECMeasurement.read(path_to_file, reader="biologic", name="ec_tools_test",)
-
-# ax = m.plot()
-
-m.save()
-i = m.id
-del m
-
-m1 = ECMeasurement.get(i)
-
-m1.plot()
+ecms_2 = ec + ms
+ecms_2.plot_measurement()

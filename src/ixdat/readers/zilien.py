@@ -3,7 +3,7 @@ import re
 import pandas as pd
 import numpy as np
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
-from ..techniques.ec_ms import ECMSMeasurement
+from ..techniques.ec_ms import ECMSMeasurement, MSMeasurement, ECMeasurement
 from ..techniques.ms import MSSpectrum
 from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
@@ -23,12 +23,28 @@ class ZilienTSVReader:
         from EC_MS import Zilien_Dataset
 
         ec_ms_dataset = Zilien_Dataset(path_to_file)
+
+        if not issubclass(cls, ECMeasurement) and issubclass(cls, MSMeasurement):
+            # This is the case if the user specifically calls read() from an
+            # MSMeasurement
+            technique = "MS"
+            for col in ec_ms_dataset.data_cols.copy():
+                #  FIXME: EC_MS duplicates and renames Zilien's columns.
+                #   Need a real Zilien reader!
+                if ec_ms_dataset.data["col_types"][col] == "EC" or col.startswith(
+                    "pot"
+                ):
+                    ec_ms_dataset.data["data_cols"].remove(col)
+                    del ec_ms_dataset.data[col]
+        else:
+            technique = "EC-MS"
+
         return measurement_from_ec_ms_dataset(
             ec_ms_dataset.data,
             cls=cls,
             name=name,
             reader=self,
-            technique="EC-MS",
+            technique=technique,
             **kwargs,
         )
 
@@ -116,7 +132,11 @@ class ZilienSpectrumReader:
         if path_to_spectrum:
             self.path_to_spectrum = Path(path_to_spectrum)
         cls = cls or MSSpectrum
-        df = pd.read_csv(path_to_spectrum, header=9, delimiter="\t",)
+        df = pd.read_csv(
+            path_to_spectrum,
+            header=9,
+            delimiter="\t",
+        )
         x_name = "Mass  [AMU]"
         y_name = "Current [A]"
         x = df[x_name].to_numpy()
@@ -166,7 +186,8 @@ if __name__ == "__main__":
     )
 
     ecms_measurement = Measurement.read(
-        reader="zilien", path_to_file=path_to_test_file,
+        reader="zilien",
+        path_to_file=path_to_test_file,
     )
 
     ecms_measurement.plot_measurement()
