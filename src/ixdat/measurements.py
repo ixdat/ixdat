@@ -456,11 +456,11 @@ class Measurement(Saveable):
             name=value_name,
             unit_name=old_vseries.unit_name,
             data=new_data,
-            tseries=old_vseries.tseries
+            tseries=old_vseries.tseries,
         )
         self[value_name] = new_vseries
 
-    def grab(self, item, tspan=None, include_endpoints=False):
+    def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -482,6 +482,9 @@ class Measurement(Saveable):
             include_endpoints (bool): Whether to add a points at t = tspan[0] and
                 t = tspan[-1] to the data returned. This makes trapezoidal integration
                 less dependent on the time resolution. Default is False.
+            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
+                baseline level. The average value of `item` in this interval will be
+                subtracted from the values returned.
         """
         vseries = self[item]
         tseries = vseries.tseries
@@ -499,15 +502,29 @@ class Measurement(Saveable):
                     v = np.append(v, v_end)
             mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
             t, v = t[mask], v[mask]
+        if tspan_bg:
+            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            v = v - np.mean(v_bg)
         return t, v
 
-    def grab_for_t(self, item, t):
-        """Return a numpy array with the value of item interpolated to time t"""
+    def grab_for_t(self, item, t, tspan_bg=None):
+        """Return a numpy array with the value of item interpolated to time t
+
+        Args:
+            item (str): The name of the value to grab
+            t (np array): The time vector to grab the value for
+            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
+                baseline level. The average value of `item` in this interval will be
+                subtracted from what is returned.
+        """
         vseries = self[item]
         tseries = vseries.tseries
         v_0 = vseries.data
         t_0 = tseries.data + tseries.tstamp - self.tstamp
         v = np.interp(t, t_0, v_0)
+        if tspan_bg:
+            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            v = v - np.mean(v_bg)
         return v
 
     def integrate(self, item, tspan=None, ax=None):

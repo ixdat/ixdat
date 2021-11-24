@@ -217,7 +217,9 @@ class ECMeasurement(Measurement):
             ):
                 self.series_list.append(
                     ConstantValue(
-                        name=self.raw_current_names[0], unit_name="mA", value=0,
+                        name=self.raw_current_names[0],
+                        unit_name="mA",
+                        value=0,
                     )
                 )
                 self._populate_constants()  # So that OCP currents are included as 0.
@@ -232,7 +234,11 @@ class ECMeasurement(Measurement):
                 ]
             ):
                 self.series_list.append(
-                    ConstantValue(name=self.cycle_names[0], unit_name=None, value=0,)
+                    ConstantValue(
+                        name=self.cycle_names[0],
+                        unit_name=None,
+                        value=0,
+                    )
                 )
                 self._populate_constants()  # So that everything has a cycle number
 
@@ -427,16 +433,28 @@ class ECMeasurement(Measurement):
             self.correct_ohmic_drop(R_Ohm=R_Ohm)
 
     def calibrate_RE(self, RE_vs_RHE):
-        """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
+        """Calibrate the reference electrode by providing `RE_vs_RHE` in [V].
+
+        Return string: The name of the calibrated potential
+        """
         self.RE_vs_RHE = RE_vs_RHE
+        return self.V_str
 
     def normalize_current(self, A_el):
-        """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
+        """Normalize current to electrod surface area by providing `A_el` in [cm^2].
+
+        Return string: The name of the normalized current
+        """
         self.A_el = A_el
+        return self.J_str
 
     def correct_ohmic_drop(self, R_Ohm):
-        """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
+        """Correct for ohmic drop by providing `R_Ohm` in [Ohm].
+
+        Return string: The name of the corrected potential
+        """
         self.R_Ohm = R_Ohm
+        return self.V_str
 
     @property
     def potential(self):
@@ -578,7 +596,10 @@ class ECMeasurement(Measurement):
                 changes = np.logical_or(changes, n_down < values)
         selector = np.cumsum(changes)
         selector_series = ValueSeries(
-            name=sel_str, unit_name="", data=selector, tseries=self.potential.tseries,
+            name=sel_str,
+            unit_name="",
+            data=selector,
+            tseries=self.potential.tseries,
         )
         self[self.sel_str] = selector_series  # TODO: Better cache'ing. This gets saved.
 

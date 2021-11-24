@@ -23,7 +23,10 @@ class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
     extra_column_attrs = {
-        "ms_meaurements": {"mass_aliases", "signal_bgs",},
+        "ms_meaurements": {
+            "mass_aliases",
+            "signal_bgs",
+        },
     }
 
     def __init__(
@@ -98,6 +101,7 @@ class MSMeasurement(Measurement):
             t_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
+                Defaults to False. (Note in grab_flux it defaults to True.)
             include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
         """
         time, value = self.grab(
@@ -138,7 +142,7 @@ class MSMeasurement(Measurement):
         mol,
         tspan=None,
         tspan_bg=None,
-        removebackground=False,
+        removebackground=True,
         include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
@@ -149,6 +153,7 @@ class MSMeasurement(Measurement):
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
+                Defaults to True.
         """
         if isinstance(mol, str):
             if not self.calibration or mol not in self.calibration:
@@ -173,7 +178,12 @@ class MSMeasurement(Measurement):
         return x, n_dot
 
     def grab_flux_for_t(
-        self, mol, t, tspan_bg=None, removebackground=False, include_endpoints=False,
+        self,
+        mol,
+        t,
+        tspan_bg=None,
+        removebackground=False,
+        include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s] for a given time vec
 
@@ -197,16 +207,10 @@ class MSMeasurement(Measurement):
         """Return a ValueSeries with the calibrated flux of mol during tspan"""
         t, n_dot = self.grab_flux(mol, tspan=tspan)
         tseries = TimeSeries(
-            name="n_dot_" + mol + "-t",
-            unit_name="s",
-            data=t,
-            tstamp=self.tstamp
+            name="n_dot_" + mol + "-t", unit_name="s", data=t, tstamp=self.tstamp
         )
         vseries = ValueSeries(
-            name="n_dot_" + mol,
-            unit_name="mol/s",
-            data=n_dot,
-            tseries=tseries
+            name="n_dot_" + mol, unit_name="mol/s", data=n_dot, tseries=tseries
         )
         return vseries
 
@@ -275,7 +279,12 @@ class MSCalResult(Saveable):
     column_attrs = {"name", "mol", "mass", "cal_type", "F"}
 
     def __init__(
-        self, name=None, mol=None, mass=None, cal_type=None, F=None,
+        self,
+        name=None,
+        mol=None,
+        mass=None,
+        cal_type=None,
+        F=None,
     ):
         super().__init__()
         self.name = name or f"{mol} at {mass}"
@@ -399,7 +408,13 @@ class MSInlet:
         return n_dot
 
     def gas_flux_calibration(
-        self, measurement, mol, mass, tspan=None, tspan_bg=None, ax=None,
+        self,
+        measurement,
+        mol,
+        mass,
+        tspan=None,
+        tspan_bg=None,
+        ax=None,
     ):
         """
         Args:
