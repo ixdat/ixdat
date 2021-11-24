@@ -201,7 +201,7 @@ class ECMSPlotter(MPLPlotter):
 
         if not axes:
             axes = self.new_two_panel_axes(
-                n_bottom=2,
+                n_bottom=1,
                 n_top=(2 if (mass_lists or mol_lists) else 1),
                 emphasis=emphasis,
             )
