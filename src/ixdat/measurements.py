@@ -760,7 +760,7 @@ class Measurement(Savable):
         applied sequentially, i.e. you get the intersection of satisfying parts.
 
         Args:
-            args (tuple): Argument(s) given without key-word are understood as acceptable
+            args (tuple): Argument(s) given without keyword are understood as acceptable
                 value(s) for the default selector (that named by self.sel_str)
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
@@ -853,7 +853,7 @@ class Measurement(Savable):
         else:
             cls = Measurement
 
-        #breakpoint()
+        # breakpoint()
         new_series_list = list(set(self.series_list + other.series_list))
         new_component_measurements = list(
             set(
@@ -886,8 +886,8 @@ class Measurement(Savable):
 
     def __eq__(self, other):
         """Return whether this object is equal to `other`"""
-        # IMPORTANT, the order of the checks, in general, and in particular of the property
-        # names further down, is intentional to keep cheap result determining
+        # IMPORTANT, the order of the checks, in general, and in particular of the
+        # property names further down, is intentional to keep cheap result determining
         # comparisons first and expensive ones last, for performance reasons
         if self is other:
             return True

@@ -4,7 +4,7 @@ from numpy import isclose
 
 
 def value_is_close(value_one, value_two):
-    """Return whether `value_one` and `value_two` are equal (or close in the case of floats)"""
+    """Return whether `value_one` and `value_two` are equal (or close for floats)"""
     if isinstance(value_one, float) or isinstance(value_two, float):
         return isclose(value_one, value_two)
 
@@ -19,8 +19,8 @@ def dict_is_close(dict_one, dict_two):
         dict_two (dict): The second dictionary to compare
 
     .. warning::
-       This function is recursive (also together with :ref:func:`list_is_close` and **will**
-       result in an infinite loop if the values reference back to itself
+       This function is recursive (also together with :ref:func:`list_is_close` and
+       **will** result in an infinite loop if the values reference back to itself
     """
     if len(dict_one) != len(dict_two):
         return False
@@ -53,8 +53,8 @@ def list_is_close(list_one, list_two):
         list_two (list): The second list to compare
 
     .. warning::
-       This function is recursive (also together with :ref:func:`list_is_close` and **will**
-       result in an infinite loop if the values reference back to itself
+       This function is recursive (also together with :ref:func:`list_is_close` and
+       **will** result in an infinite loop if the values reference back to itself
     """
     if len(list_one) != len(list_two):
         return False

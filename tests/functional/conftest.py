@@ -1,4 +1,3 @@
-
 """Fixtures used across the functional tests"""
 
 from pathlib import Path
@@ -10,8 +9,8 @@ from ixdat import Measurement
 from ixdat.db import change_database
 
 # FIXME The size of this data file is at present one of the largest contributors to the
-# time it takes to run the test suite. We should consider cutting it down or replacing it
-# for test purposes
+# time it takes to run the test suite. We should consider cutting it down or replacing
+# it for test purposes
 PATH_TO_DATAFILE = Path(__file__).parent / "../../test_data/biologic/Pt_poly_cv_CUT.mpt"
 
 

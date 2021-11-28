@@ -8,8 +8,9 @@ from ixdat import Measurement
 #  If tox crashes when trying to import matplotlib, see:
 #    https://github.com/ixdat/ixdat/issues/10
 
-# NOTE The `ec_measurement` and `fresh_directory_backend` arguments are provided by shared
-# fixtures in conftest.py in this directory
+# NOTE The `ec_measurement` and `fresh_directory_backend` arguments are provided by
+# shared fixtures in conftest.py in this directory
+
 
 class TestBiologicEC:
     """This class tests the Biologic EC measurement"""
@@ -28,18 +29,18 @@ class TestBiologicEC:
             ec_measurement.RE_vs_RHE
         )
 
-        # To make it complex, we first select a couple cycles, this time by converting to
-        # a cyclic voltammagram and indexing, and append them:
+        # To make it complex, we first select a couple cycles, this time by converting
+        # to a cyclic voltammagram and indexing, and append them:
         cv = ec_measurement.as_cv()
         cvs_1_plus_2 = cv[1] + cv[2]
 
         # Check that the calibration survived all that:
         assert cvs_1_plus_2.RE_vs_RHE == ec_measurement.RE_vs_RHE
-        # Check that the main time variable, corresponding to potential, wasn't corrupted:
+        # Check that the main time variable, that of potential, wasn't corrupted:
         assert len(cvs_1_plus_2.grab("potential")[0]) == len(
             cvs_1_plus_2["time/s"].data
         )
-        # Check that the selector is still available and works with the main time variable:
+        # Check that the selector is still available and works with the main time var:
         assert len(cvs_1_plus_2.selector.data) == len(cvs_1_plus_2.t)
 
     def test_calibration_over_save_load(self, composed_measurement):
@@ -61,8 +62,8 @@ class TestBiologicEC:
         )
         # ^ note this only builds the potential for cv12_loaded
 
-        # First we check that its j attribute is calibrated by comparing to the same property
-        # of the original, still uncalibrated, measurement:
+        # First we check that its j attribute is calibrated by comparing to the same
+        # property of the original, still uncalibrated, measurement:
         assert composed_measurement_copy.j[0] == composed_measurement.j[0] / A_el
         # ^ note this builds the current for both cv12 and cv12_loaded
 
@@ -77,9 +78,8 @@ class TestBiologicEC:
         # And check if it still has the calibration:
         assert meas12_copied.A_el == A_el
         # And that it can still apply it:
-        assert (
-            meas12_copied.grab("potential")[1][0]
-            == approx(composed_measurement.grab("potential")[1][0] + RE_vs_RHE)
+        assert meas12_copied.grab("potential")[1][0] == approx(
+            composed_measurement.grab("potential")[1][0] + RE_vs_RHE
         )
 
         # Finally, save and load the copied measurement and check that it's still there:

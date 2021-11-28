@@ -125,8 +125,8 @@ class ECPlotter:
                 plotter was initialized with
             tspan (iter of float): The timespan, relative to vs measurement.tstamp, on
                 which to plot.
-            v_name (str): Name of the x-axis ValueSeries. Defaults to calibrated potential
-            j_name (str): Name of the y-axis ValueSeries. Defaults to normalized current.
+            v_name (str): Name of the x-axis variable. Defaults to calibrated potential
+            j_name (str): Name of the y-axis variable. Defaults to normalized current.
             ax (matplotlib.pyplot.Axis): The axis to plot on, if not a new one.
             **plot_kwargs (dict): Additional key-word arguments are passed to
                 matplotlib's plot() function. See below for a few examples
