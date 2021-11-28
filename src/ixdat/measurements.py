@@ -11,7 +11,7 @@ classes will be defined in the corresponding module in ./techniques/
 """
 import json
 import numpy as np
-from .db import Savable, PlaceHolderObject, fill_object_list
+from .db import Saveable, PlaceHolderObject, fill_object_list
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -29,7 +29,7 @@ from .exceptions import BuildError, SeriesNotFoundError
 from .tools import dict_is_close
 
 
-class Measurement(Savable):
+class Measurement(Saveable):
     """The Measurement class"""
 
     # ------ table description class attributes --------
@@ -921,7 +921,7 @@ class Measurement(Savable):
     __hash__ = DataSeries.__hash__
 
 
-class Calibration(Savable):
+class Calibration(Saveable):
     """Base class for calibrations."""
 
     table_name = "calibration"

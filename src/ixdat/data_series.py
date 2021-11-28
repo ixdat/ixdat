@@ -7,12 +7,12 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
 import numpy as np
-from .db import Savable
+from .db import Saveable
 from .units import Unit
 from .exceptions import AxisError, BuildError
 
 
-class DataSeries(Savable):
+class DataSeries(Saveable):
     """The base class for all numerical data representation in ixdat.
 
     These class's objects are saved and loaded as rows in the data_series table
@@ -58,7 +58,7 @@ class DataSeries(Savable):
 
     # This is necessary, because overriding __eq__ means that __hash__ is set to None
     # https://docs.python.org/3/reference/datamodel.html#object.__hash__
-    __hash__ = Savable.__hash__
+    __hash__ = Saveable.__hash__
 
     @property
     def data(self):

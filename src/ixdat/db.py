@@ -92,7 +92,7 @@ def get_database_name():
     return DB.backend.__class__.__name__
 
 
-class Savable:  # FIXME: Savable is misspelled :( . Should be "Savable". Later.
+class Saveable:
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
