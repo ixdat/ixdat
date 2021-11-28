@@ -26,6 +26,7 @@ from .lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError
+from .tools import dict_is_close
 
 
 class Measurement(Savable):
@@ -852,6 +853,7 @@ class Measurement(Savable):
         else:
             cls = Measurement
 
+        #breakpoint()
         new_series_list = list(set(self.series_list + other.series_list))
         new_component_measurements = list(
             set(
@@ -882,6 +884,42 @@ class Measurement(Savable):
         del obj_as_dict["s_ids"]
         return cls.from_dict(obj_as_dict)
 
+    def __eq__(self, other):
+        """Return whether this object is equal to `other`"""
+        # IMPORTANT, the order of the checks, in general, and in particular of the property
+        # names further down, is intentional to keep cheap result determining
+        # comparisons first and expensive ones last, for performance reasons
+        if self is other:
+            return True
+
+        if not np.isclose(self.tstamp, other.tstamp):
+            return False
+
+        if not dict_is_close(self.metadata, other.metadata):
+            return False
+
+        # TODO This list could probably be replaced completely or in part with some of
+        # the DB-related class attributes like column_attrs, but this shouldn't be done
+        # before those attributes have stabilized
+        for property_name in (
+            "__class__",
+            "name",
+            "technique",
+            "sample",
+            "lablog",
+            "aliases",
+            "calibration_list",
+            "series_list",
+            "component_measurements",  # Assuming these can't reference each other
+        ):
+            if getattr(self, property_name) != getattr(other, property_name):
+                return False
+        return True
+
+    # This is necessary, because overriding __eq__ means that __hash__ is set to None
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    __hash__ = DataSeries.__hash__
+
 
 class Calibration(Savable):
     """Base class for calibrations."""
@@ -907,6 +945,14 @@ class Calibration(Savable):
         self.technique = technique
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement
+
+    def __eq__(self, _):
+        """Return whether the calibration is equal to another
+
+        MUST be overwritten in subclasses
+
+        """
+        raise NotImplementedError
 
     @classmethod
     def from_dict(cls, obj_as_dict):

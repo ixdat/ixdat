@@ -45,6 +45,21 @@ class DataSeries(Savable):
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
+    def __eq__(self, other):
+        """Return whether this DataSeries is equal to another"""
+        if self is other:
+            return True
+        for property_name in ("__class__", "name", "unit"):
+            if getattr(self, property_name) != getattr(other, property_name):
+                return False
+        if self.data.shape != other.data.shape:
+            return False
+        return np.allclose(self.data, other.data)
+
+    # This is necessary, because overriding __eq__ means that __hash__ is set to None
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    __hash__ = Savable.__hash__
+
     @property
     def data(self):
         """The data as a np.array, loaded the first time it is needed."""
@@ -89,6 +104,18 @@ class TimeSeries(DataSeries):
     def tseries(self):
         """Trivially, a TimeSeries is its own TimeSeries"""
         return self
+
+    def __eq__(self, other):
+        """Return whether this TimeSeries is equal to another"""
+        # This is necessary, because we haven't checked for type yet
+        if hasattr(other, "tstamp") and not np.isclose(self.tstamp, other.tstamp):
+            return False
+
+        return super().__eq__(other)
+
+    # This is necessary, because overriding __eq__ means that __hash__ is set to None
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    __hash__ = DataSeries.__hash__
 
 
 class Field(DataSeries):
@@ -178,6 +205,21 @@ class Field(DataSeries):
                 )
         return self._data
 
+    def __eq__(self, other):
+        """Returns whether this Field is equal to another"""
+        # This is necessary, because we haven't checked for type yet
+        if hasattr(other, "N_dimensions") and self.N_dimensions != other.N_dimensions:
+            return False
+
+        if not super().__eq__(other):
+            return False
+
+        return self.axes_series == other.axes_series
+
+    # This is necessary, because overriding __eq__ means that __hash__ is set to None
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    __hash__ = DataSeries.__hash__
+
 
 class ValueSeries(Field):
     """Class to store scalar values that are measured over time.
@@ -238,6 +280,9 @@ class ValueSeries(Field):
     def tstamp(self):
         """The timestamp, from the TimeSeries of the ValueSeries"""
         return self.tseries.tstamp
+
+    def __hash__(self):
+        return super().__hash__()
 
 
 class ConstantValue(ValueSeries):
