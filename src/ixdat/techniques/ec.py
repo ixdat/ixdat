@@ -6,7 +6,6 @@ from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
-from ..tools import value_is_close
 
 EC_FANCY_NAMES = {
     "t": "time / [s]",
@@ -396,30 +395,3 @@ class ECCalibration(Calibration):
                 data=v,
                 tseries=raw_current.tseries,
             )
-
-    def __eq__(self, other):
-        """Return whether this Calibration is equal to another
-
-        .. note::
-           This comparison ignores the `measurement` property, to avoid circular refs
-
-        """
-        if self is other:
-            return True
-
-        if self.__class__ != other.__class__:
-            return False
-
-        for property_name in (
-            "technique",
-            "tstamp",
-            "name",
-            "RE_vs_RHE",
-            "A_el",
-            "R_Ohm",
-        ):
-            if not value_is_close(
-                getattr(self, property_name), getattr(other, property_name)
-            ):
-                return False
-        return True
