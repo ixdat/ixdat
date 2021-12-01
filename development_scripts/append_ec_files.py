@@ -52,16 +52,33 @@ cut_meas.plot(j_name="selector")
 select_meas = cut_meas.select_values(selector=range(4, 8))
 select_meas.correct_ohmic_drop(R_Ohm=200)
 select_meas.plot_vs_potential()
-if True:
-    select_meas.name = "selected_measurement"
-    select_meas.save()  # this changes its ID!
-    my_id = select_meas.id
-else:
-    my_id = 4
 
-# select_meas
+if False:  # check a save-load round trip
+    if True:
+        select_meas.name = "selected_measurement"
+        select_meas.save()  # this changes its ID!
+        my_id = select_meas.id
+    else:
+        my_id = 4
 
-loaded_meas = Measurement.get(my_id)
+    # check the loaded measurement
 
-loaded_meas.plot_vs_potential()
-loaded_meas.plot(J_str="selector")
+    loaded_meas = Measurement.get(my_id)
+
+    loaded_meas.plot_vs_potential()
+    loaded_meas.plot(J_str="selector")
+
+# check the cyclic voltammatry selection stuff
+
+cv = combined_meas.as_cv()
+cv_selection = cv[10:16]
+
+cv_selection.plot_measurement(j_name="cycle")
+cv_selection.redefine_cycle(start_potential=0.4, redox=1)
+cv_selection.plot_measurement(j_name="cycle")
+
+ax = cv_selection[1].plot(label="cycle 1")
+cv_selection[2].plot(ax=ax, linestyle="--", label="cycle 2")
+ax.legend()
+
+cv_selection.export(path_to_file=Path.home() / "test.csv")

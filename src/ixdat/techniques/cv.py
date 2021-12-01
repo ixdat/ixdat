@@ -105,6 +105,4 @@ class CyclicVoltammagram(ECMeasurement):
                 data=cycle_vec,
                 tseries=self.potential.tseries,
             )
-        if "cycle" in self._cached_series:
-            del [self._cached_series]
-        self["cycle"] = new_cycle_series
+        self.replace_series("cycle", new_cycle_series)

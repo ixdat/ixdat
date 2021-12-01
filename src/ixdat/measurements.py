@@ -466,6 +466,34 @@ class Measurement(Saveable):
 
         raise SeriesNotFoundError(f"{self} does not contain '{key}'")
 
+    def replace_series(self, series_name, new_series=None):
+        """Remove an existing series, add a series to the measurement, or both.
+
+        FIXME: This will not appear to change the series for the user if the
+            measurement's calibration returns something for ´series_name´, since
+            __getitem__ asks the calibration before looking in series_list.
+
+        Args:
+            series_name (str): The name of a series. If the measurement has (raw) data
+                series with this name, cached series with this name, and/or aliases for
+                this name, they will be removed.
+            new_series (DataSeries): Optional new series to append to the measurement's
+                series_list. To sanity check, it must have ´series_name´ as its ´name´.
+        """
+        if new_series and not series_name == new_series.name:
+            raise TypeError(
+                f"Cannot replace {series_name} in {self} with {new_series}. "
+                f"Names must agree."
+            )
+        if series_name in self._cached_series:
+            del self._cached_series[series_name]
+        if series_name in self._aliases:
+            del self._aliases[series_name]
+        new_series_list = [s for s in self.series_list if not s.name == series_name]
+        if new_series:
+            new_series_list.append(new_series)
+        self._series_list = new_series_list
+
     def clear_cache(self):
         """Clear the cache so derived series are constructed again with updated info"""
         self._cached_series = {}
@@ -595,6 +623,8 @@ class Measurement(Saveable):
         """The minimum timespan (with respect to self.tstamp) containing all the data"""
         t_start = None
         t_finish = None
+        if not self.time_names:  # No TimeSeries in the measurement means no tspan.
+            return None
         for t_name in self.time_names:
             t = self[t_name].data
             t_start = min(t_start, t[0]) if t_start else t[0]
@@ -666,6 +696,11 @@ class Measurement(Saveable):
             #    as it duplicates data (a big no)... especially bad because
             #    new_measurement.save() saves them.
             #    The step is here in order for file_number to get built correctly.
+            if not m.tspan:
+                # if it has no TimeSeries it must be a "constant". Best to include:
+                new_component_measurements.append(m)
+                continue
+            # Otherwise we have to cut it according to the present tspan.
             dt = m.tstamp - self.tstamp
             tspan_m = [tspan[0] - dt, tspan[1] - dt]
             if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
