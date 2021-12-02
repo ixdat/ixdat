@@ -887,7 +887,6 @@ class Measurement(Saveable):
         else:
             cls = Measurement
 
-        # breakpoint()
         new_series_list = list(set(self.series_list + other.series_list))
         new_component_measurements = list(
             set(

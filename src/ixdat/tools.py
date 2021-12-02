@@ -9,16 +9,11 @@ def thing_is_close(thing_one, thing_two):
         return False
 
     if isinstance(thing_one, list):
-        if not list_is_close(thing_one, thing_two):
-            return False
+        return list_is_close(thing_one, thing_two)
     elif isinstance(thing_one, dict):
-        if not dict_is_close(thing_one, thing_two):
-            return False
+        return dict_is_close(thing_one, thing_two)
     else:
-        if not value_is_close(thing_one, thing_two):
-            return False
-
-    return True
+        return value_is_close(thing_one, thing_two)
 
 
 def value_is_close(value_one, value_two):
