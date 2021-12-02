@@ -102,15 +102,21 @@ Article repositories
 ``ixdat`` is shown in practice in a growing number of open repositories of data and analysis
 for academic publications:
 
-- Tracking oxygen atoms in electrochemical CO oxidation - Part II: Lattice oxygen reactivity in oxides of Pt and Ir
+- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part I: Oxygen exchange via CO2 hydration**. `Electrochimica Acta, 374, 137842 <https://doi.org/10.1016/j.electacta.2021.137842>`_, **2021**.
 
-  - Article: https://doi.org/10.1016/j.electacta.2021.137844
-  - Repository: https://github.com/ScottSoren/pyCOox_public
+  Repository: https://github.com/ScottSoren/pyCOox_public
 
-- Dynamic Interfacial Reaction Rates from Electrochemistry - Mass Spectrometry
+- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part II: Lattice oxygen reactivity in oxides of Pt and Ir**. `Electrochimica Acta, 374, 137844 <https://doi.org/10.1016/j.electacta.2021.137844>`_, **2021**.
 
-  - Article: https://doi.org/10.1021/acs.analchem.1c00110
-  - Repository: https://github.com/kkrempl/Dynamic-Interfacial-Reaction-Rates
+  Repository: https://github.com/ScottSoren/pyCOox_public
+
+- Kevin Krempl, et al. **Dynamic Interfacial Reaction Rates from Electrochemistry - Mass Spectrometry**. `Journal of Analytical Chemistry. 93, 7022-7028 <https://doi.org/10.1021/acs.analchem.1c00110>`_, **2021**
+
+  Repository: https://github.com/kkrempl/Dynamic-Interfacial-Reaction-Rates
+
+- Junheng Huang, et al. **Online Electrochemistry−Mass Spectrometry Evaluation of the Acidic Oxygen Evolution Reaction at Supported Catalysts**. `ACS Catal. 11, 12745-12753 <https://doi.org/10.1021/acscatal.1c03430>`_, **2021**
+
+  Repository: https://github.com/ScottSoren/Huang2021
 
 
 Join us

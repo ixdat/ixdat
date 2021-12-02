@@ -15,7 +15,13 @@ class ValuePlotter(MPLPlotter):
         return self.plot_measurement(measurement=self.measurement, *args, **kwargs)
 
     def plot_measurement(
-        self, measurement, v_list=None, tspan=None, ax=None, legend=True, logscale=False
+        self,
+        measurement=None,
+        v_list=None,
+        tspan=None,
+        ax=None,
+        legend=True,
+        logscale=False,
     ):
         """Plot a measurement's values vs time
 
@@ -27,6 +33,7 @@ class ValuePlotter(MPLPlotter):
             legend (bool): Whether to include a legend. Defaults to True.
             logscale (bool): Whether to use a log-scaled y-axis. Defaults to False.
         """
+        measurement = measurement or self.measurement
         if not ax:
             ax = self.new_ax()
         v_list = v_list or measurement.value_names
