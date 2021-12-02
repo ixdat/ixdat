@@ -320,10 +320,14 @@ class Saveable:
         if self is other:
             # If they're actually the same object of course they're equal.
             return True
+        if self.__class__ is not other.__class__:
+            # If they're not the same class, they are not equal
+            return False
         # Otherwise we compare their dictionary representations.
         self_as_dict = self.as_dict()
         other_as_dict = other.as_dict()
-        if self.__class__ is not other.__class__:
+        if not len(self_as_dict) == len(other_as_dict):
+            # If they don't have the same number of items, they are not equal:
             return False
         if self.extra_linkers:
             linker_id_names = [
@@ -344,15 +348,10 @@ class Saveable:
                 #   pass here and do a new loop with the child_attrs.
                 pass
 
-            if not thing_is_close(self_as_dict[key], other_as_dict.pop(key)):
+            if not thing_is_close(self_as_dict[key], other_as_dict[key]):
                 # Then the values aren't close (for floats and np arrays) or aren't
                 # equal (for all else)
                 return False
-
-        if other_as_dict:
-            # Then other.as_dict() has keys which slef_as_dict() does not, i.e.
-            #   other is not equal to self.
-            return False
 
         # Now we have to go through the owned Saveable objects:
         if self.child_attrs:
