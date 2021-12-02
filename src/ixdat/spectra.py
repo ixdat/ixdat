@@ -2,6 +2,7 @@ import numpy as np
 from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
 from .exceptions import BuildError
+from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
 
 
 class Spectrum(Saveable):
@@ -66,20 +67,9 @@ class Spectrum(Saveable):
         self.reader = reader
         self._field = field or PlaceHolderObject(field_id, cls=Field)
 
-        self._plotter = None
+        self.plotter = SpectrumPlotter
         # defining this method here gets it the right docstrings :D
         self.plot = self.plotter.plot
-
-    @property
-    def plotter(self):
-        """The default plotter for Measurement is ValuePlotter."""
-        if not self._plotter:
-            from .plotters.spectrum_plotter import SpectrumPlotter
-
-            # FIXME: I had to import here to avoid running into circular import issues
-
-            self._plotter = SpectrumPlotter(spectrum=self)
-        return self._plotter
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -260,6 +250,7 @@ class SpectrumSeries(Spectrum):
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
         super().__init__(*args, **kwargs)
+        self.plotter = SpectrumSeriesPlotter
 
     @property
     def yseries(self):
@@ -321,14 +312,3 @@ class SpectrumSeries(Spectrum):
     def y_average(self):
         """The y-data of the average spectrum"""
         return np.mean(self.y, axis=0)
-
-    @property
-    def plotter(self):
-        """The default plotter for Measurement is ValuePlotter."""
-        if not self._plotter:
-            from .plotters.spectrum_plotter import SpectrumSeriesPlotter
-
-            # FIXME: I had to import here to avoid running into circular import issues
-
-            self._plotter = SpectrumSeriesPlotter(spectrum_series=self)
-        return self._plotter

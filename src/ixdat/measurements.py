@@ -211,7 +211,7 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        obj = reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
+        obj = reader.read(path_to_file, cls=cls, **kwargs)  # TODO: take cls as kwarg
 
         if obj.__class__.essential_series_names:
             for series_name in obj.__class__.essential_series_names:
@@ -266,9 +266,9 @@ class Measurement(Saveable):
             cls.read(f, reader=reader, **kwargs) for f in file_list
         ]
 
-        if base_name and "name" not in kwargs:
-            kwargs["name"] = base_name
-        measurement = cls.from_component_measurements(component_measurements, **kwargs)
+        measurement = None
+        for meas in component_measurements:
+            measurement = measurement + meas if measurement else meas
         return measurement
 
     @classmethod

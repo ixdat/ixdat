@@ -110,6 +110,9 @@ class BiologicMPTReader:
 
         path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
 
+        if issubclass(ECMeasurement, cls):
+            cls = ECMeasurement
+
         if self.file_has_been_read:
             print(
                 f"This {self.__class__.__name__} has already read {self.path_to_file}."

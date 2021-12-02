@@ -1,4 +1,5 @@
 from .ec import ECMeasurement
+from ..plotters.sec_plotter import SECPlotter
 from ..spectra import Spectrum
 from ..data_series import Field, ValueSeries
 import numpy as np
@@ -17,6 +18,8 @@ class SpectroECMeasurement(ECMeasurement):
         self.plot_wavelengths = self.plotter.plot_wavelengths
         self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
         self.technique = "S-EC"
+        self.plotter = SECPlotter(measurement=self)
+        self.exporter = SECExporter(measurement=self)
 
     @property
     def reference_spectrum(self):
@@ -74,23 +77,6 @@ class SpectroECMeasurement(ECMeasurement):
     def wl(self):
         """A numpy array with the wavelengths in [nm] for the SEC spectra"""
         return self.wavelength.data
-
-    @property
-    def plotter(self):
-        """The default plotter for SpectroECMeasurement is SECPlotter"""
-        if not self._plotter:
-            from ..plotters.sec_plotter import SECPlotter
-
-            self._plotter = SECPlotter(measurement=self)
-
-        return self._plotter
-
-    @property
-    def exporter(self):
-        """The default plotter for SpectroECMeasurement is SECExporter"""
-        if not self._exporter:
-            self._exporter = SECExporter(measurement=self)
-        return self._exporter
 
     def calc_dOD(self, V_ref=None, t_ref=None, index_ref=None):
         """Calculate the optical density with respect to a reference

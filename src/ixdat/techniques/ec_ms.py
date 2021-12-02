@@ -5,6 +5,7 @@ from .ec import ECMeasurement
 from .ms import MSMeasurement, MSCalResult
 from .cv import CyclicVoltammagram
 from ..exporters.ecms_exporter import ECMSExporter
+from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..db import Saveable  # FIXME: doesn't belong here.
 import json  # FIXME: doesn't belong here.
@@ -20,13 +21,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             "mass_aliases",
             "signal_bgs",
             "ec_technique",
-            "RE_vs_RHE",
-            "R_Ohm",
-            "raw_potential_names",
-            "A_el",
-            "raw_current_names",
         },
     }
+    default_plotter = ECMSPlotter
+    default_exporter = ECMSExporter
 
     def __init__(self, **kwargs):
         if "calibration" in kwargs and kwargs["calibration"]:
@@ -53,23 +51,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ms_kwargs.update(component_measurements=kwargs["component_measurements"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
-
-    @property
-    def plotter(self):
-        """The default plotter for ECMSMeasurement is ECMSPlotter"""
-        if not self._plotter:
-            from ..plotters.ecms_plotter import ECMSPlotter
-
-            self._plotter = ECMSPlotter(measurement=self)
-
-        return self._plotter
-
-    @property
-    def exporter(self):
-        """The default plotter for ECMSMeasurement is ECMSExporter"""
-        if not self._exporter:
-            self._exporter = ECMSExporter(measurement=self)
-        return self._exporter
 
     def as_dict(self):
         self_as_dict = super().as_dict()
@@ -209,13 +190,10 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
             "mass_aliases",
             "signal_bgs",
             "ec_technique",
-            "RE_vs_RHE",
-            "R_Ohm",
-            "raw_potential_names",
-            "A_el",
-            "raw_current_names",
         },
     }
+    default_plotter = ECMSPlotter
+    default_exporter = ECMSExporter
 
     def __init__(self, **kwargs):
         """FIXME: Passing the right key-word arguments on is a mess"""
@@ -232,23 +210,6 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         self.plot = self.plotter.plot_vs_potential
         # FIXME: only necessary because an ECMSCalibration is not seriealizeable.
         self.calibration = kwargs.get("calibration", None)
-
-    @property
-    def plotter(self):
-        """The default plotter for ECMSCyclicVoltammogram is ECMSPlotter"""
-        if not self._plotter:
-            from ..plotters.ecms_plotter import ECMSPlotter
-
-            self._plotter = ECMSPlotter(measurement=self)
-
-        return self._plotter
-
-    @property
-    def exporter(self):
-        """The default plotter for ECMSCyclicVoltammogram is ECMSExporter"""
-        if not self._exporter:
-            self._exporter = ECMSExporter(measurement=self)
-        return self._exporter
 
     def as_dict(self):
         self_as_dict = super().as_dict()

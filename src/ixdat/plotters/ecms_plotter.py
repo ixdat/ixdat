@@ -25,10 +25,10 @@ class ECMSPlotter(MPLPlotter):
         tspan_bg=None,
         removebackground=None,
         unit=None,
-        V_str=None,
+        V_str=None,  # TODO: Depreciate, replace with v_name, j_name
         J_str=None,
         V_color="k",
-        J_color="r",
+        J_color="r",  # TODO: Depreciate, replace with v_name, j_name
         logplot=None,
         legend=True,
         emphasis="top",
@@ -107,10 +107,10 @@ class ECMSPlotter(MPLPlotter):
                 measurement=measurement,
                 axes=[axes[1], axes[2]],
                 tspan=tspan,
-                V_str=V_str,
-                J_str=J_str,
-                V_color=V_color,
-                J_color=J_color,
+                v_name=V_str,
+                j_name=J_str,
+                v_color=V_color,
+                j_color=J_color,
                 **kwargs,
             )
         if (

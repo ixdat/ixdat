@@ -9,6 +9,15 @@ from .ec_ms_pkl import measurement_from_ec_ms_dataset
 
 ZILIEN_TIMESTAMP_FORM = "%Y-%m-%d %H_%M_%S"  # like 2021-03-15 18_50_10
 
+ZILIEN_LEGACY_ALIASES = {
+    # TODO: These should change to what Zilien calls them. Right now the alias's
+    #   reflect the way the lagacy EC_MS code renames essential series
+    "t": ["time/s"],
+    "raw_potential": ["Ewe/V", "<Ewe>/V"],
+    "raw_current": ["I/mA", "<I>/mA"],
+    "cycle": ["cycle number"],
+}
+
 
 class ZilienTSVReader:
     """Class for reading files saved by Spectro Inlets' Zilien software"""
@@ -44,6 +53,7 @@ class ZilienTSVReader:
             name=name,
             reader=self,
             technique=technique,
+            aliases=ZILIEN_LEGACY_ALIASES,
             **kwargs,
         )
 

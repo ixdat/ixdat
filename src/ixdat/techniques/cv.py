@@ -7,6 +7,7 @@ from .analysis_tools import (
     calc_sharp_v_scan,
     find_signed_sections,
 )
+from ..plotters.ec_plotter import CVDiffPlotter
 
 
 class CyclicVoltammagram(ECMeasurement):
@@ -324,13 +325,4 @@ class CyclicVoltammagramDiff(CyclicVoltammagram):
         super().__init__(*args, **kwargs)
         self.plot = self.plotter.plot
         self.plot_diff = self.plotter.plot_diff
-
-    @property
-    def plotter(self):
-        """The default plotter for CyclicVoltammagramDiff is CVDiffPlotter"""
-        if not self._plotter:
-            from ..plotters.ec_plotter import CVDiffPlotter
-
-            self._plotter = CVDiffPlotter(measurement=self)
-
-        return self._plotter
+        self.plotter = CVDiffPlotter(measurement=self)

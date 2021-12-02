@@ -6,7 +6,10 @@ path_to_file = (
     / "mass scan started at measurement time 0001700.tsv"
 )
 
-spec = Spectrum.read(path_to_file, reader="zilien_spec",)
+spec = Spectrum.read(
+    path_to_file,
+    reader="zilien_spec",
+)
 
 spec.plot(color="k")
 

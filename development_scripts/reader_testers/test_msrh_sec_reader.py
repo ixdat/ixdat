@@ -35,9 +35,17 @@ sec_reloaded.set_reference_spectrum(V_ref=0.66)
 
 sec_reloaded.plot_vs_potential(cmap_name="jet")
 
-axes = sec_meas.plot_measurement(V_ref=0.4, cmap_name="jet", make_colorbar=True,)
+axes = sec_meas.plot_measurement(
+    V_ref=0.4,
+    cmap_name="jet",
+    make_colorbar=True,
+)
 
-ax = sec_meas.plot_waterfall(V_ref=0.4, cmap_name="jet", make_colorbar=True,)
+ax = sec_meas.plot_waterfall(
+    V_ref=0.4,
+    cmap_name="jet",
+    make_colorbar=True,
+)
 ax.get_figure().savefig("sec_waterfall.png")
 
 axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=False)

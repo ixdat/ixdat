@@ -28,6 +28,7 @@ class MSMeasurement(Measurement):
             "signal_bgs",
         },
     }
+    default_plotter = MSPlotter
 
     def __init__(
         self,
@@ -260,13 +261,6 @@ class MSMeasurement(Measurement):
                 return next(k for k, v in self.mass_aliases.items() if v == item)
             except StopIteration:
                 raise TypeError(f"{self} does not recognize '{item}' as a mass.")
-
-    @property
-    def plotter(self):
-        """The default plotter for MSMeasurement is MSPlotter"""
-        if not self._plotter:
-            self._plotter = MSPlotter(measurement=self)
-        return self._plotter
 
 
 class MSCalResult(Saveable):
