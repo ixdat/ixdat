@@ -1,40 +1,75 @@
-"""This module defines the Dataset class, the central data structure of ixdat
+"""This module defines the Measurement class, the central data structure of ixdat
 
-An ixdat Dataset is a collection of references to DataSeries with the metadata required
+An ixdat Measurement is a collection of references to DataSeries with the metadata needed
 to combine them, i.e. "build" the combined dataset. It has a number of general methods
-to visualize and analyze the combined dataset. Dataset is also the base class for a
-number of technique-specific Dataset-derived classes.
+to visualize and analyze the combined dataset. Measurement is also the base class for a
+number of technique-specific Measurement-derived classes.
+
+A Measurement will typically be accompanied by one or more Calibration. This module
+also defines the base class for Calibration, while technique-specific Calibration
+classes will be defined in the corresponding module in ./techniques/
 """
 from pathlib import Path
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject
-from .data_series import DataSeries, TimeSeries, ValueSeries
-from .projects.samples import Sample
-from .projects.lablogs import LabLog
+from .db import Saveable, PlaceHolderObject, fill_object_list
+from .data_series import (
+    DataSeries,
+    TimeSeries,
+    ValueSeries,
+    ConstantValue,
+    append_series,
+    time_shifted,
+    get_tspans_from_mask,
+)
+from .samples import Sample
+from .lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
-from .exceptions import BuildError, SeriesNotFoundError  # , TechniqueError
+from .plotters.value_plotter import ValuePlotter
+from .exceptions import BuildError, SeriesNotFoundError
 
 
 class Measurement(Saveable):
     """The Measurement class"""
 
+    # ------ table description class attributes --------
     table_name = "measurement"
     column_attrs = {
         "name",
         "technique",
         "metadata",
+        "aliases",
         "sample_name",
         "tstamp",
     }
     extra_linkers = {
-        "measurement_series": ("data_series", "s_ids"),
         "component_measurements": ("measurements", "m_ids"),
+        "measurement_calibrations": ("calibration", "c_ids"),
+        "measurement_series": ("data_series", "s_ids"),
     }
+    child_attrs = ["component_measurements", "calibration_list", "series_list"]
+    # TODO: child_attrs should be derivable from extra_linkers?
 
-    sel_str = None  # the default thing to select on.
-    #  FIXME: this is here because otherwise MSMeasurement.__init__ overwrites what it
-    #   gets set to by ECMeasurement.__init__ in ECMSMeasurement.__init__
+    # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
+    control_technique_name = None
+    """Name of the control technique primarily used to control the experiment"""
+    control_series_name = None
+    """Name (or alias) for main time variable or main time-dependent value variable,
+    typically of the control technique"""
+    selector_name = "selector"
+    """Name of the default selector"""
+    selection_series_names = ("file_number",)
+    """Name of the default things to use to construct the selector"""
+    series_constructors = {
+        "file_number": "_build_file_number_series",
+        "selector": "_build_selector_series",
+    }
+    """Series which should be constructed from other series by the specified method
+    and cached the first time they are looked up"""
+    essential_series_names = None
+    """Series which should always be present"""
+    default_plotter = ValuePlotter
+    default_exporter = CSVExporter
 
     def __init__(
         self,
@@ -43,8 +78,11 @@ class Measurement(Saveable):
         metadata=None,
         s_ids=None,
         series_list=None,
+        c_ids=None,
+        calibration_list=None,
         m_ids=None,
         component_measurements=None,
+        aliases=None,
         reader=None,
         plotter=None,
         exporter=None,
@@ -61,11 +99,15 @@ class Measurement(Saveable):
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
             series_list (list of DataSeries): The measurement's DataSeries
+            c_ids (list of int): The id's of the measurement's Calibrations, if
+                to be loaded (instead of given directly in calibration_list)
+            calibration_list: The measurement's Calibrations
             m_ids (list of int): The id's of the component measurements, if to be
                 loaded. None unless this is a combined measurement (typically
                 corresponding to more than one file).
             component_measurements (list of Measurements): The measurements of which
                 this measurement is a combination
+            aliases (dict): Alternative names for DataSeries for versatile access
             reader (Reader): The file reader (None unless read from a file)
             plotter (Plotter): The visualization tool for the measurement
             exporter (Exporter): The exporting tool for the measurement
@@ -79,8 +121,6 @@ class Measurement(Saveable):
         self.technique = technique
         self.metadata = metadata or {}
         self.reader = reader
-        self._plotter = plotter
-        self._exporter = exporter
         if isinstance(sample, str):
             sample = Sample.load_or_make(sample)
         self.sample = sample
@@ -91,11 +131,20 @@ class Measurement(Saveable):
         self._component_measurements = fill_object_list(
             component_measurements, m_ids, cls=Measurement
         )
+        self._calibration_list = fill_object_list(
+            calibration_list, c_ids, cls=Calibration
+        )
         self.tstamp = tstamp
 
+        self._cached_series = {}
+        self._aliases = aliases or {}
+
+        self.plotter = plotter or self.__class__.default_plotter(measurement=self)
+        self.exporter = exporter or self.__class__.default_exporter(measurement=self)
         # defining these methods here gets them the right docstrings :D
         self.plot_measurement = self.plotter.plot_measurement
         self.plot = self.plotter.plot_measurement
+        self.export = self.exporter.export
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -121,7 +170,8 @@ class Measurement(Saveable):
         #   obj_as_dict can be passed to __init__.
         #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
         #       DataSeries.unit_name) and as such should be moved to db.Saveable
-        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372
+        #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372.
+        #       Will be fixed with the table definition PR.
         objects_saved_as_their_name = [
             "sample",
         ]
@@ -143,11 +193,8 @@ class Measurement(Saveable):
         else:
             # Normally, we're going to want to make sure that we're in
             technique_class = cls
-
-        if technique_class is cls:
-            return cls(**obj_as_dict)
-        else:  # Then its from_dict() might have more than ours:
-            return technique_class.from_dict(obj_as_dict)
+        measurement = technique_class(**obj_as_dict)
+        return measurement
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -164,8 +211,18 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        # print(f"{__name__}. cls={cls}")  # debugging
-        return reader.read(path_to_file, cls=cls, **kwargs)
+        obj = reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
+
+        if obj.__class__.essential_series_names:
+            for series_name in obj.__class__.essential_series_names:
+                try:
+                    _ = obj[series_name]  # this also caches it.
+                except SeriesNotFoundError:
+                    raise SeriesNotFoundError(
+                        f"{reader} loaded without {obj.__class__.__name__} "
+                        f"essential series '{series_name}'"
+                    )
+        return obj
 
     @classmethod
     def read_url(cls, url, reader, **kwargs):
@@ -323,68 +380,86 @@ class Measurement(Saveable):
             return self.sample.name
 
     @property
-    def series_list(self):
-        """List of the DataSeries containing the measurement's data"""
-        for i, s in enumerate(self._series_list):
-            if isinstance(s, PlaceHolderObject):
-                self._series_list[i] = s.get_object()
-        return self._series_list
-
-    @property
-    def data_objects(self):
-        """This is what the DB backend knows to save separately, here the series"""
-        # TimeSeries have to go first, so that ValueSeries are saved with the right t_id!
-        data_object_list = self.time_series
-        for s in self.series_list:
-            if s not in data_object_list:
-                if s.tseries not in data_object_list:
-                    # FIXME: some tseries, likely with duplicate data, seem to not
-                    #  make it into series_list
-                    data_object_list.append(s.tseries)
-                data_object_list.append(s)
-        return data_object_list
-
-    @property
     def component_measurements(self):
         """List of the component measurements of which this measurement is a combination
 
         For a pure measurement (not a measurement set), this is itself in a list.
         """
-        if not self._component_measurements:
-            return [
-                self,
-            ]
         for i, m in enumerate(self._component_measurements):
             if isinstance(m, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
                 self._component_measurements[i] = m.get_object()
         return self._component_measurements
 
     @property
-    def s_ids(self):
-        """List of the id's of the measurement's DataSeries"""
-        return [series.id for series in self._series_list]
-
-    @property
     def m_ids(self):
-        """List of the id's of a combined measurement's component measurements"""
+        """List of the id's of a combined measurement's component measurements
+        FIXME: m.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
+            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+        """
         if not self._component_measurements:
             return None
-        return [m.id for m in self._component_measurements]
+        return [m.short_identity for m in self.component_measurements]
 
     @property
-    def series_dict(self):
-        """Dictionary mapping the id's of the measurement's series to the DataSeries"""
-        return {(s.id, s.backend_name): s for s in self.series_list}
+    def calibration_list(self):
+        """List of calibrations (with placeholders filled)"""
+        for i, c in enumerate(self._calibration_list):
+            if isinstance(c, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
+                self._calibration_list[i] = c.get_object()
+        return self._calibration_list
+
+    @property
+    def calibrations(self):
+        """For overriding: List of calibrations with any needed manipulation done."""
+        return self.calibration_list
+
+    @property
+    def c_ids(self):
+        """List of the id's of the measurement's Calibrations
+        FIXME: c.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
+             see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+        """
+        return [c.short_identity for c in self.calibration_list]
+
+    def add_calibration(self, calibration):
+        self._calibration_list = [calibration] + self._calibration_list
+
+    @property
+    def series_list(self):
+        """List of the DataSeries containing the measurement's data"""
+        for i, s in enumerate(self._series_list):
+            if isinstance(s, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
+                self._series_list[i] = s.get_object()
+        return self._series_list
+
+    @property
+    def s_ids(self):
+        """List of the id's of the measurement's DataSeries
+        FIXME: m.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
+            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+        """
+        return [series.short_identity for series in self._series_list]
 
     @property
     def series_names(self):
-        """List of the names of the series in the measurement"""
+        """Set of the names of the series in the measurement"""
         return set([series.name for series in self.series_list])
 
     @property
     def value_names(self):
-        """List of the names of the VSeries in the measurement's DataSeries"""
+        """Set of the names of the VSeries in the measurement's DataSeries"""
         return set([vseries.name for vseries in self.value_series])
+
+    @property
+    def time_names(self):
+        """Set of the names of the VSeries in the measurement's DataSeries"""
+        return set([tseries.name for tseries in self.time_series])
 
     @property
     def value_series(self):
@@ -394,60 +469,193 @@ class Measurement(Saveable):
         ]
 
     @property
-    def time_names(self):
-        """List of the names of the VSeries in the measurement's DataSeries"""
-        return set([tseries.name for tseries in self.time_series])
-
-    @property
     def time_series(self):
         """List of the TSeries in the measurement's DataSeries. NOT timeshifted!"""
         return [series for series in self.series_list if isinstance(series, TimeSeries)]
 
-    def __getitem__(self, item):
-        """Return the built measurement DataSeries with its name specified by item
+    @property
+    def aliases(self):
+        """Dictionary of {key: series_names} pointing to where desired raw data is
 
-        The item is interpreted as the name of a series. VSeries names can have "-v"
-        or "-y" as a suffix. The suffix "-t" or "-x" to a VSeries name can be used to
-        get instead its corresponding TSeries. In any case, if there are more than one
-        series with the name specified by item, they are appended. The timestamp is
-        always shifted to the measurement's tstamp
+        TODO: get the possible aliases based on calibrations, etc, in here.
+        """
+        return self._aliases.copy()
+
+    def get_series_names(self, key):
+        """Return list: series names for key found by (recursive) lookup in aliases"""
+        keys = [key] if key in self.series_names else []
+        for k in self.aliases.get(key, []):
+            keys += self.get_series_names(k)
+        return keys
+
+    def __getitem__(self, key):
+        """Return the built measurement DataSeries with its name specified by key
+
+        This method does the following:
+        1. check if `key` is in in the cache. If so return the cached data series
+        2. find or build the desired data series by the first possible of:
+            A. Check if `key` corresponds to a method in `series_constructors`. If
+                so, build the data series with that method.
+            B. Check if the `calibration`'s `calibrate_series` returns a data series
+                for `key` given the data in this measurement. (Note that the
+                `calibration` will typically start with raw data looked C, below.)
+            C. Generate a list of data series and append them:
+                i. Check if `key` is in `aliases`. If so, append all the data series
+                    returned for each key in `aliases[key]`.
+                ii. Otherwise, check if there are data series in `series_list` that
+                    have `key` as their `name`. If so, append them.
+            D. Finally, check if the user is using a suffix.
+                i. If `key` ends with "-y" or "-v", look it up with the suffix removed.
+                ii. If `key` ends with "-x" or "-t", look up `key` with the suffix
+                    removed and use instead the corresponding `tseries`.
+        3. Cache and return the data series found or built in (2).
+
+        Step (2) above, the searching step, is outsourced to the method
+        `get_series(key)`.
+        Notice that some calls of `__getitem__` can be recursive. For example, we
+        suppose that a new `ECMeasurement` is read from a source that calls raw
+        potential `Ewe/V`, and that this measurement is then calibrated:
+
+        >>> ec_meas = Measurement.read(...)
+        >>> ec_meas.aliases
+        {..., 'raw_potential': ['Ewe/V'], ...}
+        >>> ec_meas["raw_potential"]  # first lookup, explained below
+        ValueSeries("Ewe/V", ...)
+        >>> ec_meas.calibrate_RE(RE_vs_RHE=0.7)
+        >>> ec_meas["potential"]   # second lookup, explained below
+        ValueSeries("U_{RHE} / [V]", ...)
+
+        - The first lookup, with `key="raw_potential"`, (1) checks for
+        "raw_potential" in the cache, doesn't find it; then (2A) checks in
+        `series_constructors`, doesn't find it; (2B) asks the calibration for
+        "raw_potential" and doesn't get anything back; and finally (2Ci) checks
+        `aliases` for raw potential where it finds that "raw_potential" is called
+        "Ewe/V". Then it looks up again, this time with `key="Ewe/V"`, which it doesn't
+        find in (1) the cache, (2A) `series_consturctors`, (2B) the calibration, or
+        (2Ci) `aliases`, but does find in (2Cii) `series_list`. There is only one
+        data series named "Ewe/V" so no appending is necessary, but it does ensure that
+        the series has the measurement's `tstamp` before cache'ing and returning it.
+        Now we're back in the original lookup, from which __getitem__ (3) caches
+        the data series (which still has the name "Ewe/V") as "raw_potential" and
+        returns it.
+        - The second lookup, with `key="potential"`, (1) checks for "potential" in the
+        cache, doesn't find it; then (2A) checks in `series_constructors`, doesn't find
+        it; and then (2B) asks the calibration for "potential". The calibration knows
+        that when asked for "potential" it should look for "raw_potential" and add
+        `RE_vs_RHE`. So it does a lookup with `key="raw_potential"` and (1) finds it
+        in the cache. The calibration does the math and returns a new data series for
+        the calibrated potential, bringing us back to the original lookup. The data
+        series returned by the calibration is then (3) cached and returned to the user.
+
+        Note that, if the user had not looked up "raw_potential" before looking up
+        "potential", "raw_potential" would not have been in the cache and the first
+        lookup above would have been nested in the second.
 
         Args:
-            item (str): The name of a DataSeries (see above)
+            key (str): The name of a DataSeries (see above)
+        Raises:
+            SeriesNotFoundError if none of the above lookups find the key.
+        Side-effects:
+            if key is not already in the cache, it gets added
+        Returns:
+            The (calibrated) (appended) dataseries for key with the right t=0.
         """
-        ss = [s for s in self.series_list if s.name == item]
-        if len(ss) == 1:
-            s = ss[0]
-        elif len(ss) > 1:
-            s = append_series(ss)
-        elif item[-2:] in ["-t", "-x", "-v", "-y"]:
-            ss = [s for s in self.series_list if s.name == item[:-2]]
-            if len(ss) == 1:
-                s = ss[0]
-            else:
-                s = append_series(ss)
-        else:
-            raise SeriesNotFoundError(f"{self} has no series called {item}")
-        if hasattr(s, "tstamp") and not s.tstamp == self.tstamp:
-            s = time_shifted(s, self.tstamp)
-        return s
+        # step 1
+        if key in self._cached_series:
+            return self._cached_series[key]
+        # step 2
+        series = self.get_series(key)
+        # Finally, wherever we found the series, cache it and return it.
+        # step 3.
+        self._cached_series[key] = series
+        return series
 
-    def __setitem__(self, series_name, series):
-        """Append `series` with name=`series_name` to `series_list` and remove others."""
-        if not series.name == series_name:
-            raise SeriesNotFoundError(
-                f"Can't set {self}[{series_name}] = {series}. Series names don't agree."
+    def get_series(self, key):
+        """Find or build the data series corresponding to key without direct cache'ing
+
+        See more detailed documentation under `__getitem__`, for which this is a
+        helper method. This method (A) looks for a method for `key` in the measurement's
+        `series_constructors`; (B) requests its `calibration` for `key`; and if those
+        fails appends the data series that either (Ci) are returned by looking up the
+        key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
+        user was using a key with a suffix.
+
+        Args:
+            key (str): The key to look up
+
+        Returns DataSeries: the data series corresponding to key
+        Raises SeriesNotFoundError if no series found for key
+        """
+        # A
+        if key in self.series_constructors:
+            return getattr(self, self.series_constructors[key])()
+        # B
+        for calibration in self.calibrations:
+            series = calibration.calibrate_series(key, measurement=self)
+            # ^ the calibration will call __getitem__ with the name of the
+            #   corresponding raw data and return a new series with calibrated data
+            #   if possible. Otherwise it will return None.
+            if series:
+                return series
+        # C
+        series_to_append = []
+        if key in self.aliases:  # i
+            # Then we'll look up the aliases instead and append them
+            for k in self.aliases[key]:
+                try:
+                    series_to_append.append(self[k])
+                except SeriesNotFoundError:
+                    continue
+        elif key in self.series_names:  # ii
+            # Then we'll append any series matching the desired name
+            series_to_append += [s for s in self.series_list if s.name == key]
+        # If the key is something in the data, by now we have series to append.
+        if series_to_append:
+            # the following if's are to do as little extra manipulation as possible:
+            if len(series_to_append) == 1:  # no appending needed
+                if series_to_append[0].tstamp == self.tstamp:  # no time-shifting needed
+                    return series_to_append[0]
+                return time_shifted(series_to_append[0], tstamp=self.tstamp)
+            return append_series(series_to_append, name=key, tstamp=self.tstamp)
+        # D
+        if key.endswith("-t") or key.endswith("-x"):
+            return self[key[:-2]].tseries
+        if key.endswith("-v") or key.endswith("-y"):
+            return self[key[:-2]]
+
+        raise SeriesNotFoundError(f"{self} does not contain '{key}'")
+
+    def replace_series(self, series_name, new_series=None):
+        """Remove an existing series, add a series to the measurement, or both.
+
+        FIXME: This will not appear to change the series for the user if the
+            measurement's calibration returns something for ´series_name´, since
+            __getitem__ asks the calibration before looking in series_list.
+
+        Args:
+            series_name (str): The name of a series. If the measurement has (raw) data
+                series with this name, cached series with this name, and/or aliases for
+                this name, they will be removed.
+            new_series (DataSeries): Optional new series to append to the measurement's
+                series_list. To sanity check, it must have ´series_name´ as its ´name´.
+        """
+        if new_series and not series_name == new_series.name:
+            raise TypeError(
+                f"Cannot replace {series_name} in {self} with {new_series}. "
+                f"Names must agree."
             )
-        del self[series_name]
-        self.series_list.append(series)
-
-    def __delitem__(self, series_name):
-        """Remove all series which have `series_name` as their name from series_list"""
-        new_series_list = []
-        for s in self.series_list:
-            if not s.name == series_name:
-                new_series_list.append(s)
+        if series_name in self._cached_series:
+            del self._cached_series[series_name]
+        if series_name in self._aliases:
+            del self._aliases[series_name]
+        new_series_list = [s for s in self.series_list if not s.name == series_name]
+        if new_series:
+            new_series_list.append(new_series)
         self._series_list = new_series_list
+
+    def clear_cache(self):
+        """Clear the cache so derived series are constructed again with updated info"""
+        self._cached_series = {}
 
     def correct_data(self, value_name, new_data):
         """Replace the old data for ´value_name´ (str) with ´new_data` (np array)"""
@@ -458,7 +666,7 @@ class Measurement(Saveable):
             data=new_data,
             tseries=old_vseries.tseries,
         )
-        self[value_name] = new_vseries
+        self.replace_series(value_name, new_vseries)
 
     def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
         """Return a value vector with the corresponding time vector
@@ -543,43 +751,119 @@ class Measurement(Saveable):
         return np.trapz(v, t)
 
     @property
+    def t(self):
+        return self[self.control_series_name].t
+
+    @property
+    def t_name(self):
+        return self[self.control_series_name].tseries.name
+
+    def _build_file_number_series(self):
+        """Build a `file_number` series based on component measurements times."""
+        series_to_append = []
+        for i, m in enumerate(self.component_measurements):
+            if (
+                self.control_technique_name
+                and not m.technique == self.control_technique_name
+            ):
+                continue
+            if not self.control_series_name:
+                tseries = m.time_series[0]
+            else:
+                try:
+                    tseries = m[self.control_series_name].tseries
+                except KeyError:
+                    continue
+            series_to_append.append(
+                ConstantValue(name="file_number", unit_name="", data=i, tseries=tseries)
+            )
+        return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
+
+    def _build_selector_series(
+        self, selector_string=None, col_list=None, extra_col_list=None
+    ):
+        """Build a `selector` series which demarcates the data.
+
+        The `selector` is a series which can be used to conveniently and powerfully
+        grab sections of the data. It is built up from less powerful demarcation series
+        in the raw data (like `cycle_number`, `step_number`, `loop_number`, etc) and
+        `file_number` by counting the cumulative changes in those series.
+        See slide 3 of:
+        https://www.dropbox.com/s/sjxzr52fw8yml5k/21E18_DWS3_cont.pptx?dl=0
+
+        Args:
+            selector_string (str): The name to use for the selector series
+            col_list (list): The list of demarcation series. The demarcation series have
+                to have the same tseries, which should be the one pointed to by the
+                meausrement's `control_series_name`.
+            extra_col_list (list): Extra demarcation series to include if needed.
+        """
+        # the name of the selector series:
+        selector_string = selector_string or self.selector_name
+        # a vector that will be True at the points where a series changes:
+        changes = np.tile(False, self.t.shape)
+        # the names of the series which help demarcate the data
+        col_list = col_list or self.selection_series_names
+        if extra_col_list:
+            col_list += extra_col_list
+        for col in col_list:
+            try:
+                vseries = self[col]
+            except SeriesNotFoundError:
+                continue
+            values = vseries.data
+            if len(values) == 0:
+                print("WARNING: " + col + " is empty")
+                continue
+            elif not len(values) == len(changes):
+                print("WARNING: " + col + " has an unexpected length")
+                continue
+            # a vector which is shifted one.
+            last_value = np.append(values[0], values[:-1])
+            # comparing value and last_value shows where in the vector changes occur:
+            changes = np.logical_or(changes, last_value != values)
+        # taking the cumsum makes a vector that increases 1 each time one of the
+        #   original demarcation vector changes
+        selector_data = np.cumsum(changes)
+        selector_series = ValueSeries(
+            name=selector_string,
+            unit_name="",
+            data=selector_data,
+            tseries=self[self.control_series_name].tseries,
+        )
+        return selector_series
+
+    @property
+    def selector(self):
+        return self[self.selector_name]
+
+    @property
     def data_cols(self):
         """Return a set of the names of all of the measurement's VSeries and TSeries"""
         return set([s.name for s in (self.value_series + self.time_series)])
 
-    @property
-    def plotter(self):
-        """The default plotter for Measurement is ValuePlotter."""
-        if not self._plotter:
-            from .plotters import ValuePlotter
-
-            # FIXME: I had to import here to avoid running into circular import issues
-
-            self._plotter = ValuePlotter(measurement=self)
-        return self._plotter
-
-    @property
-    def exporter(self):
-        """The default exporter for Measurement is CSVExporter."""
-        if not self._exporter:
-            self._exporter = CSVExporter(measurement=self)
-        return self._exporter
-
-    def export(self, *args, exporter=None, **kwargs):
-        """Export the measurement using its exporter (see its Exporter for details)"""
-        if exporter:
-            return exporter.export_measurement(self, *args, **kwargs)
-        return self.exporter.export(*args, **kwargs)
-
-    def get_original_m_id_of_series(self, series):
-        """Return the id(s) of component measurements to which `series` belongs."""
+    def get_original_m_ids_of_series(self, series):
+        """Return a list of id's of component measurements to which `series` belongs."""
         m_id_list = []
         for m in self.component_measurements:
-            if series.id in m.s_ids:
+            if series.short_identity in m.s_ids:
+                # FIXME: the whole id vs short_identity issue
+                #   see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
                 m_id_list.append(m.id)
-        if len(m_id_list) == 1:
-            return m_id_list[0]
         return m_id_list
+
+    @property
+    def tspan(self):
+        """The minimum timespan (with respect to self.tstamp) containing all the data"""
+        t_start = None
+        t_finish = None
+        if not self.time_names:  # No TimeSeries in the measurement means no tspan.
+            return None
+        for t_name in self.time_names:
+            t = self[t_name].data
+            t_start = min(t_start, t[0]) if t_start else t[0]
+            t_finish = max(t_finish, t.data[-1]) if t_finish else t[-1]
+        return [t_start, t_finish]
 
     def cut(self, tspan, t_zero=None):
         """Return a new measurement with the data in the given time interval
@@ -590,13 +874,16 @@ class Measurement(Saveable):
                 time of the interval. Using tspan[-1] means you can directly use a
                 long time vector that you have at hand to describe the time interval
                 you're looking for.
-            t_zero (float or str): Where to put the tstamp of the returned measurement.
-                Default is to keep it the same as the present tstamp. If instead it is
-                a float, this adds the float to the present tstamp. If t_zero is "start",
-                tspan[0] is added to the present tstamp.
+            t_zero (float or str): The time in the measurement to set to t=0. If a
+                float, it is interpreted as wrt the original tstamp. String options
+                include "start", which puts t=0 at the start of the cut interval.
         """
+        # Start with self's dictionary representation, but
+        # we don't want original series (s_ids) or component_measurements (m_ids):
+        obj_as_dict = self.as_dict(exclude=["s_ids", "m_ids"])
+
+        # first, cut the series list:
         new_series_list = []
-        obj_as_dict = self.as_dict()
         time_cutting_stuff = {}  # {tseries_id: (mask, new_tseries)}
         for series in self.series_list:
             try:
@@ -606,18 +893,10 @@ class Measurement(Saveable):
             except AttributeError:  # series independent of time are uneffected by cut
                 new_series_list.append(series)
             else:
-                t_id = (tseries.id, tseries.backend_name)
-                # FIXME: Beautiful, met my first id clash here. Local memory and loaded
-                #    each had a timeseries with id=1, but different length. Previously
-                #    the above line of code was just t_id = tseries.id as you'd expect,
-                #    meaning that time_cutting_stuff appeared to already have the needed
-                #    tseries but didn't!
-                #    Note that the id together with the backend works but should be
-                #    replaced by a single Universal Unique Identifier, or perhaps just
-                #    a property `Saveable.uid`, returning `(self.id, self.backend_name)`
+                t_identity = tseries.full_identity
 
-                if t_id in time_cutting_stuff:
-                    mask, new_tseries = time_cutting_stuff[t_id]
+                if t_identity in time_cutting_stuff:
+                    mask, new_tseries = time_cutting_stuff[t_identity]
                 else:
                     t = tseries.t + tseries.tstamp - self.tstamp
                     mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
@@ -627,12 +906,12 @@ class Measurement(Saveable):
                         tstamp=tseries.tstamp,
                         data=tseries.data[mask],
                     )
-                    time_cutting_stuff[t_id] = (mask, new_tseries)
+                    time_cutting_stuff[t_identity] = (mask, new_tseries)
                 if True not in mask:
                     continue
                 if False not in mask:
                     new_series_list.append(series)
-                elif (series.id, series.backend_name) == t_id:
+                elif series.full_identity == t_identity:
                     new_series_list.append(new_tseries)
                 else:
                     new_series = series.__class__(
@@ -643,110 +922,161 @@ class Measurement(Saveable):
                     )
                     new_series_list.append(new_series)
         obj_as_dict["series_list"] = new_series_list
-        del obj_as_dict["s_ids"]
+
+        # then cut the component measurements.
+        new_component_measurements = []
+        for m in self._component_measurements:
+            # FIXME: This is perhaps overkill, to make new cut component measurements,
+            #    as it duplicates data (a big no)... especially bad because
+            #    new_measurement.save() saves them.
+            #    The step is here in order for file_number to get built correctly.
+            if not m.tspan:
+                # if it has no TimeSeries it must be a "constant". Best to include:
+                new_component_measurements.append(m)
+                continue
+            # Otherwise we have to cut it according to the present tspan.
+            dt = m.tstamp - self.tstamp
+            tspan_m = [tspan[0] - dt, tspan[1] - dt]
+            if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
+                continue
+            new_component_measurements.append(m.cut(tspan_m))
+        obj_as_dict["component_measurements"] = new_component_measurements
+
+        new_measurement = self.__class__.from_dict(obj_as_dict)
         if t_zero:
             if t_zero == "start":
-                t_zero = tspan[0]
-            obj_as_dict["tstamp"] += t_zero
-        new_measurement = self.__class__.from_dict(obj_as_dict)
+                new_measurement.tstamp += tspan[0]
+            else:
+                new_measurement.tstamp += t_zero
+        return new_measurement
+
+    def multicut(self, tspans):
+        """Return a selection of the measurement including each of the given tspans"""
+        # go through the tspans, cuting the measurement and appending the results
+        new_measurement = None
+        for tspan in tspans:
+            if new_measurement:
+                new_measurement = new_measurement + self.cut(tspan)
+            else:
+                new_measurement = self.cut(tspan)
         return new_measurement
 
     def select_value(self, *args, **kwargs):
-        """Return a new Measurement with the time(s) meeting criteria.
+        """Return a selection of the measurement where a criterion is matched.
+
+        Specifically, this method returns a new Measurement where the time(s) returned
+        are those where the values match the provided criteria, i.e. the part of the
+        measurement where `self[series_name] == value`
 
         Can only take one arg or kwarg!
-        The `series_name` is `self.sel_str` if given an arg, kw if given a kwarg.
+        The `series_name` is `self.selector_name` if given an argument without keyword.
+        If given a keyword argument, the kyword is the name of the series to select on.
         Either way the argument is the `value` to be selected for.
 
         The method finds all time intervals for which `self[series_name] == value`
         It then cuts the measurement according to each time interval and adds these
-        segments together. TODO: This can be done better, i.e. without chopping series.
-
-        TODO: greater-than and less-than kwargs.
+        segments together.
+        TODO: This can maybe be done better, i.e. without chopping series.
+        TODO: Some way of less than and greater than kwargs.
             Ideally you should be able to say e.g., `select(cycle=1, 0.5<potential<1)`
+            But this is hard,
+            see: https://github.com/ixdat/ixdat/pull/11#discussion_r677272239
         """
-        if len(args) >= 1:
-            if not self.sel_str:
+        if len(args) + len(kwargs) != 1:
+            raise BuildError("Need exactly 1 arg. Use `select_values` for more.")
+        if args:
+            if not self.selector_name:
                 raise BuildError(
                     f"{self} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
-            kwargs[self.sel_str] = args
-        if len(kwargs) > 1:
-            raise BuildError(
-                f"select_value got kwargs={kwargs} but can only be used for one value "
-                f"at a time. Use select_values for more."
-            )
-        new_measurement = self
+            kwargs[self.selector_name] = args[0]
+
         ((series_name, value),) = kwargs.items()
 
+        # The time and values of the series to be selected on:
         t, v = self.grab(series_name)
+        # This mask is true everywhere on `t` that the condition is met:
         mask = v == value  # linter doesn't realize this is a np array
-        mask_prev = np.append(False, mask[:-1])
-        mask_next = np.append(mask[1:], False)
-        interval_starts_here = np.logical_and(
-            np.logical_not(mask_prev), mask
-        )  # True at [0] if mask[0] is True.
-        interval_ends_here = np.logical_and(
-            mask, np.logical_not(mask_next)
-        )  # True at [-1] if mask[-1] is True.
-        t_starts = list(t[interval_starts_here])
-        t_ends = list(t[interval_ends_here])
-        tspans = zip(t_starts, t_ends)
-        meas = None
-        for tspan in tspans:
-            if meas:
-                meas = meas + new_measurement.cut(tspan)
-            else:
-                meas = new_measurement.cut(tspan)
-        new_measurement = meas
-        return new_measurement
+
+        # Now we have to convert that to timespans on which `t` is met. This means
+        #  finding the start and finish times of the intervals on which mask is True.
+        #  this is done with a helper function:
+        tspans = get_tspans_from_mask(t, mask)
+
+        # now we go through the tspans, cuting the measurement and appending the results:
+        return self.multicut(tspans)
 
     def select_values(self, *args, **kwargs):
-        """Return a new Measurement with the time(s) in the measurement meeting criteria
+        """Return a selection of the measurement based on one or several criteria
+
+        Specifically, this method returns a new Measurement where the time(s) returned
+        are those where the values match the provided criteria, i.e. the part of the
+        measurement where `self[series_name] == value`
+
+        TODO: Testing and documentation with examples like those suggested here:
+            https://github.com/ixdat/ixdat/pull/11#discussion_r677324246
 
         Any series can be selected for using the series name as a key-word. Arguments
         can be single acceptable values or lists of acceptable values. In the latter
         case, each acceptable value is selected for on its own and the resulting
         measurements added together.
-        FIXME: That is sloppy because it multiplies the number of DataSeries
-        FIXME:  containing the same amount of data.
-        If no key-word is given, the series name is assumed to
-        be the default selector, which is named by self.sel_str. Multiple criteria are
+        # FIXME: That is sloppy because it multiplies the number of DataSeries
+            containing the same amount of data.
+        Arguments without key-word are considered valid values of the default selector,
+        which is named by `self.selelector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
 
         Args:
-            args (tuple): Argument(s) given without key-word are understood as acceptable
+            args (tuple): Argument(s) given without keyword are understood as acceptable
                 value(s) for the default selector (that named by self.sel_str)
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
         """
-
-        if len(args) >= 1:
-            if not self.sel_str:
+        if args:
+            if not self.selector_name:
                 raise BuildError(
                     f"{self} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
-            if len(args) == 1:
-                args = args[0]
-            kwargs[self.sel_str] = args
-        new_measurement = self
+            flat_args = []
+            for arg in args:
+                if hasattr(arg, "__iter__"):
+                    flat_args += list(arg)
+                else:
+                    flat_args.append(arg)
+            if self.selector_name in kwargs:
+                raise BuildError(
+                    "Don't call select values with both arguments and "
+                    "'{self.selector_name}' as a key-word argument"
+                )
+            kwargs[self.selector_name] = flat_args
+
+        t = self.t
+        mask = np.tile(np.array([True]), t.shape)
         for series_name, allowed_values in kwargs.items():
             if not hasattr(allowed_values, "__iter__"):
                 allowed_values = [allowed_values]
-            meas = None
-            for value in allowed_values:
-                m = new_measurement.select_value(**{series_name: value})
-                if meas:
-                    meas = meas + m
-                else:
-                    meas = m
-            new_measurement = meas
-        return new_measurement
+            v = self.grab_for_t(series_name, t)
+            submask = np.tile(np.array([False]), t.shape)
+            for allowed_value in allowed_values:
+                submask = np.logical_or(submask, v == allowed_value)
+            mask = np.logical_and(mask, submask)
+
+        tspans = get_tspans_from_mask(t, mask)
+
+        return self.multicut(tspans)
 
     def select(self, *args, tspan=None, **kwargs):
-        """`cut` (with tspan) and `select_values` (with args and/or kwargs)."""
+        """`cut` (with tspan) and `select_values` (with *args and/or **kwargs).
+
+        These all work:
+        - `meas.select_values(1, 2)`
+        - `meas.select_values(tspan=[200, 300])`
+        - `meas.select_values(range(10))`
+        - `meas.select_values(cycle=4)`
+        - `meas.select_values(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
+        """
         new_measurement = self
         if tspan:
             new_measurement = new_measurement.cut(tspan=tspan)
@@ -754,16 +1084,9 @@ class Measurement(Saveable):
             new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
 
-    @property
-    def tspan(self):
-        """Return `(t_start, t_finish)` interval including all data in the measurement"""
-        t_start = None
-        t_finish = None
-        for tcol in self.time_names:
-            t = self[tcol].data
-            t_start = min(t_start, t[0]) if t_start else t[0]
-            t_finish = max(t_finish, t[-1]) if t_finish else t[-1]
-        return t_start, t_finish
+    def copy(self):
+        """Make a copy of the Measurement via its dictionary representation"""
+        return self.__class__.from_dict(self.as_dict())
 
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.
@@ -783,17 +1106,7 @@ class Measurement(Saveable):
         Note also that there is no difference between hyphenating (simultaneous EC and
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
-        TODO: Make sure with tests this is okay, differentiate using | operator if not.
         """
-
-        # First we prepare a dictionary for all but the series_list.
-        # This has both dicts, but prioritizes self's dict for all that appears twice.
-        obj_as_dict = self.as_dict()
-        other_as_dict = other.as_dict()
-        for k, v in other_as_dict.items():
-            # Looking forward to the "|" operator!
-            if k not in obj_as_dict:
-                obj_as_dict[k] = v
         new_name = self.name + " AND " + other.name
         new_technique = get_combined_technique(self.technique, other.technique)
 
@@ -808,16 +1121,40 @@ class Measurement(Saveable):
         else:
             cls = Measurement
 
-        new_series_list = self.series_list + other.series_list
-        new_component_measurements = (
-            self.component_measurements + other.component_measurements
+        new_series_list = list(set(self.series_list + other.series_list))
+        new_component_measurements = list(
+            set(
+                (self.component_measurements or [self])
+                + (other.component_measurements or [other])
+            )
         )
+        new_calibration_list = list(
+            set(self._calibration_list + other._calibration_list)
+        )
+        new_aliases = self.aliases.copy()
+        for key, names in other.aliases.items():
+            if key in new_aliases:
+                new_aliases[key] = list(set(new_aliases[key] + other.aliases[key]))
+            else:
+                new_aliases[key] = other.aliases[key]
+        obj_as_dict = self.as_dict()
+        other_as_dict = other.as_dict()
+        for k, v in other_as_dict.items():
+            # Looking forward to the "|" operator!
+            if k not in obj_as_dict:
+                obj_as_dict[k] = v
         obj_as_dict.update(
             name=new_name,
             technique=new_technique,
             series_list=new_series_list,
             component_measurements=new_component_measurements,
+            calibration_list=new_calibration_list,
+            aliases=new_aliases,
         )
+        # don't want the original calibrations, component measurements, or series:
+        del obj_as_dict["c_ids"]
+        del obj_as_dict["m_ids"]
+        del obj_as_dict["s_ids"]
         return cls.from_dict(obj_as_dict)
 
     def join(self, other, join_on=None):
@@ -835,139 +1172,63 @@ class Measurement(Saveable):
                 The variable described by join_on must be monotonically increasing in
                 both measurements.
         """
+        raise NotImplementedError
 
 
-#  ------- Now come a few module-level functions for series manipulation ---------
-# TODO: move to an `ixdat.build` module or similar.
-#   There's a lot of stuff that should go there. Basically anything in ECMeasurement
-#   that can be reasonably converted to a module level function to decrease the
-#   awkwardness there.
+class Calibration(Saveable):
+    """Base class for calibrations."""
 
+    table_name = "calibration"
+    column_attrs = {
+        "name",
+        "technique",
+        "tstamp",
+    }
 
-def append_series(series_list, sort=True, tstamp=None):
-    """Return series appending series_list relative to series_list[0].tseries.tstamp
+    def __init__(self, name=None, technique=None, tstamp=None, measurement=None):
+        """Initiate a Calibration
 
-    Args:
-        series_list (list of Series): The series to append (must all be of same type)
-        sort (bool): Whether to sort the data so that time only goes forward
-        tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
-    """
-    s0 = series_list[0]
-    if isinstance(s0, TimeSeries):
-        return append_tseries(series_list, sort=sort, tstamp=tstamp)
-    elif isinstance(s0, ValueSeries):
-        return append_vseries_by_time(series_list, sort=sort, tstamp=tstamp)
-    raise BuildError(
-        f"An algorithm of append_series for series like {s0} is not yet implemented"
-    )
+        Args:
+            name (str): The name of the calibration
+            technique (str): The technique of the calibration
+            tstamp (float): The time at which the calibration took place or is valid
+            measurement (Measurement): Optional. A measurement to calibrate by default.
+        """
+        super().__init__()
+        self.name = name or f"{self.__class__.__name__}({measurement})"
+        self.technique = technique
+        self.tstamp = tstamp or (measurement.tstamp if measurement else None)
+        self.measurement = measurement
 
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Return an object of the Calibration class of the right technique
 
-def append_vseries_by_time(series_list, sort=True, tstamp=None):
-    """Return new ValueSeries with the data in series_list appended
+        Args:
+              obj_as_dict (dict): The full serializaiton (rows from table and aux
+                tables) of the measurement. obj_as_dict["technique"] specifies the
+                technique class to use, from TECHNIQUE_CLASSES
+        """
+        # TODO: see if there isn't a way to put the import at the top of the module.
+        #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+        from .techniques import CALIBRATION_CLASSES
 
-    Args:
-        series_list (list of ValueSeries): The value series to append
-        sort (bool): Whether to sort the data so that time only goes forward
-        tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
-    """
-    name = series_list[0].name
-    cls = series_list[0].__class__
-    unit = series_list[0].unit
-    data = np.array([])
-    tseries_list = [s.tseries for s in series_list]
-    tseries, sort_indeces = append_tseries(
-        tseries_list, sort=sort, return_sort_indeces=True, tstamp=tstamp
-    )
+        if obj_as_dict["technique"] in CALIBRATION_CLASSES:
+            calibration_class = CALIBRATION_CLASSES[obj_as_dict["technique"]]
+        else:
+            calibration_class = cls
+        try:
+            measurement = calibration_class(**obj_as_dict)
+        except Exception:
+            raise
+        return measurement
 
-    for s in series_list:
-        if not (s.unit == unit and s.__class__ == cls):
-            raise BuildError(f"can't append {series_list}")
-        data = np.append(data, s.data)
-    if sort:
-        data = data[sort_indeces]
+    def calibrate_series(self, key, measurement=None):
+        """This should be overwritten in real calibration classes.
 
-    return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
-
-
-def append_tseries(series_list, sort=True, return_sort_indeces=False, tstamp=None):
-    """Return new TimeSeries with the data appended.
-
-    Args:
-        series_list (list of TimeSeries): The time series to append
-        sort (bool): Whether to sort the data so that time only goes forward
-        return_sort_indeces (bool): Whether to return the indeces that sort the data
-        tstamp (unix tstamp): The t=0 of the returned TimeSeries.
-    """
-    name = series_list[0].name
-    cls = series_list[0].__class__
-    unit = series_list[0].unit
-    tstamp = tstamp or series_list[0].tstamp
-    data = np.array([])
-
-    for s in series_list:
-        if not (s.unit == unit and s.__class__ == cls):
-            raise BuildError(f"can't append {series_list}")
-        data = np.append(data, s.data + s.tstamp - tstamp)
-
-    if sort:
-        sort_indices = np.argsort(data)
-        data = data[sort_indices]
-    else:
-        sort_indices = None
-
-    tseries = cls(name=name, unit_name=unit.name, data=data, tstamp=tstamp)
-    if return_sort_indeces:
-        return tseries, sort_indices
-    return tseries
-
-
-def fill_object_list(object_list, obj_ids, cls=None):
-    """Add PlaceHolderObjects to object_list for any unrepresented obj_ids.
-
-    Args:
-        object_list (list of objects or None): The objects already known,
-            in a list. This is the list to be appended to. If None, an empty
-            list will be appended to.
-        obj_ids (list of ints or None): The id's of objects to ensure are in
-            the list. Any id in obj_ids not already represented in object_list
-            is added to the list as a PlaceHolderObject
-        cls (Saveable class): the class remembered by any PlaceHolderObjects
-            added to the object_list, so that eventually the right object will
-            be loaded.
-    """
-    cls = cls or object_list[0].__class__
-    object_list = object_list or []
-    provided_series_ids = [s.id for s in object_list]
-    if not obj_ids:
-        return object_list
-    for i in obj_ids:
-        if i not in provided_series_ids:
-            object_list.append(PlaceHolderObject(i=i, cls=cls))
-    return object_list
-
-
-def time_shifted(series, tstamp=None):
-    """Return a series with the time shifted to be relative to tstamp"""
-    if tstamp is None or not series:
-        return series
-    if tstamp == series.tstamp:
-        return series
-    cls = series.__class__
-    if isinstance(series, TimeSeries):
-        return cls(
-            name=series.name,
-            unit_name=series.unit.name,
-            data=series.data + series.tstamp - tstamp,
-            tstamp=tstamp,
-        )
-    elif isinstance(series, ValueSeries):
-        series = cls(
-            name=series.name,
-            unit_name=series.unit.name,
-            data=series.data,
-            tseries=time_shifted(series.tseries, tstamp=tstamp),
-        )
-    return series
+        FIXME: Add more documentation about how to write this in inheriting classes.
+        """
+        raise NotImplementedError
 
 
 def get_combined_technique(technique_1, technique_2):

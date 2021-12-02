@@ -1,7 +1,7 @@
 import numpy as np
 from .ec import ECMeasurement
 from ..data_series import ValueSeries, TimeSeries
-from ..exceptions import SeriesNotFoundError, BuildError
+from ..exceptions import BuildError
 from .analysis_tools import (
     tspan_passing_through,
     calc_sharp_v_scan,
@@ -20,49 +20,33 @@ class CyclicVoltammagram(ECMeasurement):
     - the default plot() is plot_vs_potential()
     """
 
+    selector_name = "cycle"
+    """Name of the default selector"""
+
     def __init__(self, *args, **kwargs):
         """Only reason to have an __init__ here is to set the default plot()"""
         super().__init__(*args, **kwargs)
         self.plot = self.plotter.plot_vs_potential  # gets the right docstrings! :D
 
-    start_potential = None  # see `redefine_cycle`
-    redox = None  # see `redefine_cycle`
+        self.start_potential = None  # see `redefine_cycle`
+        self.redox = None  # see `redefine_cycle`
 
     def __getitem__(self, key):
         """Given int list or slice key, return a CyclicVoltammagram with those cycles"""
-        if type(key) is slice:
+        if isinstance(key, slice):
             start, stop, step = key.start, key.stop, key.step
             if step is None:
                 step = 1
             key = list(range(start, stop, step))
-        if type(key) in [int, list]:
+        if isinstance(key, (int, list)):
             if type(key) is list and not all([type(i) is int for i in key]):
                 print("can't get an item of type list unless all elements are int")
                 print(f"you tried to get key = {key}.")
                 raise AttributeError
             return self.select(key)
-        try:
-            return super().__getitem__(item=key)
-        except SeriesNotFoundError:
-            if key == "cycle":
-                return self.cycle
+        return super().__getitem__(key)
 
-    @property
-    def cycle(self):
-        """ValueSeries: the cycle number. The default selector. see `redefine_cycle`"""
-        try:
-            return self.selector
-        except TypeError:
-            # FIXME: This is what happens now when a single-cycle CyclicVoltammagram is
-            #   saved and loaded.
-            return ValueSeries(
-                name="cycle",
-                unit_name="",
-                data=np.ones(self.t.shape),
-                tseries=self.potential.tseries,
-            )
-
-    def redefine_cycle(self, start_potential=None, redox=None):
+    def redefine_cycle(self, start_potential=None, redox=None, N_points=5):
         """Build `cycle` which iterates when passing through start_potential
 
         Args:
@@ -72,11 +56,14 @@ class CyclicVoltammagram(ECMeasurement):
             redox (bool): True (or 1) for anodic, False (or 0) for cathodic. The
                 direction in which the potential is scanning through start_potential to
                 trigger an iteration of `cycle`.
+            N_points (int): The number of consecutive points for which the potential
+                needs to be above (redox=True) or below (redox=False) the
+                start_potential for the new cycle to register.
         """
         self.start_potential = start_potential
         self.redox = redox
         if start_potential is None:
-            old_cycle_series = self.cycle
+            old_cycle_series = self["cycle_number"]
             new_cycle_series = ValueSeries(
                 name="cycle",
                 unit_name=old_cycle_series.unit_name,
@@ -95,33 +82,36 @@ class CyclicVoltammagram(ECMeasurement):
                 start_potential = -start_potential
                 v = -v
             while n < N:
+                # mask on remaining potential, True wherever behind the start potential:
                 mask_behind = v[n:] < start_potential
                 if True not in mask_behind:
+                    # if the potenential doesn't go behind start potential again, then
+                    # there are no more cycles
                     break
                 else:
-                    n += (
-                        np.argmax(mask_behind) + 5
-                    )  # have to be below V for 5 datapoints
-                # print('point number on way up: ' + str(n)) # debugging
+                    # the potential has to get behind the start potential for at least
+                    # N_points data points before a new cycle can start.
+                    n += np.argmax(mask_behind) + N_points
 
+                # a mask on remaining potential, True wherever ahead of start potential:
                 mask_in_front = v[n:] > start_potential
-                if True not in mask_in_front:
+                if True not in mask_in_front:  # again, no more cycles.
                     break
                 else:
+                    # We've already been behind for N_points, so as soon as the
+                    # potential gets ahead of the start_potential, a new cycle begins!
                     n += np.argmax(mask_in_front)
                 c += 1
                 cycle_vec[n:] = c  # and subsequent points increase in cycle number
-                n += +5  # have to be above V for 5 datapoints
-                # print('point number on way down: ' + str(n)) # debugging
+                n += N_points  # have to be above start_potential for N_points
+                # datapoints before getting behind it for this to count as a cycle.
             new_cycle_series = ValueSeries(
                 name="cycle",
                 unit_name="",
                 data=cycle_vec,
                 tseries=self.potential.tseries,
             )
-        self["cycle"] = new_cycle_series
-        self.sel_str = "cycle"
-        return self.cycle
+        self.replace_series("cycle", new_cycle_series)
 
     def select_sweep(self, vspan, t_i=None):
         """Return a CyclicVoltammagram for while the potential is sweeping through vspan

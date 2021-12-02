@@ -9,7 +9,7 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 import numpy as np
 from .db import Saveable
 from .units import Unit
-from .exceptions import TimeError, AxisError
+from .exceptions import AxisError, BuildError
 
 
 class DataSeries(Saveable):
@@ -19,11 +19,8 @@ class DataSeries(Saveable):
     """
 
     table_name = "data_series"
-    column_attrs = {
-        "name",
-        "unit_name",
-        "data",
-    }
+    column_attrs = {"name", "unit_name", "data", "series_type"}
+    series_type = "series"
 
     def __init__(self, name, unit_name, data):
         """initialize a data series with its name, unit, and data (id handled by parent)
@@ -41,15 +38,9 @@ class DataSeries(Saveable):
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return the right type of DataSeries based on the info in its serialization"""
-        if "tstamp" in obj_as_dict:
-            return TimeSeries(**obj_as_dict)
-        elif "t_ids" in obj_as_dict:
-            return ValueSeries(**obj_as_dict)
-        elif "a_ids" in obj_as_dict:
-            return Field(**obj_as_dict)
-        elif "value" in obj_as_dict:
-            return ConstantValue(**obj_as_dict)
-        return cls(**obj_as_dict)
+        series_type = obj_as_dict.pop("series_type")
+        series_class = SERIES_CLASSES[series_type]
+        return series_class(**obj_as_dict)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
@@ -58,7 +49,7 @@ class DataSeries(Saveable):
     def data(self):
         """The data as a np.array, loaded the first time it is needed."""
         if self._data is None:
-            self._data = self.load_data()  # inherited from Saveable.
+            self._data = self.load_data()  # inherited from Savable.
         return self._data
 
     @property
@@ -79,11 +70,12 @@ class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
     extra_column_attrs = {"tstamps": {"tstamp"}}
+    series_type = "tseries"
 
     def __init__(self, name, unit_name, data, tstamp):
         """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
 
-        Args (in addition to those of parent):
+        Args (in addition to those of parent, :class:`.DataSeries`):
             tstamp (float): The unix timestamp of the time at which t=0 in the data
         """
         super().__init__(name, unit_name, data)
@@ -99,73 +91,6 @@ class TimeSeries(DataSeries):
         return self
 
 
-class ValueSeries(DataSeries):
-    """Class to store scalar values that are measured over time.
-
-    Characterized by a reference to the corresponding time series. This reference is
-    represented in relational databases as a row in an auxiliary linker table
-    """
-
-    extra_linkers = {"value_time": ("data_series", "t_ids")}
-
-    def __init__(self, name, unit_name, data, t_id=None, t_ids=None, tseries=None):
-        """Initiate a ValueSeries with a TimeSeries or a reference thereto
-
-        Args (in addition to those of parent):
-            t_id (int): The id of the corresponding TimeSeries, if not given directly
-            t_ids (list of int): [t_id], only so that a backend can pass t_id as a list
-            tseries (TimeSeries): The corresponding TimeSeries, if available
-        """
-        super().__init__(name, unit_name, data)
-        self._tseries = tseries
-        # TODO: This could probably be handled more nicely with PlaceHolderObjects
-        #   see: Measurement and
-        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
-        if t_ids and not t_id:
-            t_id = t_ids[0]
-        self._t_id = t_id
-        if tseries and t_id:
-            if not t_id == tseries.id:
-                raise TimeError(f"{self} initiated with non-matching t_id and tseries")
-        if tseries is None and t_id is None:
-            raise TimeError(f"{self} initiated without t_id or tseries.")
-
-    @property
-    def t_id(self):
-        """int: the id of the TimeSeries"""
-        if self._tseries:
-            return self._tseries.id
-        return self._t_id
-
-    @property
-    def t_ids(self):
-        """list: the id of the TimeSeries, in a list for consistent linker table def."""
-        return [self.t_id]
-
-    @property
-    def tseries(self):
-        """The TimeSeries describing when the data in the ValueSeries was recorded"""
-        if not self._tseries:
-            self._tseries = TimeSeries.get(i=self.t_id)
-            self._t_id = None  # to avoid any confusion of two t_id's
-        return self._tseries
-
-    @property
-    def v(self):
-        """The value as a 1-d np array"""
-        return self.data
-
-    @property
-    def t(self):
-        """The measurement times as a 1-d np array"""
-        return self.tseries.data
-
-    @property
-    def tstamp(self):
-        """The timestamp, from the TimeSeries of the ValueSeries"""
-        return self.tseries.tstamp
-
-
 class Field(DataSeries):
     """Class for storing multi-dimensional data spanning 'axes'
 
@@ -174,11 +99,13 @@ class Field(DataSeries):
     """
 
     extra_linkers = {"field_axes": ("data_series", "a_ids")}
+    child_attrs = ["axes_series"]
+    series_type = "field"
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
         """Initiate the Field and check that the supplied axes make sense.
 
-        Args (in addition to those of parent):
+        Args (in addition to those of parent, :class:`.DataSeries`):
             a_ids (list of int): The ids of the corresponding axes DataSeries, if not
                 the series are not given directly as `axes_series`
             axes_series (list of DataSeries): The DataSeries describing the axes which
@@ -258,21 +185,220 @@ class Field(DataSeries):
                 return s.tstamp
 
 
-class ConstantValue(DataSeries):
+class ValueSeries(Field):
+    """Class to store scalar values that are measured over time.
+
+    Characterized by a reference to the corresponding time series. This reference is
+    represented in relational databases as a row in an auxiliary linker table
+    """
+
+    series_type = "vseries"
+
+    def __init__(
+        self,
+        name,
+        unit_name,
+        data,
+        t_id=None,
+        tseries=None,
+        a_ids=None,
+        axes_series=None,
+    ):
+        """Initiate a ValueSeries with a TimeSeries or a reference thereto
+
+        Args (in addition to those of :class:`.Field`):
+            t_id (int): The id of the corresponding TimeSeries, if not given directly
+                (can also be supplied as `a_ids[0]`)
+            tseries (TimeSeries): The corresponding TimeSeries, if available
+                (can also be supplied as `axes_series[0]`)
+        """
+        a_ids = a_ids or [t_id]
+        axes_series = axes_series or [tseries]
+        super().__init__(name, unit_name, data, a_ids, axes_series)
+        # TODO: This could probably be handled more nicely with PlaceHolderObjects
+        #   see: Measurement and
+        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
+
+    @property
+    def tseries(self):
+        return self.axes_series[0]
+
+    @property
+    def t_id(self):
+        """int: the id of the TimeSeries"""
+        if self._axes_seriess:
+            return self.tseries.id
+        return self.a_ids[0]
+
+    @property
+    def v(self):
+        """The value as a 1-d np array"""
+        return self.data
+
+    @property
+    def t(self):
+        """The measurement times as a 1-d np array"""
+        return self.tseries.data
+
+    @property
+    def tstamp(self):
+        """The timestamp, from the TimeSeries of the ValueSeries"""
+        return self.tseries.tstamp
+
+    def __hash__(self):
+        return super().__hash__()
+
+
+class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
 
-    extra_column_attrs = {"constants": {"value"}}
+    series_type = "constantvalue"
 
-    def __init__(self, name, unit_name, data=None, value=None):
-        super().__init__(name=name, unit_name=unit_name, data=np.array([]))
-        if not np.array(value).size == 1:
-            raise AxisError(
-                f"Can't initiate {self} with data={self.value}. Data must have size 1."
-            )
-        self.value = value
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._expanded_data = None
 
-    def get_vseries(self, tseries):
-        data = self.value * np.ones(tseries.data.shape)
-        return ValueSeries(
-            name=self.name, unit_name=self.unit_name, data=data, tseries=tseries
+    @property
+    def data(self):
+        if self._expanded_data is None:
+            if self._data is None:
+                self._data = self.load_data()  # inherited from Savable.
+            self._expanded_data = np.ones(self.t.shape) * self._data
+        return self._expanded_data
+
+
+SERIES_CLASSES = {
+    cls.series_type: cls
+    for cls in [DataSeries, TimeSeries, Field, ValueSeries, ConstantValue]
+}
+
+
+def append_series(series_list, sorted=True, name=None, tstamp=None):
+    """Return series appending series_list relative to series_list[0].tseries.tstamp
+
+    Args:
+        series_list (list of Series): The series to append (must all be of same type)
+        sorted (bool): Whether to sort the data so that time only goes forward
+        name (str): Name to give the appended series. Defaults to series_list[0].name
+        tstamp (unix tstamp): The t=0 of the returned series or its TimeSeries.
+    """
+    s0 = series_list[0]
+    if isinstance(s0, TimeSeries):
+        return append_tseries(series_list, sorted=sorted, name=name, tstamp=tstamp)
+    elif isinstance(s0, ValueSeries):
+        return append_vseries_by_time(
+            series_list, sorted=sorted, name=name, tstamp=tstamp
         )
+    raise BuildError(
+        f"An algorithm of append_series for series like {s0} is not yet implemented"
+    )
+
+
+def append_vseries_by_time(series_list, sorted=True, name=None, tstamp=None):
+    """Return new ValueSeries with the data in series_list appended
+
+    Args:
+        series_list (list of ValueSeries): The value series to append
+        sorted (bool): Whether to sort the data so that time only goes forward
+        name (str): Name to give the appended series. Defaults to series_list[0].name
+        tstamp (unix tstamp): The t=0 of the returned ValueSeries' TimeSeries.
+    """
+    name = name or series_list[0].name
+    cls = series_list[0].__class__
+    unit = series_list[0].unit
+    data = np.array([])
+    tseries_list = [s.tseries for s in series_list]
+    if not all(isinstance(ts, TimeSeries) for ts in tseries_list):
+        raise BuildError(
+            f"can't append {series_list} w incompatible tseries list = {tseries_list}"
+        )
+    tseries, sort_indeces = append_tseries(
+        tseries_list, sorted=sorted, return_sort_indeces=True, tstamp=tstamp
+    )
+
+    for s in series_list:
+        data = np.append(data, s.data)
+    if sorted:
+        data = data[sort_indeces]
+
+    return cls(name=name, unit_name=unit.name, data=data, tseries=tseries)
+
+
+def append_tseries(
+    series_list, sorted=True, return_sort_indeces=False, name=None, tstamp=None
+):
+    """Return new TimeSeries with the data appended.
+
+    Args:
+        series_list (list of TimeSeries): The time series to append
+        sorted (bool): Whether to sort the data so that time only goes forward
+        return_sort_indeces (bool): Whether to return the indeces that sort the data
+        name (str): Name to give the appended series. Defaults to series_list[0].name
+        tstamp (unix tstamp): The t=0 of the returned TimeSeries.
+    """
+    name = name or series_list[0].name
+    cls = series_list[0].__class__
+    unit = series_list[0].unit
+    tstamp = tstamp or series_list[0].tstamp
+    data = np.array([])
+
+    for s in series_list:
+        if not (s.unit == unit and s.__class__ == cls):
+            raise BuildError(f"can't append {series_list}")
+        data = np.append(data, s.data + s.tstamp - tstamp)
+
+    if sorted:
+        sort_indices = np.argsort(data)
+        data = data[sort_indices]
+    else:
+        sort_indices = None
+
+    tseries = cls(name=name, unit_name=unit.name, data=data, tstamp=tstamp)
+    if return_sort_indeces:
+        return tseries, sort_indices
+    return tseries
+
+
+def time_shifted(series, tstamp=None):
+    """Return a series with the time shifted to be relative to tstamp"""
+    if tstamp is None:
+        return series
+    if tstamp == series.tstamp:
+        return series
+    cls = series.__class__
+    if isinstance(series, TimeSeries):
+        new_data = series.data + series.tstamp - tstamp  # shift the time.
+        return cls(
+            name=series.name,
+            unit_name=series.unit.name,
+            data=new_data,
+            tstamp=tstamp,
+        )
+    elif isinstance(series, ValueSeries):
+        series = cls(
+            name=series.name,
+            unit_name=series.unit.name,
+            data=series.data,
+            tseries=time_shifted(series.tseries, tstamp=tstamp),
+        )
+    return series
+
+
+def get_tspans_from_mask(t, mask):
+    """Return a list of tspans for time intervals remaining when mask is applied to t
+
+    FIXME: This is pure numpy manipulation and probably belongs somewhere else.
+    """
+    mask_prev = np.append(False, mask[:-1])  # the mask shifted right by one
+    mask_next = np.append(mask[1:], False)  # the mask shifted left by one
+    # An array that is True where intervals meeting the criteria start:
+    #   (This includes at [0] if mask[0] is True.)
+    interval_starts_here = np.logical_and(np.logical_not(mask_prev), mask)
+    # An array that is True where intervals meeting the criteria finish:
+    #   (This includes at [-1] if mask[-1] is True.)
+    interval_ends_here = np.logical_and(mask, np.logical_not(mask_next))
+
+    t_starts = list(t[interval_starts_here])  # the start times implied by the mask
+    t_ends = list(t[interval_ends_here])  # the finish times implied by the mask
+    tspans = zip(t_starts, t_ends)  # and, the timespans where the criteria is met!
+    return tspans

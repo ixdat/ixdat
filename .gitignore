@@ -5,6 +5,8 @@ development_scripts/*/*.svg
 development_scripts/*/*.csv
 docs/source/figures/big_src/
 
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

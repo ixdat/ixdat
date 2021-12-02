@@ -7,7 +7,7 @@ Constants:
         technique-specific functionality.
 """
 
-from .ec import ECMeasurement
+from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammagram
 from .ms import MSMeasurement
 from .ec_ms import ECMSMeasurement
@@ -24,3 +24,5 @@ TECHNIQUE_CLASSES = {
     "EC-MS": ECMSMeasurement,
     "S-EC": SpectroECMeasurement,
 }
+
+CALIBRATION_CLASSES = {"EC": ECCalibration}
