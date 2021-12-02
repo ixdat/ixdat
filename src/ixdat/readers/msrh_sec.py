@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path  # noqa
 import numpy as np
 import pandas as pd
 from .reading_tools import prompt_for_tstamp
@@ -47,7 +47,6 @@ class MsrhSECReader:
             cls (Measurement subclass): The class of measurement to return. Defaults to
                 SpectroECMeasurement.
         """
-
         # us pandas to load the data from the csv files into dataframes:
         sec_df = pd.read_csv(path_to_file)
         # ^ Note the first row, containing potential, will become the keys. The first

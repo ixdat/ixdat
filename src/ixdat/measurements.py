@@ -22,8 +22,8 @@ from .data_series import (
     time_shifted,
     get_tspans_from_mask,
 )
-from .samples import Sample
-from .lablogs import LabLog
+from .projects.samples import Sample
+from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError

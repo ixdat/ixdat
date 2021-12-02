@@ -32,7 +32,7 @@ def flake8(context):
 
     """
     print("# flake8")
-    return context.run("flake8").return_code
+    return context.run("flake8 src tests").return_code
 
 
 @task(aliases=["test", "tests"])
@@ -43,7 +43,8 @@ def pytest(context):
 
     """
     print("# pytest")
-    return context.run("pytest").return_code
+    return context.run("pytest tests").return_code
+    # TODO: This now only works if we call it from project root.
 
 
 @task(aliases=["QA", "qa", "check"])

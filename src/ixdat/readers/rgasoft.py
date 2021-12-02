@@ -1,7 +1,6 @@
 """A reader for text exports from the potentiostat software of CH Instruments"""
 
 from EC_MS import Dataset
-from .reading_tools import timestamp_string_to_tstamp
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
 from ..techniques import MSMeasurement
 
@@ -18,13 +17,6 @@ class StanfordRGASoftReader:
             path_to_file (Path or str): The file to read
             cls (Measurement subclass): The class to return. Defaults to ECMeasuremnt
         """
-
-        # with open(path_to_file, "r") as f:
-        #     timestamp_string = f.readline().strip()
-        # tstamp = timestamp_string_to_tstamp(
-        #     timestamp_string,
-        #     form="%b %d, %Y  %I:%M:%S %p",  # like "Mar 05, 2020  09:50:34 AM"
-        # )   # ^ For later. EC_MS actually gets this right.
 
         self.path_to_file = path_to_file
         cls = cls if (cls and not issubclass(MSMeasurement, cls)) else MSMeasurement

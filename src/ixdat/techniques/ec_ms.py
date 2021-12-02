@@ -120,7 +120,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
-            name=f"{mol}_{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
+            name=f"{mol}_{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type="ecms_calibration",
+            F=F,
         )
         return cal
 
@@ -158,7 +162,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
-            Q = self.integrate("raw current / [mA]", tspan=tspan) * 1e-3
+            Q = self.integrate("raw current / [mA]", tspan=tspan, axis=axis_current)
+            Q *= 1e-3  # mC --> [C]
             n = Q / (n_el * FARADAY_CONSTANT)
             Y_list.append(Y)
             n_list.append(n)
@@ -278,6 +283,7 @@ class ECMSCalibration(Saveable):
     column_attrs = {"name", "date", "setup", "ms_cal_results", "RE_vs_RHE", "A_el", "L"}
     # FIXME: Not given a table_name as it can't save to the database without
     #   MSCalResult's being json-seriealizeable. Exporting and reading works, though :D
+
     def __init__(
         self,
         name=None,

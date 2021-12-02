@@ -257,7 +257,7 @@ class Spectrum(Saveable):
 
 class SpectrumSeries(Spectrum):
     def __init__(self, *args, **kwargs):
-        if not "technique" in kwargs:
+        if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
         super().__init__(*args, **kwargs)
 

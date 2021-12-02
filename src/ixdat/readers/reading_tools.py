@@ -14,7 +14,9 @@ FLOAT_MATCH = "[-]?\\d+[\\.]?\\d*(?:e[-]?\\d+)?"  # matches floats like '5' or '
 
 
 def timestamp_string_to_tstamp(
-    timestamp_string, form=None, forms=(STANDARD_TIMESTAMP_FORM,),
+    timestamp_string,
+    form=None,
+    forms=(STANDARD_TIMESTAMP_FORM,),
 ):
     """Return the unix timestamp as a float by parsing timestamp_string
 

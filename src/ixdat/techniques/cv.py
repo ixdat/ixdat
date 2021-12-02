@@ -123,7 +123,12 @@ class CyclicVoltammagram(ECMeasurement):
                 If vspan[-1] < vspan[0], a reductive sweep is returned.
             t_i (float): Optional. Time before which the sweep can't start.
         """
-        tspan = tspan_passing_through(t=self.t, v=self.v, vspan=vspan, t_i=t_i,)
+        tspan = tspan_passing_through(
+            t=self.t,
+            v=self.v,
+            vspan=vspan,
+            t_i=t_i,
+        )
         return self.cut(tspan=tspan)
 
     def integrate(self, item, tspan=None, vspan=None, ax=None):
@@ -197,7 +202,7 @@ class CyclicVoltammagram(ECMeasurement):
         v_scan_2 = np.mean(sweep_2.grab("scan_rate")[1])  # [V/s]
         I_2 = np.mean(sweep_2.grab("raw_current")[1]) * 1e-3  # [mA] -> [A]
 
-        cap = 1/2 * (I_1 / v_scan_1 + I_2 / v_scan_2)  # [A] / [V/s] = [C/V] = [F]
+        cap = 1 / 2 * (I_1 / v_scan_1 + I_2 / v_scan_2)  # [A] / [V/s] = [C/V] = [F]
         return cap
 
     def diff_with(self, other, v_list=None, cls=None, v_scan_res=0.001, res_points=10):

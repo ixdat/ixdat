@@ -331,8 +331,11 @@ class Saveable:
             return False
         if self.extra_linkers:
             linker_id_names = [
-                id_name for (linker_table_name, (linked_table_name, id_name))
-                in self.extra_linkers.items()
+                id_name
+                for (
+                    linker_table_name,
+                    (linked_table_name, id_name),
+                ) in self.extra_linkers.items()
             ]  # FIXME: This will be made much simpler with coming metaprogramming
         else:
             linker_id_names = []

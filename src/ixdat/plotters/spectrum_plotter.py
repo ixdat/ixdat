@@ -157,7 +157,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 use_gridspec=True,
                 anchor=(0.75, 0),
             )
-            cb.set_label("$\Delta$ opdical density")
+            cb.set_label("intensity")
         return ax
 
     def plot_waterfall(

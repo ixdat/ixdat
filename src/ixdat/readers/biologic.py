@@ -3,15 +3,15 @@
 Demonstrated/tested at the bottom under `if __name__ == "__main__":`
 """
 
-from pathlib import Path
 import re
-import time
+from pathlib import Path
+
 import numpy as np
 
 from . import TECHNIQUE_CLASSES
+from .reading_tools import timestamp_string_to_tstamp
 from ..data_series import TimeSeries, ValueSeries, ConstantValue
 from ..exceptions import ReadError
-from .reading_tools import timestamp_string_to_tstamp
 
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
 delim = "\t"
@@ -107,7 +107,9 @@ class BiologicMPTReader:
                 any case.
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
+
         path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
+
         if self.file_has_been_read:
             print(
                 f"This {self.__class__.__name__} has already read {self.path_to_file}."
@@ -324,7 +326,6 @@ if __name__ == "__main__":
         Script path = ...
     """
 
-    from pathlib import Path
     from matplotlib import pyplot as plt
     from ixdat.measurements import Measurement
 

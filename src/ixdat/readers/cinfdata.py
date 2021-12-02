@@ -152,7 +152,7 @@ class CinfdataTXTReader:
             self.place_in_file = "post_header"
         elif "Recorded at" in line:
             for s in line.split(self.delim):
-                if not "Recorded at" in s:
+                if "Recorded at" not in s:
                     self.tstamp_list.append(
                         timestamp_string_to_tstamp(
                             s.strip()[1:-1],  # remove edge whitespace and quotes.
@@ -171,7 +171,7 @@ class CinfdataTXTReader:
             if col.endswith("-y"):
                 name = col[:-2]
                 tcol = f"{name}-x"
-                if not tcol in self.column_names:
+                if tcol not in self.column_names:
                     print(f"Warning! No timecol for {col}. Expected {tcol}. Ignoring.")
                     continue
                 self.t_and_v_cols[name] = (tcol, col)

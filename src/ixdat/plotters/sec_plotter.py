@@ -62,9 +62,16 @@ class SECPlotter(MPLPlotter):
         measurement = measurement or self.measurement
 
         if not axes:
-            axes = self.new_two_panel_axes(n_bottom=2, n_top=1, emphasis="top",)
+            axes = self.new_two_panel_axes(
+                n_bottom=2,
+                n_top=1,
+                emphasis="top",
+            )
         self.ec_plotter.plot_measurement(
-            measurement=measurement, axes=[axes[1], axes[2]], tspan=tspan, **kwargs,
+            measurement=measurement,
+            axes=[axes[1], axes[2]],
+            tspan=tspan,
+            **kwargs,
         )
 
         dOD_series = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref)
@@ -168,7 +175,11 @@ class SECPlotter(MPLPlotter):
         measurement = measurement or self.measurement
 
         if not axes:
-            axes = self.new_two_panel_axes(n_bottom=1, n_top=1, emphasis="top",)
+            axes = self.new_two_panel_axes(
+                n_bottom=1,
+                n_top=1,
+                emphasis="top",
+            )
 
         self.ec_plotter.plot_vs_potential(
             measurement=measurement,
@@ -231,7 +242,7 @@ class SECPlotter(MPLPlotter):
                 t, y = measurement.grab(wl_str, tspan=tspan)
             axes[0].plot(t, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
-        axes[0].set_ylabel("$\Delta$O.D.")
+        axes[0].set_ylabel(r"$\Delta$O.D.")
 
         self.ec_plotter.plot_measurement(
             measurement=measurement, axes=axes[1:], tspan=tspan, **kwargs
@@ -277,7 +288,7 @@ class SECPlotter(MPLPlotter):
             v = measurement.v
             axes[0].plot(v, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
-        axes[0].set_ylabel("$\Delta$O.D.")
+        axes[0].set_ylabel(r"$\Delta$O.D.")
 
         self.ec_plotter.plot_vs_potential(
             measurement=measurement, ax=axes[1], tspan=tspan, **kwargs

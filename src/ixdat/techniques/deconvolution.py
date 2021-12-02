@@ -97,7 +97,10 @@ class Kernel:
     # TODO: Make class inherit from Measurement, add properties to store kernel
     # TODO: Reference equations to paper.
     def __init__(
-        self, parameters={}, MS_data=None, EC_data=None,
+        self,
+        parameters={},
+        MS_data=None,
+        EC_data=None,
     ):
         """Initializes a Kernel object either in functional form by defining the
         mass transport parameters or in the measured form by passing of EC-MS
