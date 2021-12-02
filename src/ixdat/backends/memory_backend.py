@@ -5,9 +5,10 @@ class MemoryBackend(BackendBase):
     """A backend that assigns id's and keeps track of objects for later access.
 
     This means that a Savable object can make a serializable representation of itself
-    that includes the short_identity in the memory backend of objects that it references, and
-    a new Savable object made from this representation can find the original objects.
-    See db.Savable.as_dict(), which ensures that "child objects" are in memory.
+    that includes the short_identity in the memory backend of objects that it
+    references, and a new Savable object made from this representation can find the
+    original objects. See db.Savable.as_dict(), which ensures that "child objects"
+    are in memory.
     """
 
     backend_type = "memory"
@@ -30,7 +31,7 @@ class MemoryBackend(BackendBase):
         return self.objects[cls.table_name][i]
 
     def save(self, obj):
-        """Save the object into memory, and change its backend to this memory backend."""
+        """Save the object into memory, and change its backend to this backend."""
         if obj.backend is self:
             return obj.id
         table_name = obj.table_name

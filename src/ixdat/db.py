@@ -23,6 +23,7 @@ Note on terminology:
 
 from .exceptions import DataBaseError
 from .backends import BACKEND_CLASSES, database_backends
+from .tools import thing_is_close
 
 
 class DataBase:
@@ -92,7 +93,7 @@ def get_database_name():
     return DB.backend.__class__.__name__
 
 
-class Savable:  # FIXME: Savable is misspelled :( . Should be "Savable". Later.
+class Saveable:
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
@@ -176,7 +177,7 @@ class Savable:  # FIXME: Savable is misspelled :( . Should be "Savable". Later.
             if self.backend_type in ("none", "memory"):
                 self._id = self.backend.get_next_available_id(self.table_name, obj=self)
                 # TODO: Wouldn't it be better if the backend was always asked for the
-                #   ID by Savable.__init__ ?
+                #   ID by Saveable.__init__ ?
             else:
                 raise DataBaseError(
                     f"{self} comes from {self.backend_name} "
@@ -303,6 +304,72 @@ class Savable:  # FIXME: Savable is misspelled :( . Should be "Savable". Later.
                 self_as_dict.update(**linked_attrs)
 
         return self_as_dict
+
+    def __eq__(self, other):
+        """Return whether self is functionally equivalent to other
+
+        This means that everything in the dictionary representation is either equal
+        or close enough, and that every owned Saveable object in self and other are
+        equal by the same condition.
+
+        FIXME: as_dict() should perhaps be an ordered dict. That way we could ensure
+            that the order of the checks, in general, and in particular of the
+            property names further down, is intentional to keep cheap result determining
+            comparisons first and expensive ones last, for performance reasons
+        """
+        if self is other:
+            # If they're actually the same object of course they're equal.
+            return True
+        if self.__class__ is not other.__class__:
+            # If they're not the same class, they are not equal
+            return False
+        # Otherwise we compare their dictionary representations.
+        self_as_dict = self.as_dict()
+        other_as_dict = other.as_dict()
+        if not len(self_as_dict) == len(other_as_dict):
+            # If they don't have the same number of items, they are not equal:
+            return False
+        if self.extra_linkers:
+            linker_id_names = [
+                id_name for (linker_table_name, (linked_table_name, id_name))
+                in self.extra_linkers.items()
+            ]  # FIXME: This will be made much simpler with coming metaprogramming
+        else:
+            linker_id_names = []
+        for key in self_as_dict:
+            # Here we go through the values
+            if key not in other_as_dict:
+                # other.as_dict() must have all the keys of self.as_dict() to be equal
+                return False
+            if key in linker_id_names:
+                # So, we don't want the linker names.
+                # FIXME: Right now there's no way to figure out what the property (named
+                #   in child_attrs) is called from the id_name :( ... so we have to
+                #   pass here and do a new loop with the child_attrs.
+                pass
+
+            if not thing_is_close(self_as_dict[key], other_as_dict[key]):
+                # Then the values aren't close (for floats and np arrays) or aren't
+                # equal (for all else)
+                return False
+
+        # Now we have to go through the owned Saveable objects:
+        if self.child_attrs:
+            for object_list_name in self.child_attrs:
+                object_list = getattr(self, object_list_name)
+                other_object_list = getattr(other, object_list_name)
+                # These two object lists need to have every corresponding element equal:
+                for object, other_object in zip(object_list, other_object_list):
+                    if object != other_object:
+                        return False
+
+        # If False hasn't been returned yet, then self and other are functionally equal.
+        return True
+
+    # This is necessary, because overriding __eq__ means that __hash__ is set to None
+    # https://docs.python.org/3/reference/datamodel.html#object.__hash__
+    # On the other hand, many Saveable objects are mutable, so maybe shouldn't have hash
+    __hash__ = object.__hash__
 
     def save(self, db=None):
         """Save self and return the id. This sets self.backend_name and self.id"""

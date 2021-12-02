@@ -6,7 +6,6 @@ from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
-from ..tools import dict_is_close, value_is_close
 
 EC_FANCY_NAMES = {
     "t": "time / [s]",
@@ -22,11 +21,12 @@ class ECMeasurement(Measurement):
 
     TODO: Implement a unit library for current and potential, A_el and RE_vs_RHE
     TODO:   so that e.g. current can be seamlessly normalized to mass OR area.
+
     The main job of this class is making sure that the ValueSeries most essential for
-    visualizing and normal electrochemistry measurements (i.e. excluding impedance spec.,
-    RRDE, etc, which would need new classes) are always available in the correct form as
-    the measurement is added with others, reduced to a selection, calibrated and
-    normalized, etc. These most important ValueSeries are:
+    visualizing and normal electrochemistry measurements (i.e. excluding impedance
+    spec., RRDE, etc, which would need new classes) are always available in the
+    correct form as the measurement is added with others, reduced to a selection,
+    calibrated and normalized, etc. These most important ValueSeries are:
 
     - `potential`: The working-electrode potential typically in [V].
       If `ec_meas` is an `ECMeasurement`, then `ec_meas["potential"]` always returns a
@@ -36,8 +36,8 @@ class ECMeasurement(Measurement):
           reference electrode potential (`RE_vs_RHE`, see `calibrate`) and/or corrected
           for ohmic drop (`R_Ohm`, see `correct_ohmic_drop`).
         - A name that makes clear any calibration and/or correction
-        - Data which spans the entire timespan of the measurement - i.e. whenever EC data
-          is being recorded, `potential` is there, even if the name of the raw
+        - Data which spans the entire timespan of the measurement - i.e. whenever EC
+          data is being recorded, `potential` is there, even if the name of the raw
           `ValueSeries` (what the acquisition software calls it) changes. Indeed
           `ec_meas["potential"].tseries` is the measurement's definitive time variable.
 
@@ -71,7 +71,7 @@ class ECMeasurement(Measurement):
     - `ec_meas.j_name` is the name of the normalized current
     - `ec_meas.selector_name` is the name of the default selector, i.e. "selector"
 
-    Numpy arrays from important `DataSeries` are also directly accessible via attributes:
+    Numpy arrays from important `DataSeries` are directly accessible via attributes:
 
     - `ec_meas.t` for `ec_meas["potential"].t`
     - `ec_meas.v` for `ec_meas["potential"].data`
@@ -331,7 +331,7 @@ class ECCalibration(Calibration):
             name (str): The name of the calibration
             technique (str): The technique of the calibration
             tstamp (float): The time at which the calibration took place or is valid
-            measurement (ECMeasurement): Optional. A measurement to calibrate by default.
+            measurement (ECMeasurement): Optional. A measurement to calibrate by default
             RE_vs_RHE (float): The reference electrode potential on the RHE scale in [V]
             A_el (float): The electrode area in [cm^2]
             R_Ohm (float): The ohmic drop resistance in [Ohm]
@@ -395,30 +395,3 @@ class ECCalibration(Calibration):
                 data=v,
                 tseries=raw_current.tseries,
             )
-
-    def __eq__(self, other):
-        """Return whether this Calibration is equal to another
-
-        .. note::
-           This comparison ignores the `measurement` property, to avoid circular references
-
-        """
-        if self is other:
-            return True
-
-        if self.__class__ != other.__class__:
-            return False
-
-        for property_name in (
-            "technique",
-            "tstamp",
-            "name",
-            "RE_vs_RHE",
-            "A_el",
-            "R_Ohm",
-        ):
-            if not value_is_close(
-                getattr(self, property_name), getattr(other, property_name)
-            ):
-                return False
-        return True

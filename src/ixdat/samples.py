@@ -1,9 +1,9 @@
 """The module implements the sample class"""
 
-from .db import Savable
+from .db import Saveable
 
 
-class Sample(Savable):
+class Sample(Saveable):
     """TODO: flush out this class"""
 
     table_name = "sample"
