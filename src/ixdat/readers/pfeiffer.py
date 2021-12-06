@@ -38,8 +38,10 @@ class PVMassSpecReader:
         df = pd.read_csv(self.path_to_file, header=6, delimiter="\t")
         # PV MassSpec calls masses <x>_amu, information we need to pass on to
         # MSMeasurement, so that the data will be accessible by the 'M<x>' mass string.
-        mass_aliases = {
-            mass_from_column_name(key): key for key in df.keys() if key.endswith("_amu")
+        aliases = {
+            mass_from_column_name(key): [key]
+            for key in df.keys()
+            if key.endswith("_amu")
         }
         series_list = series_list_from_dataframe(
             df,
@@ -51,7 +53,7 @@ class PVMassSpecReader:
             "name": name,
             "tstamp": tstamp,
             "series_list": series_list,
-            "mass_aliases": mass_aliases,
+            "aliases": aliases,
             "technique": "MS",
         }
         meas_as_dict.update(kwargs)

@@ -481,6 +481,18 @@ class Measurement(Saveable):
         """
         return self._aliases.copy()
 
+    @property
+    def reverse_aliases(self):
+        """{series_name: standard_names} indicating how raw data can be accessed"""
+        rev_aliases = {}
+        for name, other_names in self.aliases.items():
+            for n in other_names:
+                if n in rev_aliases:
+                    rev_aliases[n].append(name)
+                else:
+                    rev_aliases[n] = [name]
+        return rev_aliases
+
     def get_series_names(self, key):
         """Return list: series names for key found by (recursive) lookup in aliases"""
         keys = [key] if key in self.series_names else []

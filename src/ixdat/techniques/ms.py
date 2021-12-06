@@ -1,9 +1,9 @@
 """Module for representation and analysis of MS measurements"""
 
-from ..measurements import Measurement
+from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum
 from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
-from ..exceptions import SeriesNotFoundError, QuantificationError
+from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADROS_CONSTANT,
     BOLTZMAN_CONSTANT,
@@ -22,62 +22,7 @@ import numpy as np
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
-    extra_column_attrs = {
-        "ms_meaurements": {
-            "mass_aliases",
-            "signal_bgs",
-        },
-    }
     default_plotter = MSPlotter
-
-    def __init__(
-        self,
-        name,
-        mass_aliases=None,
-        signal_bgs=None,
-        tspan_bg=None,
-        calibration=None,
-        **kwargs,
-    ):
-        """Initializes a MS Measurement
-
-        Args:
-            name (str): The name of the measurement
-            calibration (dict): calibration constants whereby the key
-                corresponds to the respective signal name.
-            mass_aliases (dict): {mass: mass_name} for any masses that
-                do not have the standard 'M<x>' format used by ixdat.
-            signal_bgs (dict): {mass: S_bg} where S_bg is the background signal
-                in [A] for the mass (typically set with a timespan by `set_bg()`)
-            calibration (ECMSCalibration): A calibration for the MS signals
-            tspan_bg (timespan): background time used to set masses
-        """
-        super().__init__(name, **kwargs)
-        self.calibration = calibration  # TODO: Not final implementation
-        self.mass_aliases = mass_aliases or {}
-        self.signal_bgs = signal_bgs or {}
-        self.tspan_bg = tspan_bg
-
-    def __getitem__(self, item):
-        """Try standard lookup, then check if item is a flux or alias for a mass"""
-        try:
-            return super().__getitem__(item)
-        except SeriesNotFoundError:
-            if item in self.mass_aliases:
-                return self[self.mass_aliases[item]]
-            if item.startswith("n_"):  # it's a flux!
-                mol = item.split("_")[-1]
-                return self.get_flux_series(mol)
-            else:
-                raise
-
-    def set_bg(self, tspan_bg=None, mass_list=None):
-        """Set background values for mass_list to the average signal during tspan_bg."""
-        mass_list = mass_list or self.mass_list
-        tspan_bg = tspan_bg or self.tspan_bg
-        for mass in mass_list:
-            t, v = self.grab(mass, tspan_bg)
-            self.signal_bgs[mass] = np.mean(v)
 
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
@@ -249,18 +194,17 @@ class MSMeasurement(Measurement):
     def is_mass(self, item):
         if re.search("^M[0-9]+$", item):
             return True
-        if item in self.mass_aliases.values():
+        if item in self.reverse_aliases and self.is_mass(self.reverse_aliases[item][0]):
             return True
         return False
 
     def as_mass(self, item):
         if re.search("^M[0-9]+$", item):
             return item
-        else:
-            try:
-                return next(k for k, v in self.mass_aliases.items() if v == item)
-            except StopIteration:
-                raise TypeError(f"{self} does not recognize '{item}' as a mass.")
+        new_item = self.reverse_aliases[item][0]
+        if self.is_mass(new_item):
+            return self.as_mass(new_item)
+        raise TypeError(f"{self} does not recognize '{item}' as a mass.")
 
 
 class MSCalResult(Saveable):
@@ -296,6 +240,10 @@ class MSCalResult(Saveable):
     @property
     def color(self):
         return STANDARD_COLORS[self.mass]
+
+
+class MSCalibration(Calibration):
+    pass
 
 
 class MSInlet:

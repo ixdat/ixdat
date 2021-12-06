@@ -40,7 +40,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         ms_kwargs = {
             k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
         }
-        ms_kwargs["calibration"] = self.calibration  # FIXME: This is a mess.
+        # ms_kwargs["calibration"] = self.calibration  # FIXME: This is a mess.
         # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
         #  works together with MemoryBackend
         if "series_list" in kwargs:
