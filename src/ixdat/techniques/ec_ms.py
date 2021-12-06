@@ -1,13 +1,12 @@
 """Module for representation and analysis of EC-MS measurements"""
 import numpy as np
 from ..constants import FARADAY_CONSTANT
-from .ec import ECMeasurement
-from .ms import MSMeasurement, MSCalResult
+from .ec import ECMeasurement, ECCalibration
+from .ms import MSMeasurement, MSCalResult, MSCalibration
 from .cv import CyclicVoltammagram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
-from ..db import Saveable  # FIXME: doesn't belong here.
 import json  # FIXME: doesn't belong here.
 
 
@@ -27,12 +26,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     default_exporter = ECMSExporter
 
     def __init__(self, **kwargs):
-        if "calibration" in kwargs and kwargs["calibration"]:
-            self.calibration = kwargs["calibration"]
-        else:
-            # FIXME: This is a slight mess.
-            #  ECMeasurement should also have RE_vs_RHE and A_el in a calibration
-            self.calibration = ECMSCalibration()
         """FIXME: Passing the right key-word arguments on is a mess"""
         ec_kwargs = {
             k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
@@ -40,7 +33,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         ms_kwargs = {
             k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
         }
-        # ms_kwargs["calibration"] = self.calibration  # FIXME: This is a mess.
+        # ms_kwargs["ms_calibration"] = self.ms_calibration  # FIXME: This is a mess.
         # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
         #  works together with MemoryBackend
         if "series_list" in kwargs:
@@ -55,8 +48,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     def as_dict(self):
         self_as_dict = super().as_dict()
 
-        if self.calibration:
-            self_as_dict["calibration"] = self.calibration.as_dict()
+        if self.ms_calibration:
+            self_as_dict["ms_calibration"] = self.ms_calibration.as_dict()
             # FIXME: necessary because an ECMSCalibration is not serializeable
             #   If it it was it would go into extra_column_attrs
         return self_as_dict
@@ -64,11 +57,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Unpack the ECMSCalibration when initiating from a dict"""
-        if "calibration" in obj_as_dict:
-            if isinstance(obj_as_dict["calibration"], dict):
+        if "ms_calibration" in obj_as_dict:
+            if isinstance(obj_as_dict["ms_calibration"], dict):
                 # FIXME: This is a mess
-                obj_as_dict["calibration"] = ECMSCalibration.from_dict(
-                    obj_as_dict["calibration"]
+                obj_as_dict["ms_calibration"] = ECMSCalibration.from_dict(
+                    obj_as_dict["ms_calibration"]
                 )
         obj = super(ECMSMeasurement, cls).from_dict(obj_as_dict)
         return obj
@@ -94,7 +87,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
 
-        Return MSCalResult: The result of the calibration
+        Return MSCalResult: The result of the ms_calibration
         """
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         Q = self.integrate("raw current / [mA]", tspan=tspan) * 1e-3
@@ -128,12 +121,12 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
             tspan_list (list of tspan): THe timespans of steady electrolysis
             tspan_bg (tspan): The time to use as a background
-            ax (Axis): The axis on which to plot the calibration curve result. Defaults
+            ax (Axis): The axis on which to plot the ms_calibration curve result. Defaults
                 to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
-                calibration on. Defaults to None.
+                ms_calibration on. Defaults to None.
 
-        Return MSCalResult(, Axis(, Axis)): The result of the calibration
+        Return MSCalResult(, Axis(, Axis)): The result of the ms_calibration
             (and requested axes)
         """
         axis_ms = axes_measurement[0] if axes_measurement else None
@@ -208,14 +201,12 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         ms_kwargs.update(series_list=kwargs["series_list"])
         MSMeasurement.__init__(self, **ms_kwargs)
         self.plot = self.plotter.plot_vs_potential
-        # FIXME: only necessary because an ECMSCalibration is not seriealizeable.
-        self.calibration = kwargs.get("calibration", None)
 
     def as_dict(self):
         self_as_dict = super().as_dict()
 
-        if self.calibration:
-            self_as_dict["calibration"] = self.calibration.as_dict()
+        if self.ms_calibration:
+            self_as_dict["ms_calibration"] = self.ms_calibration.as_dict()
             # FIXME: now that ECMSCalibration should be seriealizeable, it could
             #  go into extra_column_attrs. But it should be a reference.
         return self_as_dict
@@ -223,21 +214,21 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Unpack the ECMSCalibration when initiating from a dict"""
-        if "calibration" in obj_as_dict:
-            if isinstance(obj_as_dict["calibration"], dict):
+        if "ms_calibration" in obj_as_dict:
+            if isinstance(obj_as_dict["ms_calibration"], dict):
                 # FIXME: This is a mess
-                obj_as_dict["calibration"] = ECMSCalibration.from_dict(
-                    obj_as_dict["calibration"]
+                obj_as_dict["ms_calibration"] = ECMSCalibration.from_dict(
+                    obj_as_dict["ms_calibration"]
                 )
         obj = super(ECMSCyclicVoltammogram, cls).from_dict(obj_as_dict)
         return obj
 
 
-class ECMSCalibration(Saveable):
+class ECMSCalibration(ECCalibration, MSCalibration):
     """Class for calibrations useful for ECMSMeasurements
 
     FIXME: A class in a technique module shouldn't inherit directly from Saveable. We
-        need to generalize calibration somehow.
+        need to generalize ms_calibration somehow.
         Also, ECMSCalibration should inherit from or otherwise use a class MSCalibration
     """
 
@@ -251,27 +242,29 @@ class ECMSCalibration(Saveable):
         date=None,
         setup=None,
         ms_cal_results=None,
+        signal_bgs=None,
         RE_vs_RHE=None,
         A_el=None,
         L=None,
     ):
         """
         Args:
-            name (str): Name of the calibration
-            date (str): Date of the calibration
-            setup (str): Name of the setup where the calibration is made
+            name (str): Name of the ms_calibration
+            date (str): Date of the ms_calibration
+            setup (str): Name of the setup where the ms_calibration is made
             ms_cal_results (list of MSCalResult): The mass spec calibrations
             RE_vs_RHE (float): the RE potential in [V]
             A_el (float): the geometric electrode area in [cm^2]
             L (float): the working distance in [m]
         """
-        super().__init__()
-        self.name = name or f"EC-MS calibration for {setup} on {date}"
-        self.date = date
-        self.setup = setup
-        self.ms_cal_results = ms_cal_results or []
-        self.RE_vs_RHE = RE_vs_RHE
-        self.A_el = A_el
+        ECCalibration.__init__(self, name=name, A_el=A_el, RE_vs_RHE=RE_vs_RHE)
+        MSCalibration.__init__(
+            self,
+            date=date,
+            setup=setup,
+            ms_cal_results=ms_cal_results,
+            signal_bgs=signal_bgs,
+        )
         self.L = L
 
     def as_dict(self):
@@ -341,7 +334,7 @@ class ECMSCalibration(Saveable):
         return np.mean(np.array(F_list))
 
     def scaled_to(self, ms_cal_result):
-        """Return a new calibration w scaled sensitivity factors to match one given"""
+        """Return a new ms_calibration w scaled sensitivity factors to match one given"""
         F_0 = self.get_F(ms_cal_result.mol, ms_cal_result.mass)
         scale_factor = ms_cal_result.F / F_0
         calibration_as_dict = self.as_dict()

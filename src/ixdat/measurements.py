@@ -44,7 +44,7 @@ class Measurement(Saveable):
     }
     extra_linkers = {
         "component_measurements": ("measurements", "m_ids"),
-        "measurement_calibrations": ("calibration", "c_ids"),
+        "measurement_calibrations": ("ms_calibration", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
     child_attrs = ["component_measurements", "calibration_list", "series_list"]
@@ -508,9 +508,9 @@ class Measurement(Saveable):
         2. find or build the desired data series by the first possible of:
             A. Check if `key` corresponds to a method in `series_constructors`. If
                 so, build the data series with that method.
-            B. Check if the `calibration`'s `calibrate_series` returns a data series
+            B. Check if the `ms_calibration`'s `calibrate_series` returns a data series
                 for `key` given the data in this measurement. (Note that the
-                `calibration` will typically start with raw data looked C, below.)
+                `ms_calibration` will typically start with raw data looked C, below.)
             C. Generate a list of data series and append them:
                 i. Check if `key` is in `aliases`. If so, append all the data series
                     returned for each key in `aliases[key]`.
@@ -539,11 +539,11 @@ class Measurement(Saveable):
 
         - The first lookup, with `key="raw_potential"`, (1) checks for
         "raw_potential" in the cache, doesn't find it; then (2A) checks in
-        `series_constructors`, doesn't find it; (2B) asks the calibration for
+        `series_constructors`, doesn't find it; (2B) asks the ms_calibration for
         "raw_potential" and doesn't get anything back; and finally (2Ci) checks
         `aliases` for raw potential where it finds that "raw_potential" is called
         "Ewe/V". Then it looks up again, this time with `key="Ewe/V"`, which it doesn't
-        find in (1) the cache, (2A) `series_consturctors`, (2B) the calibration, or
+        find in (1) the cache, (2A) `series_consturctors`, (2B) the ms_calibration, or
         (2Ci) `aliases`, but does find in (2Cii) `series_list`. There is only one
         data series named "Ewe/V" so no appending is necessary, but it does ensure that
         the series has the measurement's `tstamp` before cache'ing and returning it.
@@ -552,12 +552,12 @@ class Measurement(Saveable):
         returns it.
         - The second lookup, with `key="potential"`, (1) checks for "potential" in the
         cache, doesn't find it; then (2A) checks in `series_constructors`, doesn't find
-        it; and then (2B) asks the calibration for "potential". The calibration knows
+        it; and then (2B) asks the ms_calibration for "potential". The ms_calibration knows
         that when asked for "potential" it should look for "raw_potential" and add
         `RE_vs_RHE`. So it does a lookup with `key="raw_potential"` and (1) finds it
-        in the cache. The calibration does the math and returns a new data series for
+        in the cache. The ms_calibration does the math and returns a new data series for
         the calibrated potential, bringing us back to the original lookup. The data
-        series returned by the calibration is then (3) cached and returned to the user.
+        series returned by the ms_calibration is then (3) cached and returned to the user.
 
         Note that, if the user had not looked up "raw_potential" before looking up
         "potential", "raw_potential" would not have been in the cache and the first
@@ -587,7 +587,7 @@ class Measurement(Saveable):
 
         See more detailed documentation under `__getitem__`, for which this is a
         helper method. This method (A) looks for a method for `key` in the measurement's
-        `series_constructors`; (B) requests its `calibration` for `key`; and if those
+        `series_constructors`; (B) requests its `ms_calibration` for `key`; and if those
         fails appends the data series that either (Ci) are returned by looking up the
         key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
         user was using a key with a suffix.
@@ -604,7 +604,7 @@ class Measurement(Saveable):
         # B
         for calibration in self.calibrations:
             series = calibration.calibrate_series(key, measurement=self)
-            # ^ the calibration will call __getitem__ with the name of the
+            # ^ the ms_calibration will call __getitem__ with the name of the
             #   corresponding raw data and return a new series with calibrated data
             #   if possible. Otherwise it will return None.
             if series:
@@ -648,8 +648,8 @@ class Measurement(Saveable):
         """Remove an existing series, add a series to the measurement, or both.
 
         FIXME: This will not appear to change the series for the user if the
-            measurement's calibration returns something for ´series_name´, since
-            __getitem__ asks the calibration before looking in series_list.
+            measurement's ms_calibration returns something for ´series_name´, since
+            __getitem__ asks the ms_calibration before looking in series_list.
 
         Args:
             series_name (str): The name of a series. If the measurement has (raw) data
@@ -1197,7 +1197,7 @@ class Measurement(Saveable):
 class Calibration(Saveable):
     """Base class for calibrations."""
 
-    table_name = "calibration"
+    table_name = "ms_calibration"
     column_attrs = {
         "name",
         "technique",
@@ -1208,9 +1208,9 @@ class Calibration(Saveable):
         """Initiate a Calibration
 
         Args:
-            name (str): The name of the calibration
-            technique (str): The technique of the calibration
-            tstamp (float): The time at which the calibration took place or is valid
+            name (str): The name of the ms_calibration
+            technique (str): The technique of the ms_calibration
+            tstamp (float): The time at which the ms_calibration took place or is valid
             measurement (Measurement): Optional. A measurement to calibrate by default.
         """
         super().__init__()
@@ -1237,13 +1237,42 @@ class Calibration(Saveable):
         else:
             calibration_class = cls
         try:
-            measurement = calibration_class(**obj_as_dict)
+            calibration = calibration_class(**obj_as_dict)
         except Exception:
             raise
-        return measurement
+        return calibration
+
+    def as_dict(self):
+        """Have to dict the MSCalResults to get serializable as_dict (see Saveable)"""
+        self_as_dict = super().as_dict()
+        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
+        return self_as_dict
+
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Unpack the MSCalResults when initiating from a dict"""
+        obj = super(ECMSCalibration, cls).from_dict(obj_as_dict)
+        obj.ms_cal_results = [
+            MSCalResult.from_dict(cal_as_dict) for cal_as_dict in obj.ms_cal_results
+        ]
+        return obj
+
+    def export(self, path_to_file=None):
+        """Export an ECMSCalibration as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
+
+    @classmethod
+    def read(cls, path_to_file):
+        """Read an ECMSCalibration from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        return cls.from_dict(obj_as_dict)
 
     def calibrate_series(self, key, measurement=None):
-        """This should be overwritten in real calibration classes.
+        """This should be overwritten in real ms_calibration classes.
 
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
@@ -1275,5 +1304,5 @@ def get_combined_technique(technique_1, technique_2):
         if hyphenated in TECHNIQUE_CLASSES:
             return hyphenated
 
-    # if all else fails, we just join them with " AND ". e.g. MS + XRD = MS AND XRD
-    return technique_1 + " AND " + technique_2
+    # if all else fails, we just join them with " and ". e.g. MS + XRD = MS and XRD
+    return technique_1 + " and " + technique_2

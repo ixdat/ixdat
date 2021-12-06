@@ -33,7 +33,7 @@ class ECMeasurement(Measurement):
         - calibrated and/or corrected, if the measurement has been calibrated with the
           reference electrode potential (`RE_vs_RHE`, see `calibrate`) and/or corrected
           for ohmic drop (`R_Ohm`, see `correct_ohmic_drop`).
-        - A name that makes clear any calibration and/or correction
+        - A name that makes clear any ms_calibration and/or correction
         - Data which spans the entire timespan of the measurement - i.e. whenever EC
           data is being recorded, `potential` is there, even if the name of the raw
           `ValueSeries` (what the acquisition software calls it) changes. Indeed
@@ -157,8 +157,8 @@ class ECMeasurement(Measurement):
         """The list of calibrations of the measurement.
 
         The following is necessary to ensure that all EC Calibration parameters are
-        joined in a single calibration when processing. So that "potential" is both
-        calibrated to RHE and ohmic drop corrected, even if the two calibration
+        joined in a single ms_calibration when processing. So that "potential" is both
+        calibrated to RHE and ohmic drop corrected, even if the two ms_calibration
         parameters were added separately.
         """
         full_calibration_list = self.calibration_list
@@ -172,7 +172,7 @@ class ECMeasurement(Measurement):
 
     @property
     def ec_calibration(self):
-        """A calibration joining the first RE_vs_RHE, A_el, and R_Ohm"""
+        """A ms_calibration joining the first RE_vs_RHE, A_el, and R_Ohm"""
         return ECCalibration(RE_vs_RHE=self.RE_vs_RHE, A_el=self.A_el, R_Ohm=self.R_Ohm)
 
     @property
@@ -210,9 +210,9 @@ class ECMeasurement(Measurement):
             RE_vs_RHE (float): reference electode potential on RHE scale in [V]
             A_el (float): electrode area in [cm^2]
             R_Ohm (float): ohmic drop resistance in [Ohm]
-            tstamp (flaot): The timestamp at which the calibration was done (defaults
+            tstamp (flaot): The timestamp at which the ms_calibration was done (defaults
                 to now)
-            cal_name (str): The name of the calibration.
+            cal_name (str): The name of the ms_calibration.
         """
         if not (RE_vs_RHE or A_el or R_Ohm):
             print("Warning! Ignoring attempt to calibrate without any parameters.")
@@ -284,7 +284,7 @@ class ECMeasurement(Measurement):
 
 
 class ECCalibration(Calibration):
-    """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
+    """An electrochemical ms_calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
 
     extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
     # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
@@ -302,9 +302,9 @@ class ECCalibration(Calibration):
         """Initiate a Calibration
 
         Args:
-            name (str): The name of the calibration
-            technique (str): The technique of the calibration
-            tstamp (float): The time at which the calibration took place or is valid
+            name (str): The name of the ms_calibration
+            technique (str): The technique of the ms_calibration
+            tstamp (float): The time at which the ms_calibration took place or is valid
             measurement (ECMeasurement): Optional. A measurement to calibrate by default
             RE_vs_RHE (float): The reference electrode potential on the RHE scale in [V]
             A_el (float): The electrode area in [cm^2]
@@ -329,11 +329,11 @@ class ECCalibration(Calibration):
 
         Key should be "potential" or "current". Anything else will return None.
 
-        - potential: the calibration looks up "raw_potential" in the measurement, shifts
+        - potential: the ms_calibration looks up "raw_potential" in the measurement, shifts
         it to the RHE potential if RE_vs_RHE is available, corrects it for Ohmic drop if
         R_Ohm is available, and then returns a calibrated potential series with a name
         indicative of the corrections done.
-        - current: The calibration looks up "raw_current" in the measurement, normalizes
+        - current: The ms_calibration looks up "raw_current" in the measurement, normalizes
         it to the electrode area if A_el is available, and returns a calibrated current
         series with a name indicative of whether the normalization was done.
         """

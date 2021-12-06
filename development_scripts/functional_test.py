@@ -36,7 +36,7 @@ assert np.isclose(
 cv = ec_measurement.as_cv()
 cvs_1_plus_2 = cv[1] + cv[2]
 
-# Check that the calibration survived all that:
+# Check that the ms_calibration survived all that:
 assert cvs_1_plus_2.RE_vs_RHE == ec_measurement.RE_vs_RHE
 # Check that the main time variable, that of potential, wasn't corrupted:
 assert len(cvs_1_plus_2.grab("potential")[0]) == len(cvs_1_plus_2["time/s"].data)

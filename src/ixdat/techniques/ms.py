@@ -22,7 +22,40 @@ import numpy as np
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
+    extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
+
+    def __init__(self, name, **kwargs):
+        tspan_bg = kwargs.pop("tspan_bg", None)
+        super().__init__(name, **kwargs)
+        self.tspan_bg = tspan_bg
+
+    @property
+    def ms_calibration(self):
+        ms_cal_list = []
+        tspan_bg = None
+        signal_bgs = {}
+        for cal in self.calibration_list:
+            ms_cal_list = ms_cal_list + getattr(cal, "ms_cal_list", [])
+            for mass, bg in getattr(cal, "signal_bgs", {}).items():
+                if not mass in signal_bgs:
+                    signal_bgs[mass] = bg
+            tspan_bg = tspan_bg or getattr(cal, "tspan_bg", None)
+        return MSCalibration(ms_cal_results=ms_cal_list, signal_bgs=signal_bgs)
+
+    @property
+    def signal_bgs(self):
+        return self.ms_calibration.signal_bgs
+
+    def set_bg(self, tspan_bg=None, mass_list=None):
+        """Set background values for mass_list to the average signal during tspan_bg."""
+        mass_list = mass_list or self.mass_list
+        tspan_bg = tspan_bg or self.tspan_bg
+        signal_bgs = {}
+        for mass in mass_list:
+            t, v = self.grab(mass, tspan_bg)
+            signal_bgs[mass] = np.mean(v)
+        self.add_calibration(MSCalibration(signal_bgs=signal_bgs))
 
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
@@ -65,7 +98,7 @@ class MSMeasurement(Measurement):
 
     def grab_cal_signal(self, signal_name, tspan=None, t_bg=None):
         """Returns a calibrated signal for a given signal name. Only works if
-        calibration dict is not None.
+        ms_calibration dict is not None.
 
         Args:
             signal_name (str): Name of the signal.
@@ -75,13 +108,13 @@ class MSMeasurement(Measurement):
         """
         # TODO: Not final implementation.
         # FIXME: Depreciated! Use grab_flux instead!
-        if self.calibration is None:
-            print("No calibration dict found.")
+        if self.ms_calibration is None:
+            print("No ms_calibration dict found.")
             return
 
         time, value = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
 
-        return time, value * self.calibration[signal_name]
+        return time, value * self.ms_calibration[signal_name]
 
     def grab_flux(
         self,
@@ -94,7 +127,7 @@ class MSMeasurement(Measurement):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Args:
-            mol (str or MSCalResult): Name of the molecule or a calibration thereof
+            mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
             tspan (list): Timespan for which the signal is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
@@ -102,12 +135,12 @@ class MSMeasurement(Measurement):
                 Defaults to True.
         """
         if isinstance(mol, str):
-            if not self.calibration or mol not in self.calibration:
+            if not self.ms_calibration or mol not in self.ms_calibration:
                 raise QuantificationError(
                     f"Can't quantify {mol} in {self}: "
-                    f"Not in calibration={self.calibration}"
+                    f"Not in ms_calibration={self.ms_calibration}"
                 )
-            mass, F = self.calibration.get_mass_and_F(mol)
+            mass, F = self.ms_calibration.get_mass_and_F(mol)
         elif isinstance(mol, MSCalResult):
             mass = mol.mass
             F = mol.F
@@ -208,9 +241,9 @@ class MSMeasurement(Measurement):
 
 
 class MSCalResult(Saveable):
-    """A class for a mass spec calibration result.
+    """A class for a mass spec ms_calibration result.
 
-    TODO: How can we generalize calibration? I think that something inheriting directly
+    TODO: How can we generalize ms_calibration? I think that something inheriting directly
         from saveable belongs in a top-level module and not in a technique module
     """
 
@@ -243,7 +276,101 @@ class MSCalResult(Saveable):
 
 
 class MSCalibration(Calibration):
-    pass
+    """Class for calibrations useful for ECMSMeasurements
+
+    FIXME: A class in a technique module shouldn't inherit directly from Saveable. We
+        need to generalize ms_calibration somehow.
+        Also, ECMSCalibration should inherit from or otherwise use a class MSCalibration
+    """
+
+    extra_linkers = {"ms_calibration_results", ("ms_cal_results", "ms_cal_result_ids")}
+    child_attrs = [
+        "ms_cal_results",
+    ]
+    # FIXME: Not given a table_name as it can't save to the database without
+    #   MSCalResult's being json-seriealizeable. Exporting and reading works, though :D
+
+    def __init__(
+        self,
+        name=None,
+        date=None,
+        setup=None,
+        ms_cal_results=None,
+        signal_bgs=None,
+    ):
+        """
+        Args:
+            name (str): Name of the ms_calibration
+            date (str): Date of the ms_calibration
+            setup (str): Name of the setup where the ms_calibration is made
+            ms_cal_results (list of MSCalResult): The mass spec calibrations
+        """
+        super().__init__()
+        self.name = name or f"EC-MS ms_calibration for {setup} on {date}"
+        self.date = date
+        self.setup = setup
+        self.ms_cal_results = ms_cal_results or []
+        self.signal_bgs = signal_bgs or {}
+
+    @property
+    def ms_cal_result_ids(self):
+        return [cal.id for cal in self.ms_cal_results]
+
+    @property
+    def mol_list(self):
+        return list({cal.mol for cal in self.ms_cal_results})
+
+    @property
+    def mass_list(self):
+        return list({cal.mass for cal in self.ms_cal_results})
+
+    @property
+    def name_list(self):
+        return list({cal.name for cal in self.ms_cal_results})
+
+    def __contains__(self, mol):
+        return mol in self.mol_list or mol in self.name_list
+
+    def __iter__(self):
+        yield from self.ms_cal_results
+
+    def get_mass_and_F(self, mol):
+        """Return the mass and sensitivity factor to use for simple quant. of mol"""
+        cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
+        Fs = [cal.F for cal in cal_list_for_mol]
+        index = np.argmax(np.array(Fs))
+
+        the_good_cal = cal_list_for_mol[index]
+        return the_good_cal.mass, the_good_cal.F
+
+    def get_F(self, mol, mass):
+        """Return the sensitivity factor for mol at mass"""
+        cal_list_for_mol_at_mass = [
+            cal
+            for cal in self
+            if (cal.mol == mol or cal.name == mol) and cal.mass == mass
+        ]
+        F_list = [cal.F for cal in cal_list_for_mol_at_mass]
+        return np.mean(np.array(F_list))
+
+    def scaled_to(self, ms_cal_result):
+        """Return a new ms_calibration w scaled sensitivity factors to match one given"""
+        F_0 = self.get_F(ms_cal_result.mol, ms_cal_result.mass)
+        scale_factor = ms_cal_result.F / F_0
+        calibration_as_dict = self.as_dict()
+        new_cal_list = []
+        for cal in self.ms_cal_results:
+            cal = MSCalResult(
+                name=cal.name,
+                mass=cal.mass,
+                mol=cal.mol,
+                F=cal.F * scale_factor,
+                cal_type=cal.cal_type + " scaled",
+            )
+            new_cal_list.append(cal)
+        calibration_as_dict["ms_cal_results"] = [cal.as_dict() for cal in new_cal_list]
+        calibration_as_dict["name"] = calibration_as_dict["name"] + " scaled"
+        return self.__class__.from_dict(calibration_as_dict)
 
 
 class MSInlet:
@@ -360,7 +487,7 @@ class MSInlet:
     ):
         """
         Args:
-            measurement (MSMeasurement): The measurement with the calibration data
+            measurement (MSMeasurement): The measurement with the ms_calibration data
             mol (str): The name of the molecule to calibrate
             mass (str): The mass to calibrate at
             tspan (iter): The timespan to average the signal over. Defaults to all
@@ -368,7 +495,7 @@ class MSInlet:
             ax (matplotlib axis): the axis on which to indicate what signal is used
                 with a thicker line. Defaults to none
 
-        Returns MSCalResult: a calibration result containing the sensitivity factor for
+        Returns MSCalResult: a ms_calibration result containing the sensitivity factor for
             mol at mass
         """
         t, S = measurement.grab_signal(mass, tspan=tspan, t_bg=tspan_bg)
