@@ -602,6 +602,13 @@ class Measurement(Saveable):
         if key in self.aliases:  # i
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
+                if k == key:  # this would result in infinite recursion.
+                    print(  # TODO: Real warnings.
+                        "WARNING!!!\n"
+                        f"\t{self} has {key} in its aliases for {key}:\n"
+                        f"\tself.aliases['{key}'] = {self.aliases[key]}"
+                    )
+                    continue
                 try:
                     series_to_append.append(self[k])
                 except SeriesNotFoundError:

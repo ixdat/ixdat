@@ -3,20 +3,29 @@
 import re
 from pathlib import Path
 import pandas as pd
+from ..techniques.ec import ECMeasurement
 from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
+
+IVIUM_ALIASES = {
+    "raw_potential": ("E/V",),
+    "raw_current": ("I/A",),
+    "t": ("time/s",),
+}
 
 
 class IviumDataReader:
     """Class for reading single ivium files"""
 
-    def read(self, path_to_file, cls=None, name=None, **kwargs):
+    def read(self, path_to_file, cls=None, name=None, cycle_number=0, **kwargs):
         """read the ascii export from the Ivium software
 
         Args:
             path_to_file (Path): The full abs or rel path including the suffix (.txt)
-            name (str): The name to use if not the file name
             cls (Measurement subclass): The Measurement class to return an object of.
                 Defaults to `ECMeasurement`.
+            name (str): The name to use if not the file name
+            cycle_number (int): The cycle number of the data in the file (default is 0)
+
             **kwargs (dict): Key-word arguments are passed to cls.__init__
 
         Returns:
@@ -25,7 +34,7 @@ class IviumDataReader:
         self.path_to_file = Path(path_to_file)
         name = name or self.path_to_file.name
 
-        with open(path_to_file, "r") as f:
+        with open(self.path_to_file, "r") as f:
             timesting_line = f.readline()  # we need this for tstamp
             columns_line = f.readline()  # we need this to get the column names
             first_data_line = f.readline()  # we need this to check the column names
@@ -55,7 +64,11 @@ class IviumDataReader:
         # into the Measurement, starting with the TimeSeries:
 
         data_series_list = series_list_from_dataframe(
-            dataframe, "time/s", tstamp, get_column_unit
+            dataframe,
+            time_name="time/s",
+            tstamp=tstamp,
+            unit_finding_function=get_column_unit,
+            cycle=cycle_number,
         )
         # With the `series_list` ready, we prepare the Measurement dictionary and
         # return the Measurement object:
@@ -63,16 +76,13 @@ class IviumDataReader:
             name=name,
             technique="EC",
             reader=self,
-            raw_potential_names=("E/V",),
-            raw_current_names=("I/A",),
+            aliases=IVIUM_ALIASES,
             series_list=data_series_list,
             tstamp=tstamp,
         )
         obj_as_dict.update(kwargs)
 
-        if not cls:
-            from ..techniques.ec import ECMeasurement
-
+        if not issubclass(ECMeasurement, cls):
             cls = ECMeasurement
         return cls.from_dict(obj_as_dict)
 
@@ -110,7 +120,8 @@ class IviumDatasetReader:
         # in the folder who's name starts with base_name:
         all_file_paths = [f for f in folder.iterdir() if f.name.startswith(base_name)]
         component_measurements = [
-            IviumDataReader().read(f, cls=cls) for f in all_file_paths
+            IviumDataReader().read(f, cls=cls, cycle_number=i)
+            for i, f in enumerate(all_file_paths)
         ]
 
         # Now we append these using the from_component_measurements class method of the

@@ -5,7 +5,7 @@ import time
 import urllib.request
 from ..config import CFG
 from ..exceptions import ReadError
-from ..measurements import TimeSeries, ValueSeries
+from ..measurements import TimeSeries, ValueSeries, ConstantValue
 
 
 STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'
@@ -88,7 +88,9 @@ def prompt_for_tstamp(path_to_file, default="creation", form=STANDARD_TIMESTAMP_
     return tstamp or default_tstamp
 
 
-def series_list_from_dataframe(dataframe, t_str, tstamp, unit_finding_function):
+def series_list_from_dataframe(
+    dataframe, time_name, tstamp, unit_finding_function, **kwargs
+):
     """Return a list of DataSeries with the data in a pandas dataframe.
 
     Args:
@@ -96,17 +98,18 @@ def series_list_from_dataframe(dataframe, t_str, tstamp, unit_finding_function):
             names, data is taken with series.to_numpy(). The dataframe can only have one
             TimeSeries (if there are more than one, pandas is probably not the right
             format anyway, since it requires columns be the same length).
-        t_str (str): The name of the column to use as the TimeSeries
+        time_name (str): The name of the column to use as the TimeSeries
         tstamp (float): The timestamp
         unit_finding_function (function): A function which takes a column name as a
             string and returns its unit.
+        kwargs: Additional key-word arguments are interpreted as constants to include
+            in the data series list as `ConstantValue`s.
     """
-    tseries = TimeSeries(
-        name=t_str, unit_name="s", data=dataframe[t_str].to_numpy(), tstamp=tstamp
-    )
+    t = dataframe[time_name].to_numpy()
+    tseries = TimeSeries(name=time_name, unit_name="s", data=t, tstamp=tstamp)
     data_series_list = [tseries]
     for column_name, series in dataframe.items():
-        if column_name == t_str:
+        if column_name == time_name:
             continue
         data_series_list.append(
             ValueSeries(
@@ -115,6 +118,10 @@ def series_list_from_dataframe(dataframe, t_str, tstamp, unit_finding_function):
                 data=series.to_numpy(),
                 tseries=tseries,
             )
+        )
+    for key, value in kwargs.items():
+        data_series_list.append(
+            ConstantValue(name=key, unit_name="", data=value, tseries=tseries)
         )
     return data_series_list
 

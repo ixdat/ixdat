@@ -44,7 +44,7 @@ class PVMassSpecReader:
         series_list = series_list_from_dataframe(
             df,
             tstamp=tstamp,
-            t_str="Time Relative (sec)",
+            time_name="Time Relative (sec)",
             unit_finding_function=get_column_unit,
         )
         meas_as_dict = {
