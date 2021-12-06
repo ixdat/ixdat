@@ -241,9 +241,9 @@ class SpectroECMeasurement(ECMeasurement):
         dOD_vseries = ValueSeries(
             name=dOD_name, unit_name="", data=dOD_wl, tseries=tseries
         )
-        self[raw_name] = raw_vseries
+        self.replace_series(raw_name, raw_vseries)
         # FIXME: better caching. See https://github.com/ixdat/ixdat/pull/11
-        self[dOD_name] = dOD_vseries
+        self.replace_series(dOD_name, dOD_vseries)
         # FIXME: better caching. See https://github.com/ixdat/ixdat/pull/11
         self.tracked_wavelengths.append(dOD_name)  # For the exporter.
 

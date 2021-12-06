@@ -235,8 +235,11 @@ class MsrhSECDecayReader:
             name=str(path_to_file),
             tstamp=tstamp,
             series_list=series_list,
-            raw_potential_names=(v_series.name,),
-            raw_current_names=(j_series.name,),
+            aliases={
+                "raw_potential": (v_series.name,),
+                "raw_current": (j_series.name,),
+                "t": (tseries_v.name,),
+            },
         )
 
         return measurement

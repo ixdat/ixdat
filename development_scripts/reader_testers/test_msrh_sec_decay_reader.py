@@ -34,7 +34,7 @@ axes = sec_meas.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
 
 ax_w = sec_meas.plot_waterfall()
 
-exit()
+# exit()
 # ax_w.get_figure().savefig("decay_waterfall.png")
 
 ref_spec = sec_meas.reference_spectrum
