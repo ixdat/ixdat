@@ -611,7 +611,10 @@ class Measurement(Saveable):
                 return series
         # C
         series_to_append = []
-        if key in self.aliases:  # i
+        if key in self.series_names:  # ii
+            # Then we'll append any series matching the desired name
+            series_to_append += [s for s in self.series_list if s.name == key]
+        elif key in self.aliases:  # i
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
                 if k == key:  # this would result in infinite recursion.
@@ -625,9 +628,6 @@ class Measurement(Saveable):
                     series_to_append.append(self[k])
                 except SeriesNotFoundError:
                     continue
-        elif key in self.series_names:  # ii
-            # Then we'll append any series matching the desired name
-            series_to_append += [s for s in self.series_list if s.name == key]
         # If the key is something in the data, by now we have series to append.
         if series_to_append:
             # the following if's are to do as little extra manipulation as possible:
@@ -780,7 +780,7 @@ class Measurement(Saveable):
     def _build_file_number_series(self):
         """Build a `file_number` series based on component measurements times."""
         series_to_append = []
-        for i, m in enumerate(self.component_measurements):
+        for i, m in enumerate(self.component_measurements or [self]):
             if (
                 self.control_technique_name
                 and not m.technique == self.control_technique_name

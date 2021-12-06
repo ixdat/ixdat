@@ -8,8 +8,28 @@ class SECExporter(CSVExporter):
 
     def __init__(self, measurement, delim=",\t"):
         super().__init__(measurement, delim=delim)
-        self.reference_exporter = SpectrumExporter(measurement.reference_spectrum)
-        self.spectra_exporter = SpectrumSeriesExporter(measurement.spectrum_series)
+        # FIXME: The lines below don't work because this __init__ gets called before
+        #   the measurement's __init__ is finished.
+        # self.reference_exporter = SpectrumExporter(measurement.reference_spectrum)
+        # self.spectra_exporter = SpectrumSeriesExporter(measurement.spectrum_series)
+        self._reference_exporter = None
+        self._spectra_exporter = None
+
+    @property
+    def reference_exporter(self):
+        if not self._reference_exporter:
+            self._reference_exporter = SpectrumExporter(
+                self.measurement.reference_spectrum
+            )
+        return self._reference_exporter
+
+    @property
+    def spectra_exporter(self):
+        if not self._spectra_exporter:
+            self._spectra_exporter = SpectrumSeriesExporter(
+                self.measurement.spectrum_series
+            )
+        return self._spectra_exporter
 
     @property
     def default_v_list(self):

@@ -6,9 +6,14 @@ import numpy as np
 from scipy.interpolate import interp1d
 from ..spectra import SpectrumSeries
 from ..exporters.sec_exporter import SECExporter
+from ..plotters.sec_plotter import SECPlotter
 
 
 class SpectroECMeasurement(ECMeasurement):
+
+    default_plotter = SECPlotter
+    default_exporter = SECExporter
+
     def __init__(self, *args, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
         ECMeasurement.__init__(self, *args, **kwargs)
@@ -18,8 +23,6 @@ class SpectroECMeasurement(ECMeasurement):
         self.plot_wavelengths = self.plotter.plot_wavelengths
         self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
         self.technique = "S-EC"
-        self.plotter = SECPlotter(measurement=self)
-        self.exporter = SECExporter(measurement=self)
 
     @property
     def reference_spectrum(self):

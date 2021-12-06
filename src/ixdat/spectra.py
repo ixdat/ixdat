@@ -65,9 +65,11 @@ class Spectrum(Saveable):
         self.tstamp = tstamp
         self.sample_name = sample_name
         self.reader = reader
-        self._field = field or PlaceHolderObject(field_id, cls=Field)
+        self._field = field or PlaceHolderObject(
+            field_id, cls=Field, backend=self.backend
+        )
 
-        self.plotter = SpectrumPlotter
+        self.plotter = SpectrumPlotter(spectrum=self)
         # defining this method here gets it the right docstrings :D
         self.plot = self.plotter.plot
 
@@ -250,7 +252,7 @@ class SpectrumSeries(Spectrum):
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
         super().__init__(*args, **kwargs)
-        self.plotter = SpectrumSeriesPlotter
+        self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
 
     @property
     def yseries(self):

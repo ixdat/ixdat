@@ -26,14 +26,14 @@ sec_meas.get_dOD_spectrum(V=1.4, V_ref=1.0).plot(color="g", label="species 2", a
 sec_meas.get_dOD_spectrum(V=1.7, V_ref=1.4).plot(color="r", label="species 3", ax=ax)
 ax.legend()
 
-export_name = "exported_sec.csv"
-sec_meas.export(export_name)
 
-sec_reloaded = Measurement.read(export_name, reader="ixdat")
+if False:  # test export and reload
+    export_name = "exported_sec.csv"
+    sec_meas.export(export_name)
+    sec_reloaded = Measurement.read(export_name, reader="ixdat")
+    sec_reloaded.set_reference_spectrum(V_ref=0.66)
+    sec_reloaded.plot_vs_potential(cmap_name="jet")
 
-sec_reloaded.set_reference_spectrum(V_ref=0.66)
-
-sec_reloaded.plot_vs_potential(cmap_name="jet")
 
 axes = sec_meas.plot_measurement(
     V_ref=0.4,

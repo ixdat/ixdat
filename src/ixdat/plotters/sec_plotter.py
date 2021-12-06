@@ -129,7 +129,7 @@ class SECPlotter(MPLPlotter):
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             ax=ax,
-            vs=measurement.V_str,
+            vs=measurement.v_name,
         )
 
     def plot_vs_potential(
@@ -137,8 +137,8 @@ class SECPlotter(MPLPlotter):
         measurement=None,
         tspan=None,
         vspan=None,
-        V_str=None,
-        J_str=None,
+        v_name=None,
+        j_name=None,
         axes=None,
         wlspan=None,
         V_ref=None,
@@ -158,8 +158,8 @@ class SECPlotter(MPLPlotter):
                 self.measurement
             tspan (timespan): The timespan of data to keep for the measurement.
             vspan (timespan): The potential span of data to keep for the measurement.
-            V_str (str): Optional. The name of the data series to use as potential.
-            J_str (str): Optional. The name of the data series to use as current.
+            v_name (str): Optional. The name of the data series to use as potential.
+            j_name (str): Optional. The name of the data series to use as current.
             wlspan (iterable): The wavelength span of spectral data to plot
             axes (list of numpy Axes): The axes to plot on. axes[0] is for the heat
                 plot and axes[1] for potential. New are made by default.
@@ -184,8 +184,8 @@ class SECPlotter(MPLPlotter):
         self.ec_plotter.plot_vs_potential(
             measurement=measurement,
             tspan=tspan,
-            V_str=V_str,
-            J_str=J_str,
+            v_name=v_name,
+            j_name=j_name,
             ax=axes[1],
             **kwargs,
         )
@@ -198,7 +198,7 @@ class SECPlotter(MPLPlotter):
             ax=axes[0],
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
-            vs=V_str or measurement.V_str,
+            vs=v_name or measurement.v_name,
         )
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
