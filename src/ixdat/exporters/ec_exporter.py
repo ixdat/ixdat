@@ -13,3 +13,12 @@ class ECExporter(CSVExporter):
             self.measurement.j_name,
             self.measurement.selector_name,
         ]
+
+    @property
+    def aliases(self):
+        return {
+            "t": (self.measurement.t_name,),
+            "raw_potential": (self.measurement.v_name,),
+            "raw_current": (self.measurement.j_name,),
+            "selector": (self.measurement.selector_name,),
+        }

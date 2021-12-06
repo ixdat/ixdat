@@ -40,6 +40,8 @@ class SECExporter(CSVExporter):
         )
         return v_list
 
+    aliases = ECExporter.aliases
+
     def prepare_header_and_data(self, measurement, v_list, tspan):
         """Do the standard ixdat csv export header preparation, plus SEC stuff.
 

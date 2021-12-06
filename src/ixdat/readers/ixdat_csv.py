@@ -1,6 +1,7 @@
 """Module defining the ixdat csv reader, so ixdat can read the files it exports."""
 
 from pathlib import Path
+import json
 import numpy as np
 import re
 import pandas as pd
@@ -72,6 +73,7 @@ class IxdatCSVReader:
         self.measurement_class = Measurement
         self.file_has_been_read = False
         self.measurement = None
+        self.meas_as_dict = {}
 
     def read(self, path_to_file, name=None, cls=None, **kwargs):
         """Return a Measurement with the data and metadata recorded in path_to_file
@@ -149,24 +151,19 @@ class IxdatCSVReader:
             data_series_dict[column_name] = vseries
 
         data_series_list = list(data_series_dict.values()) + self.aux_series_list
-        obj_as_dict = dict(
+        self.meas_as_dict.update(
             name=self.name,
             technique=self.technique,
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
         )
-        obj_as_dict.update(kwargs)
+        self.meas_as_dict.update(kwargs)
 
         if issubclass(cls, self.measurement_class):
             self.measurement_class = cls
 
-        if issubclass(self.measurement_class, TECHNIQUE_CLASSES["EC"]):
-            # this is how ECExporter exports current and potential:
-            obj_as_dict["raw_potential_names"] = ("raw potential / [V]",)
-            obj_as_dict["raw_current_names"] = ("raw current / [mA]",)
-
-        self.measurement = self.measurement_class.from_dict(obj_as_dict)
+        self.measurement = self.measurement_class.from_dict(self.meas_as_dict)
         self.file_has_been_read = True
         return self.measurement
 
@@ -208,11 +205,22 @@ class IxdatCSVReader:
             self.timecols[tcol] = []
             for vcol in timecol_match.group(2).split("' and '"):
                 self.timecols[tcol].append(vcol)
+            return
         aux_file_match = re.search(regular_expressions["aux_file"], line)
         if aux_file_match:
             aux_file_name = aux_file_match.group(1)
             aux_file = self.path_to_file.parent / aux_file_match.group(2)
             self.read_aux_file(aux_file, name=aux_file_name)
+            return
+        if " = " in line:
+            key, value = line.strip().split(" = ")
+            if key in ("name", "id"):
+                return
+            try:
+                self.meas_as_dict[key] = json.loads(value)
+            except json.decoder.JSONDecodeError:
+                print(f"skipping the following line:\n{line}")
+            return
 
         if self.N_header_lines and self.n_line >= self.N_header_lines - 2:
             self.place_in_file = "column names"

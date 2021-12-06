@@ -1,11 +1,15 @@
 """Classes for exporting measurement data"""
 from pathlib import Path
+import json
 
 
 class CSVExporter:
     """The default exporter, which writes delimited measurement data row-wise to file"""
 
     default_v_list = None  # This will typically be overwritten by inheriting Exporters
+    """The names of the value series to export by default."""
+    aliases = None  # This will typically be overwritten by inheriting Exporters
+    """The aliases, needed for techniques with essential series that get renamed."""
 
     def __init__(self, measurement=None, delim=",\t"):
         """Initiate the exported with a measurement (Measurement) and delimiter (str)"""
@@ -83,6 +87,9 @@ class CSVExporter:
                 + "\n"
             )
             header_lines.append(line)
+        if self.aliases:
+            aliases_line = f"aliases = {json.dumps(self.aliases)}\n"
+            header_lines.append(aliases_line)
         self.header_lines = header_lines
         self.s_list = s_list
         self.columns_data = columns_data

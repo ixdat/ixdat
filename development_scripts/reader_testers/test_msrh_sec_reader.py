@@ -27,7 +27,7 @@ sec_meas.get_dOD_spectrum(V=1.7, V_ref=1.4).plot(color="r", label="species 3", a
 ax.legend()
 
 
-if False:  # test export and reload
+if True:  # test export and reload
     export_name = "exported_sec.csv"
     sec_meas.export(export_name)
     sec_reloaded = Measurement.read(export_name, reader="ixdat")

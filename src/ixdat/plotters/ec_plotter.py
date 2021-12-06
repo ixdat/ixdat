@@ -61,27 +61,11 @@ class ECPlotter(MPLPlotter):
                 "DEPRECIATION WARNING! V_str has been renamed v_name and J_str has "
                 "been renamed j_name. Get it right next time."
             )
-        v_name = (
-            v_name
-            or V_str
-            or (
-                measurement.v_name
-                if measurement.RE_vs_RHE is not None
-                else measurement.E_name
-            )
-        )
+        v_name = v_name or V_str or measurement.v_name
         # FIXME: We need a better solution for V_str and J_str that involves the
         #   Calibration and is generalizable. see:
         #   https://github.com/ixdat/ixdat/pull/11#discussion_r679290123
-        j_name = (
-            j_name
-            or J_str
-            or (
-                measurement.j_name
-                if measurement.A_el is not None
-                else measurement.I_name
-            )
-        )
+        j_name = j_name or J_str or measurement.j_name
         t_v, v = measurement.grab(v_name, tspan=tspan)
         t_j, j = measurement.grab(j_name, tspan=tspan)
         if axes:

@@ -95,10 +95,6 @@ class ECMeasurement(Measurement):
     selection_series_names = ("file_number", "loop_number", "cycle")
     default_exporter = ECExporter
     default_plotter = ECPlotter
-    v_name = EC_FANCY_NAMES["potential"]
-    j_name = EC_FANCY_NAMES["current"]
-    E_name = EC_FANCY_NAMES["raw_potential"]
-    I_name = EC_FANCY_NAMES["raw_current"]
 
     def __init__(
         self,
@@ -144,6 +140,26 @@ class ECMeasurement(Measurement):
         if RE_vs_RHE or A_el or R_Ohm:
             self.calibrate(RE_vs_RHE, A_el, R_Ohm)
         self.plot_vs_potential = self.plotter.plot_vs_potential
+
+    @property
+    def E_name(self):
+        return self["raw_potential"].name
+
+    @property
+    def I_name(self):
+        return self["raw_current"].name
+
+    @property
+    def v_name(self):
+        if self.RE_vs_RHE is not None:
+            return EC_FANCY_NAMES["potential"]
+        return self.E_name
+
+    @property
+    def j_name(self):
+        if self.A_el is not None:
+            return EC_FANCY_NAMES["current"]
+        return self.I_name
 
     @property
     def aliases(self):
