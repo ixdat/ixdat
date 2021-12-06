@@ -211,7 +211,7 @@ class Measurement(Saveable):
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        obj = reader.read(path_to_file, cls=cls, **kwargs)  # TODO: take cls as kwarg
+        obj = reader.read(path_to_file, cls=cls, **kwargs)
 
         if obj.__class__.essential_series_names:
             for series_name in obj.__class__.essential_series_names:

@@ -10,6 +10,12 @@ from .reading_tools import (
     timestamp_string_to_tstamp,
 )
 
+AUTOLAB_ALIASES = {
+    "raw_potential": ("WE(1).Potential (V)",),
+    "raw_current": ("WE(1).Current (A)",),
+    "t": ("Time (s)",),
+}
+
 
 class NovaASCIIReader:
     """A reader for ascii files exported by Autolab's Nova software"""
@@ -54,8 +60,7 @@ class NovaASCIIReader:
             name=name,
             technique="EC",
             reader=self,
-            raw_potential_names=("WE(1).Potential (V)",),
-            raw_current_names=("WE(1).Current (A)",),
+            aliases=AUTOLAB_ALIASES,
             series_list=data_series_list,
             tstamp=tstamp,
         )

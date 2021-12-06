@@ -14,3 +14,5 @@ path_to_file = Path.home() / (
 )
 
 meas = Measurement.read(path_to_file, reader="autolab")
+
+meas.plot()

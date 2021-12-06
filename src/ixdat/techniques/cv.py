@@ -1,7 +1,7 @@
 import numpy as np
 from .ec import ECMeasurement
 from ..data_series import ValueSeries, TimeSeries
-from ..exceptions import BuildError
+from ..exceptions import BuildError, SeriesNotFoundError
 from .analysis_tools import (
     tspan_passing_through,
     calc_sharp_v_scan,
@@ -21,6 +21,7 @@ class CyclicVoltammagram(ECMeasurement):
     - the default plot() is plot_vs_potential()
     """
 
+    essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
     selector_name = "cycle"
     """Name of the default selector"""
 
@@ -28,6 +29,12 @@ class CyclicVoltammagram(ECMeasurement):
         """Only reason to have an __init__ here is to set the default plot()"""
         super().__init__(*args, **kwargs)
         self.plot = self.plotter.plot_vs_potential  # gets the right docstrings! :D
+
+        try:
+            _ = self["cycle"]
+        except SeriesNotFoundError:
+            median_potential = 1 / 2 * (np.max(self.v) + np.min(self.v))
+            self.redefine_cycle(start_potential=median_potential, redox=True)
 
         self.start_potential = None  # see `redefine_cycle`
         self.redox = None  # see `redefine_cycle`
