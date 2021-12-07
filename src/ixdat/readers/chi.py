@@ -5,6 +5,16 @@ from .ec_ms_pkl import measurement_from_ec_ms_dataset
 from ..techniques import ECMeasurement
 
 
+CHI_LEGACY_ALIASES = {
+    # TODO: These should change to what Zilien calls them. Right now the alias's
+    #   reflect the way the lagacy EC_MS code renames essential series
+    "t": ["time/s"],
+    "raw_potential": ["Ewe/V", "<Ewe>/V"],
+    "raw_current": ["I/mA", "<I>/mA"],
+    "cycle": ["cycle number"],
+}
+
+
 class CHInstrumentsTXTReader:
     path_to_file = None
 
@@ -21,5 +31,9 @@ class CHInstrumentsTXTReader:
         cls = cls if (cls and not issubclass(ECMeasurement, cls)) else ECMeasurement
         ec_ms_dataset = Dataset(path_to_file, data_type="CHI")
         return measurement_from_ec_ms_dataset(
-            ec_ms_dataset.data, cls=cls, reader=self, technique="EC"
+            ec_ms_dataset.data,
+            cls=cls,
+            reader=self,
+            technique="EC",
+            aliases=CHI_LEGACY_ALIASES,
         )

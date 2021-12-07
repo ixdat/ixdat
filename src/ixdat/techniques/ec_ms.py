@@ -225,27 +225,28 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
 
 
 class ECMSCalibration(ECCalibration, MSCalibration):
-    """Class for calibrations useful for ECMSMeasurements
+    """Class for calibrations useful for ECMSMeasurements"""
 
-    FIXME: A class in a technique module shouldn't inherit directly from Saveable. We
-        need to generalize ms_calibration somehow.
-        Also, ECMSCalibration should inherit from or otherwise use a class MSCalibration
-    """
-
-    column_attrs = {"name", "date", "setup", "ms_cal_results", "RE_vs_RHE", "A_el", "L"}
-    # FIXME: Not given a table_name as it can't save to the database without
-    #   MSCalResult's being json-seriealizeable. Exporting and reading works, though :D
+    extra_column_attrs = {
+        "ecms_calibrations": {"date", "setup", "RE_vs_RHE", "A_el", "L"}
+    }
+    # FIXME: The above should be covered by the parent classes. Needs metaprogramming!
+    # NOTE: technique, name, and tstamp in column_attrs are inherited from Calibration
+    # NOTE: ms_results_ids in extra_linkers is inherited from MSCalibration.
+    # NOTE: signal_bgs is left out
 
     def __init__(
         self,
         name=None,
         date=None,
+        tstamp=None,
         setup=None,
         ms_cal_results=None,
         signal_bgs=None,
         RE_vs_RHE=None,
         A_el=None,
         L=None,
+        technique="EC-MS",
     ):
         """
         Args:
@@ -261,17 +262,13 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         MSCalibration.__init__(
             self,
             date=date,
+            tstamp=tstamp,
             setup=setup,
             ms_cal_results=ms_cal_results,
             signal_bgs=signal_bgs,
         )
+        self.technique = technique
         self.L = L
-
-    def as_dict(self):
-        """Have to dict the MSCalResults to get serializable as_dict (see Saveable)"""
-        self_as_dict = super().as_dict()
-        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
-        return self_as_dict
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -286,6 +283,8 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         """Export an ECMSCalibration as a json-formatted text file"""
         path_to_file = path_to_file or (self.name + ".ix")
         self_as_dict = self.as_dict()
+        del self_as_dict["ms_cal_result_ids"]
+        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
         with open(path_to_file, "w") as f:
             json.dump(self_as_dict, f, indent=4)
 

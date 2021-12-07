@@ -307,9 +307,9 @@ class ECCalibration(Calibration):
 
     def __init__(
         self,
+        name=None,
         technique="EC",
         tstamp=None,
-        name=None,
         measurement=None,
         RE_vs_RHE=None,
         A_el=None,
@@ -326,8 +326,8 @@ class ECCalibration(Calibration):
             A_el (float): The electrode area in [cm^2]
             R_Ohm (float): The ohmic drop resistance in [Ohm]
         """
-        super().__init__(
-            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+        Calibration.__init__(
+            self, name=name, technique=technique, tstamp=tstamp, measurement=measurement
         )
         self.RE_vs_RHE = RE_vs_RHE
         self.A_el = A_el

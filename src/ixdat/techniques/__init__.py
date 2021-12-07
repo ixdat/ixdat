@@ -9,8 +9,8 @@ Constants:
 
 from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammagram
-from .ms import MSMeasurement
-from .ec_ms import ECMSMeasurement
+from .ms import MSMeasurement, MSCalibration
+from .ec_ms import ECMSMeasurement, ECMSCalibration
 from .spectroelectrochemistry import SpectroECMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
 
@@ -25,4 +25,8 @@ TECHNIQUE_CLASSES = {
     "S-EC": SpectroECMeasurement,
 }
 
-CALIBRATION_CLASSES = {"EC": ECCalibration}
+CALIBRATION_CLASSES = {
+    "EC": ECCalibration,
+    "MS": MSCalibration,
+    "EC-MS": ECMSCalibration,
+}

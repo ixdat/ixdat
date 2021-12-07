@@ -243,10 +243,11 @@ class MSMeasurement(Measurement):
 class MSCalResult(Saveable):
     """A class for a mass spec ms_calibration result.
 
-    TODO: How can we generalize ms_calibration? I think that something inheriting directly
-        from saveable belongs in a top-level module and not in a technique module
+    FIXME: I think that something inheriting directly from Saveable does not belong in
+        a technique module.
     """
 
+    table_name = "ms_cal_results"
     column_attrs = {"name", "mol", "mass", "cal_type", "F"}
 
     def __init__(
@@ -276,27 +277,24 @@ class MSCalResult(Saveable):
 
 
 class MSCalibration(Calibration):
-    """Class for calibrations useful for ECMSMeasurements
+    """Class for mass spec calibrations. TODO: replace with powerful external package"""
 
-    FIXME: A class in a technique module shouldn't inherit directly from Saveable. We
-        need to generalize ms_calibration somehow.
-        Also, ECMSCalibration should inherit from or otherwise use a class MSCalibration
-    """
-
-    extra_linkers = {"ms_calibration_results", ("ms_cal_results", "ms_cal_result_ids")}
+    extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
+    # FIXME: signal_bgs are not saved at present. Should they be a separate table
+    #   of Saveable objects like ms_cal_results or should they be a single json value?
     child_attrs = [
         "ms_cal_results",
     ]
-    # FIXME: Not given a table_name as it can't save to the database without
-    #   MSCalResult's being json-seriealizeable. Exporting and reading works, though :D
 
     def __init__(
         self,
         name=None,
         date=None,
+        tstamp=None,  # FIXME: No need to have both a date and a tstamp?
         setup=None,
         ms_cal_results=None,
         signal_bgs=None,
+        technique="MS",
     ):
         """
         Args:
@@ -305,8 +303,11 @@ class MSCalibration(Calibration):
             setup (str): Name of the setup where the ms_calibration is made
             ms_cal_results (list of MSCalResult): The mass spec calibrations
         """
-        super().__init__()
-        self.name = name or f"EC-MS ms_calibration for {setup} on {date}"
+        super().__init__(
+            name=name or f"EC-MS ms_calibration for {setup} on {date}",
+            technique=technique,
+            tstamp=tstamp,
+        )
         self.date = date
         self.setup = setup
         self.ms_cal_results = ms_cal_results or []
@@ -378,6 +379,7 @@ class MSInlet:
 
     Every MSInlet describes the rate and composition of the gas entering a mass
     spectrometer. The default is a Spectro Inlets EC-MS chip.
+    TODO: Replace with powerful external package.
     """
 
     def __init__(
@@ -391,7 +393,7 @@ class MSInlet:
         p=STANDARD_PRESSURE,
         verbose=True,
     ):
-        """Create a Chip object given its properties
+        """Create an MSInlet object given its properties.
 
         Args:
             l_cap (float): capillary length [m]. Defaults to design parameter.

@@ -1197,14 +1197,14 @@ class Measurement(Saveable):
 class Calibration(Saveable):
     """Base class for calibrations."""
 
-    table_name = "ms_calibration"
+    table_name = "calibration"
     column_attrs = {
         "name",
         "technique",
         "tstamp",
     }
 
-    def __init__(self, name=None, technique=None, tstamp=None, measurement=None):
+    def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):
         """Initiate a Calibration
 
         Args:
@@ -1241,21 +1241,6 @@ class Calibration(Saveable):
         except Exception:
             raise
         return calibration
-
-    def as_dict(self):
-        """Have to dict the MSCalResults to get serializable as_dict (see Saveable)"""
-        self_as_dict = super().as_dict()
-        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
-        return self_as_dict
-
-    @classmethod
-    def from_dict(cls, obj_as_dict):
-        """Unpack the MSCalResults when initiating from a dict"""
-        obj = super(ECMSCalibration, cls).from_dict(obj_as_dict)
-        obj.ms_cal_results = [
-            MSCalResult.from_dict(cal_as_dict) for cal_as_dict in obj.ms_cal_results
-        ]
-        return obj
 
     def export(self, path_to_file=None):
         """Export an ECMSCalibration as a json-formatted text file"""
