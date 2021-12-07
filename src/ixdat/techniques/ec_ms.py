@@ -14,14 +14,12 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
     extra_column_attrs = {
-        # FIXME: It would be more elegant if this carried over from both parents
-        #   That might require some custom inheritance definition...
-        "ecms_meaurements": {
-            "mass_aliases",
-            "signal_bgs",
-            "ec_technique",
-        },
+        "ecms_meaurements": {"ec_technique", "tspan_bg"},
     }
+    # FIXME: It would be much more elegant if this carried over automatically from
+    #  *both* parents, by appending the table columns...
+    #  We'll see how the problem changes with the metaprogramming work.
+
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter
 
@@ -44,27 +42,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ms_kwargs.update(component_measurements=kwargs["component_measurements"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
-
-    def as_dict(self):
-        self_as_dict = super().as_dict()
-
-        if self.ms_calibration:
-            self_as_dict["ms_calibration"] = self.ms_calibration.as_dict()
-            # FIXME: necessary because an ECMSCalibration is not serializeable
-            #   If it it was it would go into extra_column_attrs
-        return self_as_dict
-
-    @classmethod
-    def from_dict(cls, obj_as_dict):
-        """Unpack the ECMSCalibration when initiating from a dict"""
-        if "ms_calibration" in obj_as_dict:
-            if isinstance(obj_as_dict["ms_calibration"], dict):
-                # FIXME: This is a mess
-                obj_as_dict["ms_calibration"] = ECMSCalibration.from_dict(
-                    obj_as_dict["ms_calibration"]
-                )
-        obj = super(ECMSMeasurement, cls).from_dict(obj_as_dict)
-        return obj
 
     def as_cv(self):
         self_as_dict = self.as_dict()
@@ -180,8 +157,7 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         # FIXME: It would be more elegant if this carried over from both parents
         #   That might require some custom inheritance definition...
         "ecms_meaurements": {
-            "mass_aliases",
-            "signal_bgs",
+            "tspan_bg",
             "ec_technique",
         },
     }
@@ -201,15 +177,6 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
         ms_kwargs.update(series_list=kwargs["series_list"])
         MSMeasurement.__init__(self, **ms_kwargs)
         self.plot = self.plotter.plot_vs_potential
-
-    def as_dict(self):
-        self_as_dict = super().as_dict()
-
-        if self.ms_calibration:
-            self_as_dict["ms_calibration"] = self.ms_calibration.as_dict()
-            # FIXME: now that ECMSCalibration should be seriealizeable, it could
-            #  go into extra_column_attrs. But it should be a reference.
-        return self_as_dict
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -270,83 +237,11 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         self.technique = technique
         self.L = L
 
-    @classmethod
-    def from_dict(cls, obj_as_dict):
-        """Unpack the MSCalResults when initiating from a dict"""
-        obj = super(ECMSCalibration, cls).from_dict(obj_as_dict)
-        obj.ms_cal_results = [
-            MSCalResult.from_dict(cal_as_dict) for cal_as_dict in obj.ms_cal_results
-        ]
-        return obj
-
-    def export(self, path_to_file=None):
-        """Export an ECMSCalibration as a json-formatted text file"""
-        path_to_file = path_to_file or (self.name + ".ix")
-        self_as_dict = self.as_dict()
-        del self_as_dict["ms_cal_result_ids"]
-        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
-        with open(path_to_file, "w") as f:
-            json.dump(self_as_dict, f, indent=4)
-
-    @classmethod
-    def read(cls, path_to_file):
-        """Read an ECMSCalibration from a json-formatted text file"""
-        with open(path_to_file) as f:
-            obj_as_dict = json.load(f)
-        return cls.from_dict(obj_as_dict)
-
-    @property
-    def mol_list(self):
-        return list({cal.mol for cal in self.ms_cal_results})
-
-    @property
-    def mass_list(self):
-        return list({cal.mass for cal in self.ms_cal_results})
-
-    @property
-    def name_list(self):
-        return list({cal.name for cal in self.ms_cal_results})
-
-    def __contains__(self, mol):
-        return mol in self.mol_list or mol in self.name_list
-
-    def __iter__(self):
-        yield from self.ms_cal_results
-
-    def get_mass_and_F(self, mol):
-        """Return the mass and sensitivity factor to use for simple quant. of mol"""
-        cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
-        Fs = [cal.F for cal in cal_list_for_mol]
-        index = np.argmax(np.array(Fs))
-
-        the_good_cal = cal_list_for_mol[index]
-        return the_good_cal.mass, the_good_cal.F
-
-    def get_F(self, mol, mass):
-        """Return the sensitivity factor for mol at mass"""
-        cal_list_for_mol_at_mass = [
-            cal
-            for cal in self
-            if (cal.mol == mol or cal.name == mol) and cal.mass == mass
-        ]
-        F_list = [cal.F for cal in cal_list_for_mol_at_mass]
-        return np.mean(np.array(F_list))
-
-    def scaled_to(self, ms_cal_result):
-        """Return a new ms_calibration w scaled sensitivity factors to match one given"""
-        F_0 = self.get_F(ms_cal_result.mol, ms_cal_result.mass)
-        scale_factor = ms_cal_result.F / F_0
-        calibration_as_dict = self.as_dict()
-        new_cal_list = []
-        for cal in self.ms_cal_results:
-            cal = MSCalResult(
-                name=cal.name,
-                mass=cal.mass,
-                mol=cal.mol,
-                F=cal.F * scale_factor,
-                cal_type=cal.cal_type + " scaled",
-            )
-            new_cal_list.append(cal)
-        calibration_as_dict["ms_cal_results"] = [cal.as_dict() for cal in new_cal_list]
-        calibration_as_dict["name"] = calibration_as_dict["name"] + " scaled"
-        return self.__class__.from_dict(calibration_as_dict)
+    def calibrate_series(self, key, measurement=None):
+        measurement = measurement or self.measurement
+        try_1 = ECCalibration.calibrate_series(self, key, measurement)
+        if try_1:
+            return try_1
+        try_2 = MSCalibration.calibrate_series(self, key, measurement)
+        if try_2:
+            return try_2

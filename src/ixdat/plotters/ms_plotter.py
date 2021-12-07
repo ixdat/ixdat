@@ -104,7 +104,7 @@ class MSPlotter(MPLPlotter):
                 t, v = measurement.grab_signal(
                     v_or_v_name,
                     tspan=tspan,
-                    t_bg=tspan_bg,
+                    tspan_bg=tspan_bg,
                     removebackground=removebackground,
                     include_endpoints=False,
                 )
@@ -236,7 +236,7 @@ class MSPlotter(MPLPlotter):
                 t_v, v = measurement.grab_signal(
                     v_name,
                     tspan=tspan,
-                    t_bg=tspan_bg,
+                    tspan_bg=tspan_bg,
                     removebackground=removebackground,
                     include_endpoints=False,
                 )

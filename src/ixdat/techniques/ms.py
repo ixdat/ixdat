@@ -1,5 +1,9 @@
 """Module for representation and analysis of MS measurements"""
 
+import re
+import numpy as np
+import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum
 from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
@@ -13,10 +17,8 @@ from ..constants import (
     MOLECULAR_DIAMETERS,
     MOLAR_MASSES,
 )
-from ..data_series import TimeSeries, ValueSeries
+from ..data_series import ValueSeries
 from ..db import Saveable
-import re
-import numpy as np
 
 
 class MSMeasurement(Measurement):
@@ -64,57 +66,61 @@ class MSMeasurement(Measurement):
             if mass in self.signal_bgs:
                 del self.signal_bgs[mass]
 
-    def grab_signal(
+    def grab(
         self,
-        signal_name,
+        item,
         tspan=None,
-        t_bg=None,
-        removebackground=False,
+        tspan_bg=None,
         include_endpoints=False,
+        removebackground=False,
     ):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
         Args:
-            signal_name (str): Name of the signal.
+            item (str): Name of the signal.
             tspan (list): Timespan for which the signal is returned.
-            t_bg (list): Timespan that corresponds to the background signal.
+            tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
-            removebackground (bool): Whether to remove a pre-set background if available
-                Defaults to False. (Note in grab_flux it defaults to True.)
+            removebackground (bool): Whether to remove a pre-set background if available.
+                This is special to MSMeasurement.
+                Defaults to False, but in grab_flux it defaults to True.
             include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
         """
-        time, value = self.grab(
-            signal_name, tspan=tspan, include_endpoints=include_endpoints
+        time, value = super().grab(
+            item, tspan=tspan, include_endpoints=include_endpoints
         )
 
-        if t_bg is None:
-            if removebackground and signal_name in self.signal_bgs:
-                return time, value - self.signal_bgs[signal_name]
-            return time, value
-
-        else:
-            _, bg = self.grab(signal_name, tspan=t_bg)
+        if tspan_bg:
+            _, bg = self.grab(item, tspan=tspan_bg)
             return time, value - np.average(bg)
+        elif removebackground:
+            if item in self.signal_bgs:
+                return time, value - self.signal_bgs[item]
+            elif self.tspan_bg:
+                _, bg = self.grab(item, tspan=self.tspan_bg)
+                return time, value - np.average(bg)
+        return time, value
 
-    def grab_cal_signal(self, signal_name, tspan=None, t_bg=None):
-        """Returns a calibrated signal for a given signal name. Only works if
-        ms_calibration dict is not None.
+    def grab_for_t(self, item, t, tspan_bg=None, removebackground=False):
+        """Return a numpy array with the value of item interpolated to time t
 
         Args:
-            signal_name (str): Name of the signal.
-            tspan (list): Timespan for which the signal is returned.
-            t_bg (list): Timespan that corresponds to the background signal.
-                If not given, no background is subtracted.
+            item (str): The name of the value to grab
+            t (np array): The time vector to grab the value for
+            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
+                baseline level. The average value of `item` in this interval will be
+                subtracted from what is returned.
+            removebackground (bool): Whether to remove a pre-set background if available.
+                This is special to MSMeasurement.
+                Defaults to False, but in grab_flux it defaults to True.
         """
-        # TODO: Not final implementation.
-        # FIXME: Depreciated! Use grab_flux instead!
-        if self.ms_calibration is None:
-            print("No ms_calibration dict found.")
-            return
+        t_0, v_0 = self.grab(item, tspan_bg=tspan_bg, removebackground=removebackground)
+        v = np.interp(t, t_0, v_0)
+        return v
 
-        time, value = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
-
-        return time, value * self.ms_calibration[signal_name]
+    def grab_signal(self, *args, **kwargs):
+        """Alias for grab()"""
+        return self.grab(*args, **kwargs)
 
     def grab_flux(
         self,
@@ -126,6 +132,10 @@ class MSMeasurement(Measurement):
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
+        Note:
+        `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
+        removebackround=True by default. An MSCalibration does the maths.
+
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
             tspan (list): Timespan for which the signal is returned.
@@ -134,27 +144,13 @@ class MSMeasurement(Measurement):
             removebackground (bool): Whether to remove a pre-set background if available
                 Defaults to True.
         """
-        if isinstance(mol, str):
-            if not self.ms_calibration or mol not in self.ms_calibration:
-                raise QuantificationError(
-                    f"Can't quantify {mol} in {self}: "
-                    f"Not in ms_calibration={self.ms_calibration}"
-                )
-            mass, F = self.ms_calibration.get_mass_and_F(mol)
-        elif isinstance(mol, MSCalResult):
-            mass = mol.mass
-            F = mol.F
-        else:
-            raise TypeError("mol must be str or MSCalResult")
-        x, y = self.grab_signal(
-            mass,
+        return self.grab(
+            f"n_dot_{mol}",
             tspan=tspan,
-            t_bg=tspan_bg,
+            tspan_bg=tspan_bg,
             removebackground=removebackground,
             include_endpoints=include_endpoints,
         )
-        n_dot = y / F
-        return x, n_dot
 
     def grab_flux_for_t(
         self,
@@ -182,16 +178,9 @@ class MSMeasurement(Measurement):
         y = np.interp(t, t_0, y_0)
         return y
 
-    def get_flux_series(self, mol, tspan=None):
-        """Return a ValueSeries with the calibrated flux of mol during tspan"""
-        t, n_dot = self.grab_flux(mol, tspan=tspan)
-        tseries = TimeSeries(
-            name="n_dot_" + mol + "-t", unit_name="s", data=t, tstamp=self.tstamp
-        )
-        vseries = ValueSeries(
-            name="n_dot_" + mol, unit_name="mol/s", data=n_dot, tseries=tseries
-        )
-        return vseries
+    def get_flux_series(self, mol):
+        """Return a ValueSeries with the calibrated flux of mol"""
+        return self[f"n_dot_{mol}"]
 
     def integrate_signal(self, mass, tspan, tspan_bg, ax=None):
         """Integrate a ms signal with background subtraction and evt. plotting
@@ -295,6 +284,7 @@ class MSCalibration(Calibration):
         ms_cal_results=None,
         signal_bgs=None,
         technique="MS",
+        measurement=None,
     ):
         """
         Args:
@@ -302,11 +292,13 @@ class MSCalibration(Calibration):
             date (str): Date of the ms_calibration
             setup (str): Name of the setup where the ms_calibration is made
             ms_cal_results (list of MSCalResult): The mass spec calibrations
+            measurement (MSMeasurement): The measurement
         """
         super().__init__(
             name=name or f"EC-MS ms_calibration for {setup} on {date}",
             technique=technique,
             tstamp=tstamp,
+            measurement=measurement,
         )
         self.date = date
         self.setup = setup
@@ -335,10 +327,34 @@ class MSCalibration(Calibration):
     def __iter__(self):
         yield from self.ms_cal_results
 
+    def calibrate_series(self, key, measurement=None):
+        measurement = measurement or self.measurement
+        if key.startswith("n_"):  # it's a flux!
+            mol = key.split("_")[-1]
+            try:
+                mass, F = self.get_mass_and_F(mol)
+            except QuantificationError:
+                # Calibrations just return None when they can't get what's requested.
+                return
+            signal_series = measurement[mass]
+            y = signal_series.data
+            if mass in measurement.signal_bgs:
+                # FIXME: How to make this optional to user of MSMeasuremt.grab()?
+                y = y - measurement.signal_bgs[mass]
+            n_dot = y / F
+            return ValueSeries(
+                name=f"n_dot_{mol}",
+                unit_name="mol/s",
+                data=n_dot,
+                tseries=signal_series.tseries,
+            )
+
     def get_mass_and_F(self, mol):
         """Return the mass and sensitivity factor to use for simple quant. of mol"""
         cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
         Fs = [cal.F for cal in cal_list_for_mol]
+        if not Fs:
+            raise QuantificationError(f"{self} has no sensitivity factor for {mol}")
         index = np.argmax(np.array(Fs))
 
         the_good_cal = cal_list_for_mol[index]
@@ -352,6 +368,10 @@ class MSCalibration(Calibration):
             if (cal.mol == mol or cal.name == mol) and cal.mass == mass
         ]
         F_list = [cal.F for cal in cal_list_for_mol_at_mass]
+        if not F_list:
+            raise QuantificationError(
+                f"{self} has no sensitivity factor for {mol} at {mass}"
+            )
         return np.mean(np.array(F_list))
 
     def scaled_to(self, ms_cal_result):
@@ -372,6 +392,28 @@ class MSCalibration(Calibration):
         calibration_as_dict["ms_cal_results"] = [cal.as_dict() for cal in new_cal_list]
         calibration_as_dict["name"] = calibration_as_dict["name"] + " scaled"
         return self.__class__.from_dict(calibration_as_dict)
+
+    @classmethod
+    def read(cls, path_to_file):
+        """Read an MSCalibration from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        # put the MSCalResults (exported as dicts) into objects:
+        obj_as_dict["ms_cal_results"] = [
+            MSCalResult.from_dict(ms_cal_as_dict)
+            for ms_cal_as_dict in obj_as_dict["ms_cal_results"]
+        ]
+        return cls.from_dict(obj_as_dict)
+
+    def export(self, path_to_file=None):
+        """Export an ECMSCalibration as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        # replace the ms_cal_result ids with the dictionaries of the results themselves:
+        del self_as_dict["ms_cal_result_ids"]
+        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
 
 
 class MSInlet:

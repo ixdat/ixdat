@@ -1251,7 +1251,7 @@ class Calibration(Saveable):
 
     @classmethod
     def read(cls, path_to_file):
-        """Read an ECMSCalibration from a json-formatted text file"""
+        """Read a Calibration from a json-formatted text file"""
         with open(path_to_file) as f:
             obj_as_dict = json.load(f)
         return cls.from_dict(obj_as_dict)
