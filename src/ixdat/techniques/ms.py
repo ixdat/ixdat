@@ -40,7 +40,7 @@ class MSMeasurement(Measurement):
         for cal in self.calibration_list:
             ms_cal_list = ms_cal_list + getattr(cal, "ms_cal_list", [])
             for mass, bg in getattr(cal, "signal_bgs", {}).items():
-                if not mass in signal_bgs:
+                if mass not in signal_bgs:
                     signal_bgs[mass] = bg
             tspan_bg = tspan_bg or getattr(cal, "tspan_bg", None)
         return MSCalibration(ms_cal_results=ms_cal_list, signal_bgs=signal_bgs)
@@ -539,8 +539,8 @@ class MSInlet:
             ax (matplotlib axis): the axis on which to indicate what signal is used
                 with a thicker line. Defaults to none
 
-        Returns MSCalResult: a ms_calibration result containing the sensitivity factor for
-            mol at mass
+        Returns MSCalResult: a ms_calibration result containing the sensitivity factor
+            for mol at mass
         """
         t, S = measurement.grab_signal(mass, tspan=tspan, t_bg=tspan_bg)
         if ax:

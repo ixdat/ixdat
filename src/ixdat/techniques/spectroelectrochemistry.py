@@ -1,9 +1,9 @@
-from .ec import ECMeasurement
-from ..plotters.sec_plotter import SECPlotter
-from ..spectra import Spectrum
-from ..data_series import Field, ValueSeries
 import numpy as np
 from scipy.interpolate import interp1d
+
+from .ec import ECMeasurement
+from ..spectra import Spectrum
+from ..data_series import Field, ValueSeries
 from ..spectra import SpectrumSeries
 from ..exporters.sec_exporter import SECExporter
 from ..plotters.sec_plotter import SECPlotter

@@ -7,7 +7,6 @@ from .cv import CyclicVoltammagram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
-import json  # FIXME: doesn't belong here.
 
 
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
@@ -98,8 +97,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
             tspan_list (list of tspan): THe timespans of steady electrolysis
             tspan_bg (tspan): The time to use as a background
-            ax (Axis): The axis on which to plot the ms_calibration curve result. Defaults
-                to a new axis.
+            ax (Axis): The axis on which to plot the ms_calibration curve result.
+                Defaults to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
                 ms_calibration on. Defaults to None.
 

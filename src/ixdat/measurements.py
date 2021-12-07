@@ -1,6 +1,6 @@
 """This module defines the Measurement class, the central data structure of ixdat
 
-An ixdat Measurement is a collection of references to DataSeries with the metadata needed
+An ixdat Measurement is a collection of references to DataSeries and the metadata needed
 to combine them, i.e. "build" the combined dataset. It has a number of general methods
 to visualize and analyze the combined dataset. Measurement is also the base class for a
 number of technique-specific Measurement-derived classes.
@@ -550,14 +550,15 @@ class Measurement(Saveable):
         Now we're back in the original lookup, from which __getitem__ (3) caches
         the data series (which still has the name "Ewe/V") as "raw_potential" and
         returns it.
-        - The second lookup, with `key="potential"`, (1) checks for "potential" in the
-        cache, doesn't find it; then (2A) checks in `series_constructors`, doesn't find
-        it; and then (2B) asks the ms_calibration for "potential". The ms_calibration knows
-        that when asked for "potential" it should look for "raw_potential" and add
-        `RE_vs_RHE`. So it does a lookup with `key="raw_potential"` and (1) finds it
-        in the cache. The ms_calibration does the math and returns a new data series for
-        the calibrated potential, bringing us back to the original lookup. The data
-        series returned by the ms_calibration is then (3) cached and returned to the user.
+        - The second lookup, with `key="potential"`, (1) checks for "potential" in
+        the cache, doesn't find it; then (2A) checks in `series_constructors`,
+        doesn't find it; and then (2B) asks the ms_calibration for "potential". The
+        ms_calibration knows that when asked for "potential" it should look for
+        "raw_potential" and add `RE_vs_RHE`. So it does a lookup with
+        `key="raw_potential"` and (1) finds it in the cache. The ms_calibration does
+        the math and returns a new data series for the calibrated potential, bringing
+        us back to the original lookup. The data series returned by the
+        ms_calibration is then (3) cached and returned to the user.
 
         Note that, if the user had not looked up "raw_potential" before looking up
         "potential", "raw_potential" would not have been in the cache and the first

@@ -345,13 +345,14 @@ class ECCalibration(Calibration):
 
         Key should be "potential" or "current". Anything else will return None.
 
-        - potential: the ms_calibration looks up "raw_potential" in the measurement, shifts
-        it to the RHE potential if RE_vs_RHE is available, corrects it for Ohmic drop if
-        R_Ohm is available, and then returns a calibrated potential series with a name
-        indicative of the corrections done.
-        - current: The ms_calibration looks up "raw_current" in the measurement, normalizes
-        it to the electrode area if A_el is available, and returns a calibrated current
-        series with a name indicative of whether the normalization was done.
+        - potential: the ms_calibration looks up "raw_potential" in the measurement,
+        shifts it to the RHE potential if RE_vs_RHE is available, corrects it for
+        Ohmic drop if R_Ohm is available, and then returns a calibrated potential
+        series with a name indicative of the corrections done.
+        - current: The ms_calibration looks up "raw_current" in the measurement,
+        normalizes it to the electrode area if A_el is available, and returns a
+        calibrated current series with a name indicative of whether the normalization
+        was done.
         """
         measurement = measurement or self.measurement
         if key == "potential":
