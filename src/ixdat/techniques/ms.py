@@ -89,7 +89,7 @@ class MSMeasurement(Measurement):
         self,
         signal_name,
         tspan=None,
-        t_bg=None,
+        tspan_bg=None,
         removebackground=False,
         include_endpoints=False,
     ):
@@ -98,7 +98,7 @@ class MSMeasurement(Measurement):
         Args:
             signal_name (str): Name of the signal.
             tspan (list): Timespan for which the signal is returned.
-            t_bg (list): Timespan that corresponds to the background signal.
+            tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             removebackground (bool): Whether to remove a pre-set background if available
                 Defaults to False. (Note in grab_flux it defaults to True.)
@@ -108,23 +108,23 @@ class MSMeasurement(Measurement):
             signal_name, tspan=tspan, include_endpoints=include_endpoints
         )
 
-        if t_bg is None:
+        if tspan_bg is None:
             if removebackground and signal_name in self.signal_bgs:
                 return time, value - self.signal_bgs[signal_name]
             return time, value
 
         else:
-            _, bg = self.grab(signal_name, tspan=t_bg)
+            _, bg = self.grab(signal_name, tspan=tspan_bg)
             return time, value - np.average(bg)
 
-    def grab_cal_signal(self, signal_name, tspan=None, t_bg=None):
+    def grab_cal_signal(self, signal_name, tspan=None, tspan_bg=None):
         """Returns a calibrated signal for a given signal name. Only works if
         calibration dict is not None.
 
         Args:
             signal_name (str): Name of the signal.
             tspan (list): Timespan for which the signal is returned.
-            t_bg (list): Timespan that corresponds to the background signal.
+            tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
         """
         # TODO: Not final implementation.
@@ -133,7 +133,7 @@ class MSMeasurement(Measurement):
             print("No calibration dict found.")
             return
 
-        time, value = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        time, value = self.grab_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
 
         return time, value * self.calibration[signal_name]
 
@@ -170,7 +170,7 @@ class MSMeasurement(Measurement):
         x, y = self.grab_signal(
             mass,
             tspan=tspan,
-            t_bg=tspan_bg,
+            tspan_bg=tspan_bg,
             removebackground=removebackground,
             include_endpoints=include_endpoints,
         )
@@ -429,7 +429,7 @@ class MSInlet:
         Returns MSCalResult: a calibration result containing the sensitivity factor for
             mol at mass
         """
-        t, S = measurement.grab_signal(mass, tspan=tspan, t_bg=tspan_bg)
+        t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
 
