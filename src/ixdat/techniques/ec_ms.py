@@ -3,7 +3,7 @@ import numpy as np
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement
 from .ms import MSMeasurement, MSCalResult
-from .cv import CyclicVoltammagram
+from .cv import CyclicVoltammogram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..db import Saveable  # FIXME: doesn't belong here.
@@ -190,7 +190,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return cal
 
 
-class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
+class ECMSCyclicVoltammogram(CyclicVoltammogram, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement
 
     FIXME: Maybe this class should instead inherit from ECMSMeasurement and
