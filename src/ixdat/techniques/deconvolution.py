@@ -21,7 +21,7 @@ class DecoMeasurement(ECMSMeasurement):
         super().__init__(name, **kwargs)
 
     def grab_partial_current(
-        self, signal_name, kernel_obj, tspan=None, t_bg=None, snr=10
+        self, signal_name, kernel_obj, tspan=None, tspan_bg=None, snr=10
     ):
         """Return the deconvoluted partial current for a given signal
 
@@ -31,11 +31,11 @@ class DecoMeasurement(ECMSMeasurement):
             kernel_obj (Kernel): Kernel object which contains the mass transport
                 parameters
             tspan (list): Timespan for which the partial current is returned.
-            t_bg (list): Timespan that corresponds to the background signal.
+            tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
 
-        t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
 
         kernel = kernel_obj.calculate_kernel(
             dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
@@ -49,7 +49,7 @@ class DecoMeasurement(ECMSMeasurement):
         partial_current = partial_current * sum(kernel)
         return t_sig, partial_current
 
-    def extract_kernel(self, signal_name, cutoff_pot=0, tspan=None, t_bg=None):
+    def extract_kernel(self, signal_name, cutoff_pot=0, tspan=None, tspan_bg=None):
         """Extracts a Kernel object from a measurement.
 
         Args:
@@ -60,11 +60,11 @@ class DecoMeasurement(ECMSMeasurement):
                 impulse.
             tspan(list): Timespan from which the kernel/impulse response is
                 extracted.
-            t_bg (list): Timespan that corresponds to the background signal.
+            tspan_bg (list): Timespan that corresponds to the background signal.
         """
         x_curr, y_curr = self.grab_current(tspan=tspan)
         x_pot, y_pot = self.grab_potential(tspan=tspan)
-        x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, t_bg=t_bg)
+        x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
 
         if signal_name == "M32":
             t0 = x_curr[np.argmax(y_pot > cutoff_pot)]  # time of impulse

@@ -82,7 +82,7 @@ class ECMeasurement(Measurement):
     It turns out that keeping track of current, potential, and selector when combining
     datasets is enough of a job to fill a class. Thus, the more exciting
     electrochemistry-related functionality should be implemented in inheriting classes
-    such as `CyclicVoltammagram`.
+    such as `CyclicVoltammogram`.
     """
 
     extra_column_attrs = {
@@ -290,13 +290,13 @@ class ECMeasurement(Measurement):
         return self.current.data.copy()
 
     def as_cv(self):
-        """Convert self to a CyclicVoltammagram"""
-        from .cv import CyclicVoltammagram
+        """Convert self to a CyclicVoltammogram"""
+        from .cv import CyclicVoltammogram
 
         cv_as_dict = self.as_dict()
         cv_as_dict["technique"] = "CV"
         # Note, this works perfectly! All needed information is in self_as_dict :)
-        return CyclicVoltammagram.from_dict(cv_as_dict)
+        return CyclicVoltammogram.from_dict(cv_as_dict)
 
 
 class ECCalibration(Calibration):

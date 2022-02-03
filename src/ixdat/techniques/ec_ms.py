@@ -3,7 +3,7 @@ import numpy as np
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration
-from .cv import CyclicVoltammagram
+from .cv import CyclicVoltammogram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
@@ -41,6 +41,49 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ms_kwargs.update(component_measurements=kwargs["component_measurements"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
+        self._ec_plotter = None
+        self._ms_plotter = None
+
+    @property
+    def ec_plotter(self):
+        """The default plotter for ECMSMeasurement is ECMSPlotter"""
+        if not self._ec_plotter:
+            from ..plotters.ec_plotter import ECPlotter
+
+            self._ec_plotter = ECPlotter(measurement=self)
+
+        return self._ec_plotter
+
+    @property
+    def ms_plotter(self):
+        """The default plotter for ECMSMeasurement is ECMSPlotter"""
+        if not self._ms_plotter:
+            from ..plotters.ms_plotter import MSPlotter
+
+            self._ms_plotter = MSPlotter(measurement=self)
+
+        return self._ms_plotter
+
+    def as_dict(self):
+        self_as_dict = super().as_dict()
+
+        if self.calibration:
+            self_as_dict["calibration"] = self.calibration.as_dict()
+            # FIXME: necessary because an ECMSCalibration is not serializeable
+            #   If it it was it would go into extra_column_attrs
+        return self_as_dict
+
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Unpack the ECMSCalibration when initiating from a dict"""
+        if "calibration" in obj_as_dict:
+            if isinstance(obj_as_dict["calibration"], dict):
+                # FIXME: This is a mess
+                obj_as_dict["calibration"] = ECMSCalibration.from_dict(
+                    obj_as_dict["calibration"]
+                )
+        obj = super(ECMSMeasurement, cls).from_dict(obj_as_dict)
+        return obj
 
     def as_cv(self):
         self_as_dict = self.as_dict()
@@ -70,11 +113,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
-            name=f"{mol}_{mass}",
-            mol=mol,
-            mass=mass,
-            cal_type="ecms_calibration",
-            F=F,
+            name=f"{mol}_{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
         )
         return cal
 
@@ -145,7 +184,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return cal
 
 
-class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
+class ECMSCyclicVoltammogram(CyclicVoltammogram, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement
 
     FIXME: Maybe this class should instead inherit from ECMSMeasurement and
@@ -155,10 +194,7 @@ class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
     extra_column_attrs = {
         # FIXME: It would be more elegant if this carried over from both parents
         #   That might require some custom inheritance definition...
-        "ecms_meaurements": {
-            "tspan_bg",
-            "ec_technique",
-        },
+        "ecms_meaurements": {"tspan_bg", "ec_technique",},
     }
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter

@@ -145,6 +145,9 @@ class Measurement(Saveable):
         self.plot_measurement = self.plotter.plot_measurement
         self.plot = self.plotter.plot_measurement
         self.export = self.exporter.export
+        # TODO: ... but we need to think a bit more about how to most elegantly and
+        #    dynamically choose plotters (Nice idea from Anna:
+        #    https://github.com/ixdat/ixdat/issues/32)
 
     @classmethod
     def from_dict(cls, obj_as_dict):

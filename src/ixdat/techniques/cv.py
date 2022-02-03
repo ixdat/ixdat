@@ -10,8 +10,8 @@ from .analysis_tools import (
 from ..plotters.ec_plotter import CVDiffPlotter
 
 
-class CyclicVoltammagram(ECMeasurement):
-    """Class for cyclic voltammatry measurements.
+class CyclicVoltammogram(ECMeasurement):
+    """Class for cyclic voltammetry measurements.
 
     Onto ECMeasurement, this adds:
     - a property `cycle` which is a ValueSeries on the same TimeSeries as potential,
@@ -40,7 +40,7 @@ class CyclicVoltammagram(ECMeasurement):
         self.redox = None  # see `redefine_cycle`
 
     def __getitem__(self, key):
-        """Given int list or slice key, return a CyclicVoltammagram with those cycles"""
+        """Given int list or slice key, return a CyclicVoltammogram with those cycles"""
         if isinstance(key, slice):
             start, stop, step = key.start, key.stop, key.step
             if step is None:
@@ -221,13 +221,13 @@ class CyclicVoltammagram(ECMeasurement):
         interpolated onto self's potential and subtracted from self.
 
         Args:
-            other (CyclicVoltammagram): The cyclic voltammagram to subtract from self.
+            other (CyclicVoltammogram): The cyclic voltammogram to subtract from self.
             v_list (list of str): The names of the series to calculate a difference
                 between self and other for (defaults to just "current").
             cls (ECMeasurement subclass): The class to return an object of. Defaults to
-                CyclicVoltammagramDiff.
-            v_scan_res (float): see CyclicVoltammagram.get_timed_sweeps()
-            res_points (int):  see CyclicVoltammagram.get_timed_sweeps()
+                CyclicVoltammogramDiff.
+            v_scan_res (float): see CyclicVoltammogram.get_timed_sweeps()
+            res_points (int):  see CyclicVoltammogram.get_timed_sweeps()
         """
 
         vseries = self.potential
@@ -256,7 +256,7 @@ class CyclicVoltammagram(ECMeasurement):
         ]
         if not len(my_sweep_specs) == len(others_sweep_specs):
             raise BuildError(
-                "Can only make diff of CyclicVoltammagrams with same number of sweeps."
+                "Can only make diff of CyclicVoltammograms with same number of sweeps."
                 f"{self} has {my_sweep_specs} and {other} has {others_sweep_specs}."
             )
 
@@ -316,14 +316,14 @@ class CyclicVoltammagram(ECMeasurement):
         diff_as_dict["series_list"] = series_list
         diff_as_dict["raw_current_names"] = ("raw_current",)
 
-        cls = cls or CyclicVoltammagramDiff
+        cls = cls or CyclicVoltammogramDiff
         diff = cls.from_dict(diff_as_dict)
         diff.cv_1 = self
         diff.cv_2 = other
         return diff
 
 
-class CyclicVoltammagramDiff(CyclicVoltammagram):
+class CyclicVoltammogramDiff(CyclicVoltammogram):
 
     cv_1 = None
     cv_2 = None

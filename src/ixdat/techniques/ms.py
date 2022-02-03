@@ -542,7 +542,7 @@ class MSInlet:
         Returns MSCalResult: a ms_calibration result containing the sensitivity factor
             for mol at mass
         """
-        t, S = measurement.grab_signal(mass, tspan=tspan, t_bg=tspan_bg)
+        t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
 

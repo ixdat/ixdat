@@ -2,7 +2,7 @@ import re
 import pandas as pd
 import numpy as np
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
-from ..techniques.ec_ms import ECMSMeasurement, MSMeasurement, ECMeasurement
+from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
 from ..techniques.ms import MSSpectrum
 from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
@@ -27,32 +27,27 @@ class ZilienTSVReader:
 
         TODO: This is a hack using EC_MS to read the .tsv. Will be replaced.
         """
-        cls = cls or ECMSMeasurement
+
         from EC_MS import Zilien_Dataset
 
-        ec_ms_dataset = Zilien_Dataset(path_to_file)
+        if cls is Measurement:
+            cls = ECMSMeasurement
 
-        if not issubclass(cls, ECMeasurement) and issubclass(cls, MSMeasurement):
-            # This is the case if the user specifically calls read() from an
-            # MSMeasurement
-            technique = "MS"
-            for col in ec_ms_dataset.data_cols.copy():
-                #  FIXME: EC_MS duplicates and renames Zilien's columns.
-                #   Need a real Zilien reader!
-                if ec_ms_dataset.data["col_types"][col] == "EC" or col.startswith(
-                    "pot"
-                ):
-                    ec_ms_dataset.data["data_cols"].remove(col)
-                    del ec_ms_dataset.data[col]
-        else:
-            technique = "EC-MS"
+        if "technique" not in kwargs:
+            if issubclass(cls, ECMSMeasurement):
+                kwargs["technique"] = "EC-MS"
+            elif issubclass(cls, ECMeasurement):
+                kwargs["technique"] = "EC"
+            elif issubclass(cls, MSMeasurement):
+                kwargs["technique"] = "MS"
+
+        ec_ms_dataset = Zilien_Dataset(path_to_file)
 
         return measurement_from_ec_ms_dataset(
             ec_ms_dataset.data,
             cls=cls,
             name=name,
             reader=self,
-            technique=technique,
             aliases=ZILIEN_LEGACY_ALIASES,
             **kwargs,
         )

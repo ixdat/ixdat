@@ -273,8 +273,9 @@ def get_column_unit(column_name):
 BIOLOGIC_TIMESTAMP_FORMS = (
     "%m-%d-%Y %H:%M:%S",  # like 01-31-2020 10:32:02
     "%m/%d/%Y %H:%M:%S",  # like 07/29/2020 10:31:03
-    "%m-%d-%Y %H:%M:%S.%f",  # (not seen yet)
+    "%m-%d-%Y %H:%M:%S.%f",  # (anticipated)
     "%m/%d/%Y %H:%M:%S.%f",  # like 04/27/2021 11:35:39.227 (EC-Lab v11.34)
+    "%m/%d/%Y %H.%M.%S",   # like 01/31/2022 11.19.17
 )
 
 # This tuple contains variable names encountered in .mpt files. The tuple can be used by
