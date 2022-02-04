@@ -9,8 +9,8 @@ from .analysis_tools import (
 )
 
 
-class CyclicVoltammagram(ECMeasurement):
-    """Class for cyclic voltammatry measurements.
+class CyclicVoltammogram(ECMeasurement):
+    """Class for cyclic voltammetry measurements.
 
     Onto ECMeasurement, this adds:
     - a property `cycle` which is a ValueSeries on the same TimeSeries as potential,
@@ -29,7 +29,7 @@ class CyclicVoltammagram(ECMeasurement):
     redox = None  # see `redefine_cycle`
 
     def __getitem__(self, key):
-        """Given int list or slice key, return a CyclicVoltammagram with those cycles"""
+        """Given int list or slice key, return a CyclicVoltammogram with those cycles"""
         if type(key) is slice:
             start, stop, step = key.start, key.stop, key.step
             if step is None:
@@ -53,7 +53,7 @@ class CyclicVoltammagram(ECMeasurement):
         try:
             return self.selector
         except TypeError:
-            # FIXME: This is what happens now when a single-cycle CyclicVoltammagram is
+            # FIXME: This is what happens now when a single-cycle CyclicVoltammogram is
             #   saved and loaded.
             return ValueSeries(
                 name="cycle",
@@ -124,7 +124,7 @@ class CyclicVoltammagram(ECMeasurement):
         return self.cycle
 
     def select_sweep(self, vspan, t_i=None):
-        """Return a CyclicVoltammagram for while the potential is sweeping through vspan
+        """Return a CyclicVoltammogram for while the potential is sweeping through vspan
 
         Args:
             vspan (iter of float): The range of self.potential for which to select data.
@@ -218,13 +218,13 @@ class CyclicVoltammagram(ECMeasurement):
         interpolated onto self's potential and subtracted from self.
 
         Args:
-            other (CyclicVoltammagram): The cyclic voltammagram to subtract from self.
+            other (CyclicVoltammogram): The cyclic voltammogram to subtract from self.
             v_list (list of str): The names of the series to calculate a difference
                 between self and other for (defaults to just "current").
             cls (ECMeasurement subclass): The class to return an object of. Defaults to
-                CyclicVoltammagramDiff.
-            v_scan_res (float): see CyclicVoltammagram.get_timed_sweeps()
-            res_points (int):  see CyclicVoltammagram.get_timed_sweeps()
+                CyclicVoltammogramDiff.
+            v_scan_res (float): see CyclicVoltammogram.get_timed_sweeps()
+            res_points (int):  see CyclicVoltammogram.get_timed_sweeps()
         """
 
         vseries = self.potential
@@ -253,7 +253,7 @@ class CyclicVoltammagram(ECMeasurement):
         ]
         if not len(my_sweep_specs) == len(others_sweep_specs):
             raise BuildError(
-                "Can only make diff of CyclicVoltammagrams with same number of sweeps."
+                "Can only make diff of CyclicVoltammograms with same number of sweeps."
                 f"{self} has {my_sweep_specs} and {other} has {others_sweep_specs}."
             )
 
@@ -313,14 +313,14 @@ class CyclicVoltammagram(ECMeasurement):
         diff_as_dict["series_list"] = series_list
         diff_as_dict["raw_current_names"] = ("raw_current",)
 
-        cls = cls or CyclicVoltammagramDiff
+        cls = cls or CyclicVoltammogramDiff
         diff = cls.from_dict(diff_as_dict)
         diff.cv_1 = self
         diff.cv_2 = other
         return diff
 
 
-class CyclicVoltammagramDiff(CyclicVoltammagram):
+class CyclicVoltammogramDiff(CyclicVoltammogram):
 
     cv_1 = None
     cv_2 = None
@@ -332,7 +332,7 @@ class CyclicVoltammagramDiff(CyclicVoltammagram):
 
     @property
     def plotter(self):
-        """The default plotter for CyclicVoltammagramDiff is CVDiffPlotter"""
+        """The default plotter for CyclicVoltammogramDiff is CVDiffPlotter"""
         if not self._plotter:
             from ..plotters.ec_plotter import CVDiffPlotter
 

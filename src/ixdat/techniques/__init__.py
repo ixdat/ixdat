@@ -8,7 +8,7 @@ Constants:
 """
 
 from .ec import ECMeasurement
-from .cv import CyclicVoltammagram
+from .cv import CyclicVoltammogram
 from .ms import MSMeasurement
 from .ec_ms import ECMSMeasurement
 from .spectroelectrochemistry import SpectroECMeasurement
@@ -19,7 +19,7 @@ from ..measurements import Measurement  # for importing in the technique modules
 TECHNIQUE_CLASSES = {
     "simple": Measurement,
     "EC": ECMeasurement,
-    "CV": CyclicVoltammagram,
+    "CV": CyclicVoltammogram,
     "MS": MSMeasurement,
     "EC-MS": ECMSMeasurement,
     "S-EC": SpectroECMeasurement,

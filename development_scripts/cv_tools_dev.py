@@ -7,12 +7,12 @@ Created on Mon Jan 25 22:02:57 2021
 from pathlib import Path
 from matplotlib import pyplot as plt
 
-from ixdat.techniques import CyclicVoltammagram
+from ixdat.techniques import CyclicVoltammogram
 
 plt.close("all")
 
-stripping_cycle = CyclicVoltammagram.get(1)
-base_cycle = CyclicVoltammagram.get(2)
+stripping_cycle = CyclicVoltammogram.get(1)
+base_cycle = CyclicVoltammogram.get(2)
 
 diff = stripping_cycle.diff_with(base_cycle)
 

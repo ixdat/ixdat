@@ -3,7 +3,7 @@ import numpy as np
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement
 from .ms import MSMeasurement, MSCalResult
-from .cv import CyclicVoltammagram
+from .cv import CyclicVoltammogram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..db import Saveable  # FIXME: doesn't belong here.
@@ -53,6 +53,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ms_kwargs.update(component_measurements=kwargs["component_measurements"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
+        self._ec_plotter = None
+        self._ms_plotter = None
 
     @property
     def plotter(self):
@@ -63,6 +65,26 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             self._plotter = ECMSPlotter(measurement=self)
 
         return self._plotter
+
+    @property
+    def ec_plotter(self):
+        """The default plotter for ECMSMeasurement is ECMSPlotter"""
+        if not self._ec_plotter:
+            from ..plotters.ec_plotter import ECPlotter
+
+            self._ec_plotter = ECPlotter(measurement=self)
+
+        return self._ec_plotter
+
+    @property
+    def ms_plotter(self):
+        """The default plotter for ECMSMeasurement is ECMSPlotter"""
+        if not self._ms_plotter:
+            from ..plotters.ms_plotter import MSPlotter
+
+            self._ms_plotter = MSPlotter(measurement=self)
+
+        return self._ms_plotter
 
     @property
     def exporter(self):
@@ -190,7 +212,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return cal
 
 
-class ECMSCyclicVoltammogram(CyclicVoltammagram, MSMeasurement):
+class ECMSCyclicVoltammogram(CyclicVoltammogram, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement
 
     FIXME: Maybe this class should instead inherit from ECMSMeasurement and
