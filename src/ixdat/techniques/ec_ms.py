@@ -64,15 +64,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         return self._ms_plotter
 
-    def as_dict(self):
-        self_as_dict = super().as_dict()
-
-        if self.calibration:
-            self_as_dict["calibration"] = self.calibration.as_dict()
-            # FIXME: necessary because an ECMSCalibration is not serializeable
-            #   If it it was it would go into extra_column_attrs
-        return self_as_dict
-
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Unpack the ECMSCalibration when initiating from a dict"""
@@ -184,46 +175,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return cal
 
 
-class ECMSCyclicVoltammogram(CyclicVoltammogram, MSMeasurement):
-    """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, MSMeasurement
-
-    FIXME: Maybe this class should instead inherit from ECMSMeasurement and
-        just add the CyclicVoltammogram functionality?
+class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
+    """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, ECMSMeasurement
     """
-
-    extra_column_attrs = {
-        # FIXME: It would be more elegant if this carried over from both parents
-        #   That might require some custom inheritance definition...
-        "ecms_meaurements": {"tspan_bg", "ec_technique",},
-    }
-    default_plotter = ECMSPlotter
-    default_exporter = ECMSExporter
-
-    def __init__(self, **kwargs):
-        """FIXME: Passing the right key-word arguments on is a mess"""
-        ec_kwargs = {
-            k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
-        }
-        ec_kwargs.update(series_list=kwargs["series_list"])
-        ECMeasurement.__init__(self, **ec_kwargs)
-        ms_kwargs = {
-            k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
-        }
-        ms_kwargs.update(series_list=kwargs["series_list"])
-        MSMeasurement.__init__(self, **ms_kwargs)
-        self.plot = self.plotter.plot_vs_potential
-
-    @classmethod
-    def from_dict(cls, obj_as_dict):
-        """Unpack the ECMSCalibration when initiating from a dict"""
-        if "ms_calibration" in obj_as_dict:
-            if isinstance(obj_as_dict["ms_calibration"], dict):
-                # FIXME: This is a mess
-                obj_as_dict["ms_calibration"] = ECMSCalibration.from_dict(
-                    obj_as_dict["ms_calibration"]
-                )
-        obj = super(ECMSCyclicVoltammogram, cls).from_dict(obj_as_dict)
-        return obj
 
 
 class ECMSCalibration(ECCalibration, MSCalibration):
