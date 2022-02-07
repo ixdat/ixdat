@@ -9,6 +9,7 @@ path_to_file = data_dir / "2021-02-01 17_44_12.tsv"
 
 # This imports it with the EC data
 ecms = Measurement.read(path_to_file, reader="zilien")
+ecms.calibrate_RE(0)
 ecms.plot_measurement()
 
 # This imports it as just an MS measurement.
@@ -33,3 +34,9 @@ ec_2.plot()
 ecms.ec_plotter.plot_measurement()
 ecms.ec_plotter.plot_vs_potential()
 ecms.ms_plotter.plot_measurement()
+
+# This plots it as a cyclic voltammagram
+
+ecms_cv = ecms.as_cv()
+ecms_cv.ec_plotter.plot_vs_potential()
+ecms_cv.plot()
