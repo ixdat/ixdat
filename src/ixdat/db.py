@@ -61,8 +61,12 @@ class DataBase:
 
     def set_backend(self, backend_name, **db_kwargs):
         """Change backend to the class given by backend_name initiated with db_kwargs"""
-        if backend_name in BACKEND_CLASSES:
+        if not isinstance(backend_name, str):
+            # Then we assume that it is the backend itself, not the backend name
+            self.backend = backend_name
+        elif backend_name in BACKEND_CLASSES:
             BackendClass = BACKEND_CLASSES[backend_name]
+            self.backend = BackendClass(**db_kwargs)
         else:
             raise NotImplementedError(
                 f"ixdat doesn't recognize db_name = '{backend_name}'. If this is a new"
@@ -70,7 +74,7 @@ class DataBase:
                 "constant in ixdat.backends."
                 "Or manually set it directly with DB.backend = <my_backend>"
             )
-        self.backend = BackendClass(**db_kwargs)
+        return self.backend
 
 
 DB = DataBase()  # initate the database. It functions as a global "constant"
@@ -399,8 +403,11 @@ class Saveable:
     @classmethod
     def get(cls, i, backend=None):
         """Open an object of cls given its id (the table is cls.table_name)"""
-        backend = backend or DB.backend
-        return backend.get(cls, i)
+        old_backend = DB.backend
+        DB.set_backend(backend or old_backend)
+        obj = DB.get(cls, i)  # gets it from the requested backend.
+        DB.set_backend(old_backend)
+        return obj
 
     def load_data(self, db=None):
         """Load the data of the object, if ixdat in its laziness hasn't done so yet"""
@@ -411,15 +418,19 @@ class Saveable:
 class PlaceHolderObject:
     """A tool for ixdat's laziness, instances sit in for Savable objects."""
 
-    def __init__(self, i, cls, backend):
+    def __init__(self, i, cls, backend=None):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
             i (int): The id (principle key) of the object represented
             cls (class): Class inheriting from Savable and thus specifiying the table
+            backend (Backend, optional). by default, placeholders objects must live in
+                the active backend. This is the case if loaded with get().
         """
         self.id = i
         self.cls = cls
+        if not backend:  #
+            backend = DB.backend
         if not backend or backend == "none" or backend is database_backends["none"]:
             raise DataBaseError(
                 f"Can't make a PlaceHolderObject with backend={backend}"

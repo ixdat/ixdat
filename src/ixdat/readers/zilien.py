@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
 from ..techniques.ms import MSSpectrum

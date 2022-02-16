@@ -33,6 +33,7 @@ class Spectrum(Saveable):
         "sample_name",
         "field_id",
     }
+    child_attrs = ["fields"]
 
     def __init__(
         self,
@@ -65,9 +66,10 @@ class Spectrum(Saveable):
         self.tstamp = tstamp
         self.sample_name = sample_name
         self.reader = reader
-        self._field = field or PlaceHolderObject(
-            field_id, cls=Field, backend=self.backend
-        )
+        # Note: the PlaceHolderObject can be initiated without the backend because
+        #     if field_id is provided, then the relevant backend is the active one,
+        #     which PlaceHolderObject uses by default.
+        self._field = field or PlaceHolderObject(field_id, cls=Field)
 
         self.plotter = SpectrumPlotter(spectrum=self)
         # defining this method here gets it the right docstrings :D
@@ -175,6 +177,10 @@ class Spectrum(Saveable):
         return self._field
 
     @property
+    def fields(self):
+        return [self.field]
+
+    @property
     def field_id(self):
         """The id of the field"""
         return self.field.id
@@ -208,8 +214,8 @@ class Spectrum(Saveable):
 
     @property
     def y(self):
-        """The y data is the data attribute of the field"""
-        return self.field.data
+        """The y data is the one-dimensional data attribute of the field"""
+        return self.field.data[0]
 
     @property
     def y_name(self):
@@ -292,6 +298,11 @@ class SpectrumSeries(Spectrum):
     def x_name(self):
         """The name of the scanning variable"""
         return self.xseries.name
+
+    @property
+    def y(self):
+        """The y data is the multi-dimensional data attribute of the field"""
+        return self.field.data
 
     def __getitem__(self, key):
         """Indexing a SpectrumSeries with an int n returns its n'th spectrum"""
