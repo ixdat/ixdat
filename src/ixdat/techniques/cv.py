@@ -232,7 +232,7 @@ class CyclicVoltammogram(ECMeasurement):
 
         vseries = self.potential
         tseries = vseries.tseries
-        series_list = [tseries, self.raw_potential, self.cycle]
+        series_list = [tseries, self["raw_potential"], self["cycle"]]
 
         v_list = v_list or ["current", "raw_current"]
         if "potential" in v_list:
@@ -314,7 +314,6 @@ class CyclicVoltammogram(ECMeasurement):
         del diff_as_dict["s_ids"]
 
         diff_as_dict["series_list"] = series_list
-        diff_as_dict["raw_current_names"] = ("raw_current",)
 
         cls = cls or CyclicVoltammogramDiff
         diff = cls.from_dict(diff_as_dict)
@@ -325,6 +324,7 @@ class CyclicVoltammogram(ECMeasurement):
 
 class CyclicVoltammogramDiff(CyclicVoltammogram):
 
+    default_plotter = CVDiffPlotter
     cv_1 = None
     cv_2 = None
 

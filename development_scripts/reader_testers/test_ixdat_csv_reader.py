@@ -14,6 +14,9 @@ else:
         "../../test_data/biologic/Pt_poly_cv_CUT.mpt", reader="biologic"
     )
     meas.calibrate_RE(0.715)
+
+    meas.correct_ohmic_drop(R_Ohm=100)
+
     meas.normalize_current(0.196)
 
     meas.as_cv().export("test.csv")
@@ -21,3 +24,4 @@ else:
     meas_loaded = Measurement.read("test.csv", reader="ixdat")
 
     meas_loaded.plot()
+
