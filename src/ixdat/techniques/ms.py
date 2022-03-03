@@ -415,6 +415,8 @@ class MSInlet:
         tspan=None,
         tspan_bg=None,
         ax=None,
+        carrier_mol=None,
+        mol_conc=None,
     ):
         """
         Args:
@@ -425,6 +427,12 @@ class MSInlet:
             tspan_bg (iter): Optional timespan at which the signal is at its background.
             ax (matplotlib axis): the axis on which to indicate what signal is used
                 with a thicker line. Defaults to none
+            carrier_mol (str): The name of the molecule of the carrier gas if
+                a dilute analyte is used. Calibration assumes total flux of the
+                capillary is the same as the flux of pure carrier gas. Defaults
+                to None.
+            mol_conc (float): concentration of the dilute analyte in the carrier gas
+                in ppm. Defaults to None. 
 
         Returns MSCalResult: a calibration result containing the sensitivity factor for
             mol at mass
@@ -432,14 +440,31 @@ class MSInlet:
         t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+        if carrier_mol:
+            if mol_conc:
+                cal_type="carrier_gas_flux_calibration"
+            else:
+                raise QuantificationError(
+                    "Cannot use carrier gas calibration without analyte"
+                    " concentration. mol_conc is missing."
+                    )
+        elif mol_conc:
+            raise QuantificationError(
+                "Cannot use carrier gas calibration without carrier"
+                " gas definition. carrier_mol is missing."
+                )
+        else:
+            cal_type="gas_flux_calibration"
+            mol_conc=10**6
+            carrier_mol=mol
 
-        n_dot = self.calc_n_dot_0(gas=mol)
+        n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc / 10**6
         F = np.mean(S) / n_dot
         return MSCalResult(
             name=f"{mol}_{mass}",
             mol=mol,
             mass=mass,
-            cal_type="gas_flux_calibration",
+            cal_type=cal_type,
             F=F,
         )
 
