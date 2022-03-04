@@ -416,7 +416,7 @@ class MSInlet:
         tspan_bg=None,
         ax=None,
         carrier_mol=None,
-        mol_conc=None,
+        mol_conc_ppm=None,
     ):
         """
         Args:
@@ -431,7 +431,7 @@ class MSInlet:
                 a dilute analyte is used. Calibration assumes total flux of the
                 capillary is the same as the flux of pure carrier gas. Defaults
                 to None.
-            mol_conc (float): concentration of the dilute analyte in the carrier gas
+            mol_conc_ppm (float): concentration of the dilute analyte in the carrier gas
                 in ppm. Defaults to None. 
 
         Returns MSCalResult: a calibration result containing the sensitivity factor for
@@ -441,24 +441,24 @@ class MSInlet:
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
         if carrier_mol:
-            if mol_conc:
+            if mol_conc_ppm:
                 cal_type="carrier_gas_flux_calibration"
             else:
                 raise QuantificationError(
                     "Cannot use carrier gas calibration without analyte"
-                    " concentration. mol_conc is missing."
+                    " concentration. mol_conc_ppm is missing."
                     )
-        elif mol_conc:
+        elif mol_conc_ppm:
             raise QuantificationError(
                 "Cannot use carrier gas calibration without carrier"
                 " gas definition. carrier_mol is missing."
                 )
         else:
             cal_type="gas_flux_calibration"
-            mol_conc=10**6
+            mol_conc_ppm=10**6
             carrier_mol=mol
 
-        n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc / 10**6
+        n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
         F = np.mean(S) / n_dot
         return MSCalResult(
             name=f"{mol}_{mass}",
