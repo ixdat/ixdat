@@ -1,27 +1,31 @@
-import numpy as np
+from scipy import constants as scipy_constants
 
-c = 2.997925e8  # speed of light / (m/s)
-qe = 1.60219e-19  # fundamental charge / (C)
-h = 6.62620e-34  # planck's constant / (J*s)
-hbar = h / (2 * np.pi)  # reduced planck's constant / (J*s)
-NA = 6.02217e23  # Avogadro's number /(mol) or dimensionless
-me = 9.10956e-31  # mass of electron / (kg)
-kB = 1.38062e-23  # Boltzman constant / (J/K)
+# short-form aliases for a few scipy constants
+c = scipy_constants.c  # speed of light / (m/s)
+qe = scipy_constants.e  # fundamental charge / (C)
+h = scipy_constants.h  # planck's constant / (J*s)
+hbar = scipy_constants.hbar  # reduced planck's constant / (J*s)
+NA = scipy_constants.N_A  # Avogadro's number /(mol) or dimensionless
+me = scipy_constants.m_e  # mass of electron / (kg)
+kB = scipy_constants.k  # Boltzman constant / (J/K)
+u0 = scipy_constants.mu_0  # permeability of free space / (J*s^2/(m*C^2))
+e0 = scipy_constants.epsilon_0  # permittivity of free space / (C^2/(J*m))
+R = scipy_constants.R  # gas constant / (J/(mol*K))
 
-u0 = 4 * np.pi * 1e-7  # permeability of free space / (J*s^2/(m*C^2))
-e0 = 1 / (u0 * c ** 2)  # permittivity of free space / (C^2/(J*m))
-
-R = NA * kB  # gas constant / (J/(mol*K))                 #NA in /mol
-amu = 1e-3 / NA  # atomic mass unit / (kg)    # amu=1g/NA     #NA dimensionless
+# a few extra derived constants
+amu = 1e-3 / NA  # atomic mass unit / (kg)    # amu=(1g/mol)/NA
 Far = NA * qe  # Faraday's constant, C/mol
 
+# long-form aliases
 FARADAY_CONSTANT = Far
 AVOGADROS_CONSTANT = NA
 BOLTZMAN_CONSTANT = kB
 
+# standard conditions
 STANDARD_TEMPERATURE = 298.15  # Standard temperature of 25 C in [K]
 STANDARD_PRESSURE = 1e5  # Standard pressure of 1 bar in [Pa]
 
+# molecule properties (should probably come from elsewhere).
 DYNAMIC_VISCOSITIES = {
     "O2": 2.07e-05,
     "N2": 1.79e-05,
