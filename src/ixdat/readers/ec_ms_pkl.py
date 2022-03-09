@@ -110,12 +110,14 @@ def measurement_from_ec_ms_dataset(
             )
         )
 
+    aliases = {"t": ["time/s"], "raw_potential": ["Ewe/V"], "raw_current": ["I/mA"]}
     obj_as_dict = dict(
         name=name,
         technique=technique or "EC_MS",
         series_list=cols_list,
         reader=reader,
         tstamp=ec_ms_dict["tstamp"],
+        aliases=aliases
     )
     obj_as_dict.update(kwargs)
 
