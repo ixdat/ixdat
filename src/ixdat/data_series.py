@@ -180,6 +180,10 @@ class Field(DataSeries):
 
     @property
     def tstamp(self):
+        """The unix time corresponding to t=0 for the time-resolved axis of the Field
+
+        The timestamp of a Field is the timestamp of its TimeSeries or ValueSeries
+        """
         for s in self.axes_series:
             if isinstance(s, (ValueSeries, TimeSeries)):
                 return s.tstamp

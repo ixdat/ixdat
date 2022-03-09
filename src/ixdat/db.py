@@ -16,7 +16,7 @@ Note on terminology:
         managed attribute, from an object in memory.
 
         `load` and `get` convention holds vertically - i.e. the Backend, the DataBase,
-            up through the Savable parent class for all ixdat classes corresponding to
+            up through the Saveable parent class for all ixdat classes corresponding to
             database tables have `load` and `get` methods which call downwards. TODO.
     see: https://github.com/ixdat/ixdat/pull/1#discussion_r546400793
 """
@@ -27,7 +27,7 @@ from .tools import thing_is_close
 
 
 class DataBase:
-    """This class is a kind of middle-man between a Backend and a Savealbe class
+    """This class is a kind of middle-man between a Backend and a Saveable class
 
     The reason for a middle man here is that it enables different databases (backends)
     to be switched between and kept track of in a single ixdat session.
@@ -42,21 +42,21 @@ class DataBase:
         self.new_object_backend = "none"
 
     def save(self, obj):
-        """Save a Savable object with the backend"""
+        """Save a Saveable object with the backend"""
         return self.backend.save(obj)
 
     def get(self, cls, i, backend=None):
-        """Select and return object of Savable class cls with id=i from the backend"""
+        """Select and return object of Saveable class cls with id=i from the backend"""
         backend = backend or self.backend
         obj = backend.get(cls, i)
         # obj will already have obj.id = i and obj.backend = self.backend from backend
         return obj
 
     def load(self, cls, name):
-        """Select and return object of Savable class cls with name=name from backend"""
+        """Select and return object of Saveable class cls with name=name from backend"""
 
     def load_obj_data(self, obj):
-        """Load and return the numerical data (obj.data) for a Savable object"""
+        """Load and return the numerical data (obj.data) for a Saveable object"""
         return self.backend.load_obj_data(obj)
 
     def set_backend(self, backend_name, **db_kwargs):
@@ -154,7 +154,7 @@ class Saveable:
     child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
 
     def __init__(self, backend=None, **self_as_dict):
-        """Initialize a Savable object from its dictionary serialization
+        """Initialize a Saveable object from its dictionary serialization
 
         This is the default behavior, and should be overwritten using an argument-free
         call to super().__init__() in inheriting classes.
@@ -196,7 +196,7 @@ class Saveable:
         FIXME: The overloaded return here is annoying and dangerous, but necessary for
           `Measurement.from_dict(m.as_dict())` to work as a copy, since the call to
           `fill_object_list` has to specify where the objects represented by
-          PlaceHolderObjects live. Note that calling save() on a Savable object will
+          PlaceHolderObjects live. Note that calling save() on a Saveable object will
           turn the backends into DB.backend, so this will only give id's when saving.
         This is (usually) sufficient to tell if two objects refer to the same thing,
         when used together with the class attribute table_name
@@ -215,7 +215,7 @@ class Saveable:
 
     @property
     def backend(self):
-        """The backend the Savable object was loaded from or last saved to."""
+        """The backend the Saveable object was loaded from or last saved to."""
         if not self._backend:
             self._backend = database_backends["none"]
         return self._backend
@@ -243,11 +243,11 @@ class Saveable:
         return self.backend.backend_type
 
     def set_id(self, i):
-        """Backends set obj.id here after loading/saving a Savable obj"""
+        """Backends set obj.id here after loading/saving a Saveable obj"""
         self._id = i
 
     def set_backend(self, backend):
-        """Backends set obj.backend here after loading/saving a Savable obj"""
+        """Backends set obj.backend here after loading/saving a Saveable obj"""
         self.backend = backend
 
     def get_main_dict(self, exclude=None):
@@ -416,15 +416,15 @@ class Saveable:
 
 
 class PlaceHolderObject:
-    """A tool for ixdat's laziness, instances sit in for Savable objects."""
+    """A tool for ixdat's laziness, instances sit in for Saveable objects."""
 
     def __init__(self, i, cls, backend=None):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
             i (int): The id (principle key) of the object represented
-            cls (class): Class inheriting from Savable and thus specifiying the table
-            backend (Backend, optional). by default, placeholders objects must live in
+            cls (class): Class inheriting from Saveable and thus specifiying the table
+            backend (Backend, optional): by default, placeholders objects must live in
                 the active backend. This is the case if loaded with get().
         """
         self.id = i
@@ -459,7 +459,7 @@ def fill_object_list(object_list, obj_ids, cls=None):
         obj_ids (list of ints or None): The id's of objects to ensure are in
             the list. Any id in obj_ids not already represented in object_list
             is added to the list as a PlaceHolderObject
-        cls (Savable class): the class remembered by any PlaceHolderObjects
+        cls (Saveable class): the class remembered by any PlaceHolderObjects
             added to the object_list, so that eventually the right object will
             be loaded. Must be specified if object_list is empty.
     """
@@ -480,7 +480,7 @@ def fill_object_list(object_list, obj_ids, cls=None):
 
 
 def with_memory(function):
-    """Decorator for saving all new Savable objects initiated in the memory backend"""
+    """Decorator for saving all new Saveable objects initiated in the memory backend"""
 
     def function_with_memory(*args, **kwargs):
         DB.new_object_backend = "memory"
