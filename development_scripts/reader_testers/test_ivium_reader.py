@@ -1,3 +1,5 @@
+"""For use in development of the ivium reader. Requires access to sample data."""
+
 from pathlib import Path
 import pandas as pd
 

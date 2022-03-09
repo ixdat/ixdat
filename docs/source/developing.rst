@@ -4,7 +4,7 @@
 Developing ixdat
 ================
 
-If there's an experimental technique or analysis procedure or database or that ixdat
+If there's an experimental technique or analysis procedure or database that ixdat
 should support and doesn't, it might be because **you** haven't coded it yet.
 
 Here are a few resources to help you get started developing ixdat.
@@ -95,5 +95,4 @@ Write to us
 ***********
 We'd love to know what you're working on and help with any issues developing, even
 before you make a PR.
-
-For now, best to reach Soren at sbscott@ic.ac.uk
+One great way to do so is through `github discussions <https://github.com/ixdat/ixdat/discussions>`_

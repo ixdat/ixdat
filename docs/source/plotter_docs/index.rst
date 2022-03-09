@@ -2,7 +2,7 @@
 
 Plotters: visualizing ``ixdat`` data
 ====================================
-Sourece: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/plotters
+Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/plotters
 
 Basic
 -----

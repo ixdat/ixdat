@@ -30,7 +30,7 @@ Output:
 
     In-situ experimental data made easy
 
-Or rather, than exporting, you can take advantage of ``ixdat``'s powerful analysis
+Or rather than exporting, you can take advantage of ``ixdat``'s powerful analysis
 tools and database backends to be a one-stop tool from messy raw data to public
 repository accompanying your breakthrough publication and advancing our field.
 

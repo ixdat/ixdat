@@ -40,7 +40,6 @@ It demonstrates, with CO stripping as an example, the following features:
 - Lining seperate cycles up with respect to potential
 
 It reads ixdat-exported data directly from github.
-A worked example based on the methods in this tutorial
 
 
 Spectroelectrochemistry

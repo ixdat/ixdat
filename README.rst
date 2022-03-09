@@ -26,7 +26,7 @@ Output:
 
     In-situ experimental data made easy
 
-Or rather, than exporting, you can take advantage of ``ixdat``'s powerful analysis
+Or rather than exporting, you can take advantage of ``ixdat``'s powerful analysis
 tools and database backends to be a one-stop tool from messy raw data to public
 repository accompanying your breakthrough publication and advancing our field.
 
@@ -37,9 +37,9 @@ About
 
 Documentation is at https://ixdat.readthedocs.io
 
-In addition to a **pluggable** parser interface for importing your data format, ``ixdat`` it also includes
+In addition to a **pluggable** parser interface for importing your data format, ``ixdat`` also includes
 pluggable exporters and plotters, as well as a database interface. A relational model of experimental data is
-thought into every level.
+designed into every level.
 
 .. list-table:: Techniques and Readers
    :widths: 20 15 50

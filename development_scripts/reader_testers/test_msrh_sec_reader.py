@@ -1,4 +1,6 @@
-"""Demonstrate simple importing and plotting SEC data"""
+"""For use in development of the MSRH SEC reader. Requires access to sample data.
+MSRH = molecular science research hub, at Imperial College London.
+"""
 
 from pathlib import Path
 from ixdat import Measurement
@@ -28,6 +30,8 @@ ax.legend()
 
 
 if True:  # test export and reload
+    # Suggestion: command-line switching for development scripts.
+    #  https://github.com/ixdat/ixdat/pull/30/files#r810014299
     export_name = "exported_sec.csv"
     sec_meas.export(export_name)
     sec_reloaded = Measurement.read(export_name, reader="ixdat")

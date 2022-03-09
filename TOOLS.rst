@@ -76,7 +76,7 @@ https://docs.pytest.org/en/stable/
 sphinx
 ......
 **sphinx** is used to generate the beautiful documentation on
-https://ixdat.readthedocs.io from ReStructuredTex and ixdat source code.
+https://ixdat.readthedocs.io from ReStructuredText and ixdat source code.
 To set it up just install sphinx, if you haven't already. In your terminal or Anaconda prompt, type::
 
   $ pip install sphinx

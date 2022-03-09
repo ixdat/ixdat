@@ -1,3 +1,5 @@
+"""For use in development of the ixdat .csv reader (and exporter)."""
+
 from ixdat import Measurement
 
 

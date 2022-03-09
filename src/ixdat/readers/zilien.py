@@ -19,6 +19,9 @@ ZILIEN_LEGACY_ALIASES = {
     "cycle": ["cycle number"],
 }
 
+# TODO: When, in the future, Zilien files include the whole EC dataset, remove the
+#    unflattering example presently in the docs.
+#    https://github.com/ixdat/ixdat/pull/30/files#r810087496
 
 class ZilienTSVReader:
     """Class for reading files saved by Spectro Inlets' Zilien software"""

@@ -17,6 +17,7 @@ The ``csv_exporter`` module
 
 The ``ec_exporter`` module
 ..........................
+.. _`ec-exporter`:
 
 .. automodule:: ixdat.exporters.ec_exporter
     :members:

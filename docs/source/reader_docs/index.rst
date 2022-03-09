@@ -12,7 +12,7 @@ A full list of the readers thus accessible and their names can be viewed by typi
 Reading .csv files exported by ixdat: The ``IxdatCSVReader``
 ------------------------------------------------------------
 
-``ixdat`` can export measureemnt data in a .csv format with necessary information in the
+``ixdat`` can export measurement data in a .csv format with necessary information in the
 header. See :ref:`exporters`. It can naturally read the data that it exports itself. Exporting and reading,
 however, may result in loss of raw data (unlike ``save()``).
 

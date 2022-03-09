@@ -1,4 +1,6 @@
-"""Demonstrate simple importing and plotting SEC decay data"""
+"""For use in development of the MSRH SEC reader. Requires access to sample data.
+MSRH = molecular science research hub, at Imperial College London.
+"""
 
 from pathlib import Path
 from ixdat import Measurement
@@ -16,6 +18,8 @@ sec_meas = Measurement.read(
     tstamp=1,
     reader="msrh_sec_decay",
 )
+# Suggestion: command-line switching for development scripts.
+#  https://github.com/ixdat/ixdat/pull/30/files#r810014299
 
 sec_meas.calibrate_RE(RE_vs_RHE=0.26)
 

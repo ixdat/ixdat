@@ -11,7 +11,7 @@ It comes with the :ref:`EC-MS plotter <ecms-plotter>` which makes EC-MS plots li
    :width: 600
    ``ECMSMeasurement.plot_measurement()``. Data from Trimarco, 2018.
 
-Other than that it doesn't have much but inherits from both ``ECMeasurement`` and ``MSMeasurement``.
+Other than that, it doesn't have much, but inherits from both ``ECMeasurement`` and ``MSMeasurement``.
 An ``ECMSMeasurement`` can be created either by adding an ``ECMeasurement`` and an ``MSMeasurement``
 using the ``+`` operator, or by directly importing data using an EC-MS :ref:`reader <readers>`
 such as "zilien".

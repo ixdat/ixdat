@@ -39,7 +39,7 @@ even though truth is preserved by adding ``dt`` to a ``tsteries.tstamp`` and sub
 series from consecutive measurements. Performing these operations on every series in
 a measurement set is referred to as building a combined measurement, and is only done
 when explicitly asked for (f.ex. to export or save the combined measurement). Building
-makes new Series rather than muting existing ones. A possible exception to immutability
+makes new Series rather than mutating existing ones. A possible exception to immutability
 may be appending data to use ``ixdat`` on an ongoing measurement.
 
 

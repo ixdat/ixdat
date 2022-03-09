@@ -1,3 +1,5 @@
+"""For use in development of the zilien reader(s). Requires access to sample data."""
+
 from pathlib import Path
 
 from ixdat import Measurement

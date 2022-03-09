@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jan 25 22:02:57 2021
+"""For use in development of the cinfdata reader. Requires access to sample data."""
 
-@author: scott
-"""
 from pathlib import Path
 from matplotlib import pyplot as plt
 

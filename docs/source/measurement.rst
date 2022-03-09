@@ -5,7 +5,6 @@ The measurement structure
 
 The **measurement** (``meas``) is the central object in the pluggable structure of ixdat, and the
 main interface for user interaction. A measurement is an object of the generalized class
-main interface for user interaction. A measurement is an object of the generalized class
 ``Measurement``, defined in the ``measurements`` module, or an inheriting
 ***TechniqueMeasurement*** class defined in a module of the ``techniques`` folder
 (see :ref:`techniques`).
@@ -13,7 +12,7 @@ main interface for user interaction. A measurement is an object of the generaliz
 The general pluggable structure is defined by ``Measurement``, connecting every
 measurement to a *reader* for importing from text, a *backend* for saving and loading in
 ``ixdat``, a *plotter* for visualization, and an *exporter* for saving outside of ``ixdat``.
-Each TechniqueMeasurement class will likely hav its own default reader, plotter, and
+Each TechniqueMeasurement class will likely have its own default reader, plotter, and
 exporter, while an ``ixdat`` session will typically work with one backend handled by the
 ``db`` model.
 
@@ -57,7 +56,7 @@ This can also be done straight from ``Measurement``, as follows:
 
 Where the row with id=3 of the measurements table represents an electrochemistry
 measurement. Here the column "technique" in the measurements table specifies which
-TechniqueMeasurement class is returned. Here, it for row three of the measurements
+TechniqueMeasurement class is returned. For row three of the measurements
 table, the entry "technique" is "EC", ensuring ``ec_meas`` is an object of type
 ``ECMeasurement``.
 
@@ -76,7 +75,7 @@ There are several ways of interracting with a measurement's ``data_series``:
   the measurement.
 - Indexing a measurement with the name of a data series returns that data series, with
   any time values tstamp'd at ``meas.tstamp``
-- Most TechniqueMeasureemnts provide attribute-style access to essential DataSeries and
+- Most TechniqueMeasureements provide attribute-style access to essential DataSeries and
   data. For example, ``ECMeasurement`` has properties for ``potential`` and ``current`` series,
   as well as ``t``, ``v``, and ``j`` for data.
 - The names of the series are available in ``meas.series_names``.
