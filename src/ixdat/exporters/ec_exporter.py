@@ -5,7 +5,7 @@ class ECExporter(CSVExporter):
     """A CSVExporter that by default exports potential, current, and selector"""
 
     @property
-    def default_v_list(self):
+    def default_export_columns(self):
         """The default v_list for ECExporter is V_str, J_str, and sel_str"""
         return [
             # self.measurement.t_name,

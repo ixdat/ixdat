@@ -21,7 +21,9 @@ else:
 
     meas.normalize_current(0.196)
 
-    meas.as_cv().export("test.csv")
+    cv = meas.as_cv()
+
+    cv.export("test.csv")
 
     meas_loaded = Measurement.read("test.csv", reader="ixdat")
 

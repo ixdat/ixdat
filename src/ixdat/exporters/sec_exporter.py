@@ -32,7 +32,7 @@ class SECExporter(CSVExporter):
         return self._spectra_exporter
 
     @property
-    def default_v_list(self):
+    def default_export_columns(self):
         """The default v_list for SECExporter is that from EC and tracked wavelengths"""
         v_list = (
             ECExporter(measurement=self.measurement).default_v_list
