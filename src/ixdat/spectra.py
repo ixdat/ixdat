@@ -1,3 +1,5 @@
+"""Base classes for spectra and spectrum series"""
+
 import numpy as np
 from .db import Saveable, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
@@ -121,12 +123,12 @@ class Spectrum(Saveable):
         Args:
             x (np array): x data
             y (np array): y data
-            tstamp (timestamp): the timestamp of the spectrum. Defaults to None.
+            tstamp (timestamp): The timestamp of the spectrum. Defaults to None.
             x_name (str): Name of the x variable. Defaults to 'x'
             y_name (str): Name of the y variable. Defaults to 'y'
             x_unit_name (str): Name of the x unit. Defaults to None
             y_unit_name (str): Name of the y unit. Defaults to None
-            kwargs: key-word arguments are passed on ultimately to cls.__init__
+            kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         xseries = DataSeries(data=x, name=x_name, unit_name=x_unit_name)
         yseries = DataSeries(data=y, name=y_name, unit_name=y_unit_name)
@@ -137,11 +139,11 @@ class Spectrum(Saveable):
         """Initiate a spectrum from data. Does so via cls.from_field
 
         Args:
-            xseries (DataSeries): a series with the x data
-            yseries (DataSeries): a series with the y data. The y data should be a
+            xseries (DataSeries): A series with the x data
+            yseries (DataSeries): A series with the y data. The y data should be a
                 vector of the same length as the x data.
-            tstamp (timestamp): the timestamp of the spectrum. Defaults to None.
-            kwargs: key-word arguments are passed on ultimately to cls.__init__
+            tstamp (timestamp): The timestamp of the spectrum. Defaults to None.
+            kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         field = Field(
             data=yseries.data,
@@ -254,7 +256,37 @@ class Spectrum(Saveable):
 
 
 class SpectrumSeries(Spectrum):
+    """The SpectrumSeries class.
+
+    A spectrum series is a data structure including a two-dimensional array, each row of
+    which is a spectrum, and each column of which is one spot in the spectrum as it
+    changes with some other variable.
+
+    In ixdat, the data of a spectrum series is organized into a Field, where the y-data
+    is considered to span a space defined by a DataSeries which is the x data, and a
+    DataSeries (typically a TimeSeries) which enumerates or specifies when or under
+    which conditions each spectrum was taken. The spectrum series will consider this
+    its "time" variable even if it is not actually time.
+
+    The SpectrumSeries class makes the data in this field intuitively available. If
+    spec is a spectrum series, spec.x is the x data with shape (N, ), spec.t is the
+    time data with shape (M, ), and spec.y is the spectrum data with shape (M, N).
+    """
+
     def __init__(self, *args, **kwargs):
+        """Initiate a spectrum series
+
+        Args:
+            name (str): The name of the spectrum series
+            metadata (dict): Free-form spectrum metadata. Must be json-compatible.
+            technique (str): The spectrum technique
+            sample_name (str): The sample name
+            reader (Reader): The reader, if read from file
+            tstamp (float): The unix epoch timestamp of the spectrum
+            field (Field): The Field containing the data (x, y, and tstamp)
+            field_id (id): The id in the data_series table of the Field with the data,
+                if the field is not yet loaded from backend.
+        """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
         super().__init__(*args, **kwargs)
@@ -263,7 +295,8 @@ class SpectrumSeries(Spectrum):
     @property
     def yseries(self):
         # Should this return an average or would that be counterintuitive?
-        raise BuildError(f"{self} has no single y-series. Index it to get a Spectrum.")
+        raise BuildError(f"{self} has no single y-series. Index it to get a Spectrum "
+                         "or see `y_average`")
 
     @property
     def tseries(self):
