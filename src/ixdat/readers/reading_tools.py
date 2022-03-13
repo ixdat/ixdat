@@ -28,19 +28,14 @@ def timestamp_string_to_tstamp(
             the standard timestamp form.
     """
     if form:
-        forms = (form,)
-    struct = None
+        forms = (form, )
     for form in forms:
         try:
-            struct = time.strptime(timestamp_string, form)
-            continue
+            return time.mktime(time.strptime(timestamp_string, form))
         except ValueError:
             continue
-    try:
-        tstamp = time.mktime(struct)
-    except TypeError:
-        raise ReadError(f"couldn't parse timestamp_string='{timestamp_string}')")
-    return tstamp
+
+    raise ReadError(f"couldn't parse timestamp_string='{timestamp_string}')")
 
 
 def prompt_for_tstamp(path_to_file, default="creation", form=STANDARD_TIMESTAMP_FORM):
@@ -72,7 +67,7 @@ def prompt_for_tstamp(path_to_file, default="creation", form=STANDARD_TIMESTAMP_
         timestamp_string = input(
             f"Please input the timestamp for the measurement at {path_to_file}.\n"
             f"Please use the format {form}.\n"
-            f"Enter nothing to use the default default,"
+            "Enter nothing to use the default default,"
             f" '{default}', which is '{default_timestring}'."
         )
         if timestamp_string:

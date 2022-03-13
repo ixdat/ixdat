@@ -60,7 +60,8 @@ class IxdatCSVReader:
         """Initialize a Reader for ixdat-exported .csv files. See class docstring."""
         self.name = None
         self.path_to_file = None
-        self.n_line = 0
+        self.n_line = 0  # TODO: decide if this is part of API.
+        # as per https://github.com/ixdat/ixdat/pull/30/files#r816204939
         self.place_in_file = "header"
         self.header_lines = []
         self.tstamp = None
@@ -277,7 +278,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
         IxdatCSVReader. Then it uses pandas to read the data.
 
         Args:
-            path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            path_to_file (Path): The full absolute or relative path including extension
             name (str): The name of the measurement to return (defaults to path_to_file)
             cls (Spectrum subclass): The class of measurement to return. By default,
                 cls will be determined from the technique specified in the header of

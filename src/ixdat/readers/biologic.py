@@ -99,7 +99,6 @@ class BiologicMPTReader:
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpt" extension
-            cls (Measurement class): The class of the measurement to return
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
             name (str): The name to use if not the file name
             cls (Measurement subclass): The Measurement class to return an object of.

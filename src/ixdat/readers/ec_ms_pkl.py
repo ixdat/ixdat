@@ -6,7 +6,7 @@ from ..measurements import Measurement
 from .biologic import BIOLOGIC_COLUMN_NAMES, get_column_unit
 
 
-ECMSMeasruement = TECHNIQUE_CLASSES["EC-MS"]
+ECMSMeasurement = TECHNIQUE_CLASSES["EC-MS"]
 
 
 class EC_MS_CONVERTER:
@@ -21,7 +21,7 @@ class EC_MS_CONVERTER:
 
         Args:
             path_to_file (Path): The full abs or rel path including the
-            ".pkl" extension.
+                ".pkl" extension.
         """
         with open(file_path, "rb") as f:
             ec_ms_dict = pickle.load(f)
@@ -39,7 +39,7 @@ class EC_MS_CONVERTER:
 def measurement_from_ec_ms_dataset(
     ec_ms_dict,
     name=None,
-    cls=ECMSMeasruement,
+    cls=ECMSMeasurement,
     reader=None,
     technique=None,
     **kwargs,
@@ -48,7 +48,7 @@ def measurement_from_ec_ms_dataset(
 
     This loops through the keys of the EC-MS dict and searches for MS and
     EC data. Names the dataseries according to their names in the original
-    dict. Omitts any other data as well as metadata.
+    dict. Omits any other data as well as metadata.
 
     Args:
         ec_ms_dict (dict): The EC_MS data dictionary

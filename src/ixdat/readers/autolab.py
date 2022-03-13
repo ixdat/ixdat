@@ -30,10 +30,10 @@ class NovaASCIIReader:
         timestring_form=STANDARD_TIMESTAMP_FORM,
         **kwargs
     ):
-        """read the ascii export from Autolab's Nova software
+        """Read the ASCII export from Autolab's Nova software
 
         Args:
-            path_to_file (Path): The full abs or rel path including the suffix (.txt)
+            path_to_file (Path): The full absolute or relative path including the suffix
             name (str): The name to use if not the file name
             cls (Measurement subclass): The Measurement class to return an object of.
                 Defaults to `ECMeasurement` and should probably be a subclass thereof in

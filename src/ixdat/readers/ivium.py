@@ -17,7 +17,7 @@ class IviumDataReader:
     """Class for reading single ivium files"""
 
     def read(self, path_to_file, cls=None, name=None, cycle_number=0, **kwargs):
-        """read the ascii export from the Ivium software
+        """Read the ASCII export from the Ivium software
 
         Args:
             path_to_file (Path): The full abs or rel path including the suffix (.txt)
@@ -35,11 +35,11 @@ class IviumDataReader:
         name = name or self.path_to_file.name
 
         with open(self.path_to_file, "r") as f:
-            timesting_line = f.readline()  # we need this for tstamp
+            timestring_line = f.readline()  # we need this for tstamp
             columns_line = f.readline()  # we need this to get the column names
             first_data_line = f.readline()  # we need this to check the column names
         tstamp = timestamp_string_to_tstamp(
-            timesting_line.strip(),
+            timestring_line.strip(),
             form="%d/%m/%Y %H:%M:%S",  # like '04/03/2021 19:42:30'
         )
 
@@ -91,7 +91,7 @@ class IviumDatasetReader:
     """Class for reading sets of ivium files exported together"""
 
     def read(self, path_to_file, cls=None, name=None, **kwargs):
-        """Return a Measurement containing the data of an ivium dataset,
+        """Return a measurement containing the data of an ivium dataset,
 
         An ivium dataset is a group of ivium files exported together. They share a
         folder and a base name, and are suffixed "_1", "_2", etc.
@@ -106,7 +106,7 @@ class IviumDatasetReader:
             name (str): The name of the dataset. Defaults to the base name of the dataset
             kwargs: key-word arguments are included in the dictionary for cls.from_dict()
 
-        Returns cls or ECMeasurement: a measurement object with the ivium data
+        Returns cls or ECMeasurement: A measurement object with the ivium data
         """
         self.path_to_file = Path(path_to_file)
 

@@ -71,7 +71,7 @@ class ZilienTMPReader:
         """Make a measurement from all the single-value .tsv files in a Zilien tmp dir
 
         Args:
-            path_to_tmp_dir (Path or str): the path to the tmp dir
+            path_to_tmp_dir (Path or str): The path to the tmp dir
             cls (Measurement class): Defaults to ECMSMeasurement
         """
         if path_to_tmp_dir:
@@ -129,7 +129,7 @@ class ZilienSpectrumReader:
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
     def read(self, path_to_spectrum, cls=None, **kwargs):
-        """Make a measurement from all the single-value .tsv files in a Zilien tmp dir
+        """Reat a Zilien spectrum.
         FIXME: This reader was written hastily and could be designed better.
 
         Args:

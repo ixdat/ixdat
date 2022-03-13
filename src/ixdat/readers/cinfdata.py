@@ -1,4 +1,4 @@
-"""Module defining the ixdat csv reader, so ixdat can read the files it exports."""
+"""Module defining readers for DTU Surfcat's legendary cinfdata system"""
 
 from pathlib import Path
 import numpy as np
@@ -78,7 +78,7 @@ class CinfdataTXTReader:
         measurement as `measurement.reader.attribute_name`.
 
         Args:
-            path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            path_to_file (Path): The full abs or rel path including the ".txt" extension
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
         """
         path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
@@ -203,6 +203,9 @@ def get_column_unit(column_name):
         unit_name = "A"
     elif column_name.startswith("M") and column_name.endswith("-x"):
         unit_name = "s"
-    else:  # TODO: Figure out how cinfdata represents units for other stuff.
+    else:
+        # TODO: Figure out how cinfdata represents units for other stuff.
+        #    see https://github.com/ixdat/ixdat/pull/30/files#r811432543, and
+        #    https://github.com/CINF/cinfdata/blob/master/sym-files2/export_data.py#L125
         unit_name = None
     return unit_name
