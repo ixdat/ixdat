@@ -44,7 +44,7 @@ class Measurement(Saveable):
     }
     extra_linkers = {
         "component_measurements": ("measurements", "m_ids"),
-        "measurement_calibrations": ("ms_calibration", "c_ids"),
+        "measurement_calibrations": ("calibrations", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
     child_attrs = ["component_measurements", "calibration_list", "series_list"]
@@ -291,7 +291,7 @@ class Measurement(Saveable):
             sort (bool): Whether to sort the series according to time
             kwargs: key-word arguments are added to the dictionary for cls.from_dict()
 
-        Returns cls: a Measurement object of the
+        Returns cls: the combined measurement.
         """
 
         # First prepare everything but the series_list in the object dictionary
@@ -489,11 +489,11 @@ class Measurement(Saveable):
         """{series_name: standard_names} indicating how raw data can be accessed"""
         rev_aliases = {}
         for name, other_names in self.aliases.items():
-            for n in other_names:
-                if n in rev_aliases:
-                    rev_aliases[n].append(name)
+            for other_name in other_names:
+                if other_name in rev_aliases:
+                    rev_aliases[other_name].append(name)
                 else:
-                    rev_aliases[n] = [name]
+                    rev_aliases[other_name] = [name]
         return rev_aliases
 
     def get_series_names(self, key):
@@ -511,9 +511,9 @@ class Measurement(Saveable):
         2. find or build the desired data series by the first possible of:
             A. Check if `key` corresponds to a method in `series_constructors`. If
                 so, build the data series with that method.
-            B. Check if the `ms_calibration`'s `calibrate_series` returns a data series
+            B. Check if the `calibration`'s `calibrate_series` returns a data series
                 for `key` given the data in this measurement. (Note that the
-                `ms_calibration` will typically start with raw data looked C, below.)
+                `calibration` will typically start with raw data looked C, below.)
             C. Generate a list of data series and append them:
                 i. Check if `key` is in `aliases`. If so, append all the data series
                     returned for each key in `aliases[key]`.
@@ -537,16 +537,16 @@ class Measurement(Saveable):
         >>> ec_meas["raw_potential"]  # first lookup, explained below
         ValueSeries("Ewe/V", ...)
         >>> ec_meas.calibrate_RE(RE_vs_RHE=0.7)
-        >>> ec_meas["potential"]   # second lookup, explained below
+        >>> ec_meas["potential"]      # second lookup, explained below
         ValueSeries("U_{RHE} / [V]", ...)
 
         - The first lookup, with `key="raw_potential"`, (1) checks for
         "raw_potential" in the cache, doesn't find it; then (2A) checks in
-        `series_constructors`, doesn't find it; (2B) asks the ms_calibration for
+        `series_constructors`, doesn't find it; (2B) asks the calibration for
         "raw_potential" and doesn't get anything back; and finally (2Ci) checks
         `aliases` for raw potential where it finds that "raw_potential" is called
         "Ewe/V". Then it looks up again, this time with `key="Ewe/V"`, which it doesn't
-        find in (1) the cache, (2A) `series_consturctors`, (2B) the ms_calibration, or
+        find in (1) the cache, (2A) `series_consturctors`, (2B) the calibration, or
         (2Ci) `aliases`, but does find in (2Cii) `series_list`. There is only one
         data series named "Ewe/V" so no appending is necessary, but it does ensure that
         the series has the measurement's `tstamp` before cache'ing and returning it.
@@ -555,13 +555,13 @@ class Measurement(Saveable):
         returns it.
         - The second lookup, with `key="potential"`, (1) checks for "potential" in
         the cache, doesn't find it; then (2A) checks in `series_constructors`,
-        doesn't find it; and then (2B) asks the ms_calibration for "potential". The
-        ms_calibration knows that when asked for "potential" it should look for
+        doesn't find it; and then (2B) asks the calibration for "potential". The
+        calibration knows that when asked for "potential" it should look for
         "raw_potential" and add `RE_vs_RHE`. So it does a lookup with
-        `key="raw_potential"` and (1) finds it in the cache. The ms_calibration does
+        `key="raw_potential"` and (1) finds it in the cache. The calibration does
         the math and returns a new data series for the calibrated potential, bringing
         us back to the original lookup. The data series returned by the
-        ms_calibration is then (3) cached and returned to the user.
+        calibration is then (3) cached and returned to the user.
 
         Note that, if the user had not looked up "raw_potential" before looking up
         "potential", "raw_potential" would not have been in the cache and the first
@@ -591,8 +591,8 @@ class Measurement(Saveable):
 
         See more detailed documentation under `__getitem__`, for which this is a
         helper method. This method (A) looks for a method for `key` in the measurement's
-        `series_constructors`; (B) requests its `ms_calibration` for `key`; and if those
-        fails appends the data series that either (Ci) are returned by looking up the
+        `series_constructors`; (B) requests its `calibration` for `key`; and if those
+        fail appends the data series that either (Ci) are returned by looking up the
         key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
         user was using a key with a suffix.
 
@@ -608,7 +608,7 @@ class Measurement(Saveable):
         # B
         for calibration in self.calibrations:
             series = calibration.calibrate_series(key, measurement=self)
-            # ^ the ms_calibration will call __getitem__ with the name of the
+            # ^ the calibration will call __getitem__ with the name of the
             #   corresponding raw data and return a new series with calibrated data
             #   if possible. Otherwise it will return None.
             if series:
@@ -652,8 +652,8 @@ class Measurement(Saveable):
         """Remove an existing series, add a series to the measurement, or both.
 
         FIXME: This will not appear to change the series for the user if the
-            measurement's ms_calibration returns something for ´series_name´, since
-            __getitem__ asks the ms_calibration before looking in series_list.
+            measurement's calibration returns something for ´series_name´, since
+            __getitem__ asks the calibration before looking in series_list.
 
         Args:
             series_name (str): The name of a series. If the measurement has (raw) data
@@ -704,7 +704,7 @@ class Measurement(Saveable):
         TODO: option to specifiy desired units
 
         Typical usage::
-            t, v = measurement.grab(potential, tspan=[0, 100])
+            t, v = measurement.grab("potential", tspan=[0, 100])
 
         Args:
             item (str): The name of the DataSeries to grab data for
@@ -1190,8 +1190,8 @@ class Measurement(Saveable):
         Args:
             other (Measurement): a second measurement to join to self
             join_on (str or tuple): Either a string, if the value to join on is called
-                the same thing in both measurements, or a tuple of two strings if it is
-                not.
+                the same thing in both measurements, or a tuple of two strings where
+                the first is the name of the variable in self and the second in other.
                 The variable described by join_on must be monotonically increasing in
                 both measurements.
         """
@@ -1212,9 +1212,9 @@ class Calibration(Saveable):
         """Initiate a Calibration
 
         Args:
-            name (str): The name of the ms_calibration
-            technique (str): The technique of the ms_calibration
-            tstamp (float): The time at which the ms_calibration took place or is valid
+            name (str): The name of the calibration
+            technique (str): The technique of the calibration
+            tstamp (float): The time at which the calibration took place or is valid
             measurement (Measurement): Optional. A measurement to calibrate by default.
         """
         super().__init__()
@@ -1261,7 +1261,7 @@ class Calibration(Saveable):
         return cls.from_dict(obj_as_dict)
 
     def calibrate_series(self, key, measurement=None):
-        """This should be overwritten in real ms_calibration classes.
+        """This should be overwritten in real calibration classes.
 
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
