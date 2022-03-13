@@ -708,6 +708,8 @@ class Measurement(Saveable):
 
         Args:
             item (str): The name of the DataSeries to grab data for
+                TODO: Should this be called "name" or "key" instead? And/or, should
+                   the argument to __getitem__ be called "item" instead of "key"?
             tspan (iter of float): Defines the timespan with its first and last values.
                 Optional. By default the entire time of the measurement is included.
             include_endpoints (bool): Whether to add a points at t = tspan[0] and

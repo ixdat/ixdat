@@ -39,6 +39,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         if "component_measurements" in kwargs:
             ec_kwargs.update(component_measurements=kwargs["component_measurements"])
             ms_kwargs.update(component_measurements=kwargs["component_measurements"])
+        if "calibration_list" in kwargs:
+            ec_kwargs.update(calibration_list=kwargs["calibration_list"])
+            ms_kwargs.update(calibration_list=kwargs["calibration_list"])
         ECMeasurement.__init__(self, **ec_kwargs)
         MSMeasurement.__init__(self, **ms_kwargs)
         self._ec_plotter = None
@@ -46,7 +49,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
     @property
     def ec_plotter(self):
-        """The default plotter for ECMSMeasurement is ECMSPlotter"""
+        """A plotter for just plotting the ec data"""
         if not self._ec_plotter:
             from ..plotters.ec_plotter import ECPlotter
 
@@ -56,7 +59,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
     @property
     def ms_plotter(self):
-        """The default plotter for ECMSMeasurement is ECMSPlotter"""
+        """A plotter for just plotting the ms data"""
         if not self._ms_plotter:
             from ..plotters.ms_plotter import MSPlotter
 
@@ -66,7 +69,12 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
     @classmethod
     def from_dict(cls, obj_as_dict):
-        """Unpack the ECMSCalibration when initiating from a dict"""
+        """Initiate an ECMSMeasurement from a dictionary representation.
+
+        This unpacks the ECMSCalibration from its own nested dictionary
+        TODO: Figure out a way for that to happen automatically.
+        """
+
         if "calibration" in obj_as_dict:
             if isinstance(obj_as_dict["calibration"], dict):
                 # FIXME: This is a mess
@@ -125,7 +133,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
-            tspan_list (list of tspan): THe timespans of steady electrolysis
+            tspan_list (list of tspan): The timespans of steady electrolysis
             tspan_bg (tspan): The time to use as a background
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.

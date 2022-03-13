@@ -9,12 +9,14 @@ import matplotlib.pyplot as plt
 from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 import numpy as np
 
+# FIXME: too much abbreviation in this module.
+
 
 class DecoMeasurement(ECMSMeasurement):
     """Class implementing deconvolution of EC-MS data"""
 
-    def __intit__(self, name, **kwargs):
-        """initialize a deconvolution EC-MS measurement
+    def __init__(self, name, **kwargs):
+        """Initialize a deconvolution EC-MS measurement
 
         Args:
             name (str): The name of the measurement"""
@@ -34,6 +36,7 @@ class DecoMeasurement(ECMSMeasurement):
             tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
+        # TODO: comments in this method so someone can tell what's going on!
 
         t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
 
@@ -98,7 +101,7 @@ class Kernel:
     # TODO: Reference equations to paper.
     def __init__(
         self,
-        parameters={},
+        parameters={},  # FIXME: no mutable default arguments!
         MS_data=None,
         EC_data=None,
     ):
@@ -120,11 +123,11 @@ class Kernel:
                     current, potential).
         """
 
-        if MS_data is not None and parameters:  # TODO: Make two different classes
+        if MS_data and parameters:  # TODO: Make two different classes
             raise Exception(
                 "Kernel can only be initialized with data OR parameters, not both"
             )
-        if EC_data is not None and MS_data is not None:
+        if EC_data and MS_data:
             print("Generating kernel from measured data")
             self.type = "measured"
         elif parameters:
@@ -210,6 +213,8 @@ class Kernel:
             tdiff = t_kernel * diff_const / (work_dist ** 2)
 
             def fs(s):
+                # See Krempl et al, 2021. Equation 6.
+                #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
                 return 1 / (
                     sqrt(s) * sinh(sqrt(s))
                     + (vol_gas * henry_vola / 0.196e-4 / work_dist)

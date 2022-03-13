@@ -145,6 +145,9 @@ class MSMeasurement(Measurement):
                 Defaults to True.
         """
         return self.grab(
+            # grab() invokes __getitem__, which invokes the `Calibration`. Specifically,
+            # `MSCalibration.calibrate_series()` interprets item names starting with
+            # "n_" as molecule fluxes, and checks itself for a sensitivity factor.
             f"n_dot_{mol}",
             tspan=tspan,
             tspan_bg=tspan_bg,
@@ -328,6 +331,15 @@ class MSCalibration(Calibration):
         yield from self.ms_cal_results
 
     def calibrate_series(self, key, measurement=None):
+        """Return a calibrated series for `key` if possible.
+
+        If key starts with "n_", it is interpreted as a molecule flux. This method then
+        searches the calibration for a sensitivity factor for that molecule uses it to
+        divide the relevant mass signal from the measurement. Example acceptable keys:
+        "n_H2", "n_dot_H2".
+        If the key does not start with "n_", or the calibration can't find a relevant
+        sensitivity factor and mass signal, this method returns None.
+        """
         measurement = measurement or self.measurement
         if key.startswith("n_"):  # it's a flux!
             mol = key.split("_")[-1]
@@ -459,7 +471,9 @@ class MSInlet:
     ):
         """Calculate the total molecular flux through the capillary in [s^-1]
 
-        Uses Equation 4.10 of Daniel's Thesis.
+        Uses Equation 4.10 of Trimarco, 2017. "Real-time detection of sub-monolayer
+        desorption phenomena during electrochemical reactions: Instrument development
+        and applications." PhD Thesis, Technical University of Denmark.
 
         Args:
             w_cap (float): capillary width [m], defaults to self.w_cap

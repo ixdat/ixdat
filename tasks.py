@@ -43,8 +43,8 @@ def pytest(context):
 
     """
     print("# pytest")
-    return context.run("pytest tests").return_code
-    # TODO: This now only works if we call it from project root.
+    with context.cd(THIS_DIR):
+        return context.run("pytest tests").return_code
 
 
 @task(aliases=["QA", "qa", "check"])

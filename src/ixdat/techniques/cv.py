@@ -47,7 +47,7 @@ class CyclicVoltammogram(ECMeasurement):
                 step = 1
             key = list(range(start, stop, step))
         if isinstance(key, (int, list)):
-            if type(key) is list and not all([type(i) is int for i in key]):
+            if isinstance(key, list) and not all([isinstance(i, int) for i in key]):
                 print("can't get an item of type list unless all elements are int")
                 print(f"you tried to get key = {key}.")
                 raise AttributeError
@@ -122,14 +122,14 @@ class CyclicVoltammogram(ECMeasurement):
         self.replace_series("cycle", new_cycle_series)
 
     def select_sweep(self, vspan, t_i=None):
-        """Return a CyclicVoltammagram for while the potential is sweeping through vspan
+        """Return the cut of the CV for which the potential is sweeping through vspan
 
         Args:
             vspan (iter of float): The range of self.potential for which to select data.
                 Vspan defines the direction of the sweep. If vspan[0] < vspan[-1], an
                 oxidative sweep is returned, i.e. one where potential is increasing.
                 If vspan[-1] < vspan[0], a reductive sweep is returned.
-            t_i (float): Optional. Time before which the sweep can't start.
+            t_i (float): Optional. Time before which the sweep can't start
         """
         tspan = tspan_passing_through(
             t=self.t,
@@ -142,9 +142,10 @@ class CyclicVoltammogram(ECMeasurement):
     def integrate(self, item, tspan=None, vspan=None, ax=None):
         """Return the time integral of item while time in tspan or potential in vspan
 
-        item (str): The name of the ValueSeries to integrate
-        tspan (iter of float): A time interval over which to integrate it
-        vspan (iter of float): A potential interval over which to integrate it.
+        Args:
+            item (str): The name of the ValueSeries to integrate
+            tspan (iter of float): A time interval over which to integrate it
+            vspan (iter of float): A potential interval over which to integrate it
         """
         if vspan:
             return self.select_sweep(
@@ -200,7 +201,7 @@ class CyclicVoltammogram(ECMeasurement):
         """Return the capacitance in [F], calculated by the first sweeps through vspan
 
         Args:
-            vspan (iterable): The potential range in [V] to use for capacitance
+            vspan (iter of floats): The potential range in [V] to use for capacitance
         """
         sweep_1 = self.select_sweep(vspan)
         v_scan_1 = np.mean(sweep_1.grab("scan_rate")[1])  # [V/s]
@@ -226,8 +227,8 @@ class CyclicVoltammogram(ECMeasurement):
                 between self and other for (defaults to just "current").
             cls (ECMeasurement subclass): The class to return an object of. Defaults to
                 CyclicVoltammogramDiff.
-            v_scan_res (float): see CyclicVoltammogram.get_timed_sweeps()
-            res_points (int):  see CyclicVoltammogram.get_timed_sweeps()
+            v_scan_res (float): see :meth:`get_timed_sweeps`
+            res_points (int):  see :meth:`get_timed_sweeps`
         """
 
         vseries = self.potential

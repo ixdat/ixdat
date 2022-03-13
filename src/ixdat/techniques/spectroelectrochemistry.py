@@ -49,9 +49,9 @@ class SpectroECMeasurement(ECMeasurement):
             V_ref (float): The potential to use as the reference spectrum. This will
                 only work if the potential is monotonically increasing.
         """
-        if (not spectrum) and t_ref:
+        if t_ref and not spectrum:
             spectrum = self.get_spectrum(t=t_ref)
-        if (not spectrum) and V_ref:
+        if V_ref and not spectrum:
             spectrum = self.get_spectrum(V=V_ref)
         if not spectrum:
             raise ValueError("must provide a spectrum, t_ref, or V_ref!")
@@ -146,7 +146,7 @@ class SpectroECMeasurement(ECMeasurement):
             y = counts_interpolater(t)
             name = name or f"{self.spectra.name}_{t}s"
         else:
-            raise ValueError(f"Need t or V or index to select a spectrum!")
+            raise ValueError("Need t or V or index to select a spectrum!")
 
         field = Field(
             data=y,
@@ -178,7 +178,8 @@ class SpectroECMeasurement(ECMeasurement):
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum
-        Return Spectrum: The dOD spectrum. The data is (spectrum.x, spectrum.y)
+        Return:
+             Spectrum: The dOD spectrum. The data is (spectrum.x, spectrum.y)
         """
         if V_ref or t_ref or index_ref:
             spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
@@ -196,7 +197,7 @@ class SpectroECMeasurement(ECMeasurement):
     def track_wavelength(self, wl, width=10, V_ref=None, t_ref=None, index_ref=None):
         """Return and cache a ValueSeries for the dOD for a specific wavelength.
 
-        The cacheing adds wl_str to the SECMeasurement's data series, where
+        The caching adds wl_str to the SECMeasurement's data series, where
             wl_str = "w" + int(wl)
             This is dOD. The raw is also added as wl_str + "_raw".
         So, to get the raw counts for a specific wavelength, call this function and

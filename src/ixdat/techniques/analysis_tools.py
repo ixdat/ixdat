@@ -1,3 +1,5 @@
+"""Miscellaneous tools for data analysis used in measurement techniques"""
+
 import numpy as np
 from scipy.optimize import minimize
 
@@ -70,10 +72,11 @@ def tspan_passing_through(t, v, vspan, direction=None, t_i=None, v_res=None):
 def calc_sharp_v_scan(t, v, res_points=10):
     """Calculate the discontinuous rate of change of v with respect to t
 
-    t (np.array): the data of the independent variable, typically time
-    v (np.array): the data of the dependent variable
-    res_points (int): the resolution in data points, i.e. the spacing used in
-        the slope equation v_scan = (v2 - v1) / (t2 - t1)
+    Args:
+        t (np.array): the data of the independent variable, typically time
+        v (np.array): the data of the dependent variable
+        res_points (int): the resolution in data points, i.e. the spacing used in
+            the slope equation v_scan = (v2 - v1) / (t2 - t1)
     """
     # the scan rate is dV/dt. This is a numerical calculation of dV/dt:
     v_behind = np.append(np.tile(v[0], res_points), v[:-res_points])
@@ -123,12 +126,12 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
         res_points (int): The minimum number of consecutive data points in x that must
             have the same sign (or be ~0) to constitute a section of the data.
     """
-    pos_mask = x < -x_res
-    neg_mask = x > x_res
-    zero_mask = abs(x) < x_res
+    mask_negative = x < -x_res
+    mask_positive = x > x_res
+    mask_zero = abs(x) < x_res
 
-    section_types = ["positive", "negative", "zero"]
-    the_masks = [pos_mask, neg_mask, zero_mask]
+    section_types = ["negative", "positive", "zero"]
+    the_masks = [mask_negative, mask_positive, mask_zero]
 
     for mask in the_masks:
         mask[-2] = False
