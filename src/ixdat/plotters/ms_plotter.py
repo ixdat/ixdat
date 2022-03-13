@@ -1,3 +1,5 @@
+"""Plotter for Mass Spectrometry"""
+
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 
@@ -39,7 +41,7 @@ class MSPlotter(MPLPlotter):
         available masses as mass_list.
 
         Args:
-            measurement (MSMeasurement): defaults to the one that initiated the plotter
+            measurement (MSMeasurement): Defaults to the one that initiated the plotter
             ax (matplotlib axis): Defaults to a new axis
             axes (list of matplotlib axis): Left and right y-axes if mass_lists are given
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
@@ -69,6 +71,9 @@ class MSPlotter(MPLPlotter):
         if removebackground is None:
             removebackground = not logplot
 
+        # Figure out, based on the inputs, whether or not to plot calibrated results
+        # (`quantified`), specifications for the axis to plot on now (`specs_this_axis`)
+        # and specifications for the next axis to plot on, if any (`specs_next_axis`):
         quantified, specs_this_axis, specs_next_axis = self._parse_overloaded_inputs(
             mass_list,
             mass_lists,
@@ -117,7 +122,8 @@ class MSPlotter(MPLPlotter):
                 label=v_name,
                 **kwargs,
             )
-        ax.set_ylabel(f"signal / [{unit}]")
+        if quantified:
+            ax.set_ylabel(f"signal / [{unit}]")
         ax.set_xlabel("time / [s]")
         if specs_next_axis:
             self.plot_measurement(
@@ -175,7 +181,7 @@ class MSPlotter(MPLPlotter):
 
         Args:
             x_name (str): Name of the variable to plot on the x-axis
-            measurement (MSMeasurement): defaults to the one that initiated the plotter
+            measurement (MSMeasurement): Defaults to the one that initiated the plotter
             ax (matplotlib axis): Defaults to a new axis
             axes (list of matplotlib axis): Left and right y-axes if mass_lists are given
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
@@ -389,6 +395,7 @@ class MSPlotter(MPLPlotter):
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
+# TODO: This should probably be customizeable from a settings file.
 
 STANDARD_COLORS = {
     "M2": "b",

@@ -1,3 +1,5 @@
+"""Plotters for spectroelectrochemistry. Makes use of those in spectrum_plotter.py"""
+
 import matplotlib as mpl
 
 from .base_mpl_plotter import MPLPlotter
@@ -49,8 +51,8 @@ class SECPlotter(MPLPlotter):
                 plot, axes[1] for potential, and axes[2] for current. The axes are
                 optional and a new set of axes, where axes[1] and axes[2] are twinned on
                 x, are generated if not provided.
-            V_ref (float): potential to use as reference for calculating optical density
-            t_ref (float): time to use as a reference for calculating optical density
+            V_ref (float): Potential to use as reference for calculating optical density
+            t_ref (float): Time to use as a reference for calculating optical density
             cmap_name (str): The name of the colormap to use. Defaults to "inferno",
                 which ranges from black through red and orange to yellow-white. "jet"
                 is also good.

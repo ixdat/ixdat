@@ -1,3 +1,5 @@
+"""Plotter for Electrochemistry"""
+
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 from .plotting_tools import color_axis
@@ -156,7 +158,13 @@ class CVDiffPlotter(MPLPlotter):
         self.measurement = measurement
 
     def plot(self, measurement=None, ax=None):
+        """Plot the two cycles of the CVDiff measurement and fill in the areas between
+
+        example: https://ixdat.readthedocs.io/en/latest/_images/cv_diff.svg
+        """
         measurement = measurement or self.measurement
+        # FIXME: This is probably the wrong use of plotter functions.
+        #    see https://github.com/ixdat/ixdat/pull/30/files#r810926968
         ax = ECPlotter.plot_vs_potential(
             self, measurement=measurement.cv_1, axes=ax, color="g"
         )
@@ -184,12 +192,19 @@ class CVDiffPlotter(MPLPlotter):
         return ax
 
     def plot_measurement(self, measurement=None, axes=None, **kwargs):
+        """Plot the difference between the two cv's vs time"""
         measurement = measurement or self.measurement
+        # FIXME: not correct useage of
         return ECPlotter.plot_measurement(
             self, measurement=measurement, axes=axes, **kwargs
         )
 
     def plot_diff(self, measurement=None, tspan=None, ax=None):
+        """Plot the difference between the two cv's vs potential.
+
+        The trace is solid where the current in cv_2 is greater than cv_1 in the anodic
+        scan or the current cv_2 is more negative than cv_1 in the cathodic scan.
+        """
         measurement = measurement or self.measurement
         t, v = measurement.grab("potential", tspan=tspan, include_endpoints=False)
         j_diff = measurement.grab_for_t("current", t)

@@ -1,3 +1,5 @@
+"""Plotters for spectra and spectrumseries."""
+
 import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt

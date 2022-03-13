@@ -7,7 +7,7 @@ class ECMSPlotter(MPLPlotter):
     """A matplotlib plotter for EC-MS measurements."""
 
     def __init__(self, measurement=None):
-        """Initiate the ECMSPlotter with its default Meausurement to plot"""
+        """Initiate the ECMSPlotter with its default Measurement to plot"""
         self.measurement = measurement
         self.ec_plotter = ECPlotter(measurement=measurement)
         self.ms_plotter = MSPlotter(measurement=measurement)
@@ -23,7 +23,7 @@ class ECMSPlotter(MPLPlotter):
         mol_lists=None,
         tspan=None,
         tspan_bg=None,
-        removebackground=None,
+        remove_background=None,
         unit=None,
         V_str=None,  # TODO: Depreciate, replace with v_name, j_name
         J_str=None,
@@ -38,13 +38,8 @@ class ECMSPlotter(MPLPlotter):
 
         Allocates tasks to ECPlotter.plot_measurement() and MSPlotter.plot_measurement()
 
-        TODO: add all functionality in the legendary plot_experiment() in EC_MS.Plotting
-            - variable subplot sizing (emphasizing EC or MS)
-            - plotting of calibrated data (mol_list instead of mass_list)
-            - units!
-
         Args:
-            measurement (ECMSMeasurement): defaults to the measurement to which the
+            measurement (ECMSMeasurement): Defaults to the measurement to which the
                 plotter is bound (self.measurement)
             axes (list of three matplotlib axes): axes[0] plots the MID data,
                 axes[1] the variable given by V_str (potential), and axes[2] the
@@ -67,7 +62,7 @@ class ECMSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
-            removebackground (bool): Whether otherwise to subtract pre-determined
+            remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             V_str (str): The name of the value to plot on the lower left y-axis.
@@ -127,7 +122,7 @@ class ECMSPlotter(MPLPlotter):
                 axes=[axes[0], axes[3]] if (mass_lists or mol_lists) else axes[0],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
-                removebackground=removebackground,
+                removebackground=remove_background,
                 mass_list=mass_list,
                 mass_lists=mass_lists,
                 mol_list=mol_list,
@@ -151,24 +146,19 @@ class ECMSPlotter(MPLPlotter):
         mol_lists=None,
         tspan=None,
         tspan_bg=None,
-        removebackground=None,
+        remove_background=None,
         unit=None,
         logplot=False,
         legend=True,
         emphasis="top",
         **kwargs,
     ):
-        """ "Make an EC-MS plot vs time and return the axis handles.
+        """Make an EC-MS plot vs time and return the axis handles.
 
         Allocates tasks to ECPlotter.plot_measurement() and MSPlotter.plot_measurement()
 
-        TODO: add all functionality in the legendary plot_experiment() in EC_MS.Plotting
-            - variable subplot sizing (emphasizing EC or MS)
-            - plotting of calibrated data (mol_list instead of mass_list)
-            - units!
-
         Args:
-            measurement (ECMSMeasurement): defaults to the measurement to which the
+            measurement (ECMSMeasurement): Defaults to the measurement to which the
                 plotter is bound (self.measurement)
             axes (list of three matplotlib axes): axes[0] plots the MID data,
                 axes[1] the current vs potential. By default three axes are made with
@@ -189,7 +179,7 @@ class ECMSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
-            removebackground (bool): Whether otherwise to subtract pre-determined
+            remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             logplot (bool): Whether to plot the MS data on a log scale (default False)
@@ -216,7 +206,7 @@ class ECMSPlotter(MPLPlotter):
             axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else axes[0],
             tspan=tspan,
             tspan_bg=tspan_bg,
-            removebackground=removebackground,
+            removebackground=remove_background,
             mass_list=mass_list,
             mass_lists=mass_lists,
             mol_list=mol_list,

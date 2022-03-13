@@ -1,8 +1,12 @@
+"""Base class for plotters using matplotlib"""
+
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
 
 class MPLPlotter:
+    """Base class for plotters based on matplotlib. Has methods for making mpl axes."""
+
     def new_ax(self, xlabel=None, ylabel=None):
         """Return a new matplotlib axis optionally with the given x and y labels"""
         fig, ax = plt.subplots()
@@ -14,6 +18,9 @@ class MPLPlotter:
 
     def new_two_panel_axes(self, n_bottom=1, n_top=1, emphasis="top"):
         """Return the axes handles for a bottom and top panel.
+
+        TODO: maybe fix order of axes returned.
+            see https://github.com/ixdat/ixdat/pull/30/files#r811198719
 
         Args:
             n_top (int): 1 for a single y-axis, 2 for left and right y-axes on top panel
