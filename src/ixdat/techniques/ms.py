@@ -346,7 +346,8 @@ class MSInlet:
     def calc_l_cap_eff(
         self, gas=None, n_dot=None, w_cap=None, h_cap=None,  T=None, p=None
         ):
-        """Calculate the effective length of the capillary in [m] 
+        """Calculate gas specific effective length of the capillary in [m]
+            and add {gas:value} to l_cap_eff (dict)
 
         Uses Equation 4.10 of Daniel's Thesis.
 
@@ -358,7 +359,7 @@ class MSInlet:
             T (float): Temperature [K], if to be updated
             p (float): pressure [Pa], if to be updated
         Returns:
-            float: the total molecular flux in [s^-1] through the capillary
+            float: gas specific effective length in [m]
         """
 
         if w_cap is None:
@@ -415,9 +416,13 @@ class MSInlet:
     def update_l_cap(self):
         """ Update self.l_cap from average of values in dict l_cap_eff
 
-        """
-        self.l_cap = np.mean(list(self.l_cap_eff.values()))
+        Returns:
+            float: averaged effective capilllary length in [m]
 
+        """
+        if self.l_cap_eff:
+            self.l_cap = np.mean(list(self.l_cap_eff.values()))
+        return self.l_cap
 
     def calc_n_dot_0(
         self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
