@@ -23,7 +23,7 @@ class MSPlotter(MPLPlotter):
         mol_lists=None,
         tspan=None,
         tspan_bg=None,
-        removebackground=None,
+        remove_background=None,
         unit=None,
         logplot=True,
         legend=True,
@@ -60,7 +60,7 @@ class MSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
-            removebackground (bool): Whether otherwise to subtract pre-determined
+            remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
             unit (str): defaults to "A" or "mol/s"
             logplot (bool): Whether to plot the MS data on a log scale (default True)
@@ -68,8 +68,8 @@ class MSPlotter(MPLPlotter):
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
-        if removebackground is None:
-            removebackground = not logplot
+        if remove_background is None:
+            remove_background = not logplot
 
         # Figure out, based on the inputs, whether or not to plot calibrated results
         # (`quantified`), specifications for the axis to plot on now (`specs_this_axis`)
@@ -102,7 +102,7 @@ class MSPlotter(MPLPlotter):
                     v_or_v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
-                    removebackground=removebackground,
+                    remove_background=remove_background,
                     include_endpoints=False,
                 )
             else:
@@ -110,7 +110,7 @@ class MSPlotter(MPLPlotter):
                     v_or_v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
-                    removebackground=removebackground,
+                    remove_background=remove_background,
                     include_endpoints=False,
                 )
             if logplot:
@@ -234,7 +234,7 @@ class MSPlotter(MPLPlotter):
                     v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
-                    removebackground=removebackground,
+                    remove_background=removebackground,
                     include_endpoints=False,
                 )
             else:
@@ -443,10 +443,10 @@ STANDARD_COLORS = {
     "CO2": "brown",
     "CH4": "r",
     "C2H4": "g",
-    "O2_M32": "k",
-    "O2_M34": "r",
-    "O2_M36": "g",
-    "CO2_M44": "brown",
-    "CO2_M46": "purple",
-    "CO2_M48": "darkslategray",
+    "O2@M32": "k",
+    "O2@M34": "r",
+    "O2@M36": "g",
+    "CO2@M44": "brown",
+    "CO2@M46": "purple",
+    "CO2@M48": "darkslategray",
 }

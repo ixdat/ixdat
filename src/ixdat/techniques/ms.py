@@ -72,7 +72,7 @@ class MSMeasurement(Measurement):
         tspan=None,
         tspan_bg=None,
         include_endpoints=False,
-        removebackground=False,
+        remove_background=False,
     ):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
@@ -81,8 +81,8 @@ class MSMeasurement(Measurement):
             tspan (list): Timespan for which the signal is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
-            removebackground (bool): Whether to remove a pre-set background if available.
-                This is special to MSMeasurement.
+            remove_background (bool): Whether to remove a pre-set background if
+                available. This is special to MSMeasurement.
                 Defaults to False, but in grab_flux it defaults to True.
             include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
         """
@@ -93,7 +93,7 @@ class MSMeasurement(Measurement):
         if tspan_bg:
             _, bg = self.grab(item, tspan=tspan_bg)
             return time, value - np.average(bg)
-        elif removebackground:
+        elif remove_background:
             if item in self.signal_bgs:
                 return time, value - self.signal_bgs[item]
             elif self.tspan_bg:
@@ -101,7 +101,7 @@ class MSMeasurement(Measurement):
                 return time, value - np.average(bg)
         return time, value
 
-    def grab_for_t(self, item, t, tspan_bg=None, removebackground=False):
+    def grab_for_t(self, item, t, tspan_bg=None, remove_background=False):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -110,11 +110,13 @@ class MSMeasurement(Measurement):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from what is returned.
-            removebackground (bool): Whether to remove a pre-set background if available.
+            remove_background (bool): Whether to remove a pre-set background if available.
                 This is special to MSMeasurement.
                 Defaults to False, but in grab_flux it defaults to True.
         """
-        t_0, v_0 = self.grab(item, tspan_bg=tspan_bg, removebackground=removebackground)
+        t_0, v_0 = self.grab(
+            item, tspan_bg=tspan_bg, remove_background=remove_background
+        )
         v = np.interp(t, t_0, v_0)
         return v
 
@@ -127,7 +129,7 @@ class MSMeasurement(Measurement):
         mol,
         tspan=None,
         tspan_bg=None,
-        removebackground=True,
+        remove_background=True,
         include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
@@ -141,7 +143,7 @@ class MSMeasurement(Measurement):
             tspan (list): Timespan for which the signal is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
-            removebackground (bool): Whether to remove a pre-set background if available
+            remove_background (bool): Whether to remove a pre-set background if available
                 Defaults to True.
         """
         return self.grab(
@@ -151,7 +153,7 @@ class MSMeasurement(Measurement):
             f"n_dot_{mol}",
             tspan=tspan,
             tspan_bg=tspan_bg,
-            removebackground=removebackground,
+            remove_background=remove_background,
             include_endpoints=include_endpoints,
         )
 
@@ -160,7 +162,7 @@ class MSMeasurement(Measurement):
         mol,
         t,
         tspan_bg=None,
-        removebackground=False,
+        remove_background=False,
         include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s] for a given time vec
@@ -170,12 +172,12 @@ class MSMeasurement(Measurement):
             t (np.array): The time vector along which to give the flux
             tspan_bg (tspan): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
-            removebackground (bool): Whether to remove a pre-set background if available
+            remove_background (bool): Whether to remove a pre-set background if available
         """
         t_0, y_0 = self.grab_flux(
             mol,
             tspan_bg=tspan_bg,
-            removebackground=removebackground,
+            remove_background=remove_background,
             include_endpoints=include_endpoints,
         )
         y = np.interp(t, t_0, y_0)
@@ -401,7 +403,9 @@ class MSCalibration(Calibration):
                 cal_type=cal.cal_type + " scaled",
             )
             new_cal_list.append(cal)
-        calibration_as_dict["ms_cal_results"] = [cal.as_dict() for cal in new_cal_list]
+        calibration_as_dict["ms_cal_results"] = new_cal_list
+        del calibration_as_dict["ms_cal_result_ids"]
+        # ^ FIXME: ms_cal_result_ids via MemoryBackend
         calibration_as_dict["name"] = calibration_as_dict["name"] + " scaled"
         return self.__class__.from_dict(calibration_as_dict)
 
@@ -563,7 +567,7 @@ class MSInlet:
         n_dot = self.calc_n_dot_0(gas=mol)
         F = np.mean(S) / n_dot
         return MSCalResult(
-            name=f"{mol}_{mass}",
+            name=f"{mol}@{mass}",
             mol=mol,
             mass=mass,
             cal_type="gas_flux_calibration",

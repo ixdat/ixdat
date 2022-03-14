@@ -130,7 +130,7 @@ class ECMSPlotter(MPLPlotter):
                 axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else axes[0],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
-                removebackground=remove_background,
+                remove_background=remove_background,
                 mass_list=mass_list,
                 mass_lists=mass_lists,
                 mol_list=mol_list,
