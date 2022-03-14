@@ -318,16 +318,17 @@ class CyclicVoltammogram(ECMeasurement):
 
         cls = cls or CyclicVoltammogramDiff
         diff = cls.from_dict(diff_as_dict)
-        diff.cv_1 = self
-        diff.cv_2 = other
+        # TODO: pass cv_compare_1 and cv_compare_2 to CyclicVoltammogramDiff as dicts
+        diff.cv_compare_1 = self
+        diff.cv_compare_2 = other
         return diff
 
 
 class CyclicVoltammogramDiff(CyclicVoltammogram):
 
     default_plotter = CVDiffPlotter
-    cv_1 = None
-    cv_2 = None
+    cv_compare_1 = None
+    cv_compare_2 = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

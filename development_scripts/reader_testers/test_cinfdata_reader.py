@@ -28,7 +28,7 @@ axes = ecms_meas.plot_measurement(
 )
 
 axes[0].set_ylim([-7, 70])
-axes[-1].set_ylim([-1.8e3, 18e3])
+axes[2].set_ylim([-1.8e3, 18e3])
 fig = axes[0].get_figure()
 fig.tight_layout()
 # fig.savefig("../../docs/source/figures/ec_ms.svg")
@@ -38,8 +38,8 @@ ecms_meas.set_bg(tspan_bg=[0, 10])
 cv = ecms_meas.as_cv()
 cv.redefine_cycle(start_potential=0.39, redox=False)
 
-axes = cv[2].plot(mass_list=["M2", "M44"], logplot=False, )
-axes = cv[1].plot(
-    mass_list=["M2", "M44"], linestyle="--", axes=axes, logplot=False,
+axes_cv = cv[2].plot(mass_list=["M2", "M44"], logplot=False, )
+axes_cv = cv[1].plot(
+    mass_list=["M2", "M44"], linestyle="--", axes=axes_cv, logplot=False,
 )
-axes[0].get_figure().savefig("Trimarco2018_ixdat.png")
+axes_cv[0].get_figure().savefig("Trimarco2018_ixdat.png")

@@ -50,22 +50,12 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     @property
     def ec_plotter(self):
         """A plotter for just plotting the ec data"""
-        if not self._ec_plotter:
-            from ..plotters.ec_plotter import ECPlotter
-
-            self._ec_plotter = ECPlotter(measurement=self)
-
-        return self._ec_plotter
+        return self.plotter.ec_plotter  # the ECPlotter of the measurement's ECMSPlotter
 
     @property
     def ms_plotter(self):
         """A plotter for just plotting the ms data"""
-        if not self._ms_plotter:
-            from ..plotters.ms_plotter import MSPlotter
-
-            self._ms_plotter = MSPlotter(measurement=self)
-
-        return self._ms_plotter
+        return self.plotter.ms_plotter  # the MSPlotter of the measurement's ECMSPlotter
 
     @classmethod
     def from_dict(cls, obj_as_dict):

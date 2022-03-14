@@ -77,6 +77,14 @@ class ECMSPlotter(MPLPlotter):
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
+
+        Returns:
+            list of Axes: (top_left, bottom_left, top_right, bottom_right) where:
+                axes[0] is top_left is MS data;
+                axes[1] is bottom_left is potential;
+                axes[2] is top_right is additional MS data if left and right mass_lists
+                    or mol_lists were plotted (otherwise axes[2] is None); and
+                axes[3] is bottom_right is current.
         """
         measurement = measurement or self.measurement
 
@@ -100,7 +108,7 @@ class ECMSPlotter(MPLPlotter):
             # then we have EC data!
             self.ec_plotter.plot_measurement(
                 measurement=measurement,
-                axes=[axes[1], axes[2]],
+                axes=[axes[1], axes[3]],
                 tspan=tspan,
                 v_name=v_name,
                 j_name=j_name,
@@ -119,7 +127,7 @@ class ECMSPlotter(MPLPlotter):
             self.ms_plotter.plot_measurement(
                 measurement=measurement,
                 ax=axes[0],
-                axes=[axes[0], axes[3]] if (mass_lists or mol_lists) else axes[0],
+                axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else axes[0],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 removebackground=remove_background,

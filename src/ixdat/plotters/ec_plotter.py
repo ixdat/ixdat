@@ -166,13 +166,13 @@ class CVDiffPlotter(MPLPlotter):
         # FIXME: This is probably the wrong use of plotter functions.
         #    see https://github.com/ixdat/ixdat/pull/30/files#r810926968
         ax = ECPlotter.plot_vs_potential(
-            self, measurement=measurement.cv_1, axes=ax, color="g"
+            self, measurement=measurement.cv_compare_1, axes=ax, color="g"
         )
         ax = ECPlotter.plot_vs_potential(
-            self, measurement=measurement.cv_2, ax=ax, color="k", linestyle="--"
+            self, measurement=measurement.cv_compare_2, ax=ax, color="k", linestyle="--"
         )
-        t1, v1 = measurement.cv_1.grab("potential")
-        j1 = measurement.cv_1.grab_for_t("current", t=t1)
+        t1, v1 = measurement.cv_compare_1.grab("potential")
+        j1 = measurement.cv_compare_1.grab_for_t("current", t=t1)
         j_diff = measurement.grab_for_t("current", t=t1)
         # a mask which is true when cv_1 had bigger current than cv_2:
         v_scan = measurement.scan_rate.data

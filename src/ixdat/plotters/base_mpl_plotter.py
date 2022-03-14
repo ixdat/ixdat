@@ -28,7 +28,7 @@ class MPLPlotter:
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels
 
-        Returns list of axes: top left, bottom left(, bottom right)(, top right)
+        Returns list of axes: top left, bottom left(, top right, bottom right)
         """
         self.new_ax()  # necessary to avoid deleting an open figure, I don't know why
         if emphasis == "top":
@@ -52,9 +52,11 @@ class MPLPlotter:
             axis="x", top=True, bottom=False, labeltop=True, labelbottom=False
         )
 
-        if n_bottom == 2:
-            axes += [axes[1].twinx()]
+        if n_bottom == 2 or n_top == 2:
+            axes += [None, None]
         if n_top == 2:
-            axes += [axes[0].twinx()]
+            axes[2] = axes[0].twinx()
+        if n_bottom == 2:
+            axes[3] = axes[1].twinx()
 
         return axes

@@ -45,10 +45,6 @@ The :ref:`Introduction` has a list of the techniques and file types supported so
 This documentation, like ``ixdat`` itself, is a work in progress and we appreciate any
 feedback or requests `here <https://github.com/ixdat/ixdat/issues>`_.
 
-Note, we are currently compiling from the
-`[user_ready] <https://github.com/ixdat/ixdat/tree/user_ready>`_
-branch, not the master branch.
-
 .. toctree::
     :maxdepth: 1
 

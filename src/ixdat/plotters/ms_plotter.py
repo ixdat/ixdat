@@ -122,8 +122,7 @@ class MSPlotter(MPLPlotter):
                 label=v_name,
                 **kwargs,
             )
-        if quantified:
-            ax.set_ylabel(f"signal / [{unit}]")
+        ax.set_ylabel(f"signal / [{unit}]")
         ax.set_xlabel("time / [s]")
         if specs_next_axis:
             self.plot_measurement(

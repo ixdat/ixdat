@@ -6,7 +6,7 @@ Tutorials
 
 ``ixdat`` has a growing number of tutorials and examples available.
 
-Ipython notebook tutorials
+Jupyter notebook tutorials
 --------------------------
 Jupyter notebooks are available in the ixdat Tutorials repository:
 https://github.com/ixdat/tutorials/
