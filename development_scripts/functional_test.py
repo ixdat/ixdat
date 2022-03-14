@@ -28,7 +28,7 @@ ec_measurement.calibrate_RE(RE_vs_RHE=1)
 
 assert np.isclose(
     ec_measurement.v[0] - ec_measurement["raw_potential"].data[0],
-    ec_measurement.RE_vs_RHE
+    ec_measurement.RE_vs_RHE,
 )
 
 # To make it complex, we first select a couple cycles, this time by converting
@@ -36,12 +36,10 @@ assert np.isclose(
 cv = ec_measurement.as_cv()
 cvs_1_plus_2 = cv[1] + cv[2]
 
-# Check that the calibration survived all that:
+# Check that the ms_calibration survived all that:
 assert cvs_1_plus_2.RE_vs_RHE == ec_measurement.RE_vs_RHE
 # Check that the main time variable, that of potential, wasn't corrupted:
-assert len(cvs_1_plus_2.grab("potential")[0]) == len(
-    cvs_1_plus_2["time/s"].data
-)
+assert len(cvs_1_plus_2.grab("potential")[0]) == len(cvs_1_plus_2["time/s"].data)
 # Check that the selector is still available and works with the main time var:
 assert len(cvs_1_plus_2.selector.data) == len(cvs_1_plus_2.t)
 

@@ -141,7 +141,7 @@ class DirBackend(BackendBase):
         np.save(folder / data_file_name, data)
 
     def get(self, cls, i):
-        """Open a Savable object represented as row i of table cls.table_name"""
+        """Open a Saveable object represented as row i of table cls.table_name"""
         table_name = cls.table_name
         obj_as_dict = self.get_row_as_dict(table_name, i)
         i = obj_as_dict.pop("id", i)

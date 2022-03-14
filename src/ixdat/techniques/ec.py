@@ -1,7 +1,5 @@
 """Module for representation and analysis of EC measurements"""
 
-import numpy as np
-
 from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
@@ -20,7 +18,7 @@ class ECMeasurement(Measurement):
     """Class implementing electrochemistry measurements
 
     TODO: Implement a unit library for current and potential, A_el and RE_vs_RHE
-    TODO:   so that e.g. current can be seamlessly normalized to mass OR area.
+      so that e.g. current can be seamlessly normalized to mass OR area.
 
     The main job of this class is making sure that the ValueSeries most essential for
     visualizing and normal electrochemistry measurements (i.e. excluding impedance
@@ -84,7 +82,7 @@ class ECMeasurement(Measurement):
     It turns out that keeping track of current, potential, and selector when combining
     datasets is enough of a job to fill a class. Thus, the more exciting
     electrochemistry-related functionality should be implemented in inheriting classes
-    such as `CyclicVoltammagram`.
+    such as `CyclicVoltammogram`.
     """
 
     extra_column_attrs = {
@@ -93,14 +91,10 @@ class ECMeasurement(Measurement):
         }
     }
     control_series_name = "raw_potential"
-    essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
+    essential_series_names = ("t", "raw_potential", "raw_current")
     selection_series_names = ("file_number", "loop_number", "cycle")
     default_exporter = ECExporter
     default_plotter = ECPlotter
-    v_name = EC_FANCY_NAMES["potential"]
-    j_name = EC_FANCY_NAMES["current"]
-    E_name = EC_FANCY_NAMES["raw_potential"]
-    I_name = EC_FANCY_NAMES["raw_current"]
 
     def __init__(
         self,
@@ -146,6 +140,26 @@ class ECMeasurement(Measurement):
         if RE_vs_RHE or A_el or R_Ohm:
             self.calibrate(RE_vs_RHE, A_el, R_Ohm)
         self.plot_vs_potential = self.plotter.plot_vs_potential
+
+    @property
+    def E_name(self):
+        return self["raw_potential"].name
+
+    @property
+    def I_name(self):
+        return self["raw_current"].name
+
+    @property
+    def v_name(self):
+        if self.RE_vs_RHE is not None:
+            return EC_FANCY_NAMES["potential"]
+        return self.E_name
+
+    @property
+    def j_name(self):
+        if self.A_el is not None:
+            return EC_FANCY_NAMES["current"]
+        return self.I_name
 
     @property
     def aliases(self):
@@ -265,30 +279,6 @@ class ECMeasurement(Measurement):
     def current(self):
         return self["current"]
 
-    def grab_potential(self, tspan=None):
-        """Return the time [s] and potential [V] vectors cut by tspan
-
-        TODO: I think this is identical, now that __getitem__ finds potential, to
-            self.grab("potential", tspan=tspan)
-        """
-        t = self.potential.t.copy()
-        v = self.potential.data.copy()
-        if tspan:
-            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[mask]
-            v = v[mask]
-        return t, v
-
-    def grab_current(self, tspan=None):
-        """Return the time [s] and current ([mA] or [mA/cm^2]) vectors cut by tspan"""
-        t = self.current.t.copy()
-        j = self.current.data.copy()
-        if tspan:
-            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[mask]
-            j = j[mask]
-        return t, j
-
     @property
     def v(self):
         """The potential [V] numpy array of the measurement"""
@@ -300,13 +290,13 @@ class ECMeasurement(Measurement):
         return self.current.data.copy()
 
     def as_cv(self):
-        """Convert self to a CyclicVoltammagram"""
-        from .cv import CyclicVoltammagram
+        """Convert self to a CyclicVoltammogram"""
+        from .cv import CyclicVoltammogram
 
         cv_as_dict = self.as_dict()
         cv_as_dict["technique"] = "CV"
         # Note, this works perfectly! All needed information is in self_as_dict :)
-        return CyclicVoltammagram.from_dict(cv_as_dict)
+        return CyclicVoltammogram.from_dict(cv_as_dict)
 
 
 class ECCalibration(Calibration):
@@ -317,9 +307,9 @@ class ECCalibration(Calibration):
 
     def __init__(
         self,
+        name=None,
         technique="EC",
         tstamp=None,
-        name=None,
         measurement=None,
         RE_vs_RHE=None,
         A_el=None,
@@ -355,13 +345,14 @@ class ECCalibration(Calibration):
 
         Key should be "potential" or "current". Anything else will return None.
 
-        - potential: the calibration looks up "raw_potential" in the measurement, shifts
-        it to the RHE potential if RE_vs_RHE is available, corrects it for Ohmic drop if
-        R_Ohm is available, and then returns a calibrated potential series with a name
-        indicative of the corrections done.
-        - current: The calibration looks up "raw_current" in the measurement, normalizes
-        it to the electrode area if A_el is available, and returns a calibrated current
-        series with a name indicative of whether the normalization was done.
+        - "potential": the calibration looks up "raw_potential" in the measurement,
+        shifts it to the RHE potential if RE_vs_RHE is available, corrects it for
+        Ohmic drop if R_Ohm is available, and then returns a calibrated potential
+        series with a name indicative of the corrections done.
+        - "current": The calibration looks up "raw_current" in the measurement,
+        normalizes it to the electrode area if A_el is available, and returns a
+        calibrated current series with a name indicative of whether the normalization
+        was done.
         """
         measurement = measurement or self.measurement
         if key == "potential":

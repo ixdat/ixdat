@@ -23,7 +23,7 @@ class TestBiologicEC:
         )
 
     def test_calibrate_and_append(self, ec_measurement):
-        """Test that measurement calibration works"""
+        """Test that measurement ms_calibration works"""
         ec_measurement.calibrate_RE(RE_vs_RHE=1)
         assert ec_measurement.v[0] - ec_measurement["raw_potential"].data[0] == approx(
             ec_measurement.RE_vs_RHE
@@ -34,7 +34,7 @@ class TestBiologicEC:
         cv = ec_measurement.as_cv()
         cvs_1_plus_2 = cv[1] + cv[2]
 
-        # Check that the calibration survived all that:
+        # Check that the ms_calibration survived all that:
         assert cvs_1_plus_2.RE_vs_RHE == ec_measurement.RE_vs_RHE
         # Check that the main time variable, that of potential, wasn't corrupted:
         assert len(cvs_1_plus_2.grab("potential")[0]) == len(
@@ -75,7 +75,7 @@ class TestBiologicEC:
 
         # Now, try copying the calibrated measurement by as_dict() and from_dict():
         meas12_copied = Measurement.from_dict(composed_measurement_copy.as_dict())
-        # And check if it still has the calibration:
+        # And check if it still has the ms_calibration:
         assert meas12_copied.A_el == A_el
         # And that it can still apply it:
         assert meas12_copied.grab("potential")[1][0] == approx(

@@ -20,6 +20,13 @@ class Config:
         self.standard_data_directory = Path.home() / "ixdat"
         self.default_project_name = "test"
 
+    @property
+    def ixdat_temp_dir(self):
+        temp_dir = self.standard_data_directory / "temp"
+        if not temp_dir.exists():
+            temp_dir.mkdir(parents=True)
+        return temp_dir
+
 
 CFG = Config()
 

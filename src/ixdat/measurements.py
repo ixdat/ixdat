@@ -1,6 +1,6 @@
 """This module defines the Measurement class, the central data structure of ixdat
 
-An ixdat Measurement is a collection of references to DataSeries with the metadata needed
+An ixdat Measurement is a collection of references to DataSeries and the metadata needed
 to combine them, i.e. "build" the combined dataset. It has a number of general methods
 to visualize and analyze the combined dataset. Measurement is also the base class for a
 number of technique-specific Measurement-derived classes.
@@ -9,6 +9,7 @@ A Measurement will typically be accompanied by one or more Calibration. This mod
 also defines the base class for Calibration, while technique-specific Calibration
 classes will be defined in the corresponding module in ./techniques/
 """
+from pathlib import Path
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
@@ -21,8 +22,8 @@ from .data_series import (
     time_shifted,
     get_tspans_from_mask,
 )
-from .samples import Sample
-from .lablogs import LabLog
+from .projects.samples import Sample
+from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError
@@ -43,7 +44,7 @@ class Measurement(Saveable):
     }
     extra_linkers = {
         "component_measurements": ("measurements", "m_ids"),
-        "measurement_calibrations": ("calibration", "c_ids"),
+        "measurement_calibrations": ("calibrations", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
     child_attrs = ["component_measurements", "calibration_list", "series_list"]
@@ -144,6 +145,9 @@ class Measurement(Saveable):
         self.plot_measurement = self.plotter.plot_measurement
         self.plot = self.plotter.plot_measurement
         self.export = self.exporter.export
+        # TODO: ... but we need to think a bit more about how to most elegantly and
+        #    dynamically choose plotters (Nice idea from Anna:
+        #    https://github.com/ixdat/ixdat/issues/32)
 
     @classmethod
     def from_dict(cls, obj_as_dict):
@@ -168,7 +172,7 @@ class Measurement(Saveable):
         #   obj_as_dict["sample_name"] needs to be renamed obj_as_dict["sample"] before
         #   obj_as_dict can be passed to __init__.
         #   TODO: This is a rather general problem (see, e.g. DataSeries.unit vs
-        #       DataSeries.unit_name) and as such should be moved to db.Savable
+        #       DataSeries.unit_name) and as such should be moved to db.Saveable
         #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372.
         #       Will be fixed with the table definition PR.
         objects_saved_as_their_name = [
@@ -181,22 +185,36 @@ class Measurement(Saveable):
                 del obj_as_dict[object_name_str]
 
         if obj_as_dict["technique"] in TECHNIQUE_CLASSES:
+            # This makes it so that from_dict() can be used to initiate for any more
+            # derived technique, so long as obj_as_dict specifies the technique name!
             technique_class = TECHNIQUE_CLASSES[obj_as_dict["technique"]]
+            if not issubclass(technique_class, cls):
+                # But we never want obj_as_dict["technique"] to take us to a *less*
+                # specific technique, if the user has been intentional about which
+                # class they call `as_dict` from (e.g. via a Reader)!
+                technique_class = cls
         else:
+            # Normally, we're going to want to make sure that we're in
             technique_class = cls
         measurement = technique_class(**obj_as_dict)
         return measurement
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
-        """Return a Measurement object from parsing a file with the specified reader"""
+        """Return a Measurement object from parsing a file with the specified reader
+
+        Args:
+            path_to_file (Path or str): The path to the file to read
+            reader (str or Reader class): The (name of the) reader to read the file with.
+            kwargs: key-word arguments are passed on to the reader's read() method.
+        """
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
             from .readers import READER_CLASSES
 
             reader = READER_CLASSES[reader]()
-        obj = reader.read(path_to_file, **kwargs)  # TODO: take cls as kwarg
+        obj = reader.read(path_to_file, cls=cls, **kwargs)
 
         if obj.__class__.essential_series_names:
             for series_name in obj.__class__.essential_series_names:
@@ -208,6 +226,150 @@ class Measurement(Saveable):
                         f"essential series '{series_name}'"
                     )
         return obj
+
+    @classmethod
+    def read_url(cls, url, reader, **kwargs):
+        """Read a url (via a temporary file) using the specified reader"""
+        from .readers.reading_tools import url_to_file
+
+        path_to_temp_file = url_to_file(url)
+        measurement = cls.read(path_to_temp_file, reader=reader, **kwargs)
+        path_to_temp_file.unlink()
+        return measurement
+
+    @classmethod
+    def read_set(
+        cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs
+    ):
+        """Read and append a set of files.
+
+        Args:
+            path_to_file_start (Path or str): The path to the files to read including
+                the shared start of the file name: `Path(path_to_file).parent` is
+                interpreted as the folder where the file are.
+                `Path(path_to_file).name` is interpreted as the shared start of the files
+                to be appended.
+            reader (str or Reader class): The (name of the) reader to read the files with
+            file_list (list of Path): As an alternative to path_to_file_start, the
+                exact files to append can be specified in a list
+            suffix (str): If a suffix is given, only files with the specified ending are
+                added to the file list
+            kwargs: Key-word arguments are passed via cls.read() to the reader's read()
+                method, AND to cls.from_component_measurements()
+        """
+        base_name = None
+        if not file_list:
+            folder = Path(path_to_file_start).parent
+            base_name = Path(path_to_file_start).name
+            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
+            if suffix:
+                file_list = [f for f in file_list if f.suffix == suffix]
+
+        component_measurements = [
+            cls.read(f, reader=reader, **kwargs) for f in file_list
+        ]
+
+        measurement = None
+        for meas in component_measurements:
+            measurement = measurement + meas if measurement else meas
+        return measurement
+
+    @classmethod
+    def from_component_measurements(
+        cls, component_measurements, keep_originals=True, sort=True, **kwargs
+    ):
+        """Return a measurement with the data contained in the component measurements
+
+        TODO: This function "builds" the resulting measurement, i.e. it appends series
+            of the same name rather than keeping all the original copies. This should be
+            made more explicit, and a `build()` method should take over some of the work.
+
+        Args:
+            component_measurements (list of Measurement)
+            keep_originals: Whether to keep a list of component_measurements referenced.
+                This may result in redundant numpy arrays in RAM.
+            sort (bool): Whether to sort the series according to time
+            kwargs: key-word arguments are added to the dictionary for cls.from_dict()
+
+        Returns cls: the combined measurement.
+        """
+
+        # First prepare everything but the series_list in the object dictionary
+        obj_as_dict = component_measurements[0].as_dict()
+        obj_as_dict.update(kwargs)
+        del obj_as_dict["m_ids"], obj_as_dict["s_ids"]
+        if keep_originals:
+            obj_as_dict["component_measurements"] = component_measurements
+
+        # Now, prepare the built series. First, we loop through the component
+        # measurements and get all the data and metadata organized in a dictionary:
+        series_as_dicts = {}
+        tstamp = component_measurements[0].tstamp
+        for meas in component_measurements:
+            tstamp_i = meas.tstamp  # save this for later.
+            meas.tstamp = tstamp  # so that the time vectors share a t=0
+            for s_name in meas.series_names:
+                series = meas[s_name]
+                if s_name in series_as_dicts:
+                    series_as_dicts[s_name]["data"] = np.append(
+                        series_as_dicts[s_name]["data"], series.data
+                    )
+                else:
+                    series_as_dicts[s_name] = series.as_dict()
+                    series_as_dicts[s_name]["data"] = series.data
+                    if isinstance(series, ValueSeries):
+                        # This will serve to match it to a TimeSeries later:
+                        series_as_dicts[s_name]["t_name"] = series.tseries.name
+            meas.tstamp = tstamp_i  # so it's not changed in the outer scope
+
+        # Now we make DataSeries, starting with all the TimeSeries
+        tseries_dict = {}
+        sort_indeces = {}
+        for name, s_as_dict in series_as_dicts.items():
+            if "tstamp" in s_as_dict:
+                if sort:
+                    sort_indeces[name] = np.argsort(s_as_dict["data"])
+                    s_as_dict["data"] = s_as_dict["data"][sort_indeces[name]]
+                tseries_dict[name] = TimeSeries.from_dict(s_as_dict)
+        # And then ValueSeries, and put both in with the TimeSeries
+        series_list = []
+        for name, s_as_dict in series_as_dicts.items():
+            if name in tseries_dict:
+                series_list.append(tseries_dict[name])
+            elif "t_name" in s_as_dict:
+                tseries = tseries_dict[s_as_dict["t_name"]]
+                if s_as_dict["data"].shape == tseries.shape:
+                    # Then we assume that the time and value data have lined up
+                    # successfully! :D
+                    if sort:
+                        s_as_dict["data"] = s_as_dict["data"][
+                            sort_indeces[tseries.name]
+                        ]
+                    vseries = ValueSeries(
+                        name=name,
+                        data=s_as_dict["data"],
+                        unit_name=s_as_dict["unit_name"],
+                        tseries=tseries,
+                    )
+                else:
+                    # this will be the case if vseries sharing the same tseries
+                    # are not present in the same subset of component_measurements.
+                    # In that case just append the vseries even though some tdata gets
+                    # duplicated.
+                    vseries = append_series(
+                        [
+                            s
+                            for m in component_measurements
+                            for s in m.series_list
+                            if s.name == name
+                        ],
+                        sort=sort,
+                    )
+                series_list.append(vseries)
+
+        # Finally, add this series to the dictionary representation and return the object
+        obj_as_dict["series_list"] = series_list
+        return cls.from_dict(obj_as_dict)
 
     @property
     def metadata_json_string(self):
@@ -304,7 +466,7 @@ class Measurement(Saveable):
 
     @property
     def value_series(self):
-        """Set of the VSeries in the measurement's DataSeries"""
+        """List of the VSeries in the measurement's DataSeries"""
         return [
             series for series in self.series_list if isinstance(series, ValueSeries)
         ]
@@ -321,6 +483,18 @@ class Measurement(Saveable):
         TODO: get the possible aliases based on calibrations, etc, in here.
         """
         return self._aliases.copy()
+
+    @property
+    def reverse_aliases(self):
+        """{series_name: standard_names} indicating how raw data can be accessed"""
+        rev_aliases = {}
+        for name, other_names in self.aliases.items():
+            for other_name in other_names:
+                if other_name in rev_aliases:
+                    rev_aliases[other_name].append(name)
+                else:
+                    rev_aliases[other_name] = [name]
+        return rev_aliases
 
     def get_series_names(self, key):
         """Return list: series names for key found by (recursive) lookup in aliases"""
@@ -363,7 +537,7 @@ class Measurement(Saveable):
         >>> ec_meas["raw_potential"]  # first lookup, explained below
         ValueSeries("Ewe/V", ...)
         >>> ec_meas.calibrate_RE(RE_vs_RHE=0.7)
-        >>> ec_meas["potential"]   # second lookup, explained below
+        >>> ec_meas["potential"]      # second lookup, explained below
         ValueSeries("U_{RHE} / [V]", ...)
 
         - The first lookup, with `key="raw_potential"`, (1) checks for
@@ -379,14 +553,15 @@ class Measurement(Saveable):
         Now we're back in the original lookup, from which __getitem__ (3) caches
         the data series (which still has the name "Ewe/V") as "raw_potential" and
         returns it.
-        - The second lookup, with `key="potential"`, (1) checks for "potential" in the
-        cache, doesn't find it; then (2A) checks in `series_constructors`, doesn't find
-        it; and then (2B) asks the calibration for "potential". The calibration knows
-        that when asked for "potential" it should look for "raw_potential" and add
-        `RE_vs_RHE`. So it does a lookup with `key="raw_potential"` and (1) finds it
-        in the cache. The calibration does the math and returns a new data series for
-        the calibrated potential, bringing us back to the original lookup. The data
-        series returned by the calibration is then (3) cached and returned to the user.
+        - The second lookup, with `key="potential"`, (1) checks for "potential" in
+        the cache, doesn't find it; then (2A) checks in `series_constructors`,
+        doesn't find it; and then (2B) asks the calibration for "potential". The
+        calibration knows that when asked for "potential" it should look for
+        "raw_potential" and add `RE_vs_RHE`. So it does a lookup with
+        `key="raw_potential"` and (1) finds it in the cache. The calibration does
+        the math and returns a new data series for the calibrated potential, bringing
+        us back to the original lookup. The data series returned by the
+        calibration is then (3) cached and returned to the user.
 
         Note that, if the user had not looked up "raw_potential" before looking up
         "potential", "raw_potential" would not have been in the cache and the first
@@ -417,7 +592,7 @@ class Measurement(Saveable):
         See more detailed documentation under `__getitem__`, for which this is a
         helper method. This method (A) looks for a method for `key` in the measurement's
         `series_constructors`; (B) requests its `calibration` for `key`; and if those
-        fails appends the data series that either (Ci) are returned by looking up the
+        fail appends the data series that either (Ci) are returned by looking up the
         key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
         user was using a key with a suffix.
 
@@ -440,16 +615,23 @@ class Measurement(Saveable):
                 return series
         # C
         series_to_append = []
-        if key in self.aliases:  # i
+        if key in self.series_names:  # ii
+            # Then we'll append any series matching the desired name
+            series_to_append += [s for s in self.series_list if s.name == key]
+        elif key in self.aliases:  # i
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
+                if k == key:  # this would result in infinite recursion.
+                    print(  # TODO: Real warnings.
+                        "WARNING!!!\n"
+                        f"\t{self} has {key} in its aliases for {key}:\n"
+                        f"\tself.aliases['{key}'] = {self.aliases[key]}"
+                    )
+                    continue
                 try:
                     series_to_append.append(self[k])
                 except SeriesNotFoundError:
                     continue
-        elif key in self.series_names:  # ii
-            # Then we'll append any series matching the desired name
-            series_to_append += [s for s in self.series_list if s.name == key]
         # If the key is something in the data, by now we have series to append.
         if series_to_append:
             # the following if's are to do as little extra manipulation as possible:
@@ -498,23 +680,100 @@ class Measurement(Saveable):
         """Clear the cache so derived series are constructed again with updated info"""
         self._cached_series = {}
 
-    def grab(self, item, tspan=None):
-        """Return the time and value vectors for a given VSeries name cut by tspan"""
-        series = self[item]
-        v = series.v
-        t = series.t
-        if tspan:
-            mask = np.logical_and(tspan[0] < t, t < tspan[-1])
+    def correct_data(self, value_name, new_data):
+        """Replace the old data for ´value_name´ (str) with ´new_data` (np array)"""
+        old_vseries = self[value_name]
+        new_vseries = ValueSeries(
+            name=value_name,
+            unit_name=old_vseries.unit_name,
+            data=new_data,
+            tseries=old_vseries.tseries,
+        )
+        self.replace_series(value_name, new_vseries)
+
+    def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
+        """Return a value vector with the corresponding time vector
+
+        Grab is the *canonical* way to retrieve numerical time-dependent data from a
+        measurement in ixdat. The first argument is always the name of the value to get
+        time-resolved data for (the name of a ValueSeries). The second, optional,
+        argument is a timespan to select the data for.
+        Two vectors are returned: first time (t), then value (v). They are of the same
+        length so that `v` can be plotted against `t`, integrated over `t`, interpolated
+        via `t`, etc. `t` and `v` are returned in the units of their DataSeries.
+        TODO: option to specifiy desired units
+
+        Typical usage::
+            t, v = measurement.grab("potential", tspan=[0, 100])
+
+        Args:
+            item (str): The name of the DataSeries to grab data for
+                TODO: Should this be called "name" or "key" instead? And/or, should
+                   the argument to __getitem__ be called "item" instead of "key"?
+            tspan (iter of float): Defines the timespan with its first and last values.
+                Optional. By default the entire time of the measurement is included.
+            include_endpoints (bool): Whether to add a points at t = tspan[0] and
+                t = tspan[-1] to the data returned. This makes trapezoidal integration
+                less dependent on the time resolution. Default is False.
+            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
+                baseline level. The average value of `item` in this interval will be
+                subtracted from the values returned.
+        """
+        vseries = self[item]
+        tseries = vseries.tseries
+        v = vseries.data
+        t = tseries.data + tseries.tstamp - self.tstamp
+        if tspan is not None:  # np arrays don't boolean well :(
+            if include_endpoints:
+                if t[0] < tspan[0]:  # then add a point to include tspan[0]
+                    v_0 = np.interp(tspan[0], t, v)
+                    t = np.append(tspan[0], t)
+                    v = np.append(v_0, v)
+                if tspan[-1] < t[-1]:  # then add a point to include tspan[-1]
+                    v_end = np.interp(tspan[-1], t, v)
+                    t = np.append(t, tspan[-1])
+                    v = np.append(v, v_end)
+            mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
             t, v = t[mask], v[mask]
+        if tspan_bg:
+            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            v = v - np.mean(v_bg)
         return t, v
 
-    def grab_for_t(self, item, t):
-        """Return a numpy array with the value of item interpolated to time t"""
-        series = self[item]
-        v_0 = series.v
-        t_0 = series.t
+    def grab_for_t(self, item, t, tspan_bg=None):
+        """Return a numpy array with the value of item interpolated to time t
+
+        Args:
+            item (str): The name of the value to grab
+            t (np array): The time vector to grab the value for
+            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
+                baseline level. The average value of `item` in this interval will be
+                subtracted from what is returned.
+        """
+        vseries = self[item]
+        tseries = vseries.tseries
+        v_0 = vseries.data
+        t_0 = tseries.data + tseries.tstamp - self.tstamp
         v = np.interp(t, t_0, v_0)
+        if tspan_bg:
+            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            v = v - np.mean(v_bg)
         return v
+
+    def integrate(self, item, tspan=None, ax=None):
+        """Return the time integral of item in the specified timespan"""
+        t, v = self.grab(item, tspan, include_endpoints=True)
+        if ax:
+            if ax == "new":
+                ax = self.plotter.new_ax(ylabel=item)
+                # FIXME: xlabel=self[item].tseries.name gives a problem :(
+            ax.plot(t, v, color="k", label=item)
+            ax.fill_between(t, v, np.zeros(t.shape), where=v > 0, color="g", alpha=0.3)
+            ax.fill_between(
+                t, v, np.zeros(t.shape), where=v < 0, color="g", alpha=0.1, hatch="//"
+            )
+
+        return np.trapz(v, t)
 
     @property
     def t(self):
@@ -527,7 +786,7 @@ class Measurement(Saveable):
     def _build_file_number_series(self):
         """Build a `file_number` series based on component measurements times."""
         series_to_append = []
-        for i, m in enumerate(self.component_measurements):
+        for i, m in enumerate(self.component_measurements or [self]):
             if (
                 self.control_technique_name
                 and not m.technique == self.control_technique_name
@@ -787,7 +1046,7 @@ class Measurement(Saveable):
         can be single acceptable values or lists of acceptable values. In the latter
         case, each acceptable value is selected for on its own and the resulting
         measurements added together.
-        # FIXME: That is sloppy because it mutliplies the number of DataSeries
+        # FIXME: That is sloppy because it multiplies the number of DataSeries
             containing the same amount of data.
         Arguments without key-word are considered valid values of the default selector,
         which is named by `self.selelector_name`. Multiple criteria are
@@ -874,7 +1133,7 @@ class Measurement(Saveable):
         all the raw series (or their placeholders) are just stored in the lists.
         """
         new_name = self.name + " AND " + other.name
-        new_technique = self.technique + " AND " + other.technique
+        new_technique = get_combined_technique(self.technique, other.technique)
 
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
@@ -904,8 +1163,14 @@ class Measurement(Saveable):
             else:
                 new_aliases[key] = other.aliases[key]
         obj_as_dict = self.as_dict()
+        other_as_dict = other.as_dict()
+        for k, v in other_as_dict.items():
+            # Looking forward to the "|" operator!
+            if k not in obj_as_dict:
+                obj_as_dict[k] = v
         obj_as_dict.update(
             name=new_name,
+            technique=new_technique,
             series_list=new_series_list,
             component_measurements=new_component_measurements,
             calibration_list=new_calibration_list,
@@ -916,6 +1181,23 @@ class Measurement(Saveable):
         del obj_as_dict["m_ids"]
         del obj_as_dict["s_ids"]
         return cls.from_dict(obj_as_dict)
+
+    def join(self, other, join_on=None):
+        """Join two measurements based on a shared data series
+
+        This involves projecting all timeseries from other's data series so that the
+        variable named by `join_on` is shared between all data series.
+        This is analogous to an explicit inner join.
+
+        Args:
+            other (Measurement): a second measurement to join to self
+            join_on (str or tuple): Either a string, if the value to join on is called
+                the same thing in both measurements, or a tuple of two strings where
+                the first is the name of the variable in self and the second in other.
+                The variable described by join_on must be monotonically increasing in
+                both measurements.
+        """
+        raise NotImplementedError
 
 
 class Calibration(Saveable):
@@ -928,7 +1210,7 @@ class Calibration(Saveable):
         "tstamp",
     }
 
-    def __init__(self, name=None, technique=None, tstamp=None, measurement=None):
+    def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):
         """Initiate a Calibration
 
         Args:
@@ -961,10 +1243,24 @@ class Calibration(Saveable):
         else:
             calibration_class = cls
         try:
-            measurement = calibration_class(**obj_as_dict)
+            calibration = calibration_class(**obj_as_dict)
         except Exception:
             raise
-        return measurement
+        return calibration
+
+    def export(self, path_to_file=None):
+        """Export an ECMSCalibration as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
+
+    @classmethod
+    def read(cls, path_to_file):
+        """Read a Calibration from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        return cls.from_dict(obj_as_dict)
 
     def calibrate_series(self, key, measurement=None):
         """This should be overwritten in real calibration classes.
@@ -972,3 +1268,32 @@ class Calibration(Saveable):
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
         raise NotImplementedError
+
+
+def get_combined_technique(technique_1, technique_2):
+    """Return the name of the technique resulting from adding two techniques"""
+    # TODO: see if there isn't a way to put the import at the top of the module.
+    #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+    if technique_1 == technique_2:
+        return technique_1
+
+    # if we're a component technique of a hyphenated technique to that hyphenated
+    # technique, the result is still the hyphenated technique. e.g. EC-MS + MS = EC-MS
+    if "-" in technique_1 and technique_2 in technique_1.split("-"):
+        return technique_1
+    elif "-" in technique_2 and technique_1 in technique_2.split("-"):
+        return technique_2
+
+    # if we're adding two independent technique which are components of a hyphenated
+    # technique, then we want that hyphenated technique. e.g. EC + MS = EC-MS
+    from .techniques import TECHNIQUE_CLASSES
+
+    for hyphenated in [
+        technique_1 + "-" + technique_2,
+        technique_2 + "-" + technique_1,
+    ]:
+        if hyphenated in TECHNIQUE_CLASSES:
+            return hyphenated
+
+    # if all else fails, we just join them with " and ". e.g. MS + XRD = MS and XRD
+    return technique_1 + " and " + technique_2

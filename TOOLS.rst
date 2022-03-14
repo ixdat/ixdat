@@ -12,7 +12,7 @@ development:
 * **sphinx** is used to build documentation
 
 The following is a list of "tool and commands runners":
-   
+
 * **invoke** is used during development, to run tools and other
   pre-configured maintenance tasks inside the existing development
   environment
@@ -42,6 +42,8 @@ summary here with our suggestions for usage.
 
 Tools
 -----
+black
+.....
 **black** is an autoformatter, which fixes your white space usage etc.
 https://black.readthedocs.io/en/stable/
 It's nice to run it from the same terminal
@@ -50,6 +52,8 @@ before committing (and avoid a "fix formatting" commit later). To get black
 and the other tools available in git bash, you have to tell ~\.bashrc where
 it is (see Windows instructions below under git hooks).
 
+flake8
+......
 **flake8** is a linter, which checks the code for errors.
 https://flake8.pycqa.org/en/latest/
 This includes
@@ -64,8 +68,28 @@ Additional allowances may need to be added there.
 flake8 also enforces a maximum line length of 89, chosen to match the
 default setting of black (+/- 1 char).
 
+pytest
+......
 **pytest** is a suite of stuff used to write and run software tests.
 https://docs.pytest.org/en/stable/
+
+sphinx
+......
+**sphinx** is used to generate the beautiful documentation on
+https://ixdat.readthedocs.io from ReStructuredText and ixdat source code.
+To set it up just install sphinx, if you haven't already. In your terminal or Anaconda prompt, type::
+
+  $ pip install sphinx
+
+Then, to build the documentation, navigate to ``ixdat/docs``, and run in your terminal or Anaconda prompt::
+
+  $ ./make html
+
+Note, if you get an "access denied" error, you will just need to run the terminal as an administrator.
+
+Then you can see the built documentation in your browser by double-clicking
+``ixdat/docs/build/html/index.html``
+
 
 **sphinx** is a tool for building the documentation into html and other
 formats from restructured text (.rst). It also enables automatic documentation
