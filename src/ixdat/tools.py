@@ -99,7 +99,7 @@ def _construct_deprecation_message(
     All other arguments are as in :func:`deprecate`
 
     """
-    property_part = f"property named '{kwarg_name}' in " if kwarg_name else ""
+    property_part = f"argument named '{kwarg_name}' in " if kwarg_name else ""
     message = (
         f"The {property_part}{identity} is deprecated, its last supported version being "
         f"{last_supported_release}:\n"
