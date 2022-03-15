@@ -342,14 +342,10 @@ class MSInlet:
         self.T = T
         self.gas = gas  # TODO: Gas mixture class. This must be a pure gas now.
 
-
     def calc_l_cap_eff(
-        self, gas=None, n_dot=None, w_cap=None, h_cap=None,  T=None, p=None
-        ):
+        self, n_dot_measured, gas=None, w_cap=None, h_cap=None,  T=None, p=None):
         """Calculate gas specific effective length of the capillary in [m]
             and add {gas:value} to l_cap_eff (dict)
-
-        Uses Equation 4.10 of Daniel's Thesis.
 
         Args:
             w_cap (float): capillary width [m], defaults to self.w_cap
@@ -362,53 +358,9 @@ class MSInlet:
             float: gas specific effective length in [m]
         """
 
-        if w_cap is None:
-            w_cap = self.w_cap  # capillary width in [m]
-        if h_cap is None:
-            h_cap = self.h_cap  # capillary height in [m]
-        if T is None:
-            T = self.T
-        if p is None:
-            p = self.p
-        if n_dot is None:
-            n_dot = calc_n_dot_0(gas=gas)
+        n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
 
-
-        N_dot = n_dot * AVOGADROS_CONSTANT
-        pi = np.pi
-        eta = DYNAMIC_VISCOSITIES[gas]  # dynamic viscosity in [Pa*s]
-        s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
-        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
-
-        d = ((w_cap * h_cap) / pi) ** 0.5 * 2
-        # d = 4.4e-6  #used in Henriksen2009
-        a = d / 2
-        p_1 = p
-        lambda_ = d  # defining the transitional pressure
-        # ...from setting mean free path equal to capillary d
-        p_t = BOLTZMAN_CONSTANT * T / (2 ** 0.5 * pi * s ** 2 * lambda_)
-        p_2 = 0
-        p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
-        v_m = (8 * BOLTZMAN_CONSTANT * T / (pi * m)) ** 0.5
-        # a reciprocal velocity used for short-hand:
-        nu = (m / (BOLTZMAN_CONSTANT * T)) ** 0.5
-
-        # ... and now, we're ready for the capillary equation.
-        #   (need to turn of black and flake8 for tolerable format)
-        # fmt: off
-        #   Equation 4.10 of Daniel Trimarco's PhD Thesis:
-        l_cap_gas_specific_eff = (                                              # noqa
-            1 / (BOLTZMAN_CONSTANT * T) * 1 / N_dot * (                         # noqa
-                (p_t - p_2) * a**3 * 2 * pi / 3 * v_m + (p_1 - p_t) * (         # noqa
-                    a**4 * pi / (8 * eta) * p_m  + a**3 * 2 * pi / 3 * v_m * (  # noqa
-                        (1 + 2 * a * nu * p_m / eta) / (                        # noqa
-                        1 + 2.48 * a * nu * p_m / eta                           # noqa
-                        )                                                       # noqa
-                    )                                                           # noqa
-                )                                                               # noqa
-            )                                                                   # noqa
-        )                                                                       # noqa
-        # fmt: on
+        l_cap_gas_specific_eff = self.l_cap * n_dot_predicted / n_dot_measured
         self.l_cap_eff[gas] = l_cap_gas_specific_eff #add effective l_cap for specific gas
 
         return l_cap_gas_specific_eff
@@ -423,6 +375,7 @@ class MSInlet:
         if self.l_cap_eff:
             self.l_cap = np.mean(list(self.l_cap_eff.values()))
         return self.l_cap
+
 
     def calc_n_dot_0(
         self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
@@ -489,6 +442,8 @@ class MSInlet:
         # fmt: on
         n_dot = N_dot / AVOGADROS_CONSTANT
         return n_dot
+
+
 
     def gas_flux_calibration(
         self,
