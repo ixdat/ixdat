@@ -412,7 +412,6 @@ class MSInlet:
         if p is None:
             p = self.p
 
-
         pi = np.pi
         eta = DYNAMIC_VISCOSITIES[gas]  # dynamic viscosity in [Pa*s]
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
