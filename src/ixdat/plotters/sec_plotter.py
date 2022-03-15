@@ -60,6 +60,13 @@ class SECPlotter(MPLPlotter):
                 FIXME: colorbar at present mis-alignes axes
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
+
+        Returns:
+            list of Axes: axes=[spectra, potential, None, current]
+                axes[0] is the top axis with the heat map of the spectra
+                axes[1] is the bottom left axis with electrochemical potential
+                axes[2] is None (this is where a top right axis would go)
+                axes[3] is the bottom right axis with electrode current
         """
         measurement = measurement or self.measurement
 
@@ -71,7 +78,7 @@ class SECPlotter(MPLPlotter):
             )
         self.ec_plotter.plot_measurement(
             measurement=measurement,
-            axes=[axes[1], axes[2]],
+            axes=[axes[1], axes[3]],
             tspan=tspan,
             **kwargs,
         )
@@ -247,7 +254,7 @@ class SECPlotter(MPLPlotter):
         axes[0].set_ylabel(r"$\Delta$O.D.")
 
         self.ec_plotter.plot_measurement(
-            measurement=measurement, axes=axes[1:], tspan=tspan, **kwargs
+            measurement=measurement, axes=[axes[1], axes[3]], tspan=tspan, **kwargs
         )
 
     def plot_wavelengths_vs_potential(

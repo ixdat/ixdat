@@ -18,4 +18,5 @@ spec.plot(color="k")
 s_id = spec.save()
 
 loaded = Spectrum.get(s_id)
-loaded.plot(color="g")
+ax = loaded.plot(color="g")
+ax.set_yscale("log")

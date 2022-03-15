@@ -134,7 +134,7 @@ class Measurement(Saveable):
         self._calibration_list = fill_object_list(
             calibration_list, c_ids, cls=Calibration
         )
-        self.tstamp = tstamp
+        self._tstamp = tstamp
 
         self._cached_series = {}
         self._aliases = aliases or {}
@@ -276,7 +276,7 @@ class Measurement(Saveable):
 
     @classmethod
     def from_component_measurements(
-        cls, component_measurements, keep_originals=True, sort=True, **kwargs
+        cls, component_measurements, keep_originals=True, sorted=True, **kwargs
     ):
         """Return a measurement with the data contained in the component measurements
 
@@ -288,7 +288,7 @@ class Measurement(Saveable):
             component_measurements (list of Measurement)
             keep_originals: Whether to keep a list of component_measurements referenced.
                 This may result in redundant numpy arrays in RAM.
-            sort (bool): Whether to sort the series according to time
+            sorted (bool): Whether to sort the series according to time
             kwargs: key-word arguments are added to the dictionary for cls.from_dict()
 
         Returns cls: the combined measurement.
@@ -327,7 +327,7 @@ class Measurement(Saveable):
         sort_indeces = {}
         for name, s_as_dict in series_as_dicts.items():
             if "tstamp" in s_as_dict:
-                if sort:
+                if sorted:
                     sort_indeces[name] = np.argsort(s_as_dict["data"])
                     s_as_dict["data"] = s_as_dict["data"][sort_indeces[name]]
                 tseries_dict[name] = TimeSeries.from_dict(s_as_dict)
@@ -341,7 +341,7 @@ class Measurement(Saveable):
                 if s_as_dict["data"].shape == tseries.shape:
                     # Then we assume that the time and value data have lined up
                     # successfully! :D
-                    if sort:
+                    if sorted:
                         s_as_dict["data"] = s_as_dict["data"][
                             sort_indeces[tseries.name]
                         ]
@@ -363,13 +363,25 @@ class Measurement(Saveable):
                             for s in m.series_list
                             if s.name == name
                         ],
-                        sort=sort,
+                        sorted=sorted,
                     )
                 series_list.append(vseries)
 
-        # Finally, add this series to the dictionary representation and return the object
+        # Finally, add the series to the dictionary representation and return the object
         obj_as_dict["series_list"] = series_list
         return cls.from_dict(obj_as_dict)
+
+    @property
+    def tstamp(self):
+        """Float: The unix epoch time used by the measurement as t=0"""
+        return self._tstamp
+
+    @tstamp.setter
+    def tstamp(self, tstamp):
+        # Resetting the tstamp needs to clear the cache, so series are returned wrt the
+        # new timestamp.
+        self.clear_cache()
+        self._tstamp = tstamp
 
     @property
     def metadata_json_string(self):

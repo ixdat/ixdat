@@ -102,7 +102,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
-            name=f"{mol}_{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
+            name=f"{mol}@{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
         )
         return cal
 
@@ -140,7 +140,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
-            Q = self.integrate("raw current / [mA]", tspan=tspan, axis=axis_current)
+            Q = self.integrate("raw current / [mA]", tspan=tspan, ax=axis_current)
             Q *= 1e-3  # mC --> [C]
             n = Q / (n_el * FARADAY_CONSTANT)
             Y_list.append(Y)
@@ -160,7 +160,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             Y_fit = n_fit * pfit[0] + pfit[1]
             ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
         cal = MSCalResult(
-            name=f"{mol}_{mass}",
+            name=f"{mol}@{mass}",
             mol=mol,
             mass=mass,
             cal_type="ecms_calibration_curve",
@@ -212,9 +212,10 @@ class ECMSCalibration(ECCalibration, MSCalibration):
             A_el (float): the geometric electrode area in [cm^2]
             L (float): the working distance in [m]
         """
-        ECCalibration.__init__(self, name=name, A_el=A_el, RE_vs_RHE=RE_vs_RHE)
+        ECCalibration.__init__(self, A_el=A_el, RE_vs_RHE=RE_vs_RHE,)
         MSCalibration.__init__(
             self,
+            name=name,
             date=date,
             tstamp=tstamp,
             setup=setup,

@@ -16,10 +16,8 @@ class Spectrum(Saveable):
     wavelength OR angle OR mass-to-charge ratio). Even though in reality it takes time
     to require a spectrum, a spectrum is considered to represent one instance in time.
 
-    In ixdat, the data of a spectrum is organized into a Field, where the y-data is
-    considered to span a space defined by the x-data and the timestamp. If the x-data
-    has shape (N, ), then the y-data has shape (N, 1) to span the x-axis and the
-    single-point t axis.
+    In ixdat, the data of a spectrum is organized into a 1-Dimensional Field, where the
+    y-data is considered to span a space defined by the x-data.
 
     The Spectrum class makes the data in this field intuitively available. If spec
     is a spectrum, spec.x and spec.y give access to the x and y data, respectively,
@@ -217,7 +215,7 @@ class Spectrum(Saveable):
     @property
     def y(self):
         """The y data is the one-dimensional data attribute of the field"""
-        return self.field.data[0]
+        return self.field.data
 
     @property
     def y_name(self):

@@ -156,20 +156,18 @@ class ZilienSpectrumReader:
                     tstamp_match = re.search(FLOAT_MATCH, line)
                     tstamp = float(tstamp_match.group())
         xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
-        tseries = TimeSeries(
-            data=np.array([0]), name="spectrum time / [s]", unit_name="s", tstamp=tstamp
-        )
         field = Field(
-            data=np.array([y]),
+            data=np.array(y),
             name=y_name,
             unit_name="A",
-            axes_series=[xseries, tseries],
+            axes_series=[xseries, ],
         )
         obj_as_dict = {
             "name": path_to_spectrum.name,
             "technique": "MS",
             "field": field,
             "reader": self,
+            "tstamp": tstamp,
         }
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)

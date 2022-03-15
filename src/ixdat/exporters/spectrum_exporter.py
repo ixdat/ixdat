@@ -35,9 +35,13 @@ class SpectrumExporter:
             line = f"{attr} = {getattr(spectrum, attr)}\n"
             header_lines.append(line)
 
-        N_header_lines = len(header_lines) + 3
-        header_lines.append(f"N_header_lines = {N_header_lines}\n")
         header_lines.append("\n")
+
+        # Insert a line, after the first two lines, saying how long the header is.
+        N_header_lines = len(header_lines) + 2
+        # The `+ 2` is for the header length line and the column header line.
+        header_length_line = f"N_header_lines = {N_header_lines}\n"
+        header_lines = header_lines[:2] + [header_length_line] + header_lines[2:]
 
         with open(path_to_file, "w") as f:
             f.writelines(header_lines)
@@ -92,9 +96,6 @@ class SpectrumSeriesExporter:
             line = f"{attr} = {getattr(spectrum_series, attr)}\n"
             header_lines.append(line)
 
-        N_header_lines = len(header_lines) + 3
-        header_lines.append(f"N_header_lines = {N_header_lines}\n")
-
         header_lines.append(
             f"values are y='{field.name}' with units [{field.unit_name}]\n"
         )
@@ -123,6 +124,12 @@ class SpectrumSeriesExporter:
             )
 
         header_lines.append("\n")
+
+        # Insert a line, after the first two lines, saying how long the header is.
+        N_header_lines = len(header_lines) + 2
+        # The `+ 2` is for the header length line and the column header line.
+        header_length_line = f"N_header_lines = {N_header_lines}\n"
+        header_lines = header_lines[:2] + [header_length_line] + header_lines[2:]
 
         with open(path_to_file, "w") as f:
             f.writelines(header_lines)

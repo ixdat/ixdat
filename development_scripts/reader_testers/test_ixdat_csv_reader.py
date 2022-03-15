@@ -15,7 +15,7 @@ else:
     meas = Measurement.read(
         "../../test_data/biologic/Pt_poly_cv_CUT.mpt", reader="biologic"
     )
-    meas.calibrate_RE(0.715)
+    meas.calibrate_RE(0.01)
 
     meas.correct_ohmic_drop(R_Ohm=100)
 
