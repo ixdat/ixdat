@@ -10,6 +10,9 @@ from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 import numpy as np
 
 # FIXME: too much abbreviation in this module.
+# TODO: Implement the PR review here: https://github.com/ixdat/ixdat/pull/4
+#  Perhaps best to merge [master] into [deconvolution], improve the module on the
+#  latter branch, and then reopen the PR.
 
 
 class DecoMeasurement(ECMSMeasurement):

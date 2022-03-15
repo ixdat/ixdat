@@ -122,7 +122,7 @@ for academic publications:
 Join us
 -------
 
-`ixdat`` is free and open source software and we welcome input and new collaborators. Please help us improve!
+``ixdat`` is free and open source software and we welcome input and new collaborators. Please help us improve!
 
-Contact us (sbscott@ic.ac.uk) or just
+Contact us (https://github.com/ixdat/ixdat/discussions or sbscott@ic.ac.uk) or just
 `get started developing <https://ixdat.readthedocs.io/en/latest/developing.html>`_.
