@@ -373,6 +373,7 @@ class Measurement(Saveable):
 
     @property
     def tstamp(self):
+        """Float: The unix epoch time used by the measurement as t=0"""
         return self._tstamp
 
     @tstamp.setter
