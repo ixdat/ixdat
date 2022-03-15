@@ -335,15 +335,57 @@ class MSInlet:
         """
         self.verbose = verbose
         self.l_cap = l_cap
+        self.l_cap_eff = {}
         self.w_cap = w_cap
         self.h_cap = h_cap
         self.p = p
         self.T = T
         self.gas = gas  # TODO: Gas mixture class. This must be a pure gas now.
 
+    def calc_l_cap_eff(
+        self, n_dot_measured, gas=None, w_cap=None, h_cap=None,  T=None, p=None):
+        """Calculate gas specific effective length of the capillary in [m]
+            and add {gas:value} to l_cap_eff (dict)
+
+        Args:
+            w_cap (float): capillary width [m], defaults to self.w_cap
+            h_cap (float): capillary height [m], defaults to self.h_cap
+            n_dot (float): direct measure of flux through capillary with gas, defaults to calculated flux 
+            gas (dict or str): the gas in the chip, defaults to self.gas
+            T (float): Temperature [K], if to be updated
+            p (float): pressure [Pa], if to be updated
+        Returns:
+            float: gas specific effective length in [m]
+        """
+
+        n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
+
+        l_cap_gas_specific_eff = self.l_cap * n_dot_predicted / n_dot_measured
+        self.l_cap_eff[gas] = l_cap_gas_specific_eff #add effective l_cap for specific gas
+
+        return l_cap_gas_specific_eff
+
+    def update_l_cap(self, gases=[]):
+        """ Update self.l_cap from average of values in dict l_cap_eff
+
+        Args:
+            gases (list): list of gases to average l_cap, default all
+        Returns:
+            float: averaged effective capilllary length in [m]
+        """
+        if self.l_cap_eff and not gases:
+            self.l_cap = np.mean(list(self.l_cap_eff.values()))
+        elif self.l_cap_eff and gases:
+            _l_cap = 0
+            for gas in gases:
+                _l_cap += self.l_cap_eff[gas]
+            self.l_cap = _l_cap / len(gases)
+
+        return self.l_cap
+
+
     def calc_n_dot_0(
-        self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None
-    ):
+        self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
         """Calculate the total molecular flux through the capillary in [s^-1]
 
         Uses Equation 4.10 of Daniel's Thesis.
@@ -406,6 +448,8 @@ class MSInlet:
         # fmt: on
         n_dot = N_dot / AVOGADROS_CONSTANT
         return n_dot
+
+
 
     def gas_flux_calibration(
         self,
