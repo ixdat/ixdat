@@ -365,15 +365,22 @@ class MSInlet:
 
         return l_cap_gas_specific_eff
 
-    def update_l_cap(self):
+    def update_l_cap(self, gases=[]):
         """ Update self.l_cap from average of values in dict l_cap_eff
 
+        Args:
+            gases (list): list of gases to average l_cap, default all
         Returns:
             float: averaged effective capilllary length in [m]
-
         """
-        if self.l_cap_eff:
+        if self.l_cap_eff and not gases:
             self.l_cap = np.mean(list(self.l_cap_eff.values()))
+        elif self.l_cap_eff and gases:
+            _l_cap = 0
+            for gas in gases:
+                _l_cap += self.l_cap_eff[gas]
+            self.l_cap = _l_cap / len(gases)
+
         return self.l_cap
 
 
