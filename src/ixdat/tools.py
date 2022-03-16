@@ -83,7 +83,7 @@ def list_is_close(list_one, list_two):
 
 
 def _construct_deprecation_message(
-    identity,
+    callable_,
     last_supported_release,
     update_message,
     hard_deprecation_release,
@@ -93,15 +93,24 @@ def _construct_deprecation_message(
     """Return a deprecation message
 
     Args:
-        identity (str): The identity of the callable being deprecated e.g.
-            "function 'myfunction'"
+        callable_ (Callable): The callable to form a deprecation message for
 
     All other arguments are as in :func:`deprecate`
 
     """
-    property_part = f"argument named '{kwarg_name}' in " if kwarg_name else ""
+    # Form an identity string for the object which is being deprecated, which is used
+    # in the message to the user
+    identity = f"argument named '{kwarg_name}' in " if kwarg_name else ""
+    if inspect.isclass(callable_):
+        identity += f"class '{callable_.__qualname__}'"
+    else:
+        if "." in callable_.__qualname__:
+            identity += f"method '{callable_.__qualname__}'"
+        else:
+            identity += f"function '{callable_.__qualname__}'"
+
     message = (
-        f"The {property_part}{identity} is deprecated, its last supported version being "
+        f"The {identity} is deprecated, its last supported version being "
         f"{last_supported_release}:\n"
     )
     # Add information on potential hard deprecation
@@ -206,18 +215,9 @@ def deprecate(
 
     def decorator(callable_):
         """Decorate a callable with"""
-        # Form an identity string for the object which is being decorated, which is used
-        # in the message to the user
-        if inspect.isclass(callable_):
-            identity = f"class '{callable_.__qualname__}'"
-        else:
-            if "." in callable_.__qualname__:
-                identity = f"method '{callable_.__qualname__}'"
-            else:
-                identity = f"function '{callable_.__qualname__}'"
 
         compound_message = _construct_deprecation_message(
-            identity,
+            callable_,
             last_supported_release,
             update_message,
             hard_deprecation_release,
