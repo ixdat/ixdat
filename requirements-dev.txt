@@ -1,11 +1,11 @@
-black
-pytest
+black==22.1.0
+pytest==7.1.0
 Sphinx
 sphinx-rtd-theme
 sphinx_automodapi
 EC_MS
-flake8
+flake8==4.0.1
 twine
-setuputils
+setuputils3
 tox
 invoke
