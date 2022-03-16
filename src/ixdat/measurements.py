@@ -238,9 +238,7 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    def read_set(
-        cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs
-    ):
+    def read_set(cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs):
         """Read and append a set of files.
 
         Args:
@@ -342,9 +340,7 @@ class Measurement(Saveable):
                     # Then we assume that the time and value data have lined up
                     # successfully! :D
                     if sorted:
-                        s_as_dict["data"] = s_as_dict["data"][
-                            sort_indeces[tseries.name]
-                        ]
+                        s_as_dict["data"] = s_as_dict["data"][sort_indeces[tseries.name]]
                     vseries = ValueSeries(
                         name=name,
                         data=s_as_dict["data"],
@@ -479,9 +475,7 @@ class Measurement(Saveable):
     @property
     def value_series(self):
         """List of the VSeries in the measurement's DataSeries"""
-        return [
-            series for series in self.series_list if isinstance(series, ValueSeries)
-        ]
+        return [series for series in self.series_list if isinstance(series, ValueSeries)]
 
     @property
     def time_series(self):

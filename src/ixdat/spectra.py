@@ -293,8 +293,10 @@ class SpectrumSeries(Spectrum):
     @property
     def yseries(self):
         # Should this return an average or would that be counterintuitive?
-        raise BuildError(f"{self} has no single y-series. Index it to get a Spectrum "
-                         "or see `y_average`")
+        raise BuildError(
+            f"{self} has no single y-series. Index it to get a Spectrum "
+            "or see `y_average`"
+        )
 
     @property
     def tseries(self):

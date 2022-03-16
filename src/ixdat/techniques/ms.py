@@ -201,9 +201,7 @@ class MSMeasurement(Measurement):
         """
         t, S = self.grab_signal(mass, tspan=tspan, include_endpoints=True)
         if tspan_bg:
-            t_bg, S_bg_0 = self.grab_signal(
-                mass, tspan=tspan_bg, include_endpoints=True
-            )
+            t_bg, S_bg_0 = self.grab_signal(mass, tspan=tspan_bg, include_endpoints=True)
             S_bg = np.mean(S_bg_0) * np.ones(t.shape)
         else:
             S_bg = np.zeros(t.shape)
@@ -470,9 +468,7 @@ class MSInlet:
         self.T = T
         self.gas = gas  # TODO: Gas mixture class. This must be a pure gas now.
 
-    def calc_n_dot_0(
-        self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None
-    ):
+    def calc_n_dot_0(self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
         """Calculate the total molecular flux through the capillary in [s^-1]
 
         Uses Equation 4.10 of Trimarco, 2017. "Real-time detection of sub-monolayer
@@ -512,7 +508,7 @@ class MSInlet:
         p_1 = p
         lambda_ = d  # defining the transitional pressure
         # ...from setting mean free path equal to capillary d
-        p_t = BOLTZMAN_CONSTANT * T / (2 ** 0.5 * pi * s ** 2 * lambda_)
+        p_t = BOLTZMAN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
         p_2 = 0
         p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
         v_m = (8 * BOLTZMAN_CONSTANT * T / (pi * m)) ** 0.5

@@ -72,9 +72,7 @@ def measurement_from_ec_ms_dataset(
 
     for col in cols_str:
         if col.endswith("-x"):
-            cols_list.append(
-                TimeSeries(col, "s", ec_ms_dict[col], ec_ms_dict["tstamp"])
-            )
+            cols_list.append(TimeSeries(col, "s", ec_ms_dict[col], ec_ms_dict["tstamp"]))
 
     if "time/s" in ec_ms_dict:
         cols_list.append(
@@ -117,7 +115,7 @@ def measurement_from_ec_ms_dataset(
         series_list=cols_list,
         reader=reader,
         tstamp=ec_ms_dict["tstamp"],
-        aliases=aliases
+        aliases=aliases,
     )
     obj_as_dict.update(kwargs)
 

@@ -23,6 +23,7 @@ ZILIEN_LEGACY_ALIASES = {
 #    unflattering example presently in the docs.
 #    https://github.com/ixdat/ixdat/pull/30/files#r810087496
 
+
 class ZilienTSVReader:
     """Class for reading files saved by Spectro Inlets' Zilien software"""
 
@@ -79,9 +80,7 @@ class ZilienTMPReader:
         cls = cls or ECMSMeasurement
         name = self.path_to_tmp_dir.parent.name
         timestamp_string = name[:19]  # the zilien timestamp is the first 19 chars
-        tstamp = timestamp_string_to_tstamp(
-            timestamp_string, form=ZILIEN_TIMESTAMP_FORM
-        )
+        tstamp = timestamp_string_to_tstamp(timestamp_string, form=ZILIEN_TIMESTAMP_FORM)
         series_list = []
         for tmp_file in self.path_to_tmp_dir.iterdir():
             series_list += series_list_from_tmp(tmp_file)
@@ -160,7 +159,9 @@ class ZilienSpectrumReader:
             data=np.array(y),
             name=y_name,
             unit_name="A",
-            axes_series=[xseries, ],
+            axes_series=[
+                xseries,
+            ],
         )
         obj_as_dict = {
             "name": path_to_spectrum.name,

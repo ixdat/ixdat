@@ -189,7 +189,7 @@ def calc_t_using_scan_rate(v, dvdt):
     def error(t_tot):
         t = np.linspace(0, t_tot[0], v.size)
         dvdt_calc = np.abs(calc_sharp_v_scan(t, v))
-        error = np.sum(dvdt_calc ** 2 - dvdt ** 2)
+        error = np.sum(dvdt_calc**2 - dvdt**2)
         return error
 
     t_total_guess = (max(v) - min(v)) / dvdt

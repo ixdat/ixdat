@@ -28,7 +28,7 @@ def timestamp_string_to_tstamp(
             the standard timestamp form.
     """
     if form:
-        forms = (form, )
+        forms = (form,)
     for form in forms:
         try:
             return time.mktime(time.strptime(timestamp_string, form))

@@ -432,9 +432,7 @@ class PlaceHolderObject:
         if not backend:  #
             backend = DB.backend
         if not backend or backend == "none" or backend is database_backends["none"]:
-            raise DataBaseError(
-                f"Can't make a PlaceHolderObject with backend={backend}"
-            )
+            raise DataBaseError(f"Can't make a PlaceHolderObject with backend={backend}")
         self.backend = backend
 
     def get_object(self):
