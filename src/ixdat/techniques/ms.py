@@ -345,17 +345,17 @@ class MSInlet:
     def calc_l_cap_eff(
         self, n_dot_measured, gas=None, w_cap=None, h_cap=None,  T=None, p=None):
         """Calculate gas specific effective length of the capillary in [m]
-            and add {gas:value} to l_cap_eff (dict)
+        and add {gas:value} to l_cap_eff (dict)
 
         Args:
-            w_cap (float): capillary width [m], defaults to self.w_cap
-            h_cap (float): capillary height [m], defaults to self.h_cap
-            n_dot (float): direct measure of flux through capillary with gas, defaults to calculated flux 
-            gas (dict or str): the gas in the chip, defaults to self.gas
+            w_cap (float): Capillary width [m], defaults to self.w_cap
+            h_cap (float): Capillary height [m], defaults to self.h_cap
+            n_dot (float): Direct measure of flux through capillary with gas, defaults to calculated flux 
+            gas (dict or str): The gas in the chip, defaults to self.gas
             T (float): Temperature [K], if to be updated
             p (float): pressure [Pa], if to be updated
         Returns:
-            float: gas specific effective length in [m]
+            float: Gas specific effective length in [m]
         """
 
         n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
@@ -366,12 +366,12 @@ class MSInlet:
         return l_cap_gas_specific_eff
 
     def update_l_cap(self, gases=[]):
-        """ Update self.l_cap from average of values in dict l_cap_eff
+        """Update self.l_cap from average of values in dict l_cap_eff
 
         Args:
-            gases (list): list of gases to average l_cap, default all
+            gases (list): List of gases to average l_cap, default all
         Returns:
-            float: averaged effective capilllary length in [m]
+            float: Averaged effective capilllary length in [m]
         """
         if self.l_cap_eff and not gases:
             self.l_cap = np.mean(list(self.l_cap_eff.values()))
@@ -391,14 +391,14 @@ class MSInlet:
         Uses Equation 4.10 of Daniel's Thesis.
 
         Args:
-            w_cap (float): capillary width [m], defaults to self.w_cap
-            h_cap (float): capillary height [m], defaults to self.h_cap
-            l_cap (float): capillary length [m], defaults to self.l_cap
-            gas (dict or str): the gas in the chip, defaults to self.gas
+            w_cap (float): Capillary width [m], defaults to self.w_cap
+            h_cap (float): Capillary height [m], defaults to self.h_cap
+            l_cap (float): Capillary length [m], defaults to self.l_cap
+            gas (dict or str): The gas in the chip, defaults to self.gas
             T (float): Temperature [K], if to be updated
-            p (float): pressure [Pa], if to be updated
+            p (float): Pressure [Pa], if to be updated
         Returns:
-            float: the total molecular flux in [s^-1] through the capillary
+            float: The total molecular flux in [s^-1] through the capillary
         """
 
         if w_cap is None:
