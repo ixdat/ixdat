@@ -32,7 +32,8 @@ def flake8(context):
 
     """
     print("# flake8")
-    return context.run("flake8 src tests").return_code
+    with context.cd(THIS_DIR):
+        return context.run("flake8 src tests").return_code
 
 
 @task(aliases=["test", "tests"])
@@ -193,13 +194,33 @@ def clean(context, dryrun=False):
     """
     if dryrun:
         print("CLEANING DRYRUN")
-    for clean_pattern in CLEAN_PATTERNS:
-        for cleanpath in THIS_DIR.glob("**/" + clean_pattern):
-            if cleanpath.is_dir():
-                print("DELETE DIR :", cleanpath)
-                if not dryrun:
-                    rmtree(cleanpath)
-            else:
-                print("DELETE FILE:", cleanpath)
-                if not dryrun:
-                    cleanpath.unlink()
+    with context.cd(THIS_DIR):
+        for clean_pattern in CLEAN_PATTERNS:
+            for cleanpath in THIS_DIR.glob("**/" + clean_pattern):
+                if cleanpath.is_dir():
+                    print("DELETE DIR :", cleanpath)
+                    if not dryrun:
+                        rmtree(cleanpath)
+                else:
+                    print("DELETE FILE:", cleanpath)
+                    if not dryrun:
+                        cleanpath.unlink()
+
+
+@task(aliases=["deps"])
+def dependencies(context, user=False):
+    """Install development and normal dependencies
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+    """
+    # See https://stackoverflow.com/a/1883251/11640721 for virtual env detection trick
+    if sys.prefix == sys.base_prefix:
+        raise RuntimeError(
+            "Current python does not seem to be in a virtual environment, which is the "
+            "recommended way to install dependencies for development. Please "
+            "consider using an virtual environment for development."
+        )
+    command = "python -m pip install --upgrade -r"
+    context.run("python -m pip install --upgrade pip")
+    context.run(command + " requirements.txt")
+    context.run(command + " requirements-dev.txt")
