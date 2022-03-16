@@ -135,7 +135,7 @@ def deprecate(
     remove_release=None,
     kwarg_name=None,
 ):
-    """Mark a function, method or class for deprecation
+    """Mark a function, method, programmed property or class for deprecation
 
     The deprecator supports soft and hard deprecation, which will either issue warnings
     or raise exceptions, as well as providing information about an update path and the
@@ -182,9 +182,25 @@ def deprecate(
             def mymethod(cls, arg, kwarga=None, kwargb=None):
                 ...
 
+    Used to decorate a property::
+        class MyClass:
+            def __init__(self):
+                self._internal = 8
+
+            @property
+            @deprecate("1.2.3", "Please use `new_external` instead")
+            def external(self):
+                return self._internal
+
+            @external.setter
+            @deprecate("1.2.3", "Please use `new_external` instead")
+            def external(self, value):
+                self._internal = value
+
     .. note::
-       In the example above, when this decorator is applied to a class method or
-       static method, it must be applied as the first decorator (closest to the def).
+       In the examples above, when this decorator is applied to a class method, static
+       method or programmed property, it must be applied as the first decorator (closest
+       to the def).
 
     """
 
@@ -226,6 +242,10 @@ def deprecate(
                 ) >= version.parse(hard_deprecation_release):
                     raise DeprecationError(compound_message)
                 else:
+                    # The stacklevel argument here is used to make the warning reference
+                    # the line at which the decorated callable was called, as the place
+                    # where the warning is raised, instead of here in `innner_function`,
+                    # which would be useless
                     warnings.warn(compound_message, DeprecationWarning, stacklevel=2)
 
             # Calculate the return value of the original object and return
