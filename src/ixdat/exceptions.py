@@ -31,3 +31,7 @@ class TechniqueError(Exception):
 
 class QuantificationError(Exception):
     """ixdat errors having to do with techniques and their limitations"""
+
+
+class DeprecationError(Exception):
+    """Error raised when a deprecated component has reached hard deprecation"""
