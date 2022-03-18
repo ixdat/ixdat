@@ -1,4 +1,29 @@
-"""Definition of invoke tasks"""
+"""Definition of invoke tasks
+
+All functions in this file that is decorated with the `@task` decorator,
+constitutes an invoke task, which can be execute from the command line by
+calling invoke with the name of the task, which is the same as the name of the
+function (or using one of the aliasses possible listed in the @task decorator).
+E.g. to install all normal dependencies and development dependencies run::
+
+    invoke dependencies
+
+or::
+
+    invoke deps
+
+To see a full list of the available tasks and a brief summary of what they do,
+call::
+
+    invoke --list
+
+To get the full description of a task, call invoke --help on it::
+
+    invoke --help deps
+
+Read more about invoke here: https://www.pyinvoke.org/
+
+"""
 
 import sys
 import configparser
@@ -208,8 +233,13 @@ def clean(context, dryrun=False):
 
 
 @task(aliases=["deps"])
-def dependencies(context, user=False):
-    """Install development and normal dependencies
+def dependencies(context):
+    """Install all dedencendies required for development
+
+    This corresponds to:
+     * Upgrade pip
+     * Install/upgrade all normal dependencies
+     * Install/upgrade all development dependencies
 
     See docstring of :func:`flake8` for explanation of `context` argument
     """
@@ -220,7 +250,8 @@ def dependencies(context, user=False):
             "recommended way to install dependencies for development. Please "
             "consider using an virtual environment for development."
         )
-    command = "python -m pip install --upgrade -r"
     context.run("python -m pip install --upgrade pip")
+    command = "python -m pip install --upgrade -r"
     context.run(command + " requirements.txt")
     context.run(command + " requirements-dev.txt")
+
