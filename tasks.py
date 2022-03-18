@@ -12,6 +12,8 @@ from subprocess import check_call, CalledProcessError, check_output, DEVNULL
 THIS_DIR = Path(__file__).parent
 SOURCE_DIR = THIS_DIR / "src" / "ixdat"
 TESTS_DIR = THIS_DIR / "tests"
+# NOTE The development_scripts folder below is only used in the
+# actions for black formatting, but not linting etc.
 DEV_SCRIPTS_DIR = THIS_DIR / "development_scripts"
 # Patterns to match for files of directories that should be deleted in the clean task
 CLEAN_PATTERNS = ("__pycache__", "*.pyc", "*.pyo", ".mypy_cache")
