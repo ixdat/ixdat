@@ -3,6 +3,7 @@
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 from .plotting_tools import color_axis
+from ..tools import deprecate
 
 
 class ECPlotter(MPLPlotter):
@@ -12,6 +13,10 @@ class ECPlotter(MPLPlotter):
         """Initiate the ECPlotter with its default Meausurement to plot"""
         self.measurement = measurement
 
+    @deprecate("0.1", "Use `v_name` instead.", "0.3", kwarg_name="V_str")
+    @deprecate("0.1", "Use `j_name` instead.", "0.3", kwarg_name="J_str")
+    @deprecate("0.1", "Use `v_color` instead.", "0.3", kwarg_name="V_color")
+    @deprecate("0.1", "Use `j_color` instead.", "0.3", kwarg_name="J_color")
     def plot_measurement(
         self,
         *,
@@ -19,11 +24,13 @@ class ECPlotter(MPLPlotter):
         tspan=None,
         v_name=None,
         j_name=None,
-        axes=None,
-        v_color="k",
-        j_color="r",
+        v_color=None,
+        j_color=None,
         V_str=None,
         J_str=None,
+        V_color=None,
+        J_color=None,
+        axes=None,
         **plot_kwargs,
     ):
         """Plot two variables on two y-axes vs time
@@ -37,18 +44,20 @@ class ECPlotter(MPLPlotter):
             measurement (Measurement): The measurement to plot, if not the one the
                 plotter was initiated with.
             tspan (iter of float): The timespan (wrt to measurement.tstamp) to plot.
+            axes (list of matplotlib.Axis): Two axes to plot on, if not the default
+                new twinx()'d axes. axes[0] is for `v_name` and axes[1] for `j_name`.
             v_name (string): The name of the ValueSeries to plot on the left y-axis.
                 Defaults to measurement.V_str, which for an ECMeasurement is the name
                 of its most calibrated/correct potential.
             j_name (string): The name of the ValueSeries to plot on the right y-axis.
                 Defaults to measurement.J_str, which for an ECMeasurement is the name
                 of its most normalized/correct current.
-            axes (list of matplotlib.Axis): Two axes to plot on, if not the default
-                new twinx()'d axes. axes[0] is for V_str and axes[1] for J_str.
-            V_str (str): DEPRECIATED. now v_name
-            J_str (str): DEPRECIATED. now j_name
             v_color (str): The color to plot v_name. Defaults to black.
             j_color (str): The color to plot j_name. Defaults to red.
+            V_str (str): DEPRECATED
+            J_str (str): DEPRECATED
+            V_color (str): DEPRECATED
+            J_color (str): DEPRECATED
             **plot_kwargs (dict): Additional key-word arguments are passed to
                 matplotlib's plot() function. See below for a few examples
 
@@ -58,16 +67,22 @@ class ECPlotter(MPLPlotter):
         Returns list of matplotlib.pyplot.Axis: The axes plotted on.
         """
         measurement = measurement or self.measurement
-        if V_str or J_str:
-            print(
-                "DEPRECIATION WARNING! V_str has been renamed v_name and J_str has "
-                "been renamed j_name. Get it right next time."
-            )
-        v_name = v_name or V_str or measurement.v_name
+
+        # apply deprecated arguments (the user will get a warning):
+        v_name = v_name or V_str
+        j_name = j_name or J_str
+        v_color = v_color or V_color
+        j_color = j_color or J_color
+
+        # apply defaults.
+        v_name = v_name or measurement.potential.name
+        j_name = j_name or measurement.current.name
         # FIXME: We need a better solution for V_str and J_str that involves the
         #   Calibration and is generalizable. see:
         #   https://github.com/ixdat/ixdat/pull/11#discussion_r679290123
-        j_name = j_name or J_str or measurement.j_name
+        v_color = v_color or "k"
+        j_color = j_color or "r"
+
         t_v, v = measurement.grab(v_name, tspan=tspan)
         t_j, j = measurement.grab(j_name, tspan=tspan)
         if axes:

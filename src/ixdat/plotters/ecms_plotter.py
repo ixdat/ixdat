@@ -1,6 +1,9 @@
+"""Plotter for Electrochemistry - Mass Spectrometry"""
+
 from .base_mpl_plotter import MPLPlotter
 from .ec_plotter import ECPlotter
 from .ms_plotter import MSPlotter
+from ..tools import deprecate
 
 
 class ECMSPlotter(MPLPlotter):
@@ -12,6 +15,10 @@ class ECMSPlotter(MPLPlotter):
         self.ec_plotter = ECPlotter(measurement=measurement)
         self.ms_plotter = MSPlotter(measurement=measurement)
 
+    @deprecate("0.1", "Use `v_name` instead.", "0.3", kwarg_name="V_str")
+    @deprecate("0.1", "Use `j_name` instead.", "0.3", kwarg_name="J_str")
+    @deprecate("0.1", "Use `v_color` instead.", "0.3", kwarg_name="V_color")
+    @deprecate("0.1", "Use `j_color` instead.", "0.3", kwarg_name="J_color")
     def plot_measurement(
         self,
         *,
@@ -25,10 +32,14 @@ class ECMSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
-        v_name=None,  # TODO: Depreciate, replace with v_name, j_name
+        v_name=None,
         j_name=None,
         v_color="k",
-        j_color="r",  # TODO: Depreciate, replace with v_name, j_name
+        j_color="r",
+        V_str=None,
+        J_str=None,
+        V_color=None,
+        J_color=None,
         logplot=None,
         legend=True,
         emphasis="top",
@@ -41,11 +52,13 @@ class ECMSPlotter(MPLPlotter):
         Args:
             measurement (ECMSMeasurement): Defaults to the measurement to which the
                 plotter is bound (self.measurement)
-            axes (list of three matplotlib axes): axes[0] plots the MID data,
-                axes[1] the variable given by V_str (potential), and axes[2] the
-                variable given by J_str (current). By default three axes are made with
-                axes[0] a top panel with 3/5 the area, and axes[1] and axes[2] are
+            axes (list of matplotlib axes): axes[0] plots the MID data,
+                axes[1] the variable given by `j_name` (potential), and axes[3] the
+                variable given by `j_name` (current). By default three axes are made
+                with axes[0] a top panel with 3/5 the area, and axes[1] and axes[3] are
                 the left and right y-axes of the lower panel with 2/5 the area.
+                axes[2], typically the top right panel, will only be used if two MS
+                axes are requested (see `mass_lists` and `mol_lists`).
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
                 plot. Defaults to all of them (measurement.mass_list)
             mass_lists (list of list of str): Alternately, two lists can be given for
@@ -71,6 +84,10 @@ class ECMSPlotter(MPLPlotter):
                 Defaults to the name of the series `measurement.current`
             v_color (str): The color to plot the variable given by 'V_str'
             j_color (str): The color to plot the variable given by 'J_str'
+            V_str (str): DEPRECATED
+            J_str (str): DEPRECATED
+            V_color (str): DEPRECATED
+            J_color (str): DEPRECATED
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
@@ -89,6 +106,12 @@ class ECMSPlotter(MPLPlotter):
         measurement = measurement or self.measurement
 
         logplot = (not mass_lists) if logplot is None else logplot
+
+        # apply deprecated arguments (the user will get a warning):
+        v_name = v_name or V_str
+        j_name = j_name or J_str
+        v_color = v_color or V_color
+        j_color = j_color or J_color
 
         if not axes:
             axes = self.new_two_panel_axes(
