@@ -595,8 +595,26 @@ class Measurement(Saveable):
         series = self.get_series(key)
         # Finally, wherever we found the series, cache it and return it.
         # step 3.
-        self._cached_series[key] = series
+        self._cache_series(key, series)
         return series
+
+    def _cache_series(self, key, series):
+        """Cache `series` such that it can be looked up with its name or with `key`."""
+        print(f"caching series {series} with key '{key}'")
+        self._cached_series[key] = series  # now it can be looked up with by `key`
+        # If the name of the series is not `key`, we can get in a situation where
+        # looking up the series name raises a SeriesNotFoundError. To avoid this
+        # problematic situation, we check if it can be looked up, and if not,
+        # add an entry to the measurement's aliases such that a lookup with the
+        # series's name will find it.
+        try:
+            _ = self[series.name]
+        except SeriesNotFoundError:
+            print(f"adding '{key}' to aliases['{series.name}'].")
+            if key in self._aliases:
+                self._aliases[series.name].append(key)
+            else:
+                self._aliases[series.name] = [key]
 
     def get_series(self, key):
         """Find or build the data series corresponding to key without direct cache'ing

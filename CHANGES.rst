@@ -22,13 +22,28 @@ ixdat.plotters
   - ``v_color`` (replaces ``V_color``)
   - ``j_color`` (replaces ``J_color``)
 
-  The old arguments names are deprecated.
+  The old key-word argument names are deprecated.
 
 - Renamed key-word argument in MS and EC-MS plotting functions:
 
   - ``remove_backround`` (replaces ``removebackground``
 
   The old argument name is deprecated
+
+ixdat.techniques
+^^^^^^^^^^^^^^^^
+
+- Renamed measurement technique class: ``CyclicVoltammogram`` (replaces ``CyclicVoltammagram``)
+  The old name is deprecated.
+
+- Renamed properties in ``ECMeasurement`` and inheriting classes:
+
+  - ``v_name`` (replaces ``V_str``)
+  - ``j_name`` (replaces ``J_str``)
+  - ``E_name`` (replaces ``E_str``)
+  - ``I_name`` (replaces ``I_str``)
+
+  The old property names are deprecated.
 
 Bug Fixes
 ---------

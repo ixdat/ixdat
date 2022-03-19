@@ -8,6 +8,7 @@ from .analysis_tools import (
     find_signed_sections,
 )
 from ..plotters.ec_plotter import CVDiffPlotter
+from ..tools import deprecate
 
 
 class CyclicVoltammogram(ECMeasurement):
@@ -322,6 +323,15 @@ class CyclicVoltammogram(ECMeasurement):
         diff.cv_compare_1 = self
         diff.cv_compare_2 = other
         return diff
+
+
+class CyclicVoltammagram(CyclicVoltammogram):
+
+    # FIXME: decorating the class itself doesn't work because the callable returned
+    #   by the decorator does not have the class methods. But this works fine.
+    @deprecate("0.1", "Use `CyclicVoltammogram` instead ('o' replaces 'a').", "0.3")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 class CyclicVoltammogramDiff(CyclicVoltammogram):

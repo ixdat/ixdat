@@ -4,6 +4,7 @@ from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
+from ..tools import deprecate
 
 EC_FANCY_NAMES = {
     "t": "time / [s]",
@@ -162,6 +163,26 @@ class ECMeasurement(Measurement):
         return self.I_name
 
     @property
+    @deprecate("0.1", "Use `E_name` instead.", "0.3")
+    def E_str(self):
+        return self.E_name
+
+    @property
+    @deprecate("0.1", "Use `I_name` instead.", "0.3")
+    def I_str(self):
+        return self.I_name
+
+    @property
+    @deprecate("0.1", "Use `v_name` instead.", "0.3")
+    def V_str(self):
+        return self.v_name
+
+    @property
+    @deprecate("0.1", "Use `j_name` instead.", "0.3")
+    def J_str(self):
+        return self.j_name
+
+    @property
     def aliases(self):
         """A dictionary with the names of other data series a given name can refer to"""
         a = super().aliases.copy()
@@ -278,6 +299,16 @@ class ECMeasurement(Measurement):
     @property
     def current(self):
         return self["current"]
+
+    @property
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_potential'], instead.", "0.3")
+    def raw_potential(self):
+        return self["raw_potential"]
+
+    @property
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_current'], instead.", "0.3")
+    def raw_current(self):
+        return self["raw_current"]
 
     @property
     def v(self):
