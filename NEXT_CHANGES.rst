@@ -13,6 +13,36 @@ Coming changes for ixdat 0.2.0
 API Changes
 -----------
 
+ixdat.measurement
+^^^^^^^^^^^^^^^^^
+
+- Generalization of multiple calibrations:
+
+  ``Measurement.calibration`` is deprecated in favor of ``Measurement.calibration_list``.
+  Use ``add_calibration()``. Setting ``calibration`` is deprecated.
+
+
+ixdat.techniques
+^^^^^^^^^^^^^^^^
+
+- Renamed measurement technique class: ``CyclicVoltammogram`` (replaces ``CyclicVoltammagram``)
+  The old name is deprecated.
+
+- Renamed properties in ``ECMeasurement`` and inheriting classes:
+
+  - ``v_name`` (replaces ``V_str``)
+  - ``j_name`` (replaces ``J_str``)
+  - ``E_name`` (replaces ``E_str``)
+  - ``I_name`` (replaces ``I_str``)
+
+  The old property names are deprecated.
+
+- Renamed keyward in ``MSMeasurement.plot_flux()``:
+
+  - ``remove_backround`` (replaces ``removebackground``
+
+  The old argument name is deprecated
+
 ixdat.plotters
 ^^^^^^^^^^^^^^
 
@@ -38,21 +68,6 @@ ixdat.plotters
   - ``remove_backround`` (replaces ``removebackground``
 
   The old argument name is deprecated
-
-ixdat.techniques
-^^^^^^^^^^^^^^^^
-
-- Renamed measurement technique class: ``CyclicVoltammogram`` (replaces ``CyclicVoltammagram``)
-  The old name is deprecated.
-
-- Renamed properties in ``ECMeasurement`` and inheriting classes:
-
-  - ``v_name`` (replaces ``V_str``)
-  - ``j_name`` (replaces ``J_str``)
-  - ``E_name`` (replaces ``E_str``)
-  - ``I_name`` (replaces ``I_str``)
-
-  The old property names are deprecated.
 
 Bug Fixes
 ---------

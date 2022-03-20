@@ -19,6 +19,7 @@ from ..constants import (
 )
 from ..data_series import ValueSeries
 from ..db import Saveable
+from ..tools import deprecate
 
 
 class MSMeasurement(Measurement):
@@ -124,19 +125,23 @@ class MSMeasurement(Measurement):
         """Alias for grab()"""
         return self.grab(*args, **kwargs)
 
+    @deprecate(
+        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+    )
     def grab_flux(
         self,
         mol,
         tspan=None,
         tspan_bg=None,
         remove_background=True,
+        removebackground=None,
         include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Note:
         `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
-        removebackround=True by default. An MSCalibration does the maths.
+        remove_backround=True by default. An MSCalibration does the maths.
 
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
@@ -145,7 +150,11 @@ class MSMeasurement(Measurement):
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
                 Defaults to True.
+            removebackground (bool): DEPRECATED
+            include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
         """
+        if removebackground is not None:
+            remove_background = removebackground
         return self.grab(
             # grab() invokes __getitem__, which invokes the `Calibration`. Specifically,
             # `MSCalibration.calibrate_series()` interprets item names starting with
@@ -157,13 +166,16 @@ class MSMeasurement(Measurement):
             include_endpoints=include_endpoints,
         )
 
+    @deprecate(
+        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+    )
     def grab_flux_for_t(
         self,
         mol,
         t,
         tspan_bg=None,
         remove_background=False,
-        include_endpoints=False,
+        removebackground=None,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s] for a given time vec
 
@@ -173,12 +185,14 @@ class MSMeasurement(Measurement):
             tspan_bg (tspan): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
+            removebackground (bool): DEPRECATED
         """
+        if removebackground is not None:
+            remove_background = removebackground
         t_0, y_0 = self.grab_flux(
             mol,
             tspan_bg=tspan_bg,
             remove_background=remove_background,
-            include_endpoints=include_endpoints,
         )
         y = np.interp(t, t_0, y_0)
         return y

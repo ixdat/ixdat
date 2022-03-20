@@ -19,6 +19,7 @@ class ECMSPlotter(MPLPlotter):
     @deprecate("0.1", "Use `j_name` instead.", "0.3", kwarg_name="J_str")
     @deprecate("0.1", "Use `v_color` instead.", "0.3", kwarg_name="V_color")
     @deprecate("0.1", "Use `j_color` instead.", "0.3", kwarg_name="J_color")
+    @deprecate("0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground")
     def plot_measurement(
         self,
         *,
@@ -31,6 +32,7 @@ class ECMSPlotter(MPLPlotter):
         tspan=None,
         tspan_bg=None,
         remove_background=None,
+        removebackground=None,
         unit=None,
         v_name=None,
         j_name=None,
@@ -77,6 +79,7 @@ class ECMSPlotter(MPLPlotter):
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
+            removebackground (bool): DEPRECATED
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             v_name (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.potential`
@@ -112,6 +115,9 @@ class ECMSPlotter(MPLPlotter):
         j_name = j_name or J_str
         v_color = v_color or V_color
         j_color = j_color or J_color
+        if removebackground is not None:
+            # note removebackground can be set to `False`
+            remove_background = removebackground
 
         if not axes:
             axes = self.new_two_panel_axes(
@@ -166,6 +172,7 @@ class ECMSPlotter(MPLPlotter):
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
 
+    @deprecate("0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground")
     def plot_vs_potential(
         self,
         *,
@@ -178,6 +185,7 @@ class ECMSPlotter(MPLPlotter):
         tspan=None,
         tspan_bg=None,
         remove_background=None,
+        removebackground=None,
         unit=None,
         logplot=False,
         legend=True,
@@ -212,6 +220,7 @@ class ECMSPlotter(MPLPlotter):
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
+            removebackground: DEPRECATED
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             logplot (bool): Whether to plot the MS data on a log scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
@@ -219,7 +228,8 @@ class ECMSPlotter(MPLPlotter):
                 bottom panel, None for equal-sized panels
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
         """
-
+        if removebackground is not None:
+            remove_background = removebackground
         if not axes:
             axes = self.new_two_panel_axes(
                 n_bottom=1,

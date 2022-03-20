@@ -27,6 +27,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError
+from .tools import deprecate
 
 
 class Measurement(Saveable):
@@ -444,6 +445,26 @@ class Measurement(Saveable):
         self._calibration_list = [calibration] + self._calibration_list
 
     @property
+    @deprecate(
+        "0.1",
+        "At present, ixdat measurements have a `calibration_list` but no compound "
+        "`calibration`, and the property just returns the first from the list.",
+        None
+    )
+    def calibration(self):
+        return self.calibration_list[0]
+
+    @calibration.setter
+    @deprecate(
+        "0.1",
+        "Setting `calibration` is deprecated. For now it clears `calibration_list` and "
+        "replaces it with a single calibration. Use `add_calibration()` instead.",
+        "0.3"
+    )
+    def calibration(self, calibration):
+        self._calibration_list = [calibration]
+
+    @property
     def series_list(self):
         """List of the DataSeries containing the measurement's data"""
         for i, s in enumerate(self._series_list):
@@ -600,7 +621,6 @@ class Measurement(Saveable):
 
     def _cache_series(self, key, series):
         """Cache `series` such that it can be looked up with its name or with `key`."""
-        print(f"caching series {series} with key '{key}'")
         self._cached_series[key] = series  # now it can be looked up with by `key`
         # If the name of the series is not `key`, we can get in a situation where
         # looking up the series name raises a SeriesNotFoundError. To avoid this
@@ -610,7 +630,6 @@ class Measurement(Saveable):
         try:
             _ = self[series.name]
         except SeriesNotFoundError:
-            print(f"adding '{key}' to aliases['{series.name}'].")
             if key in self._aliases:
                 self._aliases[series.name].append(key)
             else:
