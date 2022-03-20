@@ -71,3 +71,32 @@ ixdat.plotters
 
 Bug Fixes
 ---------
+
+Ixdat 0.2.0 has a number of deep improvements in data series handling, which help
+fix the following bugs:
+
+
+- Reliable construction of `selector` and `cycle` counters. This is done via the
+  ``selector_name`` and ``_series_constructors`` class attributes, which can be
+  customized for every ``Measurement`` subclass.
+
+  This solves `#14 <https://github.com/ixdat/ixdat/issues/14>`_
+
+- Carrying calibrations over through measurement combination (hyphenation or appending
+  with the `+` operator) or transformation (through copying and technique-changing
+  functions like `ECMeasurement.as_cv()`. This is done via replacing the use of a single
+  ``Measurement.calibration`` with a ``calibration_list`` which can be appended,
+  treating the ``calibration_list`` as a measurement's linked objects, and a
+  ``MemoryBackend`` which stores such linked objects while the main object is being
+  copied via its dictionary representation.
+
+  This solves `#20 <https://github.com/ixdat/ixdat/issues/20>`_
+
+  This also solves `#22 <https://github.com/ixdat/ixdat/issues/22>`_
+
+  This also solves `#29 <https://github.com/ixdat/ixdat/issues/22>`_
+
+
+
+
+
