@@ -242,7 +242,7 @@ class MSPlotter(MPLPlotter):
                     v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
-                    removebackground=removebackground,
+                    remove_background=removebackground,
                     include_endpoints=False,
                 )
             if logplot:
