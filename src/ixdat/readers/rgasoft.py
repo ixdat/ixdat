@@ -1,7 +1,6 @@
 """A reader for text exports from the potentiostat software of CH Instruments"""
 
 from EC_MS import Dataset
-from .reading_tools import timestamp_string_to_tstamp
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
 from ..techniques import MSMeasurement
 

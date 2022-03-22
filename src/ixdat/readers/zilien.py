@@ -183,8 +183,8 @@ if __name__ == "__main__":
         Script path = ...
     """
 
-    from pathlib import Path
-    from ixdat.measurements import Measurement
+    from pathlib import Path  # noqa
+    from ixdat.measurements import Measurement  # noqa
 
     path_to_test_file = Path.home() / (
         "Dropbox/ixdat_resources/test_data/"

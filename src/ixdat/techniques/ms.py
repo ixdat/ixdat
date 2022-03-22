@@ -110,8 +110,8 @@ class MSMeasurement(Measurement):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from what is returned.
-            remove_background (bool): Whether to remove a pre-set background if available.
-                This is special to MSMeasurement.
+            remove_background (bool): Whether to remove a pre-set background if
+                available. This is special to MSMeasurement.
                 Defaults to False, but in grab_flux it defaults to True.
         """
         t_0, v_0 = self.grab(
@@ -462,11 +462,56 @@ class MSInlet:
         """
         self.verbose = verbose
         self.l_cap = l_cap
+        self.l_cap_eff = {}
         self.w_cap = w_cap
         self.h_cap = h_cap
         self.p = p
         self.T = T
         self.gas = gas  # TODO: Gas mixture class. This must be a pure gas now.
+
+    def calc_l_cap_eff(
+        self, n_dot_measured, gas=None, w_cap=None, h_cap=None, T=None, p=None
+    ):
+        """Calculate gas specific effective length of the capillary in [m]
+        and add {gas:value} to l_cap_eff (dict)
+
+        Args:
+            w_cap (float): Capillary width [m], defaults to self.w_cap
+            h_cap (float): Capillary height [m], defaults to self.h_cap
+            n_dot_measured (float): Measured flux of gas [mol/s]
+            gas (dict or str): The gas in the chip, defaults to self.gas
+            T (float): Temperature [K], if to be updated
+            p (float): Pressure [Pa], if to be updated
+        Returns:
+            float: Gas specific effective length in [m]
+        """
+
+        n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
+
+        l_cap_gas_specific_eff = self.l_cap * n_dot_predicted / n_dot_measured
+        self.l_cap_eff[
+            gas
+        ] = l_cap_gas_specific_eff  # add effective l_cap for specific gas
+
+        return l_cap_gas_specific_eff
+
+    def update_l_cap(self, gases=[]):
+        """Update self.l_cap from average of values in dict l_cap_eff
+
+        Args:
+            gases (list): List of gases to average l_cap, default all
+        Returns:
+            float: Averaged effective capilllary length in [m]
+        """
+        if self.l_cap_eff and not gases:
+            self.l_cap = np.mean(list(self.l_cap_eff.values()))
+        elif self.l_cap_eff and gases:
+            _l_cap = 0
+            for gas in gases:
+                _l_cap += self.l_cap_eff[gas]
+            self.l_cap = _l_cap / len(gases)
+
+        return self.l_cap
 
     def calc_n_dot_0(self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
         """Calculate the total molecular flux through the capillary in [s^-1]
@@ -476,14 +521,14 @@ class MSInlet:
         and applications." PhD Thesis, Technical University of Denmark.
 
         Args:
-            w_cap (float): capillary width [m], defaults to self.w_cap
-            h_cap (float): capillary height [m], defaults to self.h_cap
-            l_cap (float): capillary length [m], defaults to self.l_cap
-            gas (dict or str): the gas in the chip, defaults to self.gas
+            w_cap (float): Capillary width [m], defaults to self.w_cap
+            h_cap (float): Capillary height [m], defaults to self.h_cap
+            l_cap (float): Capillary length [m], defaults to self.l_cap
+            gas (dict or str): The gas in the chip, defaults to self.gas
             T (float): Temperature [K], if to be updated
-            p (float): pressure [Pa], if to be updated
+            p (float): Pressure [Pa], if to be updated
         Returns:
-            float: the total molecular flux in [s^-1] through the capillary
+            float: The total molecular flux in [s^-1] through the capillary
         """
 
         if w_cap is None:
@@ -542,6 +587,8 @@ class MSInlet:
         tspan=None,
         tspan_bg=None,
         ax=None,
+        carrier_mol=None,
+        mol_conc_ppm=None,
     ):
         """
         Args:
@@ -550,8 +597,14 @@ class MSInlet:
             mass (str): The mass to calibrate at
             tspan (iter): The timespan to average the signal over. Defaults to all
             tspan_bg (iter): Optional timespan at which the signal is at its background.
-            ax (matplotlib axis): the axis on which to indicate what signal is used
+            ax (matplotlib axis): The axis on which to indicate what signal is used
                 with a thicker line. Defaults to none
+            carrier_mol (str): The name of the molecule of the carrier gas if
+                a dilute analyte is used. Calibration assumes total flux of the
+                capillary is the same as the flux of pure carrier gas. Defaults
+                to None.
+            mol_conc_ppm (float): Concentration of the dilute analyte in the carrier gas
+                in ppm. Defaults to None.
 
         Returns MSCalResult: a ms_calibration result containing the sensitivity factor
             for mol at mass
@@ -559,14 +612,31 @@ class MSInlet:
         t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+        if carrier_mol:
+            if mol_conc_ppm:
+                cal_type = "carrier_gas_flux_calibration"
+            else:
+                raise QuantificationError(
+                    "Cannot use carrier gas calibration without analyte"
+                    " concentration. mol_conc_ppm is missing."
+                )
+        elif mol_conc_ppm:
+            raise QuantificationError(
+                "Cannot use carrier gas calibration without carrier"
+                " gas definition. carrier_mol is missing."
+            )
+        else:
+            cal_type = "gas_flux_calibration"
+            mol_conc_ppm = 10**6
+            carrier_mol = mol
 
-        n_dot = self.calc_n_dot_0(gas=mol)
+        n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
         F = np.mean(S) / n_dot
         return MSCalResult(
             name=f"{mol}@{mass}",
             mol=mol,
             mass=mass,
-            cal_type="gas_flux_calibration",
+            cal_type=cal_type,
             F=F,
         )
 

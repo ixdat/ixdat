@@ -32,6 +32,7 @@ DYNAMIC_VISCOSITIES = {
     "Ar": 2.27e-05,
     "He": 1.99e-05,
     "CO": 1.78e-05,
+    "CO2": 1.503e-05,
     "H2": 8.90e-06,
 }  # in [Pa*s]
 MOLECULAR_DIAMETERS = {
@@ -40,6 +41,7 @@ MOLECULAR_DIAMETERS = {
     "Ar": 3.58e-10,
     "He": 2.15e-10,
     "CO": 3.76e-10,
+    "CO2": 3.34 - 10,
     "H2": 2.71e-10,
 }  # in [m]
 MOLAR_MASSES = {
@@ -48,5 +50,6 @@ MOLAR_MASSES = {
     "Ar": 39.948,
     "He": 4.002,
     "CO": 28.010,
+    "CO2": 44.010,
     "H2": 2.016,
 }  # in [g/mol]

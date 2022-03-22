@@ -36,6 +36,10 @@ from subprocess import check_call, CalledProcessError, check_output, DEVNULL
 
 THIS_DIR = Path(__file__).parent
 SOURCE_DIR = THIS_DIR / "src" / "ixdat"
+TESTS_DIR = THIS_DIR / "tests"
+# NOTE The development_scripts folder below is only used in the
+# actions for black formatting, but not linting etc.
+DEV_SCRIPTS_DIR = THIS_DIR / "development_scripts"
 # Patterns to match for files of directories that should be deleted in the clean task
 CLEAN_PATTERNS = ("__pycache__", "*.pyc", "*.pyo", ".mypy_cache")
 
@@ -58,7 +62,7 @@ def flake8(context):
     """
     print("# flake8")
     with context.cd(THIS_DIR):
-        return context.run("flake8 src tests").return_code
+        return context.run(f"flake8 {SOURCE_DIR} {TESTS_DIR}").return_code
 
 
 @task(aliases=["test", "tests"])
@@ -73,6 +77,25 @@ def pytest(context):
         return context.run("pytest tests").return_code
 
 
+@task(
+    aliases=(
+        "check_black",
+        "black_check",
+        "bc",
+    )
+)
+def check_code_format(context):
+    """Check that the code, tests and development_scripts are black formatted
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+
+    """
+    print("### Checking code style ...")
+    with context.cd(THIS_DIR):
+        result = context.run(f"black --check {SOURCE_DIR} {TESTS_DIR} {DEV_SCRIPTS_DIR}")
+    return result.return_code
+
+
 @task(aliases=["QA", "qa", "check"])
 def checks(context):
     """Run all QA checks
@@ -82,11 +105,18 @@ def checks(context):
     """
     combined_return_code = flake8(context)
     combined_return_code += pytest(context)
+    combined_return_code += check_code_format(context)
     if combined_return_code == 0:
         print()
         print(r"+----------+")
         print(r"| All good |")
         print(r"+----------+")
+
+
+@task(aliases=("black",))
+def format_code(context):
+    """Format all spitze and tools code with black"""
+    context.run(f"black {SOURCE_DIR} {TESTS_DIR} {DEV_SCRIPTS_DIR}")
 
 
 @task
@@ -254,4 +284,3 @@ def dependencies(context):
     command = "python -m pip install --upgrade -r"
     context.run(command + " requirements.txt")
     context.run(command + " requirements-dev.txt")
-
