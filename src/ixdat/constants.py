@@ -41,7 +41,7 @@ MOLECULAR_DIAMETERS = {
     "Ar": 3.58e-10,
     "He": 2.15e-10,
     "CO": 3.76e-10,
-    "CO2": 3.34 - 10,
+    "CO2": 3.34e-10,
     "H2": 2.71e-10,
 }  # in [m]
 MOLAR_MASSES = {
