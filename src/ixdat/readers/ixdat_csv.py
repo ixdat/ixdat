@@ -18,7 +18,7 @@ regular_expressions = {
     "backend_name": r"backend_name = (\w+)",
     "id": r"id = ([0-9]+)",
     "timecol": r"timecol '(.+)' for: (?:'(.+)')$",
-    "unit": r"/ [(.+)]",
+    "unit": r"/ \[(.+)\]",
     "aux_file": r"'(.*)' in file: '(.*)'",
 }
 
