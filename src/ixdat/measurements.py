@@ -445,7 +445,7 @@ class Measurement(Saveable):
         "0.1",
         "At present, ixdat measurements have a `calibration_list` but no compound "
         "`calibration`, and the property just returns the first from the list.",
-        None
+        None,
     )
     def calibration(self):
         return self.calibration_list[0]
@@ -455,7 +455,7 @@ class Measurement(Saveable):
         "0.1",
         "Setting `calibration` is deprecated. For now it clears `calibration_list` and "
         "replaces it with a single calibration. Use `add_calibration()` instead.",
-        "0.3"
+        "0.3",
     )
     def calibration(self, calibration):
         self._calibration_list = [calibration]

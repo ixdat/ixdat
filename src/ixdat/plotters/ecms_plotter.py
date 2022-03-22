@@ -19,7 +19,9 @@ class ECMSPlotter(MPLPlotter):
     @deprecate("0.1", "Use `j_name` instead.", "0.3", kwarg_name="J_str")
     @deprecate("0.1", "Use `v_color` instead.", "0.3", kwarg_name="V_color")
     @deprecate("0.1", "Use `j_color` instead.", "0.3", kwarg_name="J_color")
-    @deprecate("0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground")
+    @deprecate(
+        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+    )
     def plot_measurement(
         self,
         *,
@@ -172,7 +174,9 @@ class ECMSPlotter(MPLPlotter):
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
 
-    @deprecate("0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground")
+    @deprecate(
+        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+    )
     def plot_vs_potential(
         self,
         *,
