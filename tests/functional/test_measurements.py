@@ -37,18 +37,14 @@ class TestBiologicEC:
         # Check that the ms_calibration survived all that:
         assert cvs_1_plus_2.RE_vs_RHE == ec_measurement.RE_vs_RHE
         # Check that the main time variable, that of potential, wasn't corrupted:
-        assert len(cvs_1_plus_2.grab("potential")[0]) == len(
-            cvs_1_plus_2["time/s"].data
-        )
+        assert len(cvs_1_plus_2.grab("potential")[0]) == len(cvs_1_plus_2["time/s"].data)
         # Check that the selector is still available and works with the main time var:
         assert len(cvs_1_plus_2.selector.data) == len(cvs_1_plus_2.t)
 
     def test_calibration_over_save_load(self, composed_measurement):
         """Test save and load functionality"""
         # Now let's try calibrating just the loaded one:
-        composed_measurement_copy = Measurement.from_dict(
-            composed_measurement.as_dict()
-        )
+        composed_measurement_copy = Measurement.from_dict(composed_measurement.as_dict())
 
         RE_vs_RHE = 1
         A_el = 2

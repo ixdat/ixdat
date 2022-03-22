@@ -102,7 +102,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
-            name=f"{mol}@{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type="ecms_calibration",
+            F=F,
         )
         return cal
 
@@ -174,8 +178,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
-    """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, ECMSMeasurement
-    """
+    """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, ECMSMeasurement"""
 
 
 class ECMSCalibration(ECCalibration, MSCalibration):
@@ -212,7 +215,11 @@ class ECMSCalibration(ECCalibration, MSCalibration):
             A_el (float): the geometric electrode area in [cm^2]
             L (float): the working distance in [m]
         """
-        ECCalibration.__init__(self, A_el=A_el, RE_vs_RHE=RE_vs_RHE,)
+        ECCalibration.__init__(
+            self,
+            A_el=A_el,
+            RE_vs_RHE=RE_vs_RHE,
+        )
         MSCalibration.__init__(
             self,
             name=name,

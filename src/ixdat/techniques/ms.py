@@ -110,8 +110,8 @@ class MSMeasurement(Measurement):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from what is returned.
-            remove_background (bool): Whether to remove a pre-set background if available.
-                This is special to MSMeasurement.
+            remove_background (bool): Whether to remove a pre-set background if
+                available. This is special to MSMeasurement.
                 Defaults to False, but in grab_flux it defaults to True.
         """
         t_0, v_0 = self.grab(
@@ -201,9 +201,7 @@ class MSMeasurement(Measurement):
         """
         t, S = self.grab_signal(mass, tspan=tspan, include_endpoints=True)
         if tspan_bg:
-            t_bg, S_bg_0 = self.grab_signal(
-                mass, tspan=tspan_bg, include_endpoints=True
-            )
+            t_bg, S_bg_0 = self.grab_signal(mass, tspan=tspan_bg, include_endpoints=True)
             S_bg = np.mean(S_bg_0) * np.ones(t.shape)
         else:
             S_bg = np.zeros(t.shape)
@@ -472,7 +470,8 @@ class MSInlet:
         self.gas = gas  # TODO: Gas mixture class. This must be a pure gas now.
 
     def calc_l_cap_eff(
-        self, n_dot_measured, gas=None, w_cap=None, h_cap=None,  T=None, p=None):
+        self, n_dot_measured, gas=None, w_cap=None, h_cap=None, T=None, p=None
+    ):
         """Calculate gas specific effective length of the capillary in [m]
         and add {gas:value} to l_cap_eff (dict)
 
@@ -490,7 +489,9 @@ class MSInlet:
         n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
 
         l_cap_gas_specific_eff = self.l_cap * n_dot_predicted / n_dot_measured
-        self.l_cap_eff[gas] = l_cap_gas_specific_eff #add effective l_cap for specific gas
+        self.l_cap_eff[
+            gas
+        ] = l_cap_gas_specific_eff  # add effective l_cap for specific gas
 
         return l_cap_gas_specific_eff
 
@@ -512,8 +513,7 @@ class MSInlet:
 
         return self.l_cap
 
-    def calc_n_dot_0(
-        self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
+    def calc_n_dot_0(self, gas=None, w_cap=None, h_cap=None, l_cap=None, T=None, p=None):
         """Calculate the total molecular flux through the capillary in [s^-1]
 
         Uses Equation 4.10 of Trimarco, 2017. "Real-time detection of sub-monolayer
@@ -553,7 +553,7 @@ class MSInlet:
         p_1 = p
         lambda_ = d  # defining the transitional pressure
         # ...from setting mean free path equal to capillary d
-        p_t = BOLTZMAN_CONSTANT * T / (2 ** 0.5 * pi * s ** 2 * lambda_)
+        p_t = BOLTZMAN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
         p_2 = 0
         p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
         v_m = (8 * BOLTZMAN_CONSTANT * T / (pi * m)) ** 0.5
@@ -604,7 +604,7 @@ class MSInlet:
                 capillary is the same as the flux of pure carrier gas. Defaults
                 to None.
             mol_conc_ppm (float): Concentration of the dilute analyte in the carrier gas
-                in ppm. Defaults to None. 
+                in ppm. Defaults to None.
 
         Returns MSCalResult: a ms_calibration result containing the sensitivity factor
             for mol at mass
@@ -614,21 +614,21 @@ class MSInlet:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
         if carrier_mol:
             if mol_conc_ppm:
-                cal_type="carrier_gas_flux_calibration"
+                cal_type = "carrier_gas_flux_calibration"
             else:
                 raise QuantificationError(
                     "Cannot use carrier gas calibration without analyte"
                     " concentration. mol_conc_ppm is missing."
-                    )
+                )
         elif mol_conc_ppm:
             raise QuantificationError(
                 "Cannot use carrier gas calibration without carrier"
                 " gas definition. carrier_mol is missing."
-                )
+            )
         else:
-            cal_type="gas_flux_calibration"
-            mol_conc_ppm=10**6
-            carrier_mol=mol
+            cal_type = "gas_flux_calibration"
+            mol_conc_ppm = 10**6
+            carrier_mol = mol
 
         n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
         F = np.mean(S) / n_dot

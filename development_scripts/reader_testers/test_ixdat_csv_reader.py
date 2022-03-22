@@ -28,4 +28,3 @@ else:
     meas_loaded = Measurement.read("test.csv", reader="ixdat")
 
     meas_loaded.plot()
-
