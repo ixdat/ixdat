@@ -65,9 +65,7 @@ class MsrhSECReader:
         # If they didn't provide a tstamp, we have to prompt for it.
         tstamp = tstamp or prompt_for_tstamp(path_to_file)
         # Ready to define the measurement's TimeSeries:
-        tseries = TimeSeries(
-            "time from scan rate", unit_name="s", data=t, tstamp=tstamp
-        )
+        tseries = TimeSeries("time from scan rate", unit_name="s", data=t, tstamp=tstamp)
 
         # The wavelength comes from the reference spectrum file.
         wl = ref_df["wavelength"].to_numpy()

@@ -22,9 +22,7 @@ class TestBackends:
         reloaded_ec_measurement = Measurement.get(id_)
         assert ec_measurement == reloaded_ec_measurement
 
-    def test_round_trip_of_composed(
-        self, composed_measurement, fresh_directory_backend
-    ):
+    def test_round_trip_of_composed(self, composed_measurement, fresh_directory_backend):
         """Test a load/save round trip of a composed measurement"""
         id_ = composed_measurement.save()
         loaded = Measurement.get(id_)

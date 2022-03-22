@@ -195,9 +195,7 @@ class IxdatCSVReader:
         if technique_match:
             self.technique = technique_match.group(1)
             if self.technique in TECHNIQUE_CLASSES:
-                if issubclass(
-                    TECHNIQUE_CLASSES[self.technique], self.measurement_class
-                ):
+                if issubclass(TECHNIQUE_CLASSES[self.technique], self.measurement_class):
                     self.measurement_class = TECHNIQUE_CLASSES[self.technique]
             return
         timecol_match = re.search(regular_expressions["timecol"], line)

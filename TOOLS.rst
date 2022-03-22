@@ -23,12 +23,19 @@ The following is a list of "tool and commands runners":
 Install instructions
 ====================
 
-Install all development tools by executing::
+To setup a development environment (virtual environment or anaconda
+environment) the first time, run the following 2 commands within the
+active development environment::
 
-  pip install -r requirements-dev.txt
+  python -m pip install invoke
+  invoke depencencies 
 
-while being at the git archive root in your virtual environment or
-anaconda environment.
+After the initial setup above, the development environment can at any
+time be kept up to date with changes to tooling by re-running the
+command::
+
+  invoke dependencies
+
 
 Tool and command runners in more detail
 =======================================
@@ -138,6 +145,10 @@ For settings and arguments for tools the following rules apply:
   building the package) If the tools support configuration in the
   shared configuration file ``setup.cfg``, then it belong there
   always!
+* **pyproject.toml**) This file is another common configuration file
+  much like setup.cfg, which is used by black. Unfortunately, black
+  and flake8 (which has settings in setup.cfg) do not share a single
+  shared settings file
 * **tox.ini** and **tasks.py**) If the tools only support
   configuration on the command line, then it goes into the
   configuration files of the tool runners, ``tox.ini`` for tox and
@@ -320,6 +331,15 @@ To see a list of all tasks::
 To run a specific task, say linting, run::
 
  $ invoke lint
+
+To run all (quality assurance) checks, run::
+
+ $ invoke checks
+
+To update the development environment with correct version of tools
+and settings, run::
+
+ $ invoke dependencies
 
 To run a command with an **invoke specific** argument do::
 

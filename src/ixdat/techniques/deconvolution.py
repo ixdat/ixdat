@@ -213,7 +213,7 @@ class Kernel:
             volflow_cap = self.params["volflow_cap"]
             henry_vola = self.params["henry_vola"]
 
-            tdiff = t_kernel * diff_const / (work_dist ** 2)
+            tdiff = t_kernel * diff_const / (work_dist**2)
 
             def fs(s):
                 # See Krempl et al, 2021. Equation 6.
@@ -221,7 +221,7 @@ class Kernel:
                 return 1 / (
                     sqrt(s) * sinh(sqrt(s))
                     + (vol_gas * henry_vola / 0.196e-4 / work_dist)
-                    * (s + volflow_cap / vol_gas * work_dist ** 2 / diff_const)
+                    * (s + volflow_cap / vol_gas * work_dist**2 / diff_const)
                     * cosh(sqrt(s))
                 )
 

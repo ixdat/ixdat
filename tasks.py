@@ -1,4 +1,29 @@
-"""Definition of invoke tasks"""
+"""Definition of invoke tasks
+
+All functions in this file that is decorated with the `@task` decorator,
+constitutes an invoke task, which can be execute from the command line by
+calling invoke with the name of the task, which is the same as the name of the
+function (or using one of the aliasses possible listed in the @task decorator).
+E.g. to install all normal dependencies and development dependencies run::
+
+    invoke dependencies
+
+or::
+
+    invoke deps
+
+To see a full list of the available tasks and a brief summary of what they do,
+call::
+
+    invoke --list
+
+To get the full description of a task, call invoke --help on it::
+
+    invoke --help deps
+
+Read more about invoke here: https://www.pyinvoke.org/
+
+"""
 
 import sys
 import configparser
@@ -11,6 +36,10 @@ from subprocess import check_call, CalledProcessError, check_output, DEVNULL
 
 THIS_DIR = Path(__file__).parent
 SOURCE_DIR = THIS_DIR / "src" / "ixdat"
+TESTS_DIR = THIS_DIR / "tests"
+# NOTE The development_scripts folder below is only used in the
+# actions for black formatting, but not linting etc.
+DEV_SCRIPTS_DIR = THIS_DIR / "development_scripts"
 # Patterns to match for files of directories that should be deleted in the clean task
 CLEAN_PATTERNS = ("__pycache__", "*.pyc", "*.pyo", ".mypy_cache")
 
@@ -32,7 +61,8 @@ def flake8(context):
 
     """
     print("# flake8")
-    return context.run("flake8 src tests").return_code
+    with context.cd(THIS_DIR):
+        return context.run(f"flake8 {SOURCE_DIR} {TESTS_DIR}").return_code
 
 
 @task(aliases=["test", "tests"])
@@ -47,6 +77,25 @@ def pytest(context):
         return context.run("pytest tests").return_code
 
 
+@task(
+    aliases=(
+        "check_black",
+        "black_check",
+        "bc",
+    )
+)
+def check_code_format(context):
+    """Check that the code, tests and development_scripts are black formatted
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+
+    """
+    print("### Checking code style ...")
+    with context.cd(THIS_DIR):
+        result = context.run(f"black --check {SOURCE_DIR} {TESTS_DIR} {DEV_SCRIPTS_DIR}")
+    return result.return_code
+
+
 @task(aliases=["QA", "qa", "check"])
 def checks(context):
     """Run all QA checks
@@ -56,11 +105,18 @@ def checks(context):
     """
     combined_return_code = flake8(context)
     combined_return_code += pytest(context)
+    combined_return_code += check_code_format(context)
     if combined_return_code == 0:
         print()
         print(r"+----------+")
         print(r"| All good |")
         print(r"+----------+")
+
+
+@task(aliases=("black",))
+def format_code(context):
+    """Format all spitze and tools code with black"""
+    context.run(f"black {SOURCE_DIR} {TESTS_DIR} {DEV_SCRIPTS_DIR}")
 
 
 @task
@@ -193,13 +249,38 @@ def clean(context, dryrun=False):
     """
     if dryrun:
         print("CLEANING DRYRUN")
-    for clean_pattern in CLEAN_PATTERNS:
-        for cleanpath in THIS_DIR.glob("**/" + clean_pattern):
-            if cleanpath.is_dir():
-                print("DELETE DIR :", cleanpath)
-                if not dryrun:
-                    rmtree(cleanpath)
-            else:
-                print("DELETE FILE:", cleanpath)
-                if not dryrun:
-                    cleanpath.unlink()
+    with context.cd(THIS_DIR):
+        for clean_pattern in CLEAN_PATTERNS:
+            for cleanpath in THIS_DIR.glob("**/" + clean_pattern):
+                if cleanpath.is_dir():
+                    print("DELETE DIR :", cleanpath)
+                    if not dryrun:
+                        rmtree(cleanpath)
+                else:
+                    print("DELETE FILE:", cleanpath)
+                    if not dryrun:
+                        cleanpath.unlink()
+
+
+@task(aliases=["deps"])
+def dependencies(context):
+    """Install all dedencendies required for development
+
+    This corresponds to:
+     * Upgrade pip
+     * Install/upgrade all normal dependencies
+     * Install/upgrade all development dependencies
+
+    See docstring of :func:`flake8` for explanation of `context` argument
+    """
+    # See https://stackoverflow.com/a/1883251/11640721 for virtual env detection trick
+    if sys.prefix == sys.base_prefix:
+        raise RuntimeError(
+            "Current python does not seem to be in a virtual environment, which is the "
+            "recommended way to install dependencies for development. Please "
+            "consider using an virtual environment for development."
+        )
+    context.run("python -m pip install --upgrade pip")
+    command = "python -m pip install --upgrade -r"
+    context.run(command + " requirements.txt")
+    context.run(command + " requirements-dev.txt")

@@ -38,8 +38,14 @@ ecms_meas.set_bg(tspan_bg=[0, 10])
 cv = ecms_meas.as_cv()
 cv.redefine_cycle(start_potential=0.39, redox=False)
 
-axes_cv = cv[2].plot(mass_list=["M2", "M44"], logplot=False, )
+axes_cv = cv[2].plot(
+    mass_list=["M2", "M44"],
+    logplot=False,
+)
 axes_cv = cv[1].plot(
-    mass_list=["M2", "M44"], linestyle="--", axes=axes_cv, logplot=False,
+    mass_list=["M2", "M44"],
+    linestyle="--",
+    axes=axes_cv,
+    logplot=False,
 )
 axes_cv[0].get_figure().savefig("Trimarco2018_ixdat.png")

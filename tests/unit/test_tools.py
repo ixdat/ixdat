@@ -1,5 +1,5 @@
 """Tests for tools.py"""
-
+import warnings
 from unittest.mock import patch
 
 import pytest
@@ -134,14 +134,17 @@ class TestDeprecate:
 
     def _test_decorate_kwarg(self, decorated_callable, MyClass, hard_deprecate):
         """Test deprecation of kwarg"""
-        # Make sure nothing happens if we do not use the kwarg
-        with pytest.warns(None) as captured_warnings:
+        # Make sure no warning is issues if we do not use the kwarg
+        # Instriuctions for how to test no warnings is from here:
+        # https://docs.pytest.org/en/latest/how-to/capture-warnings.html#additional-use-
+        # cases-of-warnings-in-tests
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             return_value = decorated_callable(3)
         if decorated_callable.__name__ == "MyClass":
             assert isinstance(return_value, MyClass)
         else:
             assert return_value == 52
-        assert len(captured_warnings) == 0
 
         # In the case of hard deprecation, test that it raises an exception, otherwise it
         # should raise a warning
