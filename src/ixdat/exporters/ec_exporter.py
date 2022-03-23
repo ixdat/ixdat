@@ -9,8 +9,8 @@ class ECExporter(CSVExporter):
         """The default v_list for ECExporter is V_str, J_str, and sel_str"""
         return [
             # self.measurement.t_name,
-            self.measurement.v_name,
-            self.measurement.j_name,
+            self.measurement.U_name,
+            self.measurement.J_name,
             self.measurement.selector_name,
         ]
 
@@ -18,7 +18,7 @@ class ECExporter(CSVExporter):
     def aliases(self):
         return {
             "t": (self.measurement.t_name,),
-            "raw_potential": (self.measurement.v_name,),
-            "raw_current": (self.measurement.j_name,),
+            "raw_potential": (self.measurement.U_name,),
+            "raw_current": (self.measurement.J_name,),
             "selector": (self.measurement.selector_name,),
         }

@@ -37,8 +37,8 @@ ixdat.techniques
 
 - Renamed properties in ``ECMeasurement`` and inheriting classes:
 
-  - ``v_name`` (replaces ``V_str``)
-  - ``j_name`` (replaces ``J_str``)
+  - ``U_name`` (replaces ``V_str``)
+  - ``J_name`` (replaces ``J_str``)
   - ``E_name`` (replaces ``E_str``)
   - ``I_name`` (replaces ``I_str``)
 
@@ -81,10 +81,9 @@ ixdat.plotters
 
 - Renamed keyword arguments in EC, EC-MS, and SEC plotting functions:
 
-  - ``v_name`` (replaces ``V_str``)
-  - ``j_name`` (replaces ``J_str``)
-  - ``v_color`` (replaces ``V_color``)
-  - ``j_color`` (replaces ``J_color``)
+  - ``U_name`` (replaces ``V_str``)
+  - ``J_name`` (replaces ``J_str``)
+  - ``U_color`` (replaces ``V_color``)
 
   The old keyword argument names are deprecated.
 

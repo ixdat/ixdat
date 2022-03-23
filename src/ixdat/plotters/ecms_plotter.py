@@ -15,10 +15,9 @@ class ECMSPlotter(MPLPlotter):
         self.ec_plotter = ECPlotter(measurement=measurement)
         self.ms_plotter = MSPlotter(measurement=measurement)
 
-    @deprecate("0.1", "Use `v_name` instead.", "0.3", kwarg_name="V_str")
-    @deprecate("0.1", "Use `j_name` instead.", "0.3", kwarg_name="J_str")
-    @deprecate("0.1", "Use `v_color` instead.", "0.3", kwarg_name="V_color")
-    @deprecate("0.1", "Use `j_color` instead.", "0.3", kwarg_name="J_color")
+    @deprecate("0.1", "Use `U_name` instead.", "0.3", kwarg_name="V_str")
+    @deprecate("0.1", "Use `J_name` instead.", "0.3", kwarg_name="J_str")
+    @deprecate("0.1", "Use `U_color` instead.", "0.3", kwarg_name="V_color")
     @deprecate(
         "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
     )
@@ -36,14 +35,13 @@ class ECMSPlotter(MPLPlotter):
         remove_background=None,
         removebackground=None,
         unit=None,
-        v_name=None,
-        j_name=None,
-        v_color="k",
-        j_color="r",
+        U_name=None,
+        J_name=None,
+        U_color="k",
+        J_color="r",
         V_str=None,
         J_str=None,
         V_color=None,
-        J_color=None,
         logplot=None,
         legend=True,
         emphasis="top",
@@ -57,8 +55,8 @@ class ECMSPlotter(MPLPlotter):
             measurement (ECMSMeasurement): Defaults to the measurement to which the
                 plotter is bound (self.measurement)
             axes (list of matplotlib axes): axes[0] plots the MID data,
-                axes[1] the variable given by `j_name` (potential), and axes[3] the
-                variable given by `j_name` (current). By default three axes are made
+                axes[1] the variable given by `J_name` (potential), and axes[3] the
+                variable given by `J_name` (current). By default three axes are made
                 with axes[0] a top panel with 3/5 the area, and axes[1] and axes[3] are
                 the left and right y-axes of the lower panel with 2/5 the area.
                 axes[2], typically the top right panel, will only be used if two MS
@@ -83,16 +81,15 @@ class ECMSPlotter(MPLPlotter):
                 background signals if available. Defaults to (not logplot)
             removebackground (bool): DEPRECATED. Use `remove_background`
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
-            v_name (str): The name of the value to plot on the lower left y-axis.
+            U_name (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.potential`
-            j_name (str): The name of the value to plot on the lower right y-axis.
+            J_name (str): The name of the value to plot on the lower right y-axis.
                 Defaults to the name of the series `measurement.current`
-            v_color (str): The color to plot the variable given by 'V_str'
-            j_color (str): The color to plot the variable given by 'J_str'
-            V_str (str): DEPRECATED. Use `v_name`.
-            J_str (str): DEPRECATED. Use `j_name`.
-            V_color (str): DEPRECATED. Use `v_color`.
-            J_color (str): DEPRECATED. Use `j_color`.
+            U_color (str): The color to plot the variable given by 'V_str'
+            J_color (str): The color to plot the variable given by 'J_str'
+            V_str (str): DEPRECATED. Use `U_name`.
+            J_str (str): DEPRECATED. Use `J_name`.
+            V_color (str): DEPRECATED. Use `U_color`.
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
@@ -113,10 +110,10 @@ class ECMSPlotter(MPLPlotter):
         logplot = (not mass_lists) if logplot is None else logplot
 
         # apply deprecated arguments (the user will get a warning):
-        v_name = v_name or V_str
-        j_name = j_name or J_str
-        v_color = v_color or V_color
-        j_color = j_color or J_color
+        U_name = U_name or V_str
+        J_name = J_name or J_str
+        U_color = U_color or V_color
+        J_color = J_color or J_color
         if removebackground is not None:
             # note removebackground can be set to `False`
             remove_background = removebackground
@@ -141,10 +138,10 @@ class ECMSPlotter(MPLPlotter):
                 measurement=measurement,
                 axes=[axes[1], axes[3]],
                 tspan=tspan,
-                v_name=v_name,
-                j_name=j_name,
-                v_color=v_color,
-                j_color=j_color,
+                U_name=U_name,
+                J_name=J_name,
+                U_color=U_color,
+                J_color=J_color,
                 **kwargs,
             )
         if (

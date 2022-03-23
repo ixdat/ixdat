@@ -27,7 +27,7 @@ composed_measurement = measurement1 + measurement2
 ec_measurement.calibrate_RE(RE_vs_RHE=1)
 
 assert np.isclose(
-    ec_measurement.v[0] - ec_measurement["raw_potential"].data[0],
+    ec_measurement.U[0] - ec_measurement["raw_potential"].data[0],
     ec_measurement.RE_vs_RHE,
 )
 

@@ -34,7 +34,7 @@ class CyclicVoltammogram(ECMeasurement):
         try:
             _ = self["cycle"]
         except SeriesNotFoundError:
-            median_potential = 1 / 2 * (np.max(self.v) + np.min(self.v))
+            median_potential = 1 / 2 * (np.max(self.U) + np.min(self.U))
             self.redefine_cycle(start_potential=median_potential, redox=True)
 
         self.start_potential = None  # see `redefine_cycle`
@@ -84,7 +84,7 @@ class CyclicVoltammogram(ECMeasurement):
             c = 0
             n = 0
             N = len(self.t)
-            v = self.v
+            v = self.U
             if not redox:
                 # easiest way to reverse directions is to use the same > < operators
                 # but negate the arguments
@@ -134,7 +134,7 @@ class CyclicVoltammogram(ECMeasurement):
         """
         tspan = tspan_passing_through(
             t=self.t,
-            v=self.v,
+            v=self.U,
             vspan=vspan,
             t_i=t_i,
         )

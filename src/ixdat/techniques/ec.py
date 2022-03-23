@@ -65,16 +65,16 @@ class ECMeasurement(Measurement):
 
     - `ec_meas.t_name` is the name of the definitive time, i.e. that of the potential
     - `ec_meas.E_name` is the name of the raw potential
-    - `ec_meas.v_name` is the name of the calibrated and/or corrected potential
+    - `ec_meas.U_name` is the name of the calibrated and/or corrected potential
     - `ec_meas.I_name` is the name of the raw current
-    - `ec_meas.j_name` is the name of the normalized current
+    - `ec_meas.J_name` is the name of the normalized current
     - `ec_meas.selector_name` is the name of the default selector, i.e. "selector"
 
     Numpy arrays from important `DataSeries` are directly accessible via attributes:
 
     - `ec_meas.t` for `ec_meas["potential"].t`
-    - `ec_meas.v` for `ec_meas["potential"].data`
-    - `ec_meas.j` for `ec_meas["current"].data`
+    - `ec_meas.U` for `ec_meas["potential"].data`
+    - `ec_meas.J` for `ec_meas["current"].data`
 
     `ECMeasurement` comes with an `ECPlotter` which either plots `potential` and
     `current` against time (`ec_meas.plot_measurement()`) or plots `current` against
@@ -151,13 +151,13 @@ class ECMeasurement(Measurement):
         return self["raw_current"].name
 
     @property
-    def v_name(self):
+    def U_name(self):
         if self.RE_vs_RHE is not None:
             return EC_FANCY_NAMES["potential"]
         return self.E_name
 
     @property
-    def j_name(self):
+    def J_name(self):
         if self.A_el is not None:
             return EC_FANCY_NAMES["current"]
         return self.I_name
@@ -173,14 +173,14 @@ class ECMeasurement(Measurement):
         return self.I_name
 
     @property
-    @deprecate("0.1", "Use `v_name` instead.", "0.3")
+    @deprecate("0.1", "Use `U_name` instead.", "0.3")
     def V_str(self):
-        return self.v_name
+        return self.U_name
 
     @property
-    @deprecate("0.1", "Use `j_name` instead.", "0.3")
+    @deprecate("0.1", "Use `J_name` instead.", "0.3")
     def J_str(self):
-        return self.j_name
+        return self.J_name
 
     @property
     def aliases(self):
@@ -311,11 +311,23 @@ class ECMeasurement(Measurement):
         return self["raw_current"]
 
     @property
+    def U(self):
+        """The potential [V] numpy array of the measurement"""
+        return self.potential.data.copy()
+
+    @property
+    def J(self):
+        """The current ([mA] or [mA/cm^2]) numpy array of the measurement"""
+        return self.current.data.copy()
+
+    @property
+    @deprecate("0.1", "Use `U` instead.", "0.3")
     def v(self):
         """The potential [V] numpy array of the measurement"""
         return self.potential.data.copy()
 
     @property
+    @deprecate("0.1", "Use `J` instead.", "0.3")
     def j(self):
         """The current ([mA] or [mA/cm^2]) numpy array of the measurement"""
         return self.current.data.copy()
@@ -389,31 +401,31 @@ class ECCalibration(Calibration):
         if key == "potential":
             raw_potential = measurement["raw_potential"]
             name = raw_potential.name
-            v = raw_potential.data
+            U = raw_potential.data
             if self.RE_vs_RHE:
-                v = v + self.RE_vs_RHE
-                name = measurement.v_name or EC_FANCY_NAMES["potential"]
+                U = U + self.RE_vs_RHE
+                name = measurement.U_name or EC_FANCY_NAMES["potential"]
             if self.R_Ohm:
-                i_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
-                v = v - self.R_Ohm * i_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
+                I_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
+                U = U - self.R_Ohm * I_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
                 name = name + " $_{ohm. corr.}$"
             return ValueSeries(
                 name=name,
                 unit_name=raw_potential.unit_name,
-                data=v,
+                data=U,
                 tseries=raw_potential.tseries,
             )
 
         if key == "current":
             raw_current = measurement["raw_current"]
             name = raw_current.name
-            v = raw_current.data
+            J = raw_current.data
             if self.A_el:
-                v = v / self.A_el
-                name = measurement.j_name or EC_FANCY_NAMES["current"]
+                J = J / self.A_el
+                name = measurement.J_name or EC_FANCY_NAMES["current"]
             return ValueSeries(
                 name=name,
                 unit_name=raw_current.unit_name,
-                data=v,
+                data=J,
                 tseries=raw_current.tseries,
             )
