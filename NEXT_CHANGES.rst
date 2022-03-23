@@ -24,9 +24,12 @@ ixdat.measurement
 - Generalization of multiple calibrations:
 
   ``Measurement.calibration`` is deprecated in favor of ``Measurement.calibration_list``.
-  Use ``add_calibration()``. See example below, under "MSCalResult.name..."
+  A dummy calibration property is put in with a getter and setter which raise
+  ``DepreciationWarning``'s. Use, e.g.:
 
-  Setting ``calibration`` is deprecated.
+  - ``meas.calibration_list[0]`` (replaces ``meas.calibration``).
+
+  - ``meas.add_calibration(my_cal)`` (replaces ``meas.calibration = my_cal``).
 
 
 ixdat.techniques
@@ -44,7 +47,7 @@ ixdat.techniques
 
   The old property names are deprecated.
 
-- Renamed keyward in ``MSMeasurement.plot_flux()``:
+- Renamed keyword in ``MSMeasurement.plot_flux()``:
 
   - ``remove_background`` (replaces ``removebackground``)
 

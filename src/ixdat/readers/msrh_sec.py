@@ -14,7 +14,7 @@ class MsrhSECReader:
         self,
         path_to_file,
         path_to_ref_spec_file,
-        path_to_E_I_file,
+        path_to_U_J_file,
         scan_rate,
         tstamp=None,
         cls=None,
@@ -32,7 +32,7 @@ class MsrhSECReader:
                 The length of the columns should be the same as in the spectrum data
                 but in practice is a few points longer. The excess points at the starts
                 of the columns are discarded.
-            path_to_E_I_file (Path or str): The full path to the file containing the
+            path_to_U_J_file (Path or str): The full path to the file containing the
                 current data vs potential. The columns may be reversed in order. In the
                 end the potential in the spectra file will be retained and the potential
                 here used to interpolate the current onto the spectra file's potential.
@@ -52,16 +52,16 @@ class MsrhSECReader:
         # ^ Note the first row, containing potential, will become the keys. The first
         #   column, containing an arbitrary counter, is included in the data.
         ref_df = pd.read_csv(path_to_ref_spec_file, names=["wavelength", "counts"])
-        EI_df = pd.read_csv(path_to_E_I_file, names=["E", "I"])
+        EI_df = pd.read_csv(path_to_U_J_file, names=["U", "J"])
 
         # The spectra need (i) the first colum with the arbitrary counter to be
         #    discarded and (ii) axes switched so that wavelength is the inner axis
         #    (axis=1). The outer axis (axis=0) then spans potential or, eq., time:
         spectra = sec_df.to_numpy()[:, 1:].swapaxes(0, 1)
         # The potential comes from the keys of that data, discarding the first column:
-        E = np.array([float(key) for key in sec_df.keys()])[1:]
+        U = np.array([float(key) for key in sec_df.keys()])[1:]
         # We get time from this potential and the scan rate, with a helper function:
-        t = calc_t_using_scan_rate(E, dvdt=scan_rate * 1e-3)
+        t = calc_t_using_scan_rate(U, dvdt=scan_rate * 1e-3)
         # If they didn't provide a tstamp, we have to prompt for it.
         tstamp = tstamp or prompt_for_tstamp(path_to_file)
         # Ready to define the measurement's TimeSeries:
@@ -95,23 +95,23 @@ class MsrhSECReader:
         )
 
         # Now we process the current and potential:
-        E_0 = EI_df["E"].to_numpy()  # ... but we'll actually use U from the sec data
-        I_0 = EI_df["I"].to_numpy() * 1e3  # 1e3 converts [A] to [mA]
-        if E_0[0] > E_0[-1]:  # Need the potential in the EC file to be increasing:
-            E_0 = np.flip(E_0)
-            I_0 = np.flip(I_0)
+        U_0 = EI_df["U"].to_numpy()  # ... but we'll actually use U from the sec data
+        J_0 = EI_df["J"].to_numpy() * 1e3  # 1e3 converts [A] to [mA]
+        if U_0[0] > U_0[-1]:  # Need the potential in the EC file to be increasing:
+            U_0 = np.flip(U_0)
+            J_0 = np.flip(J_0)
         # Since the "real" potential is in the sec data, we need to interpolate the
         #   current onto it:
-        I = np.interp(E, E_0, I_0)
+        J = np.interp(U, U_0, J_0)
         # and now we're ready to define the electrochemical DataSeries:
-        E_series = ValueSeries("raw potential / [V]", "V", E, tseries=tseries)
-        I_series = ValueSeries("raw current / [mA]", "mA", I, tseries=tseries)
+        U_series = ValueSeries("raw potential / [V]", "V", U, tseries=tseries)
+        J_series = ValueSeries("raw current / [mA]", "mA", J, tseries=tseries)
 
         # put all our DataSeries together:
         series_list = [
             tseries,
-            E_series,
-            I_series,
+            U_series,
+            J_series,
             wl_series,
             reference,
             spectra,
@@ -129,8 +129,8 @@ class MsrhSECReader:
             tstamp=tstamp,
             series_list=series_list,
             aliases={
-                "raw_potential": (E_series.name,),
-                "raw_current": (I_series.name,),
+                "raw_potential": (U_series.name,),
+                "raw_current": (J_series.name,),
                 "t": (tseries.name,),
             },
         )
@@ -143,8 +143,8 @@ class MsrhSECDecayReader:
         self,
         path_to_file,
         path_to_ref_spec_file,
-        path_to_t_I_file,
-        path_to_t_E_file,
+        path_to_t_J_file,
+        path_to_t_U_file,
         tstamp=None,
         cls=None,
     ):
@@ -161,9 +161,9 @@ class MsrhSECDecayReader:
                 The length of the columns should be the same as in the spectrum data
                 but in practice is a few points longer. The excess points at the starts
                 of the columns are discarded.
-            path_to_t_E_file (Path or str): The full path to the file containing the
+            path_to_t_U_file (Path or str): The full path to the file containing the
                 potential data vs time.
-            path_to_t_I_file (Path or str): The full path to the file containing the
+            path_to_t_J_file (Path or str): The full path to the file containing the
                 current data vs time.
             tstamp (float): Timestamp. If None, the user will be prompted for the
                 measurement start time or whether to use the file creation time. This is
@@ -176,8 +176,8 @@ class MsrhSECDecayReader:
 
         sec_df = pd.read_csv(path_to_file)
         ref_df = pd.read_csv(path_to_ref_spec_file, names=["wavelength", "counts"])
-        t_E_df = pd.read_csv(path_to_t_E_file, names=["t", "E"])
-        t_I_df = pd.read_csv(path_to_t_I_file, names=["t", "I"])
+        t_U_df = pd.read_csv(path_to_t_U_file, names=["t", "U"])
+        t_J_df = pd.read_csv(path_to_t_J_file, names=["t", "J"])
 
         t_and_spectra = sec_df.to_numpy()
         spectra = t_and_spectra[:, 1:].swapaxes(0, 1)
@@ -196,18 +196,18 @@ class MsrhSECDecayReader:
             data=np.array(ref_signal),
         )
 
-        E = t_E_df["E"].to_numpy()
-        t_E = t_E_df["t"].to_numpy()
-        I = t_I_df["I"].to_numpy() * 1e3  # Convert [A] to [mA]
-        t_I = t_I_df["t"].to_numpy()
+        U = t_U_df["U"].to_numpy()
+        t_U = t_U_df["t"].to_numpy()
+        J = t_J_df["J"].to_numpy() * 1e3  # Convert [A] to [mA]
+        t_E = t_J_df["t"].to_numpy()
 
         tstamp = tstamp or prompt_for_tstamp(path_to_file)
 
-        tseries_I = TimeSeries("t for current", "s", data=t_I, tstamp=tstamp)
-        tseries_E = TimeSeries("t for potential", "s", data=t_E, tstamp=tstamp)
+        tseries_J = TimeSeries("t for current", "s", data=t_E, tstamp=tstamp)
+        tseries_U = TimeSeries("t for potential", "s", data=t_U, tstamp=tstamp)
         tseries_spectra = TimeSeries("t for spectra", "s", t_spectra, tstamp)
-        E_series = ValueSeries("raw potential / [V]", "V", E, tseries=tseries_E)
-        I_series = ValueSeries("raw current / [mA]", "mA", I, tseries=tseries_I)
+        U_series = ValueSeries("raw potential / [V]", "V", U, tseries=tseries_U)
+        J_series = ValueSeries("raw current / [mA]", "mA", J, tseries=tseries_J)
         spectra = Field(
             name="spectra",
             unit_name="counts",
@@ -215,11 +215,11 @@ class MsrhSECDecayReader:
             data=spectra,
         )
         series_list = [
-            tseries_I,
-            tseries_E,
+            tseries_J,
+            tseries_U,
             tseries_spectra,
-            E_series,
-            I_series,
+            U_series,
+            J_series,
             wl_series,
             reference,
             spectra,
@@ -234,9 +234,9 @@ class MsrhSECDecayReader:
             tstamp=tstamp,
             series_list=series_list,
             aliases={
-                "raw_potential": (E_series.name,),
-                "raw_current": (I_series.name,),
-                "t": (tseries_E.name,),
+                "raw_potential": (U_series.name,),
+                "raw_current": (J_series.name,),
+                "t": (tseries_U.name,),
             },
         )
 
