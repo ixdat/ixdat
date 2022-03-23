@@ -54,10 +54,10 @@ class ECPlotter(MPLPlotter):
                 of its most normalized/correct current.
             v_color (str): The color to plot v_name. Defaults to black.
             j_color (str): The color to plot j_name. Defaults to red.
-            V_str (str): DEPRECATED
-            J_str (str): DEPRECATED
-            V_color (str): DEPRECATED
-            J_color (str): DEPRECATED
+            V_str (str): DEPRECATED. Use `v_name`.
+            J_str (str): DEPRECATED. Use `j_name`.
+            V_color (str): DEPRECATED. Use `v_color`.
+            J_color (str): DEPRECATED. Use `j_color`.
             **plot_kwargs (dict): Additional key-word arguments are passed to
                 matplotlib's plot() function. See below for a few examples
 

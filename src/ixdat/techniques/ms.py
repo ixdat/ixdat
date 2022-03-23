@@ -141,7 +141,7 @@ class MSMeasurement(Measurement):
 
         Note:
         `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
-        remove_backround=True by default. An MSCalibration does the maths.
+        remove_background=True by default. An MSCalibration does the maths.
 
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
@@ -150,7 +150,7 @@ class MSMeasurement(Measurement):
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
                 Defaults to True.
-            removebackground (bool): DEPRECATED
+            removebackground (bool): DEPRECATED. Use `remove_background`.
             include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
         """
         if removebackground is not None:
@@ -185,7 +185,7 @@ class MSMeasurement(Measurement):
             tspan_bg (tspan): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
-            removebackground (bool): DEPRECATED
+            removebackground (bool): DEPRECATED. Use `remove_background`.
         """
         if removebackground is not None:
             remove_background = removebackground
@@ -265,7 +265,7 @@ class MSCalResult(Saveable):
         F=None,
     ):
         super().__init__()
-        self.name = name or f"{mol} at {mass}"
+        self.name = name or f"{mol}@{mass}"
         self.mol = mol
         self.mass = mass
         self.cal_type = cal_type

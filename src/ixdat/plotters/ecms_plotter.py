@@ -81,7 +81,7 @@ class ECMSPlotter(MPLPlotter):
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
-            removebackground (bool): DEPRECATED
+            removebackground (bool): DEPRECATED. Use `remove_background`
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             v_name (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.potential`
@@ -89,10 +89,10 @@ class ECMSPlotter(MPLPlotter):
                 Defaults to the name of the series `measurement.current`
             v_color (str): The color to plot the variable given by 'V_str'
             j_color (str): The color to plot the variable given by 'J_str'
-            V_str (str): DEPRECATED
-            J_str (str): DEPRECATED
-            V_color (str): DEPRECATED
-            J_color (str): DEPRECATED
+            V_str (str): DEPRECATED. Use `v_name`.
+            J_str (str): DEPRECATED. Use `j_name`.
+            V_color (str): DEPRECATED. Use `v_color`.
+            J_color (str): DEPRECATED. Use `j_color`.
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
@@ -224,7 +224,7 @@ class ECMSPlotter(MPLPlotter):
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
-            removebackground: DEPRECATED
+            removebackground: DEPRECATED. Use `remove_background`
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             logplot (bool): Whether to plot the MS data on a log scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
@@ -251,7 +251,7 @@ class ECMSPlotter(MPLPlotter):
             axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else axes[0],
             tspan=tspan,
             tspan_bg=tspan_bg,
-            removebackground=remove_background,
+            remove_background=remove_background,
             mass_list=mass_list,
             mass_lists=mass_lists,
             mol_list=mol_list,

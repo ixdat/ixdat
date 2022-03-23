@@ -5,7 +5,12 @@ Use this as a staging ground for CHANGES.rst. In other words, describe the
 changes and additions to ixdat's API associated with your contribution. The idea is
 that what you write here informs other developers what is on its way and then will be
 copied to CHANGES.rst when the next version of ixdat is distributed. Please include
-links to relevant Issues, Discussions, and PR's on github.
+links to relevant Issues, Discussions, and PR's on github with the following format
+(replace XX):
+
+`Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
+
+`PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
 Coming changes for ixdat 0.2.0
 ==============================
@@ -19,7 +24,9 @@ ixdat.measurement
 - Generalization of multiple calibrations:
 
   ``Measurement.calibration`` is deprecated in favor of ``Measurement.calibration_list``.
-  Use ``add_calibration()``. Setting ``calibration`` is deprecated.
+  Use ``add_calibration()``. See example below, under "MSCalResult.name..."
+
+  Setting ``calibration`` is deprecated.
 
 
 ixdat.techniques
@@ -39,9 +46,27 @@ ixdat.techniques
 
 - Renamed keyward in ``MSMeasurement.plot_flux()``:
 
-  - ``remove_backround`` (replaces ``removebackground``
+  - ``remove_background`` (replaces ``removebackground``)
 
   The old argument name is deprecated
+
+- ``MSCalResult.name`` is by default set to ``{mol}@{mass}``, e.g. "H2@M2" instead of
+  ``{mol}_{mass}``, e.g. "H2_M2". However, you can
+  use just the mol name in ``grab`` and plotting functions if a measurement has an ``MSCalResult``
+  with the molecule in the ``ms_cal_list`` of one of the calibrations in its ``calibration_list``:
+
+    >>> cal = my_ms_inlet.gas_flux_calibration(
+    >>>     my_ms_measurement, mol="H2", mass="M2", tspan=[0, 20]
+    >>> )
+    >>> cal.name
+    'H2@M2'
+    >>> cal.mol
+    'H2'
+    >>> my_ms_measurement.add_calibration(MSCalibration(ms_cal_results=[cal])
+    >>> meas.grab("n_dot_H2")
+    numpy.Array([...]), numpy.Array([...])
+    >>> meas.plot(mol_list=["H2"])   # should also work.
+
 
 ixdat.plotters
 ^^^^^^^^^^^^^^
@@ -54,18 +79,18 @@ ixdat.plotters
   MS data, ``axes[1]`` electrode potential, ``axes[2]=None`` and ``axes[3]`` being the
   electrode current.
 
-- Renamed key-word arguments in EC, EC-MS, and SEC plotting functions:
+- Renamed keyword arguments in EC, EC-MS, and SEC plotting functions:
 
   - ``v_name`` (replaces ``V_str``)
   - ``j_name`` (replaces ``J_str``)
   - ``v_color`` (replaces ``V_color``)
   - ``j_color`` (replaces ``J_color``)
 
-  The old key-word argument names are deprecated.
+  The old keyword argument names are deprecated.
 
-- Renamed key-word argument in MS and EC-MS plotting functions:
+- Renamed keyword argument in MS and EC-MS plotting functions:
 
-  - ``remove_backround`` (replaces ``removebackground``
+  - ``remove_background`` (replaces ``removebackground``)
 
   The old argument name is deprecated
 

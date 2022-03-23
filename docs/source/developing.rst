@@ -17,7 +17,8 @@ https://github.com/ixdat/ixdat
 
 To develop ixdat, you will need to use git and github. This means
 
-- `install git <https://git-scm.com/downloads>`_. Git bash is strongly recommended for Windows
+- `install git <https://git-scm.com/downloads>`_. Git bash works well for Windows.
+
 - Create an account at https://github.com
 
 - Make a fork of https://github.com/ixdat/ixdat so that you have your own version of the
@@ -40,7 +41,7 @@ To develop ixdat, you will need to use git and github. This means
 
     pip install --upgrade ixdat
 
-- Switch out the branch you want to work from. Note, this is also how to *use* a feature that is under development.::
+- Switch to the branch you want to work from. Note, this is also how to *use* a feature that is under development.::
 
     git switch branch_to_work_from
 
@@ -50,8 +51,7 @@ To develop ixdat, you will need to use git and github. This means
 
 - Make and switch to a branch on which to develop your feature::
 
-    git branch my_feature_branch_name
-    git switch my_feature_branch_name
+    git switch -c my_feature_branch_name
 
 
 - Develop your feature, committing regularly and pushing regularly to your github account.
