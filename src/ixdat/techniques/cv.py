@@ -24,6 +24,10 @@ class CyclicVoltammogram(ECMeasurement):
 
     essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
     selector_name = "cycle"
+
+    series_constructors = ECMeasurement.series_constructors
+    series_constructors["scan_rate"] = "_build_scan_rate"
+
     """Name of the default selector"""
 
     def __init__(self, *args, **kwargs):
@@ -154,8 +158,7 @@ class CyclicVoltammogram(ECMeasurement):
             ).integrate(item, ax=ax)
         return super().integrate(item, tspan, ax=ax)
 
-    @property
-    def scan_rate(self, res_points=10):
+    def _build_scan_rate(self, res_points=10):
         """The scan rate as a ValueSeries"""
         t, v = self.grab("potential")
         scan_rate_vec = calc_sharp_v_scan(t, v, res_points=res_points)
@@ -165,7 +168,6 @@ class CyclicVoltammogram(ECMeasurement):
             data=scan_rate_vec,
             tseries=self.potential.tseries,
         )
-        # TODO: cache'ing, index accessibility
         return scan_rate_series
 
     def get_timed_sweeps(self, v_scan_res=5e-4, res_points=10):
@@ -189,7 +191,7 @@ class CyclicVoltammogram(ECMeasurement):
             "zero": "hold",
         }
         indexed_sweeps = find_signed_sections(
-            self.scan_rate.data, x_res=v_scan_res, res_points=res_points
+            self["scan_rate"].data, x_res=v_scan_res, res_points=res_points
         )
         timed_sweeps = []
         for (i_start, i_finish), general_sweep_type in indexed_sweeps:
@@ -206,9 +208,9 @@ class CyclicVoltammogram(ECMeasurement):
         """
         sweep_1 = self.select_sweep(vspan)
         v_scan_1 = np.mean(sweep_1.grab("scan_rate")[1])  # [V/s]
-        I_1 = np.mean(sweep_1.grab("raw_current")[1])  # [mA] -> [A]
+        I_1 = np.mean(sweep_1.grab("raw_current")[1]) * 1e-3  # [mA] -> [A]
 
-        sweep_2 = self.select_sweep([vspan[-1], vspan[0]])
+        sweep_2 = self.select_sweep([vspan[-1], vspan[0]], t_i=max(sweep_1.t + 1))
         v_scan_2 = np.mean(sweep_2.grab("scan_rate")[1])  # [V/s]
         I_2 = np.mean(sweep_2.grab("raw_current")[1]) * 1e-3  # [mA] -> [A]
 
