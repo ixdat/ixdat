@@ -31,11 +31,48 @@ ixdat.measurement
 
   - ``meas.add_calibration(my_cal)`` (replaces ``meas.calibration = my_cal``).
 
+- New method ``Measurement.calibrate(*args, **kwargs)``
+
+  ``meas.calibrate(...)`` is a shortcut for ``meas.add_calibration(calibration_class(...))``
+  where calibration_class is found by looking up ``meas.techniques`` in
+  ``ixdat.technqiues.CALIBRATION_CLASSES``. For esample, if ``meas`` is an
+  ``ECMSMeasurement``, calibration_class is ``ECMSCalibration``.
+
+  Together with the generalization of multiple calibrations, this enables very flexible
+  calibration. All of the following code examples work.
+
+  1. When measurements are appended or hyphenated, all their calibrations carry over.
+  This example results in ``my_ecms_meas.calibration_list`` having an
+  ``ECCalibration`` and an ``MSCalibration``, both of which are accessible to ``grab``
+  and plotting functions.
+
+    >>> my_ec_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
+    >>> my_ms_meas.calibrate(ms_cal_results=[my_H2_at_M2, my_O2_at_M32])
+    >>> my_ecms_meas = my_ec_meas + my_ms_meas
+    >>> my_ecms_meas.plot(mol_list=["H2", "O2"])
+
+  2. You can calibrate one measurement multiple times. When two calibrations contain the
+  same parameter, the last one added is used:
+
+    >>> my_ecms_meas = my_ec_meas + my_ms_meas
+    >>> my_ecms_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
+    >>> my_ecms_meas.calibrate(ms_cal_results=[my_H2_at_M2, my_O2_at_M32])
+    >>> my_ecms_meas.calibrate(RE_vs_RHE=0.656)   # overshadows the first RE_vs_RHE
+    >>> my_ecms_meas.plot(mol_list=["H2", "O2"])
+
+  3. You can calibrate all at once.
+
+    >>> my_ecms_meas = my_ec_meas + my_ms_meas
+    >>> my_ecms_meas.calibrate(
+    >>>     RE_vs_RHE=0.715, A_el=0.196, ms_cal_results=[my_H2_at_M2, my_O2_at_M32]
+    >>> )   # note that all of these are keyword arguments to ECMSCalibration.
+    >>> my_ecms_meas.plot(mol_list=["H2", "O2"])
+
 
 ixdat.techniques
 ^^^^^^^^^^^^^^^^
 
-- Renamed measurement technique class: ``CyclicVoltammogram`` (replaces ``CyclicVoltammagram``)
+- Renamed measurement technique class: ``CyclicVoltammogram`` (replaces ``CyclicVoltammagram``).
   The old name is deprecated.
 
 - Renamed properties in ``ECMeasurement`` and inheriting classes:
@@ -47,7 +84,7 @@ ixdat.techniques
 
   The old property names are deprecated.
 
-- Renamed keyword in ``MSMeasurement.plot_flux()``:
+- Renamed keyword in ``MSMeasurement.grab_flux()`` and related methods:
 
   - ``remove_background`` (replaces ``removebackground``)
 
@@ -65,10 +102,10 @@ ixdat.techniques
     'H2@M2'
     >>> cal.mol
     'H2'
-    >>> my_ms_measurement.add_calibration(MSCalibration(ms_cal_results=[cal])
+    >>> my_ms_measurement.calibrate(ms_cal_results=[cal])
     >>> meas.grab("n_dot_H2")
     numpy.Array([...]), numpy.Array([...])
-    >>> meas.plot(mol_list=["H2"])   # should also work.
+    >>> meas.plot(mol_list=["H2"])
 
 
 ixdat.plotters

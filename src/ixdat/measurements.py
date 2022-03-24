@@ -26,7 +26,7 @@ from .projects.samples import Sample
 from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
-from .exceptions import BuildError, SeriesNotFoundError
+from .exceptions import BuildError, SeriesNotFoundError, TechniqueError
 from .tools import deprecate
 
 
@@ -439,6 +439,30 @@ class Measurement(Saveable):
 
     def add_calibration(self, calibration):
         self._calibration_list = [calibration] + self._calibration_list
+
+    def calibrate(self, *args, **kwargs):
+        """Add a calibration of the Measurement's default calibration type
+
+        The calibration class is determined by the measurement's `technique`.
+        *args and **kwargs are passed to the calibration class's `__init__`.
+
+        Raises:
+            TechniqueError if no calibration class for the measurement's technique
+        """
+
+        from .techniques import CALIBRATION_CLASSES
+
+        if self.technique in CALIBRATION_CLASSES:
+            calibration_class = CALIBRATION_CLASSES[self.technique]
+        else:
+            raise TechniqueError(
+                f"{self} is of technique '{self.technique}, for which there is not an "
+                "available default calibration. Instead, import one of the following "
+                "classes to initiate a calibration, and then use `add_calibration` "
+                f"instead. \n Options: {CALIBRATION_CLASSES}"
+            )
+
+        self.add_calibration(calibration_class(*args, **kwargs))
 
     @property
     @deprecate(

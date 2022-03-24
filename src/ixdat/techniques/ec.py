@@ -233,38 +233,6 @@ class ECMeasurement(Measurement):
             if getattr(calibration, "R_Ohm", None) is not None:
                 return calibration.R_Ohm
 
-    def calibrate(
-        self,
-        RE_vs_RHE=None,
-        A_el=None,
-        R_Ohm=None,
-        tstamp=None,
-        cal_name=None,
-    ):
-        """Calibrate the EC measurement (all args optional)
-
-        Args:
-            RE_vs_RHE (float): reference electode potential on RHE scale in [V]
-            A_el (float): electrode area in [cm^2]
-            R_Ohm (float): ohmic drop resistance in [Ohm]
-            tstamp (flaot): The timestamp at which the calibration was done (defaults
-                to now)
-            cal_name (str): The name of the calibration.
-        """
-        if RE_vs_RHE is None and A_el is None and R_Ohm is None:
-            print("Warning! Ignoring attempt to calibrate without any parameters.")
-            return
-        new_calibration = ECCalibration(
-            RE_vs_RHE=RE_vs_RHE,
-            A_el=A_el,
-            R_Ohm=R_Ohm,
-            tstamp=tstamp,
-            name=cal_name,
-            measurement=self,
-        )
-        self.add_calibration(new_calibration)
-        self.clear_cache()
-
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
         new_calibration = ECCalibration(
