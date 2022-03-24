@@ -138,7 +138,7 @@ class ECMeasurement(Measurement):
         super().__init__(name, **kwargs)
 
         self.ec_technique = ec_technique
-        if RE_vs_RHE or A_el or R_Ohm:
+        if RE_vs_RHE is not None or A_el is not None or R_Ohm is not None:
             self.calibrate(RE_vs_RHE, A_el, R_Ohm)
         self.plot_vs_potential = self.plotter.plot_vs_potential
 
@@ -251,13 +251,13 @@ class ECMeasurement(Measurement):
                 to now)
             cal_name (str): The name of the calibration.
         """
-        if not (RE_vs_RHE or A_el or R_Ohm):
+        if RE_vs_RHE is None and A_el is None and R_Ohm is None:
             print("Warning! Ignoring attempt to calibrate without any parameters.")
             return
         new_calibration = ECCalibration(
-            RE_vs_RHE=RE_vs_RHE or self.RE_vs_RHE,
-            A_el=A_el or self.A_el,
-            R_Ohm=R_Ohm or self.R_Ohm,
+            RE_vs_RHE=RE_vs_RHE,
+            A_el=A_el,
+            R_Ohm=R_Ohm,
             tstamp=tstamp,
             name=cal_name,
             measurement=self,
