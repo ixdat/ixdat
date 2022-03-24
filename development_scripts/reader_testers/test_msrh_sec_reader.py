@@ -13,7 +13,7 @@ data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/sec"
 sec_meas = Measurement.read(
     data_dir / "test-7SEC.csv",
     path_to_ref_spec_file=data_dir / "WL.csv",
-    path_to_V_J_file=data_dir / "test-7_JV.csv",
+    path_to_U_J_file=data_dir / "test-7_JV.csv",
     scan_rate=1,
     tstamp=1,
     reader="msrh_sec",

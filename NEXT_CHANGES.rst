@@ -133,6 +133,40 @@ ixdat.plotters
 
   The old argument name is deprecated
 
+ixdat.readers
+^^^^^^^^^^^^^
+- ixdat-eported .csv compatability
+
+  The "ixdat" reader is no longer automatically compatible with .csv files exported by
+  the ``IxdatCSVExporter`` of ixdat v0.1.x. You can, however, get ixdat v0.2.0 to read
+  your v0.1.x .csv's by giving it a little help, in the form of aliases. For example:
+
+     >>> meas = Measurement.read_url(
+     >>>     "https://raw.githubusercontent.com/ixdat/tutorials/"
+     >>>     + "ixdat_v0p1/loading_appending_and_saving/co_strip.csv",
+     >>>     reader="ixdat",
+     >>>     aliases={
+     >>>         "t": ["time/s"],
+     >>>         "raw_current": ["raw current / [mA]"],
+     >>>         "raw_potential": ["raw potential / [V]"]
+     >>>     }
+     >>> )
+
+  Can read `this file <https://raw.githubusercontent.com/ixdat/tutorials/ixdat_v0p1/loading_appending_and_saving/co_strip.csv>
+  into ixdat.
+
+  To know which aliases to use, you should check the file and the ``essential_series_names``
+  of the technique class. For example:
+
+    >>> form ixdat.techniques import ECMeasurement
+    >>> ECMeasurement.essential_series_names
+    {'t', 'raw_potential', 'raw_current'}
+
+  For even earlier .csv files (exported by ixdat version <0.1.5), you will also need to
+  specify the technique.
+
+  Starting in ixdat v0.2.0, ixdat-exported files will have the ixdat version in the header.
+
 Bug Fixes
 ---------
 
