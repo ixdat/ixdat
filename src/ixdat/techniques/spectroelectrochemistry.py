@@ -111,10 +111,10 @@ class SpectroECMeasurement(ECMeasurement):
         """Return the Spectrum at a given potential V, time t, or index
 
         Exactly one of V, t, and index should be given. If V (t) is out of the range of
-        self.v (self.t), then first or last spectrum will be returned.
+        self.U (self.t), then first or last spectrum will be returned.
 
         Args:
-            V (float): The potential at which to get the spectrum. Measurement.v must
+            V (float): The potential at which to get the spectrum. Measurement.U must
                 be monotonically increasing for this to work.
             t (float): The time at which to get the spectrum
             index (int): The index of the spectrum
@@ -122,8 +122,8 @@ class SpectroECMeasurement(ECMeasurement):
 
         Return Spectrum: The spectrum. The data is (spectrum.x, spectrum.y)
         """
-        if V and V in self.v:  # woohoo, can skip interpolation!
-            index = int(np.argmax(self.v == V))
+        if V and V in self.U:  # woohoo, can skip interpolation!
+            index = int(np.argmax(self.U == V))
         elif t and t in self.t:  # woohoo, can skip interpolation!
             index = int(np.argmax(self.t == t))
         if index:  # then we're done:
@@ -133,7 +133,7 @@ class SpectroECMeasurement(ECMeasurement):
         end_spectra = (self.spectrum_series[0].y, self.spectrum_series[-1].y)
         if V:
             counts_interpolater = interp1d(
-                self.v, counts, axis=0, fill_value=end_spectra, bounds_error=False
+                self.U, counts, axis=0, fill_value=end_spectra, bounds_error=False
             )
             # FIXME: This requires that potential and spectra have same tseries!
             y = counts_interpolater(V)

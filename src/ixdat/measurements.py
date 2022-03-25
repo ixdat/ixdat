@@ -26,7 +26,8 @@ from .projects.samples import Sample
 from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
-from .exceptions import BuildError, SeriesNotFoundError
+from .exceptions import BuildError, SeriesNotFoundError, TechniqueError
+from .tools import deprecate
 
 
 class Measurement(Saveable):
@@ -439,6 +440,55 @@ class Measurement(Saveable):
     def add_calibration(self, calibration):
         self._calibration_list = [calibration] + self._calibration_list
 
+    def calibrate(self, *args, **kwargs):
+        """Add a calibration of the Measurement's default calibration type
+
+        The calibration class is determined by the measurement's `technique`.
+        *args and **kwargs are passed to the calibration class's `__init__`.
+
+        Raises:
+            TechniqueError if no calibration class for the measurement's technique
+        """
+
+        from .techniques import CALIBRATION_CLASSES
+
+        if self.technique in CALIBRATION_CLASSES:
+            calibration_class = CALIBRATION_CLASSES[self.technique]
+        else:
+            raise TechniqueError(
+                f"{self} is of technique '{self.technique}, for which there is not an "
+                "available default calibration. Instead, import one of the following "
+                "classes to initiate a calibration, and then use `add_calibration` "
+                f"instead. \n Options: {CALIBRATION_CLASSES}"
+            )
+
+        self.add_calibration(calibration_class(*args, **kwargs))
+
+    @property
+    @deprecate(
+        last_supported_release="0.1",
+        update_message=(
+            "At present, ixdat measurements have a `calibration_list` but no compound "
+            "`calibration`, and this property just returns the first from the list."
+        ),
+        hard_deprecation_release=None,
+    )
+    def calibration(self):
+        return self.calibration_list[0]
+
+    @calibration.setter
+    @deprecate(
+        last_supported_release="0.1",
+        update_message=(
+            "Setting `calibration` is deprecated. For now it clears `calibration_list` "
+            "and replaces it with a single calibration. "
+            "Use `add_calibration()` instead."
+        ),
+        hard_deprecation_release="0.3",
+    )
+    def calibration(self, calibration):
+        self._calibration_list = [calibration]
+
     @property
     def series_list(self):
         """List of the DataSeries containing the measurement's data"""
@@ -589,8 +639,20 @@ class Measurement(Saveable):
         series = self.get_series(key)
         # Finally, wherever we found the series, cache it and return it.
         # step 3.
-        self._cached_series[key] = series
+        self._cache_series(key, series)
         return series
+
+    def _cache_series(self, key, series):
+        """Cache `series` such that it can be looked up with its name or with `key`."""
+        self._cached_series[key] = series  # now it can be looked up with by `key`
+        # If the name of the series is not `key`, we can get in a situation where
+        # looking up the series name raises a SeriesNotFoundError. To avoid this
+        # problematic situation, we check if it can be looked up, and if not,
+        # add it a second time to the cached_series, now under `series.name`
+        try:
+            _ = self[series.name]
+        except SeriesNotFoundError:
+            self._cached_series[series.name] = series
 
     def get_series(self, key):
         """Find or build the data series corresponding to key without direct cache'ing

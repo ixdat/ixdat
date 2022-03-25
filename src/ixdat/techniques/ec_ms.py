@@ -202,6 +202,7 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         signal_bgs=None,
         RE_vs_RHE=None,
         A_el=None,
+        R_Ohm=None,
         L=None,
         technique="EC-MS",
     ):
@@ -212,13 +213,15 @@ class ECMSCalibration(ECCalibration, MSCalibration):
             setup (str): Name of the setup where the ms_calibration is made
             ms_cal_results (list of MSCalResult): The mass spec calibrations
             RE_vs_RHE (float): the RE potential in [V]
-            A_el (float): the geometric electrode area in [cm^2]
-            L (float): the working distance in [m]
+            A_el (float): The geometric electrode area in [cm^2]
+            R_Ohm (float): The Ohmic drop in [Ohm]
+            L (float): The working distance in [m]
         """
         ECCalibration.__init__(
             self,
             A_el=A_el,
             RE_vs_RHE=RE_vs_RHE,
+            R_Ohm=R_Ohm,
         )
         MSCalibration.__init__(
             self,

@@ -3,6 +3,7 @@
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 from .plotting_tools import color_axis
+from ..tools import deprecate
 
 
 class ECPlotter(MPLPlotter):
@@ -12,18 +13,22 @@ class ECPlotter(MPLPlotter):
         """Initiate the ECPlotter with its default Meausurement to plot"""
         self.measurement = measurement
 
+    @deprecate("0.1", "Use `U_name` instead.", "0.3", kwarg_name="V_str")
+    @deprecate("0.1", "Use `J_name` instead.", "0.3", kwarg_name="J_str")
+    @deprecate("0.1", "Use `U_color` instead.", "0.3", kwarg_name="V_color")
     def plot_measurement(
         self,
         *,
         measurement=None,
         tspan=None,
-        v_name=None,
-        j_name=None,
-        axes=None,
-        v_color="k",
-        j_color="r",
+        U_name=None,
+        J_name=None,
+        U_color=None,
+        J_color=None,
         V_str=None,
         J_str=None,
+        V_color=None,
+        axes=None,
         **plot_kwargs,
     ):
         """Plot two variables on two y-axes vs time
@@ -37,18 +42,19 @@ class ECPlotter(MPLPlotter):
             measurement (Measurement): The measurement to plot, if not the one the
                 plotter was initiated with.
             tspan (iter of float): The timespan (wrt to measurement.tstamp) to plot.
-            v_name (string): The name of the ValueSeries to plot on the left y-axis.
+            axes (list of matplotlib.Axis): Two axes to plot on, if not the default
+                new twinx()'d axes. axes[0] is for `U_name` and axes[1] for `J_name`.
+            U_name (string): The name of the ValueSeries to plot on the left y-axis.
                 Defaults to measurement.V_str, which for an ECMeasurement is the name
                 of its most calibrated/correct potential.
-            j_name (string): The name of the ValueSeries to plot on the right y-axis.
+            J_name (string): The name of the ValueSeries to plot on the right y-axis.
                 Defaults to measurement.J_str, which for an ECMeasurement is the name
                 of its most normalized/correct current.
-            axes (list of matplotlib.Axis): Two axes to plot on, if not the default
-                new twinx()'d axes. axes[0] is for V_str and axes[1] for J_str.
-            V_str (str): DEPRECIATED. now v_name
-            J_str (str): DEPRECIATED. now j_name
-            v_color (str): The color to plot v_name. Defaults to black.
-            j_color (str): The color to plot j_name. Defaults to red.
+            U_color (str): The color to plot U_name. Defaults to black.
+            J_color (str): The color to plot J_name. Defaults to red.
+            V_str (str): DEPRECATED. Use `U_name`.
+            J_str (str): DEPRECATED. Use `J_name`.
+            V_color (str): DEPRECATED. Use `U_color`.
             **plot_kwargs (dict): Additional key-word arguments are passed to
                 matplotlib's plot() function. See below for a few examples
 
@@ -58,39 +64,44 @@ class ECPlotter(MPLPlotter):
         Returns list of matplotlib.pyplot.Axis: The axes plotted on.
         """
         measurement = measurement or self.measurement
-        if V_str or J_str:
-            print(
-                "DEPRECIATION WARNING! V_str has been renamed v_name and J_str has "
-                "been renamed j_name. Get it right next time."
-            )
-        v_name = v_name or V_str or measurement.v_name
+
+        # apply deprecated arguments (the user will get a warning):
+        U_name = U_name or V_str
+        J_name = J_name or J_str
+        U_color = U_color or V_color
+
+        # apply defaults.
+        U_name = U_name or measurement.potential.name
+        J_name = J_name or measurement.current.name
         # FIXME: We need a better solution for V_str and J_str that involves the
         #   Calibration and is generalizable. see:
         #   https://github.com/ixdat/ixdat/pull/11#discussion_r679290123
-        j_name = j_name or J_str or measurement.j_name
-        t_v, v = measurement.grab(v_name, tspan=tspan)
-        t_j, j = measurement.grab(j_name, tspan=tspan)
+        U_color = U_color or "k"
+        J_color = J_color or "r"
+
+        t_v, v = measurement.grab(U_name, tspan=tspan)
+        t_j, j = measurement.grab(J_name, tspan=tspan)
         if axes:
             ax1, ax2 = axes
         else:
             ax1 = self.new_ax()
             ax2 = ax1.twinx()
             axes = [ax1, ax2]
-        ax1.plot(t_v, v, "-", color=v_color, label=v_name, **plot_kwargs)
-        ax2.plot(t_j, j, "-", color=j_color, label=j_name, **plot_kwargs)
+        ax1.plot(t_v, v, "-", color=U_color, label=U_name, **plot_kwargs)
+        ax2.plot(t_j, j, "-", color=J_color, label=J_name, **plot_kwargs)
         ax1.set_xlabel("time / [s]")
-        ax1.set_ylabel(v_name)
-        ax2.set_ylabel(j_name)
-        color_axis(ax1, v_color, lr="left")
-        color_axis(ax2, j_color, lr="right")
+        ax1.set_ylabel(U_name)
+        ax2.set_ylabel(J_name)
+        color_axis(ax1, U_color, lr="left")
+        color_axis(ax2, J_color, lr="right")
         return axes
 
     def plot_vs_potential(
         self,
         measurement=None,
         tspan=None,
-        v_name=None,
-        j_name=None,
+        U_name=None,
+        J_name=None,
         ax=None,
         **plot_kwargs,
     ):
@@ -113,8 +124,8 @@ class ECPlotter(MPLPlotter):
                 plotter was initialized with
             tspan (iter of float): The timespan, relative to vs measurement.tstamp, on
                 which to plot.
-            v_name (str): Name of the x-axis variable. Defaults to calibrated potential
-            j_name (str): Name of the y-axis variable. Defaults to normalized current.
+            U_name (str): Name of the x-axis variable. Defaults to calibrated potential
+            J_name (str): Name of the y-axis variable. Defaults to normalized current.
             ax (matplotlib.pyplot.Axis): The axis to plot on, if not a new one.
             **plot_kwargs (dict): Additional key-word arguments are passed to
                 matplotlib's plot() function. See below for a few examples
@@ -127,16 +138,16 @@ class ECPlotter(MPLPlotter):
         """
 
         measurement = measurement or self.measurement
-        v_name = v_name or (
-            measurement.v_name
+        U_name = U_name or (
+            measurement.U_name
             if measurement.RE_vs_RHE is not None
             else measurement.E_name
         )
-        j_name = j_name or (
-            measurement.j_name if measurement.A_el is not None else measurement.I_name
+        J_name = J_name or (
+            measurement.J_name if measurement.A_el is not None else measurement.I_name
         )
-        t_v, v = measurement.grab(v_name, tspan=tspan)
-        t_j, j = measurement.grab(j_name, tspan=tspan)
+        t_v, v = measurement.grab(U_name, tspan=tspan)
+        t_j, j = measurement.grab(J_name, tspan=tspan)
 
         j_v = np.interp(t_v, t_j, j)
         if not ax:
@@ -145,8 +156,8 @@ class ECPlotter(MPLPlotter):
         if "color" not in plot_kwargs:
             plot_kwargs["color"] = "k"
         ax.plot(v, j_v, **plot_kwargs)
-        ax.set_xlabel(v_name)
-        ax.set_ylabel(j_name)
+        ax.set_xlabel(U_name)
+        ax.set_ylabel(J_name)
         return ax
 
 
@@ -171,18 +182,18 @@ class CVDiffPlotter(MPLPlotter):
         ax = ECPlotter.plot_vs_potential(
             self, measurement=measurement.cv_compare_2, ax=ax, color="k", linestyle="--"
         )
-        t1, v1 = measurement.cv_compare_1.grab("potential")
-        j1 = measurement.cv_compare_1.grab_for_t("current", t=t1)
-        j_diff = measurement.grab_for_t("current", t=t1)
+        t1, U1 = measurement.cv_compare_1.grab("potential")
+        J1 = measurement.cv_compare_1.grab_for_t("current", t=t1)
+        J_diff = measurement.grab_for_t("current", t=t1)
         # a mask which is true when cv_1 had bigger current than cv_2:
-        v_scan = measurement.scan_rate.data
-        mask = np.logical_xor(0 < j_diff, v_scan < 0)
+        v_scan = measurement.grab_for_t("scan_rate", t=t1)
+        mask = np.logical_xor(0 < J_diff, v_scan < 0)
 
-        ax.fill_between(v1, j1 - j_diff, j1, where=mask, alpha=0.2, color="g")
+        ax.fill_between(U1, J1 - J_diff, J1, where=mask, alpha=0.2, color="g")
         ax.fill_between(
-            v1,
-            j1 - j_diff,
-            j1,
+            U1,
+            J1 - J_diff,
+            J1,
             where=np.logical_not(mask),
             alpha=0.1,
             hatch="//",
@@ -206,18 +217,18 @@ class CVDiffPlotter(MPLPlotter):
         scan or the current cv_2 is more negative than cv_1 in the cathodic scan.
         """
         measurement = measurement or self.measurement
-        t, v = measurement.grab("potential", tspan=tspan, include_endpoints=False)
+        t, U = measurement.grab("potential", tspan=tspan, include_endpoints=False)
         j_diff = measurement.grab_for_t("current", t)
-        v_scan = measurement.scan_rate.data
+        v_scan = measurement.grab_for_t("scan_rate", t)
         # a mask which is true when cv_1 had bigger current than cv_2:
         mask = np.logical_xor(0 < j_diff, v_scan < 0)
 
         if not ax:
             ax = self.new_ax()
 
-        ax.plot(v[mask], j_diff[mask], "k-", label="cv1 > cv2")
+        ax.plot(U[mask], j_diff[mask], "k-", label="cv1 > cv2")
         ax.plot(
-            v[np.logical_not(mask)],
+            U[np.logical_not(mask)],
             j_diff[np.logical_not(mask)],
             "k--",
             label="cv1 < cv2",

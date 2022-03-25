@@ -1,7 +1,6 @@
 """For use in development of the cinfdata reader. Requires access to sample data."""
 
 from pathlib import Path
-from matplotlib import pyplot as plt
 
 from ixdat import Measurement
 

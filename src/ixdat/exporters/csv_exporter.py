@@ -1,6 +1,7 @@
 """Classes for exporting measurement data"""
 from pathlib import Path
 import json
+from .. import __version__
 
 
 class CSVExporter:
@@ -84,6 +85,8 @@ class CSVExporter:
             s_list.append(v_name)
 
         header_lines = []
+        ixdat_version_line = f"ixdat version = {__version__}\n"
+        header_lines.append(ixdat_version_line)
         for attr in ["name", "technique", "tstamp", "backend_name", "id"]:
             line = f"{attr} = {getattr(measurement, attr)}\n"
             header_lines.append(line)

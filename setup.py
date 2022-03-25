@@ -1,9 +1,7 @@
-"""Initial setup.py
-"""
+"""This module is used for building the package for distribution"""
 
 import os
 import re
-import codecs
 import setuptools
 
 META_PATH = os.path.join("src", "ixdat", "__init__.py")
