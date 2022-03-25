@@ -26,17 +26,9 @@ STANDARD_TEMPERATURE = 298.15  # Standard temperature of 25 C in [K]
 STANDARD_PRESSURE = 1e5  # Standard pressure of 1 bar in [Pa]
 
 # molecule properties (should probably come from elsewhere).
-DYNAMIC_VISCOSITIES = {
-    "O2": 2.07e-05,
-    "N2": 1.79e-05,
-    "Ar": 2.27e-05,
-    "He": 1.99e-05,
-    "CO": 1.78e-05,
-    "CO2": 1.503e-05,
-    "H2": 8.90e-06,
-}  # in [Pa*s]
+# in [Pa*s]
 
-DYNAMIC_VISCOSITIES_T = {
+DYNAMIC_VISCOSITIES = {
     "O2": {
         200: 14.72e-06,
         220: 15.98e-06,

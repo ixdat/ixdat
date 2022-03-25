@@ -14,7 +14,6 @@ from ..constants import (
     STANDARD_TEMPERATURE,
     STANDARD_PRESSURE,
     DYNAMIC_VISCOSITIES,
-    DYNAMIC_VISCOSITIES_T,
     MOLECULAR_DIAMETERS,
     MOLAR_MASSES,
 )
@@ -544,9 +543,9 @@ class MSInlet:
             p = self.p
 
         pi = np.pi
-        _eta_T = list(DYNAMIC_VISCOSITIES_T[gas].keys())
-        _eta_v = list(DYNAMIC_VISCOSITIES_T[gas].values())
-        eta = np.interp(T, _eta_T, _eta_v)# dynamic viscosity in [Pa*s]
+        _eta_v = list(DYNAMIC_VISCOSITIES[gas].values()) #list of eta(T) for 'gas'
+        _eta_T = list(DYNAMIC_VISCOSITIES[gas].keys()) #list of Ts for 'gas'
+        eta = np.interp(T, _eta_T, _eta_v) # dynamic viscosity of gas at T in [Pa*s]
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
         m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
 
