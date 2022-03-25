@@ -113,7 +113,6 @@ class ECMSPlotter(MPLPlotter):
         U_name = U_name or V_str
         J_name = J_name or J_str
         U_color = U_color or V_color
-        J_color = J_color or J_color
         if removebackground is not None:
             # note removebackground can be set to `False`
             remove_background = removebackground

@@ -45,7 +45,7 @@ To develop ixdat, you will need to use git and github. This means
 
     git switch branch_to_work_from
 
-  Usually it makes most sense to work from the main branch::
+  Usually it makes most sense to start work by branching from the main branch::
 
     git switch main
 

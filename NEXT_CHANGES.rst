@@ -135,7 +135,7 @@ ixdat.plotters
 
 ixdat.readers
 ^^^^^^^^^^^^^
-- ixdat-eported .csv compatability
+- ixdat-exported .csv back compatability
 
   The "ixdat" reader is no longer automatically compatible with .csv files exported by
   the ``IxdatCSVExporter`` of ixdat v0.1.x. You can, however, get ixdat v0.2.0 to read
@@ -152,7 +152,7 @@ ixdat.readers
      >>>     }
      >>> )
 
-  Can read `this file <https://raw.githubusercontent.com/ixdat/tutorials/ixdat_v0p1/loading_appending_and_saving/co_strip.csv>
+  Can read `this file <https://raw.githubusercontent.com/ixdat/tutorials/ixdat_v0p1/loading_appending_and_saving/co_strip.csv>`_
   into ixdat.
 
   To know which aliases to use, you should check the file and the ``essential_series_names``

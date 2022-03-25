@@ -31,7 +31,7 @@ the following Tutorials:
 
 
 ``CyclicVoltammogram`` inherits from ``ECMeasurement`` and adds useful functionality for
-cyclic voltammotry analysis. This includes:
+cyclic voltammetry analysis. This includes:
 
 - Current vs potential as the default ``plot()`` (same as ``plot_vs_potential()`` for an ``ECMeasurment``).
 - A new counter, ``cycle``, which counts cycles. At first this counter will point to
@@ -48,7 +48,7 @@ cyclic voltammotry analysis. This includes:
   potential is scanned through a certain range.
 - A ``calc_capacitance`` function which uses the two above to calculate capacitance in Farads.
 
-A common workflow is to read in cyclic voltammotry data as an ``ECMeasurement``, convert
+A common workflow is to read in cyclic voltammetry data as an ``ECMeasurement``, convert
 it to a ``CyclicVoltammogram`` with the ``as_cv()`` method, tell it when to increment the
 cycle with ``redefine_cycle()``, coplot potential and cycle vs time with ``plot_measurement()``
 to see which cycle number to use, and then index to analyze or plot individual cycles.

@@ -15,7 +15,7 @@ class ECPlotter(MPLPlotter):
 
     @deprecate("0.1", "Use `U_name` instead.", "0.3", kwarg_name="V_str")
     @deprecate("0.1", "Use `J_name` instead.", "0.3", kwarg_name="J_str")
-    @deprecate("0.1", "Use `v_color` instead.", "0.3", kwarg_name="V_color")
+    @deprecate("0.1", "Use `U_color` instead.", "0.3", kwarg_name="V_color")
     def plot_measurement(
         self,
         *,
@@ -69,7 +69,6 @@ class ECPlotter(MPLPlotter):
         U_name = U_name or V_str
         J_name = J_name or J_str
         U_color = U_color or V_color
-        J_color = J_color or J_color
 
         # apply defaults.
         U_name = U_name or measurement.potential.name
@@ -187,7 +186,7 @@ class CVDiffPlotter(MPLPlotter):
         J1 = measurement.cv_compare_1.grab_for_t("current", t=t1)
         J_diff = measurement.grab_for_t("current", t=t1)
         # a mask which is true when cv_1 had bigger current than cv_2:
-        v_scan = measurement.scan_rate.data
+        v_scan = measurement.grab_for_t("scan_rate", t=t1)
         mask = np.logical_xor(0 < J_diff, v_scan < 0)
 
         ax.fill_between(U1, J1 - J_diff, J1, where=mask, alpha=0.2, color="g")
@@ -220,7 +219,7 @@ class CVDiffPlotter(MPLPlotter):
         measurement = measurement or self.measurement
         t, U = measurement.grab("potential", tspan=tspan, include_endpoints=False)
         j_diff = measurement.grab_for_t("current", t)
-        v_scan = measurement.scan_rate.data
+        v_scan = measurement.grab_for_t("scan_rate", t)
         # a mask which is true when cv_1 had bigger current than cv_2:
         mask = np.logical_xor(0 < j_diff, v_scan < 0)
 
