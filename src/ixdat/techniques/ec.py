@@ -269,12 +269,12 @@ class ECMeasurement(Measurement):
         return self["current"]
 
     @property
-    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_potential'], instead.", "0.3")
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_potential']`, instead.", "0.3")
     def raw_potential(self):
         return self["raw_potential"]
 
     @property
-    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_current'], instead.", "0.3")
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_current']`, instead.", "0.3")
     def raw_current(self):
         return self["raw_current"]
 

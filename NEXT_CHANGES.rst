@@ -11,3 +11,38 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
+
+
+Debugging for 0.2.1
+-------------------
+
+Will add the following when we finish debugging (will be 0.2.1 then). But some will go
+in the 0.2.0 section of CHANGES.rst as indicated:
+
+API changes
+...........
+
+techniques
+^^^^^^^^^^
+- Lookups instead of properties (as of 0.2.0)
+
+  - ``my_ec_meas["raw_potential"]`` replaces ``ECMeasurement.raw_potential``
+  - ``my_ec_meas["raw_currents"]`` replaces ``ECMeasurement.raw_potential``
+  - ``my_cv["scan_rate"]`` replaces ``CyclicVoltammogram.scan_rate``
+
+  The old properties are deprecated.
+
+- ``ECMSCyclicVoltammogram.diff_with()`` raises a ``NotImplementedError`` rather than
+  an obscure error message. (as of 0.2.1)
+
+- ``ECMSPlotter.plot_vs_potential`` can accept ``color`` as a keyword argument. This
+  colors both the U-J curve in the lower panel and all the signals in the top panel,
+  so best to use with together with a ``mass_list`` or ``mol_list`` of length 1. (as of 0.2.1)
+
+
+Debugging
+.........
+
+- ``ECMSExporter`` works as of 0.2.1 (it had been broken in 0.2.0).
+
+  This solves `Issue #56 <https://github.com/ixdat/ixdat/issues/56>`_
