@@ -152,15 +152,11 @@ class ECMeasurement(Measurement):
 
     @property
     def U_name(self):
-        if self.RE_vs_RHE is not None:
-            return EC_FANCY_NAMES["potential"]
-        return self.E_name
+        return self.potential.name
 
     @property
     def J_name(self):
-        if self.A_el is not None:
-            return EC_FANCY_NAMES["current"]
-        return self.I_name
+        return self.current.name
 
     @property
     @deprecate("0.1", "Use `E_name` instead.", "0.3")
@@ -186,7 +182,6 @@ class ECMeasurement(Measurement):
     def aliases(self):
         """A dictionary with the names of other data series a given name can refer to"""
         a = super().aliases.copy()
-        a.update({value: [key] for (key, value) in EC_FANCY_NAMES.items()})
         return a
 
     @property
@@ -372,7 +367,7 @@ class ECCalibration(Calibration):
             U = raw_potential.data
             if self.RE_vs_RHE:
                 U = U + self.RE_vs_RHE
-                name = measurement.U_name or EC_FANCY_NAMES["potential"]
+                name = EC_FANCY_NAMES["potential"]
             if self.R_Ohm:
                 I_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
                 U = U - self.R_Ohm * I_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
@@ -390,7 +385,7 @@ class ECCalibration(Calibration):
             J = raw_current.data
             if self.A_el:
                 J = J / self.A_el
-                name = measurement.J_name or EC_FANCY_NAMES["current"]
+                name = EC_FANCY_NAMES["current"]
             return ValueSeries(
                 name=name,
                 unit_name=raw_current.unit_name,
