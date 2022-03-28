@@ -239,7 +239,7 @@ class CyclicVoltammogram(ECMeasurement):
             res_points (int):  see :meth:`get_timed_sweeps`
         """
 
-        if self.__class__ is not CyclicVoltammogram:
+        if not type(self) is CyclicVoltammogram:
             raise NotImplementedError(
                 "CyclicVoltammogram.diff_with() is not implemented for "
                 f"cyclic voltammograms of type {type(self)}"
