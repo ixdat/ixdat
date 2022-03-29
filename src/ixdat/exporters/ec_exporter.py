@@ -17,7 +17,7 @@ class ECExporter(CSVExporter):
     @property
     def aliases(self):  # TODO: Figure out if this can be deleted.
         """Ensure that the essential series are accessible as aliases."""
-        aliases = self.measurement.aliases.copy()
+        aliases = super().aliases.copy()
         for name, prop_name in [
             ("t", "t_name"),
             ("raw_potential", "E_name"),

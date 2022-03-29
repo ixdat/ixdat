@@ -22,6 +22,7 @@ class ECMSExporter(ECExporter):
         tspan=None,
         mass_list=None,
         mol_list=None,
+        time_step=None,
     ):
         if not v_list:
             if mass_list:
@@ -32,4 +33,6 @@ class ECMSExporter(ECExporter):
             v_list += mass_list
         if mol_list:
             v_list += [f"n_dot_{mol}" for mol in mol_list]
-        return super().export(path_to_file, measurement, v_list, tspan)
+        return super().export(
+            path_to_file, measurement, v_list, tspan, time_step=time_step
+        )
