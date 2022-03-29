@@ -10,6 +10,7 @@ class SpectrumPlotter(MPLPlotter):
     """A plotter for spectrums"""
 
     def __init__(self, spectrum=None):
+        super().__init__()
         self.spectrum = spectrum
 
     def plot(self, spectrum=None, ax=None, **kwargs):
@@ -33,6 +34,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
     """A plotter for spectrum series, f.ex. spectra taken continuously over time"""
 
     def __init__(self, spectrum_series=None):
+        super().__init__()
         self.spectrum_series = spectrum_series
 
     @property

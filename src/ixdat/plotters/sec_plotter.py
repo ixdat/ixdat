@@ -16,6 +16,7 @@ class SECPlotter(MPLPlotter):
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""
+        super().__init__()
         self.measurement = measurement
         self.ec_plotter = ECPlotter(measurement=measurement)
         self.spectrum_series_plotter = SpectrumSeriesPlotter(
