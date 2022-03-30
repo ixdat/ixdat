@@ -28,9 +28,10 @@ STANDARD_PRESSURE = 1e5  # Standard pressure of 1 bar in [Pa]
 
 # molecule properties (should probably come from elsewhere).
 
-DYNAMIC_VISCOSITIES = {
+
+DYNAMIC_VISCOSITIES = { # Values is found on engineeringtoolbox.com [22C30]
     "O2":np.array([
-        [200, 14.72e-06],
+        [200, 14.72e-06],  # Temperature [K], Dynamic Viscosit [Pa*s]
         [220, 15.98e-06],
         [240, 17.20e-06],
         [260, 18.38e-06],
@@ -124,8 +125,7 @@ DYNAMIC_VISCOSITIES = {
         [773.15, 1.69e-05],
         [873.15, 1.84e-05],
         ]),
-}  # in [Pa*s] engineeringtoolbox.com
-
+}
 MOLECULAR_DIAMETERS = {
     "O2": 3.55e-10,
     "N2": 3.7e-10,
