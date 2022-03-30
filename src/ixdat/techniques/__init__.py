@@ -11,6 +11,7 @@ from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammogram
 from .ms import MSMeasurement, MSCalibration
 from .ec_ms import ECMSMeasurement, ECMSCalibration
+from .reactor import ReactorMeasurement
 from .spectroelectrochemistry import SpectroECMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
 
@@ -23,6 +24,7 @@ TECHNIQUE_CLASSES = {
     "MS": MSMeasurement,
     "EC-MS": ECMSMeasurement,
     "S-EC": SpectroECMeasurement,
+    "reactor": ReactorMeasurement,
 }
 
 CALIBRATION_CLASSES = {
