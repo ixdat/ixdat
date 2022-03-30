@@ -3,6 +3,7 @@
 import re
 import numpy as np
 import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+import warnings
 
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum
@@ -543,8 +544,12 @@ class MSInlet:
             p = self.p
 
         pi = np.pi
-        _eta_v = list(DYNAMIC_VISCOSITIES[gas].values())  # list of eta(T) for 'gas'
-        _eta_T = list(DYNAMIC_VISCOSITIES[gas].keys())  # list of Ts for 'gas'
+        if T < DYNAMIC_VISCOSITIES[gas][0,0] or T > DYNAMIC_VISCOSITIES[gas][-1,0]:
+             warnings.warn(f"Insufficient data in constants.py to appropriately estimate\
+                             the dynamic viscosity for {gas} at temperature: {T}K")
+        _eta_v = DYNAMIC_VISCOSITIES[gas][:,0]  # list of eta(T) for 'gas'
+        _eta_T = DYNAMIC_VISCOSITIES[gas][:,1]  # list of paired Ts for eta(T)
+
         eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
         m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
