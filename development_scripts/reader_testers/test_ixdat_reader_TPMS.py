@@ -3,10 +3,11 @@ from ixdat import Measurement
 
 data_dir = Path("~/Dropbox/ixdat_resources/test_data/cinfdata/Krabbe").expanduser()
 
-tms = Measurement.read(
+tpms = Measurement.read(
     data_dir / "baratron_temp_measurement.txt.csv",
     reader="ixdat",
     technique="reactor",
+    aliases={"pressure": ["Reactor pressure"], "temperature": ["TC temperature"]},
 )
 
-tms.plot()
+tpms.plot()
