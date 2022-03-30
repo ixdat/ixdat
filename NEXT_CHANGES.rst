@@ -49,9 +49,6 @@ exporters
 
   The old name is deprecated.
 
-- ``ECMSExporter.export()`` functions now take a ``time_step`` argument. It must be used together with
-  a ``tspan``. It is effective in reducing the file size of exported .csv's.
-
 
 Debugging
 .........
@@ -62,3 +59,5 @@ Debugging
 
 - Othe exporters were also sometimes prone to having extra ``aliases`` leading to
   circular lookups in the measurement when they were loaded. This has been fixed (as of 0.2.1)
+
+- ``RE_vs_RHE=0`` counts as calibrated potential!
