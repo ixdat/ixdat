@@ -10,4 +10,6 @@ tpms = Measurement.read(
     aliases={"pressure": ["Reactor pressure"], "temperature": ["TC temperature"]},
 )
 
-tpms.plot()
+axes = tpms.plot()
+
+axes[0].get_figure().savefig("tpms_plot.png")

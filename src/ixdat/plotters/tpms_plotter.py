@@ -136,3 +136,5 @@ class TPMSPlotter(MPLPlotter):
         axes[3].set_xlabel("time / [s]")
         axes[3].set_ylabel(P_name)
         color_axis(axes[3], P_color)
+
+        return axes
