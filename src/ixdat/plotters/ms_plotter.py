@@ -165,7 +165,7 @@ class MSPlotter(MPLPlotter):
         unit=None,
         logplot=True,
         legend=True,
-        **kwargs,
+        **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
 
@@ -203,7 +203,7 @@ class MSPlotter(MPLPlotter):
                 background signals if available
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
-            kwargs: key-word args are passed on to matplotlib's plot()
+            plot_kwargs: additional key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
         if remove_background is None:
@@ -248,12 +248,14 @@ class MSPlotter(MPLPlotter):
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
             x_mass = np.interp(t_v, t, x)
+            plot_kwargs_this_mass = plot_kwargs.copy()
+            if "color" not in plot_kwargs:
+                plot_kwargs_this_mass["color"] = STANDARD_COLORS.get(v_name, "k")
             ax.plot(
                 x_mass,
                 v * unit_factor,
-                color=STANDARD_COLORS.get(v_name, "k"),
                 label=v_name,
-                **kwargs,
+                **plot_kwargs_this_mass,
             )
         ax.set_ylabel(f"signal / [{unit}]")
         ax.set_xlabel(x_name)
@@ -269,7 +271,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
                 legend=legend,
-                **kwargs,
+                **plot_kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
         else:

@@ -170,6 +170,11 @@ class CyclicVoltammogram(ECMeasurement):
         )
         return scan_rate_series
 
+    @property
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['scan_rate']`, instead.", "0.3")
+    def scan_rate(self):
+        return self["scan_rate"]
+
     def get_timed_sweeps(self, v_scan_res=5e-4, res_points=10):
         """Return list of [(tspan, type)] for all the potential sweeps in self.
 
@@ -233,6 +238,12 @@ class CyclicVoltammogram(ECMeasurement):
             v_scan_res (float): see :meth:`get_timed_sweeps`
             res_points (int):  see :meth:`get_timed_sweeps`
         """
+
+        if not type(self) is CyclicVoltammogram:
+            raise NotImplementedError(
+                "CyclicVoltammogram.diff_with() is not implemented for "
+                f"cyclic voltammograms of type {type(self)}"
+            )
 
         vseries = self.potential
         tseries = vseries.tseries

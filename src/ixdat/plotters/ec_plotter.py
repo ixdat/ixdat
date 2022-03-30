@@ -71,11 +71,8 @@ class ECPlotter(MPLPlotter):
         U_color = U_color or V_color
 
         # apply defaults.
-        U_name = U_name or measurement.potential.name
-        J_name = J_name or measurement.current.name
-        # FIXME: We need a better solution for V_str and J_str that involves the
-        #   Calibration and is generalizable. see:
-        #   https://github.com/ixdat/ixdat/pull/11#discussion_r679290123
+        U_name = U_name or measurement.U_name
+        J_name = J_name or measurement.J_name
         U_color = U_color or "k"
         J_color = J_color or "r"
 
@@ -138,14 +135,8 @@ class ECPlotter(MPLPlotter):
         """
 
         measurement = measurement or self.measurement
-        U_name = U_name or (
-            measurement.U_name
-            if measurement.RE_vs_RHE is not None
-            else measurement.E_name
-        )
-        J_name = J_name or (
-            measurement.J_name if measurement.A_el is not None else measurement.I_name
-        )
+        U_name = U_name or measurement.U_name
+        J_name = J_name or measurement.J_name
         t_v, v = measurement.grab(U_name, tspan=tspan)
         t_j, j = measurement.grab(J_name, tspan=tspan)
 
