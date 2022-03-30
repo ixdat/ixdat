@@ -15,8 +15,17 @@ class MPLPlotter:
         self._axis_for_range_selection = set()
         self._selected_range = {"left": None, "right": None}
 
-    def new_ax(self, xlabel=None, ylabel=None):
-        """Return a new matplotlib axis optionally with the given x and y labels"""
+    def new_ax(self, xlabel=None, ylabel=None, interactive=True):
+        """Return a new matplotlib axis optionally with the given x and y labels
+
+        Args:
+            xlabel (str): The label to apply to the x-axis
+            ylabel (str): The label to apply to the y-axis
+            interactive (bool): Whether to activate interactive range selection (default
+                True)
+
+        """
+
         fig, ax = plt.subplots()
         if xlabel:
             ax.set_xlabel(xlabel)
@@ -24,12 +33,13 @@ class MPLPlotter:
             ax.set_ylabel(ylabel)
 
         # Add the axis to those we perform range selection on and connect mouse events
-        self._axis_for_range_selection.add(ax)
-        fig.canvas.mpl_connect("button_press_event", self.onclick)
+        if interactive:
+            self._axis_for_range_selection.add(ax)
+            fig.canvas.mpl_connect("button_press_event", self.onclick)
 
         return ax
 
-    def new_two_panel_axes(self, n_bottom=1, n_top=1, emphasis="top"):
+    def new_two_panel_axes(self, n_bottom=1, n_top=1, emphasis="top", interactive=True):
         """Return the axes handles for a bottom and top panel.
 
         TODO: maybe fix order of axes returned.
@@ -40,10 +50,14 @@ class MPLPlotter:
             n_bottom (int): 1 for a single y-axis, 2 for left and right y-axes on bottom
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels
+            interactive (bool): Whether to activate interactive range selection (default
+                True)
 
         Returns list of axes: top left, bottom left(, top right, bottom right)
         """
-        self.new_ax()  # necessary to avoid deleting an open figure, I don't know why
+        # Necessary to avoid deleting an open figure, I don't know why
+        self.new_ax(interactive=interactive)
+
         if emphasis == "top":
             gs = gridspec.GridSpec(5, 1)
             # gs.update(hspace=0.025)
@@ -60,7 +74,8 @@ class MPLPlotter:
             axes = [plt.subplot(gs[0:3, 0])]
             axes += [plt.subplot(gs[3:6, 0])]
 
-        self._axis_for_range_selection = set(axes)
+        if interactive:
+            self._axis_for_range_selection = set(axes)
 
         axes[0].xaxis.set_label_position("top")
         axes[0].tick_params(
