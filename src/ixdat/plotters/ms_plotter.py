@@ -9,6 +9,7 @@ class MSPlotter(MPLPlotter):
 
     def __init__(self, measurement=None):
         """Initiate the ECMSPlotter with its default Meausurement to plot"""
+        super().__init__()
         self.measurement = measurement
 
     def plot_measurement(

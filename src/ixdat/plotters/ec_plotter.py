@@ -11,6 +11,7 @@ class ECPlotter(MPLPlotter):
 
     def __init__(self, measurement=None):
         """Initiate the ECPlotter with its default Meausurement to plot"""
+        super().__init__()
         self.measurement = measurement
 
     @deprecate("0.1", "Use `U_name` instead.", "0.3", kwarg_name="V_str")
@@ -157,6 +158,7 @@ class CVDiffPlotter(MPLPlotter):
 
     def __init__(self, measurement=None):
         """Initiate the ECPlotter with its default CyclicVoltammagramDiff to plot"""
+        super().__init__()
         self.measurement = measurement
 
     def plot(self, measurement=None, ax=None):
