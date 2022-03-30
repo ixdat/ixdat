@@ -21,6 +21,7 @@ class CSVExporter:
         self.header_lines = None
         self.time_step = None
         self.s_list = None
+        self.columns = []
         self.columns_data = None
         self.path_to_file = None
 
@@ -75,17 +76,18 @@ class CSVExporter:
             aliases[self.measurement.t_name] = (UNIFORM_TIME_COLUMN_NAME,)
         return aliases
 
-    def prepare_header_and_data(self, measurement, v_list, tspan, time_step=None):
+    def prepare_header_and_data(self, measurement, columns, tspan, time_step=None):
         """Prepare self.header_lines to include metadata and value-time pairs
 
         Args:
             measurement (Measurement): The measurement being exported
-            v_list (list of str): The names of the ValueSeries to include
+            columns (list of str): The names of the ValueSeries to include
             tspan (timespan): The timespan of the data to include in the export
         """
         columns_data = {}
         # list of the value names to export:
-        v_list = v_list or self.default_export_columns or list(measurement.value_names)
+        columns = columns or self.default_export_columns or list(measurement.value_names)
+        self.columns = columns
         s_list = []  # list of the series names to export.
         # s_list will also include names of TimeSeries.
 
@@ -106,14 +108,14 @@ class CSVExporter:
             uniform_tseries = None
 
         timecols = {}  # Will be {time_name: value_names}, for the header.
-        for v_name in v_list:
+        for v_name in columns:
             if time_step:
                 tseries = uniform_tseries
                 t = tseries.data
                 v = measurement.grab_for_t(v_name, t=t)
             else:
                 # Collect data and names for each ValueSeries and TimeSeries
-                tseries = measurement[v_name].t_series
+                tseries = measurement[v_name].tseries
                 t, v = measurement.grab(v_name, tspan=tspan)
             t_name = tseries.name
             if t_name in timecols:

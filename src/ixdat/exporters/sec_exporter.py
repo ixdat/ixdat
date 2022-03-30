@@ -3,7 +3,7 @@ from .ec_exporter import ECExporter
 from .spectrum_exporter import SpectrumExporter, SpectrumSeriesExporter
 
 
-class SECExporter(CSVExporter):
+class SECExporter(ECExporter):
     """Adds to CSVExporter the export of the Field with the SEC spectra"""
 
     def __init__(self, measurement, delim=",\t"):
@@ -40,9 +40,7 @@ class SECExporter(CSVExporter):
         )
         return v_list
 
-    aliases = ECExporter.aliases
-
-    def prepare_header_and_data(self, measurement, v_list, tspan):
+    def prepare_header_and_data(self, measurement, v_list, tspan, time_step=None):
         """Do the standard ixdat csv export header preparation, plus SEC stuff.
 
         The SEC stuff is:
@@ -51,7 +49,7 @@ class SECExporter(CSVExporter):
             - add lines to the main file header pointing to the files with the
                 above two exports.
         """
-        super().prepare_header_and_data(measurement, v_list, tspan)
+        super().prepare_header_and_data(measurement, v_list, tspan, time_step=time_step)
         path_to_spectra_file = self.path_to_file.parent / (
             self.path_to_file.stem + "_spectra.csv"
         )
