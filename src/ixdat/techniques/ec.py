@@ -365,10 +365,10 @@ class ECCalibration(Calibration):
             raw_potential = measurement["raw_potential"]
             name = raw_potential.name
             U = raw_potential.data
-            if self.RE_vs_RHE:
+            if self.RE_vs_RHE is not None:
                 U = U + self.RE_vs_RHE
                 name = EC_FANCY_NAMES["potential"]
-            if self.R_Ohm:
+            if self.R_Ohm is not None:
                 I_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
                 U = U - self.R_Ohm * I_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
                 name = name + " $_{ohm. corr.}$"
@@ -383,7 +383,7 @@ class ECCalibration(Calibration):
             raw_current = measurement["raw_current"]
             name = raw_current.name
             J = raw_current.data
-            if self.A_el:
+            if self.A_el is not None:
                 J = J / self.A_el
                 name = EC_FANCY_NAMES["current"]
             return ValueSeries(
