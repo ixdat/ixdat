@@ -46,3 +46,12 @@ Debugging
 - ``ECMSExporter`` works as of 0.2.1 (it had been broken in 0.2.0).
 
   This solves `Issue #56 <https://github.com/ixdat/ixdat/issues/56>`_
+
+ixdat.plotters
+^^^^^^^^^^^^^^
+
+- Added interactive range selection functionality to all plotters,
+  `PR #61 <https://github.com/ixdat/ixdat/pull/61>`_. Left mouse click will set the
+  left marker, right mouse click the right marker, and double clicking with any of the
+  buttons will remove that marker. When both left and right markers are in place, the
+  selected span will be printed out.
