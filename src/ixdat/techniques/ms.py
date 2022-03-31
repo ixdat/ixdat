@@ -560,8 +560,8 @@ class MSInlet:
         pi = np.pi
         if T < DYNAMIC_VISCOSITIES[gas][0, 0] or T > DYNAMIC_VISCOSITIES[gas][-1, 0]:
             warnings.warn(
-                f"Insufficient data in constants.py to appropriately estimate\
-                    the dynamic viscosity for {gas} at temperature: {T}K",
+                "Insufficient data in constants.py to appropriately estimate"
+                f"the dynamic viscosity for {gas} at temperature: {T} K",
                 stacklevel=2,
             )
 
