@@ -39,6 +39,10 @@ techniques
   colors both the U-J curve in the lower panel and all the signals in the top panel,
   so best to use with together with a ``mass_list`` or ``mol_list`` of length 1. (as of 0.2.1)
 
+constants
+^^^^^^^^^
+- Dynamic viscosities are temperature-dependent. This enables accurate gas flux MS
+  calibration (for the gases included) accross a range of temperatures.
 
 Debugging
 .........

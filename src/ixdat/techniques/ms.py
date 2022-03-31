@@ -556,12 +556,14 @@ class MSInlet:
             T = self.T
         if p is None:
             p = self.p
-
         pi = np.pi
+
+        # TODO: make it so that DYNAMIC_VISCOSITIES[gas] can just be a float if someone
+        #   enters it without having access to the temperature-dependent values.
         if T < DYNAMIC_VISCOSITIES[gas][0, 0] or T > DYNAMIC_VISCOSITIES[gas][-1, 0]:
             warnings.warn(
-                f"Insufficient data in constants.py to appropriately estimate\
-                    the dynamic viscosity for {gas} at temperature: {T}K",
+                "Insufficient data in constants.py to appropriately estimate "
+                f"the dynamic viscosity for {gas} at temperature: {T}K",
                 stacklevel=2,
             )
 
@@ -569,6 +571,7 @@ class MSInlet:
         _eta_T = DYNAMIC_VISCOSITIES[gas][:, 0]  # list of paired Ts for eta(T)
 
         eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
+
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
         m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
 
