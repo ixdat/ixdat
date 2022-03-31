@@ -52,6 +52,7 @@ class CinfDatabaseReader:
         self.technique = "MS"  # TODO: MS? Figure out how to tell if it's something else
         self.measurement_class = MSMeasurement
         self.measurement = None
+        self.db = None
 
     def read(self, setup_name, timestamp, name=None, cls=None, units=None, **kwargs):
         """Return a MSMeasurement with the data and metadata recorded from 
@@ -71,7 +72,7 @@ class CinfDatabaseReader:
         self.db = Cinfdata(setup_name=setup_name, grouping_column = 'time')
 
         self.group_data = self.db.get_data_group(timestamp, scaling_factors=(1E-3, None))
-        self.group_meta = self.db.get_data_group(timestamp, scaling_factors=(1E-3, None))
+        self.group_meta = self.db.get_metadata_group(timestamp, scaling_factors=(1E-3, None))
         self.meta = self.group_meta[list(self.group_meta.keys())[0]]  #
 
 
@@ -79,23 +80,20 @@ class CinfDatabaseReader:
         for key in self.group_data.keys():
             column_name = self.group_meta[key]['mass_label']
             tstamp = self.group_meta[key]['unixtime']
-            vcol = self.group_data
+            tcol  = self.group_data[key][:, 0]
+            vcol = self.group_data[key][:, 1]
 
-            self.column_data[label] = np.array(self.group_[name])
-
-        data_series_list = []
-        for name, (tcol, vcol) in self.t_and_v_cols.items():
             tseries = TimeSeries(
-                name=tcol,
-                unit_name=get_column_unit(tcol) or "s",
-                data=self.column_data[tcol],
-                tstamp=self.column_tstamps[tcol],
+                    name=column_name+"-x",
+                    unit_name=get_column_unit(name) or "s",
+                    data=tcol,
+                    tstamp=tstamp,
             )
             vseries = ValueSeries(
-                name=name,
-                data=self.column_data[vcol],
-                tseries=tseries,
-                unit_name=get_column_unit(vcol),
+                    name=column_name,
+                    data=vcol,
+                    tseries=tseries,
+                    unit_name=get_column_unit(vcol),
             )
             data_series_list.append(tseries)
             data_series_list.append(vseries)
@@ -107,8 +105,8 @@ class CinfDatabaseReader:
             series_list=data_series_list,
             tstamp=self.tstamp,
         )
-        # normally MSMeasurement requires mass aliases, but not cinfdata since it uses
-        # the ixdat convention (actually, ixdat uses the cinfdata convention) of M<x>
+
+
         obj_as_dict.update(kwargs)
 
         if issubclass(cls, self.measurement_class):
@@ -134,27 +132,19 @@ class CinfDatabaseReader:
     def set_tstamp(self):
         self.tstamp = meta['unixtime']
 
-    def process_column_line(self, line):
-        """Split the line to get the names of the file's data columns"""
-        self.header_lines.append(line)
-        self.column_names = [name.strip() for name in line.split(self.delim)]
-        self.column_data.update({name: [] for name in self.column_names})
-        i = 0  # need a counter to map tstamps to timecols.
-        for col in self.column_names:
-            if col.endswith("-y"):
-                name = col[:-2]
-                tcol = f"{name}-x"
-                if tcol not in self.column_names:
-                    print(f"Warning! No timecol for {col}. Expected {tcol}. Ignoring.")
-                    continue
-                self.t_and_v_cols[name] = (tcol, col)
-                self.column_tstamps[tcol] = self.tstamp_list[i]
-                i += 1
-
-        self.place_in_file = "data"
 
     def add_mass_scans(self):
-        pass
+        ''' Get corrosponding mass scans to mass_time from 'comment' '''
+        db = Cinfdata(setup=self.setup, grouping_column='comment')
+        group_meta = db.get_metadata_group(self.sample_name)
+        group_data = db.get_data_group(self.sample_name)
+
+        for i, key in enumerate(group_meta.keys()):
+            if group_meta[key]['mass_label'] == 'Mass Scan' or \
+            group_meta[key]['type'] == 4:
+                pass  #create spectrum with unixtime to stich in in the measruement
+            else:
+                pass
 
 
 def get_column_unit(column_name):
@@ -168,4 +158,4 @@ def get_column_unit(column_name):
         #    see https://github.com/ixdat/ixdat/pull/30/files#r811432543, and
         #    https://github.com/CINF/cinfdata/blob/master/sym-files2/export_data.py#L125
         unit_name = None
-.    return unit_name
+    return unit_name
