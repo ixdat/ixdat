@@ -43,12 +43,25 @@ exporters
 ^^^^^^^^^
 
 - ``export()`` functions now take a ``time_step`` argument. It must be used together with
-  a ``tspan``. It is effective in reducing the file size of exported .csv's.
+  a ``tspan``. It is effective in reducing the file size of exported .csv's. `PR #60 <https://github.com/ixdat/ixdat/pull/60>`_
 
 - Renamed keyword argument: ``columns`` replaces ``v_list`` in exporters (``ECExporter`` in v0.2.0, ``ECMSExporter`` in 0.2.1)
 
   The old name is deprecated.
 
+plotters
+^^^^^^^^
+
+- Added interactive range selection functionality to all plotters,
+  `PR #61 <https://github.com/ixdat/ixdat/pull/61>`_. Left mouse click will set the
+  left marker, right mouse click the right marker, and double clicking with any of the
+  buttons will remove that marker. When both left and right markers are in place, the
+  selected span will be printed out.
+
+constants
+^^^^^^^^^
+- Dynamic viscosities are temperature-dependent, `PR #55 <https://github.com/ixdat/ixdat/pull/55>`_ 
+  This enables accurate gas flux MS calibration (for the gases included) accross a range of temperatures.
 
 Debugging
 .........
