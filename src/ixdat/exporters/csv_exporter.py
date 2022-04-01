@@ -1,7 +1,11 @@
 """Classes for exporting measurement data"""
 from pathlib import Path
 import json
+import numpy as np
 from .. import __version__
+from ..data_series import TimeSeries
+
+UNIFORM_TIME_COLUMN_NAME = "projected time / [s]"
 
 
 class CSVExporter:
@@ -9,22 +13,29 @@ class CSVExporter:
 
     default_export_columns = None  # Typically overwritten by inheriting Exporters
     """The names of the value series to export by default."""
-    aliases = None  # This will typically be overwritten by inheriting Exporters
-    """The aliases, needed for techniques with essential series that get renamed."""
 
     def __init__(self, measurement=None, delim=",\t"):
         """Initiate the exported with a measurement (Measurement) and delimiter (str)"""
         self.measurement = measurement
         self.delim = delim
         self.header_lines = None
+        self.time_step = None
         self.s_list = None
+        self.columns = []
         self.columns_data = None
         self.path_to_file = None
 
-    def export(self, path_to_file=None, measurement=None, columns=None, tspan=None):
+    def export(
+        self,
+        path_to_file=None,
+        measurement=None,
+        columns=None,
+        tspan=None,
+        time_step=None,
+    ):
         """Export a given measurement to a specified file.
 
-        To improve flexibility with inheritance, this method allocates its work to:
+        To improve flexibility with inheritance, this method delegates its work to:
         - CSVExporter.prepare_header_and_data()
         - CSVExporter.write_header()
         - CSVExporter.write_data()
@@ -40,6 +51,8 @@ class CSVExporter:
                 CSVExporter to all VSeries and TSeries in the measurement. This default
                 may be overwritten in inheriting exporters.
             tspan (timespan): The timespan to include in the file, defaults to all of it
+            time_step (float): Optional. The time spacing between data points. Can be
+                used to reduce file size. Requires `tspan`.
         """
         measurement = measurement or self.measurement
         if not path_to_file:
@@ -48,31 +61,66 @@ class CSVExporter:
             path_to_file = Path(path_to_file)
         if not path_to_file.suffix:
             path_to_file = path_to_file.with_suffix(".csv")
+        self.time_step = time_step
         self.path_to_file = path_to_file
-        self.prepare_header_and_data(measurement, columns, tspan)
+        self.prepare_header_and_data(measurement, columns, tspan, time_step)
         self.prepare_column_header()
         self.write_header()
         self.write_data()
 
-    def prepare_header_and_data(self, measurement, v_list, tspan):
+    @property
+    def aliases(self):
+        """The aliases, needed for techniques with essential series that get renamed."""
+        aliases = self.measurement.aliases.copy()
+        if self.time_step and hasattr(self.measurement, "t_name"):
+            aliases[self.measurement.t_name] = (UNIFORM_TIME_COLUMN_NAME,)
+        return aliases
+
+    def prepare_header_and_data(self, measurement, columns, tspan=None, time_step=None):
         """Prepare self.header_lines to include metadata and value-time pairs
 
         Args:
             measurement (Measurement): The measurement being exported
-            v_list (list of str): The names of the ValueSeries to include
+            columns (list of str): The names of the ValueSeries to include
             tspan (timespan): The timespan of the data to include in the export
+
+        Keyword arguments ``tspan`` and ``time_step`` as in :meth:`export`.
         """
         columns_data = {}
         # list of the value names to export:
-        v_list = v_list or self.default_export_columns or list(measurement.value_names)
+        self.columns = (
+            columns or self.default_export_columns or list(measurement.value_names)
+        )
         s_list = []  # list of the series names to export.
         # s_list will also include names of TimeSeries.
 
+        if time_step:
+            if not tspan:
+                raise ValueError(
+                    "A `time_step` can only be specified for an export if a `tspan` "
+                    "is also specified."
+                )
+            t = np.arange(start=tspan[0], stop=tspan[-1], step=time_step)
+            uniform_tseries = TimeSeries(
+                name=UNIFORM_TIME_COLUMN_NAME,
+                unit_name="s",
+                data=t,
+                tstamp=measurement.tstamp,
+            )
+        else:
+            uniform_tseries = None
+
         timecols = {}  # Will be {time_name: value_names}, for the header.
-        for v_name in v_list:
-            # Collect data and names for each ValueSeries and TimeSeries
-            t_name = measurement[v_name].tseries.name
-            t, v = measurement.grab(v_name, tspan=tspan)
+        for v_name in self.columns:
+            if time_step:
+                tseries = uniform_tseries
+                t = tseries.data
+                v = measurement.grab_for_t(v_name, t=t)
+            else:
+                # Collect data and names for each ValueSeries and TimeSeries
+                tseries = measurement[v_name].tseries
+                t, v = measurement.grab(v_name, tspan=tspan)
+            t_name = tseries.name
             if t_name in timecols:
                 # We've already collected the data for this time column
                 timecols[t_name].append(v_name)
@@ -105,6 +153,10 @@ class CSVExporter:
             # For now, aliases is nice after the timecol lines. But see the to-do above.
             aliases_line = f"aliases = {json.dumps(self.aliases)}\n"
             header_lines.append(aliases_line)
+        if self.time_step:
+            aliases_line = f"time_step = {self.time_step}\n"
+            header_lines.append(aliases_line)
+
         self.header_lines = header_lines
         self.s_list = s_list
         self.columns_data = columns_data

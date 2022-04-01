@@ -1,9 +1,8 @@
-from .csv_exporter import CSVExporter
 from .ec_exporter import ECExporter
 from .spectrum_exporter import SpectrumExporter, SpectrumSeriesExporter
 
 
-class SECExporter(CSVExporter):
+class SECExporter(ECExporter):
     """Adds to CSVExporter the export of the Field with the SEC spectra"""
 
     def __init__(self, measurement, delim=",\t"):
@@ -34,15 +33,13 @@ class SECExporter(CSVExporter):
     @property
     def default_export_columns(self):
         """The default v_list for SECExporter is that from EC and tracked wavelengths"""
-        v_list = (
+        columns = (
             ECExporter(measurement=self.measurement).default_export_columns
             + self.measurement.tracked_wavelengths
         )
-        return v_list
+        return columns
 
-    aliases = ECExporter.aliases
-
-    def prepare_header_and_data(self, measurement, v_list, tspan):
+    def prepare_header_and_data(self, measurement, columns, tspan=None, time_step=None):
         """Do the standard ixdat csv export header preparation, plus SEC stuff.
 
         The SEC stuff is:
@@ -50,8 +47,10 @@ class SECExporter(CSVExporter):
             - export the actual reference spectrum
             - add lines to the main file header pointing to the files with the
                 above two exports.
+
+        Args and Kwargs: see :meth:`ECExporter.prepare_header_and_data`
         """
-        super().prepare_header_and_data(measurement, v_list, tspan)
+        super().prepare_header_and_data(measurement, columns, tspan, time_step=time_step)
         path_to_spectra_file = self.path_to_file.parent / (
             self.path_to_file.stem + "_spectra.csv"
         )
