@@ -13,3 +13,9 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
 
+For ixdat 0.2.2
+===============
+
+- ``ReactorMeasurement`` class, technique="reactor", with a ``TPMSPlotter``. This
+  technique is analogous to EC-MS with temperature replacing potential and
+  pressure replacing current.
