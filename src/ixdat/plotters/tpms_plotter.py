@@ -227,7 +227,7 @@ class SpectroTPMSPlotter(MPLPlotter):
                 axes[1] is mid_left is Mass ID data;
                 axes[2] is bottom_left is temperature;
                 axes[3] is mid_right is additional MS data if left and right mass_lists
-                    or mol_lists were plotted (otherwise axes[2] is None); and
+                    or mol_lists were plotted (otherwise axes[3] is None); and
                 axes[4] is bottom_right is pressure.
         """
         measurement = measurement or self.measurement

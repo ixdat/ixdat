@@ -8,13 +8,16 @@ copied to CHANGES.rst when the next version of ixdat is distributed. Please incl
 links to relevant Issues, Discussions, and PR's on github with the following format
 (replace XX):
 
-New Reader
-=================
-- ''cinfdata_db'' is a new direct db reader for cinfdatabase at DTU SurfCat
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
+
+
+reader
+^^^^^^^^
+
+- ``cinfdata_db`` is a new direct db reader for cinfdatabase at DTU SurfCat
 
 plotters
 ^^^^^^^^
@@ -22,9 +25,9 @@ plotters
 - ``MSPlotter.plot_measurment`` now create a new axis if no initial axis is given
   before initiating right axes in the case of dual plotting on left and right axes.
   Fixes `Issue #97 <https://github.com/ixdat/ixdat/issues/97>`_
-=======
-For ixdat 0.2.2
-===============
+
+techniques
+^^^^^^^^
 
 - ``ReactorMeasurement`` class, technique="reactor", with a ``TPMSPlotter``. This
   technique is analogous to EC-MS with temperature replacing potential and
