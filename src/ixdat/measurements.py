@@ -863,7 +863,7 @@ class Measurement(Saveable):
             else:
                 try:
                     tseries = m[self.control_series_name].tseries
-                except KeyError:
+                except SeriesNotFoundError:
                     continue
             series_to_append.append(
                 ConstantValue(name="file_number", unit_name="", data=i, tseries=tseries)

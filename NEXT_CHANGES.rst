@@ -36,3 +36,10 @@ Bug Fixes
 - ``Measurement.read(... reader="zilien", technique="MS")`` now returns an
   ``MSMeasurement``. Before, the user had to import ``MSMeasurement`` and use its read
   function or they'd get the reader complaining because it couldn't find the EC data.
+
+- ``ECMeasurement["selector"]`` now correctly counts cumulative changes in file number,
+  loop number, and cycle/step number. Previously there had been bugs of ignoring "cycle number"
+  or "Ns" from biologic file sets if that variable wasn't included in all files, and
+  including it even in file types where it is less useful as a counter (for example,
+  Biologic seems to increment cycle number every time current changes sign during a
+  chronoamperometric potential hold).
