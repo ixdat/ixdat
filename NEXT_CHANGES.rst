@@ -23,6 +23,11 @@ API Changes
   Instead it only returns the calculated ``MSCalResult``. The axes on which the result
   is plot can be returned by setting the keyword argument ``return_axes=True``
 
+- Ability to change the selector increment of a measurement using
+  ``Measurement.rebuild_selector``. This returns a ``ValueSeries`` which counts cumulative
+  changes in specified columns (common ones include "file_number", "cycle_number", etc).
+  Especially useful for compound techniques with biologic potentiostats.
+
 Bug Fixes
 ---------
 
