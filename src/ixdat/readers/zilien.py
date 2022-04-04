@@ -35,10 +35,16 @@ class ZilienTSVReader:
 
         from EC_MS import Zilien_Dataset
 
-        if cls is Measurement:
-            cls = ECMSMeasurement
-
-        if "technique" not in kwargs:
+        if "technique" in kwargs:
+            if kwargs["technique"] == "EC-MS":
+                cls = ECMSMeasurement
+            if kwargs["technique"] == "EC":
+                cls = ECMeasurement
+            if kwargs["technique"] == "MS":
+                cls = MSMeasurement
+        else:
+            if cls is Measurement:
+                cls = ECMSMeasurement
             if issubclass(cls, ECMSMeasurement):
                 kwargs["technique"] = "EC-MS"
             elif issubclass(cls, ECMeasurement):

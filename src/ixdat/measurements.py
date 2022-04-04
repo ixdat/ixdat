@@ -176,9 +176,7 @@ class Measurement(Saveable):
         #       DataSeries.unit_name) and as such should be moved to db.Saveable
         #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372.
         #       Will be fixed with the table definition PR.
-        objects_saved_as_their_name = [
-            "sample",
-        ]
+        objects_saved_as_their_name = ["sample"]
         for object_type_str in objects_saved_as_their_name:
             object_name_str = object_type_str + "_name"
             if object_name_str in obj_as_dict:
@@ -195,7 +193,6 @@ class Measurement(Saveable):
                 # class they call `as_dict` from (e.g. via a Reader)!
                 technique_class = cls
         else:
-            # Normally, we're going to want to make sure that we're in
             technique_class = cls
         measurement = technique_class(**obj_as_dict)
         return measurement
@@ -463,6 +460,7 @@ class Measurement(Saveable):
             )
 
         self.add_calibration(calibration_class(*args, **kwargs))
+        self.clear_cache()
 
     @property
     @deprecate(
