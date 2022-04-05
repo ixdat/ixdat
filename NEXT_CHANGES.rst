@@ -21,7 +21,7 @@ API Changes
 
 - ``ECMSMeasurement.ecms_calibration_curve()`` no longer returns axes by default.
   Instead it only returns the calculated ``MSCalResult``. The axes on which the result
-  is plot can be returned by setting the keyword argument ``return_axes=True``
+  is plotted can be returned by setting the keyword argument ``return_axes=True``
 
 - Ability to change the selector increment of a measurement using
   ``Measurement.rebuild_selector``. This returns a ``ValueSeries`` which counts cumulative

@@ -885,7 +885,7 @@ class Measurement(Saveable):
         Args:
             selector_string (str): The name to use for the selector series
             columns (list): The list of demarcation series. The demarcation series have
-                to have the same tseries, which should be the one pointed to by the
+                to have equal-length tseries, which should be the one pointed to by the
                 meausrement's `control_series_name`.
             extra_columns (list): Extra demarcation series to include if needed.
         """
