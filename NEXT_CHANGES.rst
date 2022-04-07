@@ -23,6 +23,17 @@ API Changes
   Instead it only returns the calculated ``MSCalResult``. The axes on which the result
   is plotted can be returned by setting the keyword argument ``return_axes=True``
 
+- ``MSMeasurement.grab_flux()`` can take as its first argument the name of a molecule
+  for which the measurement has a calibration, but can also take a ``MSCalResult`` directly.
+  As a result, MS plotting functions also accept ``MSCalResults`` in the requested
+  ``mol_list``.  For example::
+
+    cal_H2_M2 = my_ecms_meas.ecms_calibration(
+        mol="H2", mass="M2", n_el=-2, tspan=[100, 200), tspan_bg=[0, 20]
+    )
+    t, n_dot = my_ms_meas.grab_flux(cal_H2_M2)
+    my_ms_meas.plot(mol_list=[cal_H2_M2])
+
 - Ability to change the selector increment of a measurement using
   ``Measurement.rebuild_selector``. This returns a ``ValueSeries`` which counts cumulative
   changes in specified columns (common ones include "file_number", "cycle_number", etc).
