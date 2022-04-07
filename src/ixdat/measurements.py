@@ -436,6 +436,7 @@ class Measurement(Saveable):
 
     def add_calibration(self, calibration):
         self._calibration_list = [calibration] + self._calibration_list
+        self.clear_cache()
 
     def calibrate(self, *args, **kwargs):
         """Add a calibration of the Measurement's default calibration type

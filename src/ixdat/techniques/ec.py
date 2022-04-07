@@ -235,16 +235,14 @@ class ECMeasurement(Measurement):
             measurement=self,
         )
         self.add_calibration(new_calibration)
-        self.clear_cache()
 
     def normalize_current(self, A_el):
-        """Normalize current to electrod surface area by providing `A_el` in [cm^2]."""
+        """Normalize current to electrode surface area by providing `A_el` in [cm^2]."""
         new_calibration = ECCalibration(
             A_el=A_el,
             measurement=self,
         )
         self.add_calibration(new_calibration)
-        self.clear_cache()
 
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
@@ -253,7 +251,6 @@ class ECMeasurement(Measurement):
             measurement=self,
         )
         self.add_calibration(new_calibration)
-        self.clear_cache()
 
     @property
     def potential(self):
