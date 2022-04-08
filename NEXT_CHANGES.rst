@@ -19,10 +19,10 @@ ixdat next
 changed
 -------
 
-parsers
+readers
 ^^^^^^^
 
-- An ixdat native parser for Spectro Inlets - Zilien files has been
+- An ixdat native reader for Spectro Inlets - Zilien files has been
   implemented, as a replacement for leveraging the one in the legacy
   EC_MS project. While re-implementing it, support was also added for
   all auxiliary data series like MFC, PC, ion gauge and pirani values

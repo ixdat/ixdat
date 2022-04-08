@@ -1,8 +1,6 @@
-"""Parsers for files produces by the Zilien software from Spectro Inlets"""
+"""Readers for files produces by the Zilien software from Spectro Inlets"""
 
-import datetime
 import re
-import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -136,15 +134,11 @@ class ZilienTSVReader:
 
         self._path_to_file = Path(path_to_file)
 
-        # Extra timestamp from filename on form: 2021-04-20 11_16_18 Measurement name
-        file_stem = (
-            self._path_to_file.stem
-        )  # The part of the filename before the extension
-        timestamp_string = " ".join(self._path_to_file.stem.split(" ")[:2])
-        timestamp = time.mktime(
-            datetime.datetime.strptime(
-                timestamp_string, ZILIEN_TIMESTAMP_FORM
-            ).timetuple()
+        # Extract timestamp from filename on form: 2021-04-20 11_16_18 Measurement name
+        file_stem = self._path_to_file.stem  # Part of filename before the extension
+        timestamp = timestamp_string_to_tstamp(
+            timestamp_string=" ".join(file_stem.split(" ")[:2]),
+            form=ZILIEN_TIMESTAMP_FORM,
         )
 
         # Parse metadata items
@@ -172,6 +166,7 @@ class ZilienTSVReader:
             "tstamp": timestamp,
             "metadata": metadata,
         }
+        measurement_kwargs.update(kwargs)
         self._measurement = cls(**measurement_kwargs)
         return self._measurement
 
@@ -187,7 +182,7 @@ class ZilienTSVReader:
             column_headers (List[str]): List of column headers
 
         Returns:
-            List[Series], DefaultDict(str, List[str]): List of series and aliases
+            List[Series], DefaultDict(str, List[str]): List of series and dict of aliases
         """
         series = []
         last_time_series = None
@@ -294,6 +289,8 @@ class ZilienTSVReader:
             key, value = parse_metadata_line(file_handle.readline())
             metadata[key] = value
 
+        # If the version is among the first three lines, then we need to read one more
+        # line of metadata before we're guaranteed to have the num_header_lines
         if "file_format_version" in metadata:
             key, value = parse_metadata_line(file_handle.readline())
             metadata[key] = value
@@ -427,7 +424,7 @@ class ZilienSpectrumReader:
         return cls.from_dict(obj_as_dict)
 
 
-if __name__ == "__main__":
+def module_demo():
     """Module demo here.
 
     To run this module in PyCharm, open Run Configuration and set
@@ -435,10 +432,6 @@ if __name__ == "__main__":
     and *not*
         Script path = ...
     """
-
-    from pathlib import Path  # noqa
-    from ixdat.measurements import Measurement  # noqa
-
     path_to_test_file = (
         Path(__file__).parent.resolve().parent.parent.parent
         / "test_data"
@@ -446,13 +439,14 @@ if __name__ == "__main__":
         / "2022-04-06 16_17_23 full set.tsv"
     )
 
-    ecms_measurement = ECMSMeasurement.read(
+    ecms_measurement = Measurement.read(
         reader="zilien",
         path_to_file=path_to_test_file,
     )
-    print("TS", ecms_measurement.tstamp)
-    for sn in ecms_measurement.series_names:
-        print(ecms_measurement[sn].tstamp)
 
     ecms_measurement.plot_measurement()
     plt.show()
+
+
+if __name__ == "__main__":
+    module_demo()

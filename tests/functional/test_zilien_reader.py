@@ -1,4 +1,4 @@
-"""This module perform top-level finctional tests on the Zilien parsers"""
+"""This module performs top-level functional tests on the Zilien reader"""
 
 import datetime
 import time
@@ -6,10 +6,15 @@ from collections import namedtuple
 from pathlib import Path
 
 import pytest
+from ixdat import Measurement
 from pytest import approx
-from ixdat.techniques.ec_ms import ECMSMeasurement, MSMeasurement, ECMeasurement
+from ixdat.techniques.ec_ms import (
+    ECMSMeasurement,
+    MSMeasurement,
+    ECMeasurement,
+)
 
-DATA_DIR = Path(__file__).parent / ".." / ".." / "test_data"
+DATA_DIR = Path(__file__).parent.parent.parent / "test_data"
 
 PATH_TO_DATAFILE = DATA_DIR / "Zilien version 1" / "2022-04-06 16_17_23 full set.tsv"
 TIME_FORMAT = "%Y-%m-%d %H_%M_%S"
@@ -57,7 +62,11 @@ EXPECTED_SERIES_MS = {
 EXPECTED_SERIES_EC = {
     series for series in EXPECTED_SERIES_ECMS if series[2] != "M" and "[A]" not in series
 }
-
+TECHNIQUE_NAME_TO_CLASS = {
+    "EC-MS": ECMSMeasurement,
+    "EC": ECMeasurement,
+    "MS": MSMeasurement,
+}
 series_details = namedtuple("series_details", "t_first,t_last,v_first,v_last,count")
 SERIES_DETAILS = {
     "Voltage [V]": series_details(
@@ -112,17 +121,32 @@ SERIES_DETAILS = {
 
 
 @pytest.mark.parametrize(
-    ["cls", "expected_series"],
+    ["cls_or_technique", "expected_series"],
     (
+        (Measurement, EXPECTED_SERIES_ECMS),
         (ECMSMeasurement, EXPECTED_SERIES_ECMS),
         (MSMeasurement, EXPECTED_SERIES_MS),
         (ECMeasurement, EXPECTED_SERIES_EC),
+        ("EC-MS", EXPECTED_SERIES_ECMS),
+        ("EC", EXPECTED_SERIES_EC),
+        ("MS", EXPECTED_SERIES_MS),
     ),
 )
-def test_read(cls, expected_series):
+def test_read(cls_or_technique, expected_series):
     """Test parsing the file as an ECMSMeasurement"""
-    measurement = cls.read(PATH_TO_DATAFILE, reader="zilien")
-    assert type(measurement) == cls
+    if isinstance(cls_or_technique, str):
+        expected_measurement_class = TECHNIQUE_NAME_TO_CLASS[cls_or_technique]
+        measurement = Measurement.read(
+            PATH_TO_DATAFILE, reader="zilien", technique=cls_or_technique
+        )
+    else:
+        measurement = cls_or_technique.read(PATH_TO_DATAFILE, reader="zilien")
+        if cls_or_technique is Measurement:
+            expected_measurement_class = ECMSMeasurement
+        else:
+            expected_measurement_class = cls_or_technique
+
+    assert type(measurement) == expected_measurement_class
 
     # Check series_names and timestamp
     assert measurement.series_names == expected_series
