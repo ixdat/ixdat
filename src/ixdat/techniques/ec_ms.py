@@ -98,7 +98,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Return MSCalResult: The result of the ms_calibration
         """
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
-        Q = self.integrate("raw current / [mA]", tspan=tspan) * 1e-3
+        Q = self.integrate("raw_current", tspan=tspan) * 1e-3
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
@@ -119,6 +119,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
+        return_ax=False,
     ):
         """Fit mol's sensitivity at mass based on steady periods of EC production
 
@@ -132,19 +133,21 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
-                ms_calibration on. Defaults to None.
+                ms_calibration on. Defaults to None. These axes are not returned.
+            return_ax (bool): Whether to return the axis on which the calibration is
+                plotted together with the MSCalResult. Defaults to False.
 
-        Return MSCalResult(, Axis(, Axis)): The result of the ms_calibration
-            (and requested axes)
+        Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
+            curve axis if requested)
         """
         axis_ms = axes_measurement[0] if axes_measurement else None
-        axis_current = axes_measurement[0] if axes_measurement else None
+        axis_current = axes_measurement[3] if axes_measurement else None
         Y_list = []
         n_list = []
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
-            Q = self.integrate("raw current / [mA]", tspan=tspan, ax=axis_current)
+            Q = self.integrate("raw_current", tspan=tspan, ax=axis_current)
             Q *= 1e-3  # mC --> [C]
             n = Q / (n_el * FARADAY_CONSTANT)
             Y_list.append(Y)
@@ -170,9 +173,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             cal_type="ecms_calibration_curve",
             F=F,
         )
-        if ax:
-            if axes_measurement:
-                return cal, ax, axes_measurement
+        if return_ax:
             return cal, ax
         return cal
 

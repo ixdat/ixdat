@@ -123,7 +123,6 @@ class ZilienTSVReader:
         else:
             if cls is Measurement:
                 cls = ECMSMeasurement
-
             if issubclass(cls, ECMSMeasurement):
                 kwargs["technique"] = "EC-MS"
             elif issubclass(cls, ECMeasurement):

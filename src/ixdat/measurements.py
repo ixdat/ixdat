@@ -176,9 +176,7 @@ class Measurement(Saveable):
         #       DataSeries.unit_name) and as such should be moved to db.Saveable
         #       see: https://github.com/ixdat/ixdat/pull/5#discussion_r565090372.
         #       Will be fixed with the table definition PR.
-        objects_saved_as_their_name = [
-            "sample",
-        ]
+        objects_saved_as_their_name = ["sample"]
         for object_type_str in objects_saved_as_their_name:
             object_name_str = object_type_str + "_name"
             if object_name_str in obj_as_dict:
@@ -195,7 +193,6 @@ class Measurement(Saveable):
                 # class they call `as_dict` from (e.g. via a Reader)!
                 technique_class = cls
         else:
-            # Normally, we're going to want to make sure that we're in
             technique_class = cls
         measurement = technique_class(**obj_as_dict)
         return measurement
@@ -439,6 +436,7 @@ class Measurement(Saveable):
 
     def add_calibration(self, calibration):
         self._calibration_list = [calibration] + self._calibration_list
+        self.clear_cache()
 
     def calibrate(self, *args, **kwargs):
         """Add a calibration of the Measurement's default calibration type
@@ -463,6 +461,7 @@ class Measurement(Saveable):
             )
 
         self.add_calibration(calibration_class(*args, **kwargs))
+        self.clear_cache()
 
     @property
     @deprecate(
@@ -865,7 +864,7 @@ class Measurement(Saveable):
             else:
                 try:
                     tseries = m[self.control_series_name].tseries
-                except KeyError:
+                except SeriesNotFoundError:
                     continue
             series_to_append.append(
                 ConstantValue(name="file_number", unit_name="", data=i, tseries=tseries)
@@ -873,7 +872,7 @@ class Measurement(Saveable):
         return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
 
     def _build_selector_series(
-        self, selector_string=None, col_list=None, extra_col_list=None
+        self, selector_string=None, columns=None, extra_columns=None
     ):
         """Build a `selector` series which demarcates the data.
 
@@ -886,20 +885,20 @@ class Measurement(Saveable):
 
         Args:
             selector_string (str): The name to use for the selector series
-            col_list (list): The list of demarcation series. The demarcation series have
-                to have the same tseries, which should be the one pointed to by the
+            columns (list): The list of demarcation series. The demarcation series have
+                to have equal-length tseries, which should be the one pointed to by the
                 meausrement's `control_series_name`.
-            extra_col_list (list): Extra demarcation series to include if needed.
+            extra_columns (list): Extra demarcation series to include if needed.
         """
         # the name of the selector series:
         selector_string = selector_string or self.selector_name
         # a vector that will be True at the points where a series changes:
         changes = np.tile(False, self.t.shape)
         # the names of the series which help demarcate the data
-        col_list = col_list or self.selection_series_names
-        if extra_col_list:
-            col_list += extra_col_list
-        for col in col_list:
+        columns = columns or self.selection_series_names
+        if extra_columns:
+            columns += extra_columns
+        for col in columns:
             try:
                 vseries = self[col]
             except SeriesNotFoundError:
@@ -924,6 +923,28 @@ class Measurement(Saveable):
             data=selector_data,
             tseries=self[self.control_series_name].tseries,
         )
+        return selector_series
+
+    def rebuild_selector(self, selector_string=None, columns=None, extra_columns=None):
+        """Build a new selector series for the measurement and cache it.
+
+        This can be useful if a user wants to change how their measurement counts
+        sections (for example, only count sections when technique or file number changes)
+
+        Args:
+            selector_string (str): The name to use for the selector series
+            columns (list): The list of demarcation series. The demarcation series have
+                to have the same tseries, which should be the one pointed to by the
+                meausrement's `control_series_name`.
+            extra_columns (list): Extra demarcation series to include if needed.
+        """
+        selector_string = selector_string or self.selector_name
+        selector_series = self._build_selector_series(
+            selector_string=selector_string,
+            columns=columns,
+            extra_columns=extra_columns,
+        )
+        self._cache_series(selector_string, selector_series)
         return selector_series
 
     @property
