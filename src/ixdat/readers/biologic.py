@@ -32,6 +32,15 @@ BIOLOGIC_ALIASES = {
     "raw_current": ["I/mA", "<I>/mA"],
     "cycle": ["cycle number"],
 }
+EC_TECHNIQUES_WITH_CYCLE_NUMBER = (
+    "Cyclic Voltammetry Advanced",
+    "Cyclic Voltammetry",
+)
+EC_TECHNIQUES_WITH_STEP_NUMBER = (
+    "Chronoamperometry",
+    "Chronoamperometry / Chronocoulometry",
+    "Chronopotentiometry",
+)
 
 
 class BiologicMPTReader:
@@ -164,6 +173,17 @@ class BiologicMPTReader:
                     ConstantValue(name=name_0, unit_name="", data=0, tseries=tseries)
                 )
                 aliases[series_name] = [name_0]
+
+        if self.ec_technique not in EC_TECHNIQUES_WITH_CYCLE_NUMBER:
+            data_series_list = [s for s in data_series_list if s.name != "cycle number"]
+            data_series_list.append(
+                ConstantValue(name="cycle number", unit_name="", data=0, tseries=tseries)
+            )
+        if self.ec_technique not in EC_TECHNIQUES_WITH_STEP_NUMBER:
+            data_series_list = [s for s in data_series_list if s.name != "Ns"]
+            data_series_list.append(
+                ConstantValue(name="Ns", unit_name="", data=0, tseries=tseries)
+            )
 
         obj_as_dict = dict(
             name=self.name,

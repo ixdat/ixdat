@@ -21,7 +21,7 @@ API Changes
 
 readers
 ^^^^^^^
-- Added an `XRDMLReader` (reader="xrdml") for xml-formatted XRD spectrum files from,
+- Added an ``XRDMLReader`` (reader="xrdml") for xml-formatted XRD spectrum files from,
   for example, Empyrion's software. Usage::
 
     from ixdat import Spectrum
