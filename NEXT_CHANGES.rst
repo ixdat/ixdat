@@ -13,3 +13,17 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
 
+For ixdat 0.2.3
+===============
+
+API Changes
+-----------
+
+readers
+^^^^^^^
+- Added an `XRDMLReader` (reader="xrdml") for xml-formatted XRD spectrum files from,
+  for example, Empyrion's software. Usage::
+
+    from ixdat import Spectrum
+    my_xrd = Spectrum.read("my_file.xrdml", reader="xrdml")
+    my_xrd.plot()

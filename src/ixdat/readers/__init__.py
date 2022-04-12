@@ -28,6 +28,9 @@ from .ec_ms_pkl import EC_MS_CONVERTER
 # spectroelectrochemistry
 from .msrh_sec import MsrhSECReader, MsrhSECDecayReader
 
+# xrd
+from .xrdml import XRDMLReader
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicMPTReader,
@@ -43,4 +46,5 @@ READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
+    "xrdml": XRDMLReader,
 }
