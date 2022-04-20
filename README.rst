@@ -32,7 +32,7 @@ repository accompanying your breakthrough publication and advancing our field.
 
 Version
 -------
-This is the latest released version.
+This is the latest version.
 
 For changes up to this version, see `CHANGES.rst <https://github.com/ixdat/ixdat/blob/main/CHANGES.rst>`_
 
@@ -75,10 +75,10 @@ designed into every level.
      - Released
      - - msrh_sec: .csv file sets from Imperial College London's SEC system
    * - X-ray photoelectron spectroscopy (XPS)
-     - Future
+     - Development
      -
    * - X-ray diffraction (XRD)
-     - Future
+     - Development
      -
    * - Low-Energy Ion Scattering (LEIS)
      - Future

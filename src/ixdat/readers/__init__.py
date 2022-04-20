@@ -31,9 +31,13 @@ from .msrh_sec import MsrhSECReader, MsrhSECDecayReader
 # xrd
 from .xrdml import XRDMLReader
 
+# xps
+from .avantage import AvantageAVGReader
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicMPTReader,
+    "avantage": AvantageAVGReader,
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
     "chi": CHInstrumentsTXTReader,
