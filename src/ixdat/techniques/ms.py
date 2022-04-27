@@ -156,6 +156,15 @@ class MSMeasurement(Measurement):
         """
         if removebackground is not None:
             remove_background = removebackground
+        if isinstance(mol, MSCalResult):
+            t, signal = self.grab(
+                mol.mass,
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                include_endpoints=include_endpoints,
+            )
+            return t, signal / mol.F
         return self.grab(
             # grab() invokes __getitem__, which invokes the `Calibration`. Specifically,
             # `MSCalibration.calibrate_series()` interprets item names starting with

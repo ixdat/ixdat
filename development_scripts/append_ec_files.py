@@ -48,6 +48,8 @@ combined_meas.plot(tspan=tspan)
 
 cut_meas = combined_meas.cut(tspan=tspan)
 cut_meas.plot(J_name="selector")
+cut_meas.rebuild_selector(columns=["cycle number"])
+cut_meas.plot(J_name="selector")
 
 select_meas = cut_meas.select_values(selector=range(4, 8))
 select_meas.correct_ohmic_drop(R_Ohm=200)
