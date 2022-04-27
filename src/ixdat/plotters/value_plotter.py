@@ -8,6 +8,7 @@ class ValuePlotter(MPLPlotter):
     """Default plotter. By default plots all of the VSeries vs time on a single axis"""
 
     def __init__(self, measurement=None):
+        super().__init__()
         self.measurement = measurement
 
     def plot(self, *args, **kwargs):

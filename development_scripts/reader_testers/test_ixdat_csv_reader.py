@@ -3,10 +3,22 @@
 from ixdat import Measurement
 
 
-if False:  # test the version that's online on the tutorials page
+if True:  # test back-compatability with the ixdat v0p1 online on the tutorials page
     meas = Measurement.read_url(
         "https://raw.githubusercontent.com/ixdat/tutorials/"
-        + "main/loading_appending_and_saving/co_strip.csv",
+        + "ixdat_v0p1/loading_appending_and_saving/co_strip.csv",
+        reader="ixdat",
+        aliases={
+            "t": ["time/s"],
+            "raw_current": ["raw current / [mA]"],
+            "raw_potential": ["raw potential / [V]"],
+        },
+    )
+    meas.plot_measurement()
+elif False:  # test with the ixdat v0p2 version online on the tutorials page
+    meas = Measurement.read_url(
+        "https://raw.githubusercontent.com/ixdat/tutorials/"
+        + "main/electrochemistry/data/co_strip.csv",
         reader="ixdat",
     )
     meas.plot_measurement()

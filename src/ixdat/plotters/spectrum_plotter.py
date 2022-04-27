@@ -10,6 +10,7 @@ class SpectrumPlotter(MPLPlotter):
     """A plotter for spectrums"""
 
     def __init__(self, spectrum=None):
+        super().__init__()
         self.spectrum = spectrum
 
     def plot(self, spectrum=None, ax=None, **kwargs):
@@ -33,6 +34,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
     """A plotter for spectrum series, f.ex. spectra taken continuously over time"""
 
     def __init__(self, spectrum_series=None):
+        super().__init__()
         self.spectrum_series = spectrum_series
 
     @property
@@ -127,14 +129,14 @@ class SpectrumSeriesPlotter(MPLPlotter):
         data = field.data
         # ^ FIXME: The heat plot will be distorted if spectra are not taken at even
         #     spacing on the "vs" variable. They will be especially meaningless if
-        #     the v variable itself is not always increasing or decreasing.
+        #     the U variable itself is not always increasing or decreasing.
 
         if vspan:
             v_mask = np.logical_and(vspan[0] < v, v < vspan[-1])
             v = v[v_mask]
             data = data[v_mask, :]
             if (v[0] < v[-1]) != (vspan[0] < vspan[-1]):  # this is an XOR.
-                # Then we need to plot the data against v in the reverse direction:
+                # Then we need to plot the data against U in the reverse direction:
                 v = np.flip(v, axis=0)
                 data = np.flip(data, axis=0)
         if xspan:

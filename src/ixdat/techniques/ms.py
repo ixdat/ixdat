@@ -3,6 +3,7 @@
 import re
 import numpy as np
 import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+import warnings
 
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum
@@ -19,6 +20,7 @@ from ..constants import (
 )
 from ..data_series import ValueSeries
 from ..db import Saveable
+from ..tools import deprecate
 
 
 class MSMeasurement(Measurement):
@@ -124,19 +126,23 @@ class MSMeasurement(Measurement):
         """Alias for grab()"""
         return self.grab(*args, **kwargs)
 
+    @deprecate(
+        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+    )
     def grab_flux(
         self,
         mol,
         tspan=None,
         tspan_bg=None,
         remove_background=True,
+        removebackground=None,
         include_endpoints=False,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Note:
         `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
-        removebackround=True by default. An MSCalibration does the maths.
+        remove_background=True by default. An MSCalibration does the maths.
 
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
@@ -145,7 +151,20 @@ class MSMeasurement(Measurement):
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
                 Defaults to True.
+            removebackground (bool): DEPRECATED. Use `remove_background`.
+            include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
         """
+        if removebackground is not None:
+            remove_background = removebackground
+        if isinstance(mol, MSCalResult):
+            t, signal = self.grab(
+                mol.mass,
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                include_endpoints=include_endpoints,
+            )
+            return t, signal / mol.F
         return self.grab(
             # grab() invokes __getitem__, which invokes the `Calibration`. Specifically,
             # `MSCalibration.calibrate_series()` interprets item names starting with
@@ -157,13 +176,16 @@ class MSMeasurement(Measurement):
             include_endpoints=include_endpoints,
         )
 
+    @deprecate(
+        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+    )
     def grab_flux_for_t(
         self,
         mol,
         t,
         tspan_bg=None,
         remove_background=False,
-        include_endpoints=False,
+        removebackground=None,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s] for a given time vec
 
@@ -173,12 +195,14 @@ class MSMeasurement(Measurement):
             tspan_bg (tspan): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
+            removebackground (bool): DEPRECATED. Use `remove_background`.
         """
+        if removebackground is not None:
+            remove_background = removebackground
         t_0, y_0 = self.grab_flux(
             mol,
             tspan_bg=tspan_bg,
             remove_background=remove_background,
-            include_endpoints=include_endpoints,
         )
         y = np.interp(t, t_0, y_0)
         return y
@@ -251,7 +275,7 @@ class MSCalResult(Saveable):
         F=None,
     ):
         super().__init__()
-        self.name = name or f"{mol} at {mass}"
+        self.name = name or f"{mol}@{mass}"
         self.mol = mol
         self.mass = mass
         self.cal_type = cal_type
@@ -541,9 +565,22 @@ class MSInlet:
             T = self.T
         if p is None:
             p = self.p
-
         pi = np.pi
-        eta = DYNAMIC_VISCOSITIES[gas]  # dynamic viscosity in [Pa*s]
+
+        # TODO: make it so that DYNAMIC_VISCOSITIES[gas] can just be a float if someone
+        #   enters it without having access to the temperature-dependent values.
+        if T < DYNAMIC_VISCOSITIES[gas][0, 0] or T > DYNAMIC_VISCOSITIES[gas][-1, 0]:
+            warnings.warn(
+                "Insufficient data in constants.py to appropriately estimate "
+                f"the dynamic viscosity for {gas} at temperature: {T}K",
+                stacklevel=2,
+            )
+
+        _eta_v = DYNAMIC_VISCOSITIES[gas][:, 1]  # list of known eta(T) for 'gas'
+        _eta_T = DYNAMIC_VISCOSITIES[gas][:, 0]  # list of paired Ts for eta(T)
+
+        eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
+
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
         m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
 

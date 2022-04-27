@@ -25,7 +25,7 @@ class TestBiologicEC:
     def test_calibrate_and_append(self, ec_measurement):
         """Test that measurement ms_calibration works"""
         ec_measurement.calibrate_RE(RE_vs_RHE=1)
-        assert ec_measurement.v[0] - ec_measurement["raw_potential"].data[0] == approx(
+        assert ec_measurement.U[0] - ec_measurement["raw_potential"].data[0] == approx(
             ec_measurement.RE_vs_RHE
         )
 
@@ -50,17 +50,17 @@ class TestBiologicEC:
         A_el = 2
         composed_measurement_copy.calibrate(RE_vs_RHE=RE_vs_RHE, A_el=A_el)
 
-        # First we check that its v attribute is calibrated by comparing to the grabbed
+        # First we check that its U attribute is calibrated by comparing to the grabbed
         # uncalibrated potential:
         assert (
-            composed_measurement_copy.v[0]
+            composed_measurement_copy.U[0]
             == composed_measurement.grab("raw_potential")[1][0] + RE_vs_RHE
         )
         # ^ note this only builds the potential for cv12_loaded
 
-        # First we check that its j attribute is calibrated by comparing to the same
+        # First we check that its J attribute is calibrated by comparing to the same
         # property of the original, still uncalibrated, measurement:
-        assert composed_measurement_copy.j[0] == composed_measurement.j[0] / A_el
+        assert composed_measurement_copy.J[0] == composed_measurement.J[0] / A_el
         # ^ note this builds the current for both cv12 and cv12_loaded
 
         # As a result: there should be more cached series in cv12_loaded.
@@ -84,7 +84,7 @@ class TestBiologicEC:
         i2 = meas12_copied.save()
         meas12_copied_loaded = Measurement.get(i2)
         assert meas12_copied_loaded.RE_vs_RHE == RE_vs_RHE
-        assert len(meas12_copied_loaded.v) == len(composed_measurement.v)
+        assert len(meas12_copied_loaded.U) == len(composed_measurement.U)
 
     def test_to_and_as_dict(self, composed_measurement):
         """Test a to_dict/from_dict round trip yields the same result"""

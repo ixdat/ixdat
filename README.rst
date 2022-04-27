@@ -30,6 +30,14 @@ Or rather than exporting, you can take advantage of ``ixdat``'s powerful analysi
 tools and database backends to be a one-stop tool from messy raw data to public
 repository accompanying your breakthrough publication and advancing our field.
 
+Version
+-------
+This is the latest released version.
+
+For changes up to this version, see `CHANGES.rst <https://github.com/ixdat/ixdat/blob/main/CHANGES.rst>`_
+
+For ixdat 0.1.9 see the `v0.1.x branch <https://github.com/ixdat/ixdat/tree/v0.1.x>`_.
+
 About
 -----
 

@@ -9,6 +9,7 @@ class MSPlotter(MPLPlotter):
 
     def __init__(self, measurement=None):
         """Initiate the ECMSPlotter with its default Meausurement to plot"""
+        super().__init__()
         self.measurement = measurement
 
     def plot_measurement(
@@ -161,11 +162,11 @@ class MSPlotter(MPLPlotter):
         mol_lists=None,
         tspan=None,
         tspan_bg=None,
-        removebackground=None,
+        remove_background=None,
         unit=None,
         logplot=True,
         legend=True,
-        **kwargs,
+        **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
 
@@ -199,15 +200,15 @@ class MSPlotter(MPLPlotter):
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
-            removebackground (bool): Whether otherwise to subtract pre-determined
+            remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
-            kwargs: key-word args are passed on to matplotlib's plot()
+            plot_kwargs: additional key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
-        if removebackground is None:
-            removebackground = not logplot
+        if remove_background is None:
+            remove_background = not logplot
 
         # The overloaded inputs are a pain in the ass. This function helps:
         quantified, specs_this_axis, specs_next_axis = self._parse_overloaded_inputs(
@@ -234,7 +235,7 @@ class MSPlotter(MPLPlotter):
                     v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
-                    remove_background=removebackground,
+                    remove_background=remove_background,
                     include_endpoints=False,
                 )
             else:
@@ -242,18 +243,20 @@ class MSPlotter(MPLPlotter):
                     v_name,
                     tspan=tspan,
                     tspan_bg=tspan_bg,
-                    remove_background=removebackground,
+                    remove_background=remove_background,
                     include_endpoints=False,
                 )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
             x_mass = np.interp(t_v, t, x)
+            plot_kwargs_this_mass = plot_kwargs.copy()
+            if "color" not in plot_kwargs:
+                plot_kwargs_this_mass["color"] = STANDARD_COLORS.get(v_name, "k")
             ax.plot(
                 x_mass,
                 v * unit_factor,
-                color=STANDARD_COLORS.get(v_name, "k"),
                 label=v_name,
-                **kwargs,
+                **plot_kwargs_this_mass,
             )
         ax.set_ylabel(f"signal / [{unit}]")
         ax.set_xlabel(x_name)
@@ -269,7 +272,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
                 legend=legend,
-                **kwargs,
+                **plot_kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
         else:

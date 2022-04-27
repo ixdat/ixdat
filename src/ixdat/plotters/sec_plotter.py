@@ -16,6 +16,7 @@ class SECPlotter(MPLPlotter):
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""
+        super().__init__()
         self.measurement = measurement
         self.ec_plotter = ECPlotter(measurement=measurement)
         self.spectrum_series_plotter = SpectrumSeriesPlotter(
@@ -138,7 +139,7 @@ class SECPlotter(MPLPlotter):
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             ax=ax,
-            vs=measurement.v_name,
+            vs=measurement.U_name,
         )
 
     def plot_vs_potential(
@@ -193,8 +194,8 @@ class SECPlotter(MPLPlotter):
         self.ec_plotter.plot_vs_potential(
             measurement=measurement,
             tspan=tspan,
-            v_name=v_name,
-            j_name=j_name,
+            U_name=v_name,
+            J_name=j_name,
             ax=axes[1],
             **kwargs,
         )
@@ -207,7 +208,7 @@ class SECPlotter(MPLPlotter):
             ax=axes[0],
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
-            vs=v_name or measurement.v_name,
+            vs=v_name or measurement.U_name,
         )
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
@@ -294,7 +295,7 @@ class SECPlotter(MPLPlotter):
             except SeriesNotFoundError:
                 measurement.track_wavelength(x)
                 t, y = measurement.grab(wl_str, tspan=tspan)
-            v = measurement.v
+            v = measurement.U
             axes[0].plot(v, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
         axes[0].set_ylabel(r"$\Delta$O.D.")
