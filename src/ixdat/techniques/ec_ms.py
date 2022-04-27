@@ -127,7 +127,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
+<<<<<<< HEAD
         return_ax=False,
+=======
+        return_axes=False,
+>>>>>>> fd9e891 (debug ECMSMeasurement.ecms_calibration_curve())
     ):
         """Fit mol's sensitivity at mass based on steady periods of EC production.
 
@@ -148,9 +152,15 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
+<<<<<<< HEAD
                 ms_calibration on. Defaults to None. These axes are not returned.
             return_ax (bool): Whether to return the axis on which the calibration is
                 plotted together with the MSCalResult. Defaults to False.
+=======
+                ms_calibration on. Defaults to None.
+            return_axes (bool): Whether to return the axes together with the MSCalResult.
+                Defaults to False.
+>>>>>>> fd9e891 (debug ECMSMeasurement.ecms_calibration_curve())
 
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
             curve axis if requested) based on integration of selected time periods.
@@ -192,7 +202,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             cal_type="ecms_calibration_curve",
             F=F,
         )
+<<<<<<< HEAD
         if return_ax:
+=======
+        if ax and return_axes:
+            if axes_measurement:
+                return cal, ax, axes_measurement
+>>>>>>> fd9e891 (debug ECMSMeasurement.ecms_calibration_curve())
             return cal, ax
         return cal
 
