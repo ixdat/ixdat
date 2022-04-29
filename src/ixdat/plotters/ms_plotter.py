@@ -252,10 +252,11 @@ class MSPlotter(MPLPlotter):
             plot_kwargs_this_mass = plot_kwargs.copy()
             if "color" not in plot_kwargs:
                 plot_kwargs_this_mass["color"] = STANDARD_COLORS.get(v_name, "k")
+            if "label" not in plot_kwargs:
+                plot_kwargs_this_mass["label"] = v_name
             ax.plot(
                 x_mass,
                 v * unit_factor,
-                label=v_name,
                 **plot_kwargs_this_mass,
             )
         ax.set_ylabel(f"signal / [{unit}]")
