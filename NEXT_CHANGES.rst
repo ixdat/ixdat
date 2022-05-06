@@ -27,3 +27,17 @@ readers
     from ixdat import Spectrum
     my_xrd = Spectrum.read("my_file.xrdml", reader="xrdml")
     my_xrd.plot()
+
+- Added an ``AvantageAVGReader`` (reader="avantage") for avantage-exported spectrum files from,
+  for example, Thermo Fisher's K-alpha equipment. Usage::
+
+    from ixdat import Spectrum
+    my_xps = Spectrum.read("my_file.avg", reader="avantage")
+    my_xps.plot()
+
+
+techniuqes
+^^^^^^^^^^
+
+- CyclicVoltammogram now has a ``plot_cycles`` function. This plots all
+  the cycles in the cv color coded by cycle number, with a scale bar.
