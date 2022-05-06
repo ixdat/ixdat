@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib as mpl
+from ixdat.plotters.plotting_tools import add_colorbar
 from matplotlib import pyplot as plt
 from .base_mpl_plotter import MPLPlotter
 
@@ -153,15 +154,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
         ax.set_xlabel(v_name)
         ax.set_ylabel(xseries.name)
         if make_colorbar:
-            cmap = mpl.cm.get_cmap(cmap_name)
-            norm = mpl.colors.Normalize(vmin=np.min(data), vmax=np.max(data))
-            cb = plt.colorbar(
-                mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
-                ax=ax,
-                use_gridspec=True,
-                anchor=(0.75, 0),
-            )
-            cb.set_label("intensity")
+            add_colorbar(ax, cmap_name, vmin=np.min(data), vmax=np.max(data))
         return ax
 
     def plot_waterfall(
