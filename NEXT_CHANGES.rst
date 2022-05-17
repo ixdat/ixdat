@@ -41,3 +41,11 @@ techniuqes
 
 - CyclicVoltammogram now has a ``plot_cycles`` function. This plots all
   the cycles in the cv color coded by cycle number, with a scale bar.
+
+
+Debugging
+---------
+
+- PVMassSpecReader (reader="pfeiffer") now identifies columns as masses when they have
+  names assigned during the data acquisition (e.g. "32_amu_(Oxygen)" as a column name),
+  whereas before it would only have identified as masses columns which ended with "_amu".

@@ -39,9 +39,7 @@ class PVMassSpecReader:
         # PV MassSpec calls masses <x>_amu, information we need to pass on to
         # MSMeasurement, so that the data will be accessible by the 'M<x>' mass string.
         aliases = {
-            mass_from_column_name(key): [key]
-            for key in df.keys()
-            if key.endswith("_amu")
+            mass_from_column_name(key): [key] for key in df.keys() if "_amu" in key
         }
         series_list = series_list_from_dataframe(
             df,
@@ -69,7 +67,7 @@ class PVMassSpecScanReader:
 
 def mass_from_column_name(mass):
     """Return the PVMassSpec mass 'M<x>' given the column name '<x>_amu' as string"""
-    return f"M{mass[:-4]}"
+    return f"M{mass.split('_')[0]}"
 
 
 def get_column_unit(column_name):
