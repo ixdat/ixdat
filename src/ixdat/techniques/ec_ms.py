@@ -1,6 +1,7 @@
 """Module for representation and analysis of EC-MS measurements"""
 import numpy as np
 from ..constants import FARADAY_CONSTANT
+from ..db import Column, OwnedObjectList
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration
 from .cv import CyclicVoltammogram
@@ -12,13 +13,14 @@ from ..plotters.ms_plotter import STANDARD_COLORS
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
-    extra_column_attrs = {
-        "ecms_meaurements": {"ec_technique", "tspan_bg"},
-    }
-    # FIXME: It would be much more elegant if this carried over automatically from
-    #  *both* parents, by appending the table columns...
-    #  We'll see how the problem changes with the metaprogramming work.
+    #  ----- table describing attributes --------- #
+    #  The parent_table_class, inherited from ECMeasurement, is still Measurement
+    table_name = "ecms_measurements"
+    columns = [
+        Column("ec_technique", str),  # note that ec_measurements has the same column
+    ]
 
+    # ---- other class attributes -------- #
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter
 
@@ -185,12 +187,21 @@ class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
 class ECMSCalibration(ECCalibration, MSCalibration):
     """Class for calibrations useful for ECMSMeasurements"""
 
-    extra_column_attrs = {
-        "ecms_calibrations": {"date", "setup", "RE_vs_RHE", "A_el", "L"}
-    }
-    # FIXME: The above should be covered by the parent classes. Needs metaprogramming!
-    # NOTE: technique, name, and tstamp in column_attrs are inherited from Calibration
-    # NOTE: ms_results_ids in extra_linkers is inherited from MSCalibration.
+    table_name = "ecms_calibrations"
+    parent_table_class = ECCalibration
+    columns = [
+        # Column("RE_vs_RHE", float),  # already there from ECCalibration!
+        # Column("A_el", float),  # already there from ECCalibration!
+        # Column("R_Ohm", float)  # already there from ECCalibration!
+        Column("tspan_bg", tuple),  # same column is in MSCalibration...
+        Column("L", float),  # the working distance, special to ECMSCalibration.
+    ]
+    owned_object_lists = [
+        # Define a table with info on which ms_cal_results go with which calibration:
+        OwnedObjectList("ms_cal_results", "ms_cal_results", "calibration_ms_cal_results")
+    ]
+    # ^ This will be replaced with `owned_object_list = MSCalibration.owned_object_list`
+
     # NOTE: signal_bgs is left out
 
     def __init__(

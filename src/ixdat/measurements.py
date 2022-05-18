@@ -12,7 +12,7 @@ classes will be defined in the corresponding module in ./techniques/
 from pathlib import Path
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject, fill_object_list
+from .db import Saveable, PlaceHolderObject, fill_object_list, Column, OwnedObjectList
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -33,23 +33,24 @@ from .tools import deprecate
 class Measurement(Saveable):
     """The Measurement class"""
 
-    # ------ table description class attributes --------
+    # ------ table description class attributes -------- #
     table_name = "measurement"
-    column_attrs = {
-        "name",
-        "technique",
-        "metadata",
-        "aliases",
-        "sample_name",
-        "tstamp",
-    }
-    extra_linkers = {
-        "component_measurements": ("measurements", "m_ids"),
-        "measurement_calibrations": ("calibrations", "c_ids"),
-        "measurement_series": ("data_series", "s_ids"),
-    }
-    child_attrs = ["component_measurements", "calibration_list", "series_list"]
-    # TODO: child_attrs should be derivable from extra_linkers?
+    columns = [
+        Column("id", int),
+        Column("name", str),
+        Column("technique", str),
+        Column("metadatata", dict),
+        Column("aliases", dict),
+        Column("sample_name", str),
+        Column("tstamp", float),
+    ]
+    owned_object_lists = [
+        OwnedObjectList(
+            "component_measurements", "measurement", "component_measurements"
+        ),
+        OwnedObjectList("calibration_list", "calibration", "measurement_calibrations"),
+        OwnedObjectList("series_list", "data_series", "measurement_series"),
+    ]
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
     control_technique_name = None
@@ -1292,12 +1293,13 @@ class Measurement(Saveable):
 class Calibration(Saveable):
     """Base class for calibrations."""
 
-    table_name = "calibration"
-    column_attrs = {
-        "name",
-        "technique",
-        "tstamp",
-    }
+    table_name = "calibrations"
+    columns = [
+        Column("id", int),
+        Column("name", str),
+        Column("technique", str),
+        Column("tstamp", float),
+    ]
 
     def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):
         """Initiate a Calibration

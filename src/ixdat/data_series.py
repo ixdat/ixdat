@@ -10,6 +10,7 @@ import numpy as np
 from .db import Saveable
 from .units import Unit
 from .exceptions import AxisError, BuildError
+from .db import Column, OwnedObjectList
 
 
 class DataSeries(Saveable):
@@ -19,8 +20,14 @@ class DataSeries(Saveable):
     """
 
     table_name = "data_series"
-    column_attrs = {"name", "unit_name", "data", "series_type"}
-    series_type = "series"
+    columns = [
+        Column("id", int),
+        Column("name", str),
+        Column("unit_name", str),
+        Column("data", np.ndarray),
+        Column("series_type", str),  # faster than e.g. looking for the id in "tseries"
+    ]
+    series_type = "data_series"
 
     def __init__(self, name, unit_name, data):
         """initialize a data series with its name, unit, and data (id handled by parent)
@@ -69,8 +76,10 @@ class DataSeries(Saveable):
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
-    extra_column_attrs = {"tstamps": {"tstamp"}}
-    series_type = "tseries"
+    table_name = "tseries"  # the tseries table will just contain id's and tstamps.
+    parent_table_class = DataSeries  # The pk is DataSeries.id
+    columns = [Column("tstamp", float)]  # this gets "appended" to DataSeries.columns
+    series_type = "time_series"
 
     def __init__(self, name, unit_name, data, tstamp):
         """Initiate a TimeSeries with name, unit_name, data, and a tstamp (float)
@@ -98,8 +107,8 @@ class Field(DataSeries):
     DataSeries. This is represented in the extra linkers.
     """
 
-    extra_linkers = {"field_axes": ("data_series", "a_ids")}
-    child_attrs = ["axes_series"]
+    parent_table_class = DataSeries
+    owned_object_lists = [OwnedObjectList("axes_series", "data_series", "axes_series")]
     series_type = "field"
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
@@ -196,7 +205,8 @@ class ValueSeries(Field):
     represented in relational databases as a row in an auxiliary linker table
     """
 
-    series_type = "vseries"
+    # Note, nothing needs be added to the database representation.
+    series_type = "value_series"
 
     def __init__(
         self,
@@ -256,7 +266,7 @@ class ValueSeries(Field):
 class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
 
-    series_type = "constantvalue"
+    series_type = "constant_value"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
