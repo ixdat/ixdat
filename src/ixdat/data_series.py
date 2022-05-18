@@ -19,6 +19,7 @@ class DataSeries(Saveable):
     These class's objects are saved and loaded as rows in the data_series table
     """
 
+    # ------ table defining class attributes -------- #
     table_name = "data_series"
     columns = [
         Column("id", int),
@@ -27,6 +28,8 @@ class DataSeries(Saveable):
         Column("data", np.ndarray),
         Column("series_type", str),  # faster than e.g. looking for the id in "tseries"
     ]
+
+    # ---- other class attributes --------- #
     series_type = "data_series"
 
     def __init__(self, name, unit_name, data):
@@ -76,9 +79,12 @@ class DataSeries(Saveable):
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
+    # ------ table defining class attributes -------- #
     table_name = "tseries"  # the tseries table will just contain id's and tstamps.
     parent_table_class = DataSeries  # The pk is DataSeries.id
     columns = [Column("tstamp", float)]  # this gets "appended" to DataSeries.columns
+
+    # ---- other class attributes --------- #
     series_type = "time_series"
 
     def __init__(self, name, unit_name, data, tstamp):
@@ -107,8 +113,14 @@ class Field(DataSeries):
     DataSeries. This is represented in the extra linkers.
     """
 
+    # ------ table defining class attributes -------- #
     parent_table_class = DataSeries
     owned_object_lists = [OwnedObjectList("axes_series", "data_series", "axes_series")]
+    # explicitly coding that no new columns are added is necessary because otherwise
+    # DataSeries' columns get duplicated in "full_column_list":
+    columns = []
+
+    # ---- other class attributes --------- #
     series_type = "field"
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
@@ -204,8 +216,10 @@ class ValueSeries(Field):
     Characterized by a reference to the corresponding time series. This reference is
     represented in relational databases as a row in an auxiliary linker table
     """
-
+    # ------ table defining class attributes -------- #
     # Note, nothing needs be added to the database representation.
+
+    # ---- other class attributes --------- #
     series_type = "value_series"
 
     def __init__(
@@ -265,7 +279,10 @@ class ValueSeries(Field):
 
 class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
+    # ------ table defining class attributes -------- #
+    # Note, nothing needs be added to the database representation.
 
+    # ---- other class attributes --------- #
     series_type = "constant_value"
 
     def __init__(self, *args, **kwargs):
