@@ -1128,9 +1128,6 @@ class Measurement(Saveable):
         are those where the values match the provided criteria, i.e. the part of the
         measurement where `self[series_name] == value`
 
-        TODO: Testing and documentation with examples like those suggested here:
-            https://github.com/ixdat/ixdat/pull/11#discussion_r677324246
-
         Any series can be selected for using the series name as a key-word. Arguments
         can be single acceptable values or lists of acceptable values. In the latter
         case, each acceptable value is selected for on its own and the resulting
@@ -1140,6 +1137,20 @@ class Measurement(Saveable):
         Arguments without key-word are considered valid values of the default selector,
         which is named by `self.selelector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
+
+        Examples of valid calls given a measurement `meas`:
+        ```
+        # to select where the default selector is 3, use:
+        meas.select_values(3)
+        # to select for where the default selector is 4 OR 5:
+        meas.select_values(4, 5)
+        # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
+        select_values(cycle=4)
+        # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
+        meas.select_values(loop_number=1, cycle=[3, 4, 5])
+        ```
+        Note, a value name with a space in it (like "cycle number") can unfortunately
+        not be selected for with this method.
 
         Args:
             args (tuple): Argument(s) given without keyword are understood as acceptable

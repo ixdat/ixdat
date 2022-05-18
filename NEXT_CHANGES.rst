@@ -19,6 +19,10 @@ For ixdat 0.2.3
 API Changes
 -----------
 
+measurement
+^^^^^^^^^^^
+- Added example usage to docstring of ``Measurement.select_values``
+
 readers
 ^^^^^^^
 - Added an ``XRDMLReader`` (reader="xrdml") for xml-formatted XRD spectrum files from,
@@ -35,7 +39,6 @@ readers
     my_xps = Spectrum.read("my_file.avg", reader="avantage")
     my_xps.plot()
 
-
 techniuqes
 ^^^^^^^^^^
 
@@ -49,3 +52,7 @@ Debugging
 - PVMassSpecReader (reader="pfeiffer") now identifies columns as masses when they have
   names assigned during the data acquisition (e.g. "32_amu_(Oxygen)" as a column name),
   whereas before it would only have identified as masses columns which ended with "_amu".
+
+- ``ECPlotter.plot_measurement`` and ``ECMSPlotter.plot_measuremnt`` raise warnings instead
+  of ``SeriesNotFoundError``s if they can't find the requested
+  potential (``U_name``) or current (``J_name``).
