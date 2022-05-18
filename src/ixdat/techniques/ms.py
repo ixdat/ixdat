@@ -19,14 +19,18 @@ from ..constants import (
     MOLAR_MASSES,
 )
 from ..data_series import ValueSeries
-from ..db import Saveable
+from ..db import Saveable, Column, OwnedObjectList
 from ..tools import deprecate
 
 
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
-    extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
+    parent_table_class = Measurement
+    table_name = "ms_measurements"
+    columns = []
+    owned_object_lists = []
+
     default_plotter = MSPlotter
 
     def __init__(self, name, **kwargs):
@@ -264,7 +268,14 @@ class MSCalResult(Saveable):
     """
 
     table_name = "ms_cal_results"
-    column_attrs = {"name", "mol", "mass", "cal_type", "F"}
+    columns = [
+        Column("id", int),
+        Column("name", str),
+        Column("mol", str),
+        Column("mass", str),
+        Column("cal_type", str),
+        Column("F", float),
+    ]
 
     def __init__(
         self,
@@ -295,11 +306,10 @@ class MSCalResult(Saveable):
 class MSCalibration(Calibration):
     """Class for mass spec calibrations. TODO: replace with powerful external package"""
 
-    extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
-    # FIXME: signal_bgs are not saved at present. Should they be a separate table
-    #   of Saveable objects like ms_cal_results or should they be a single json value?
-    child_attrs = [
-        "ms_cal_results",
+    parent_table_class = Calibration
+    columns = [Column("signal_bgs", dict)]
+    owned_object_lists = [
+        OwnedObjectList("ms_cal_results", "ms_cal_results", "calibration_ms_cal_results")
     ]
 
     def __init__(

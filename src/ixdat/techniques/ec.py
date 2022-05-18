@@ -90,6 +90,7 @@ class ECMeasurement(Measurement):
     # ------ table description class attributes -------- #
     parent_table_class = Measurement
     columns = [Column("ec_technique", str)]
+    owned_object_lists = []  # no additional owned objects
 
     # ---- other class attributes ---- #
     control_series_name = "raw_potential"

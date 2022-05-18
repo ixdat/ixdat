@@ -152,6 +152,9 @@ class OwnedObjectList:
         self.owned_object_class = owned_object_table_name
         self.joining_table_name = joining_table_name
 
+    def __repr__(self):
+        return f"OwnedObjectList(list_name={self.list_name})"
+
 
 class Saveable:
     """Base class for table-representing classes implementing database functionality.
@@ -227,12 +230,22 @@ class Saveable:
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @classmethod
-    def full_column_list(cls):
-        """If a class has a parent_table_class, the full column list is its"""
+    def full_columns(cls):
+        """A class's full columns list includes that of its parent table class"""
         if cls.parent_table_class:
-            return cls.parent_table_class.full_column_list() + cls.columns
+            return cls.parent_table_class.full_columns() + cls.columns
         else:
             return cls.columns
+
+    @classmethod
+    def full_owned_object_lists(cls):
+        """A class's full owned object lists includes those of its parent table class"""
+        if cls.parent_table_class:
+            return (
+                cls.parent_table_class.full_owned_object_lists() + cls.owned_object_lists
+            )
+        else:
+            return cls.owned_object_lists
 
     @property
     def id(self):

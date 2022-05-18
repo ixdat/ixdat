@@ -216,6 +216,7 @@ class ValueSeries(Field):
     Characterized by a reference to the corresponding time series. This reference is
     represented in relational databases as a row in an auxiliary linker table
     """
+
     # ------ table defining class attributes -------- #
     # Note, nothing needs be added to the database representation.
 
@@ -279,6 +280,7 @@ class ValueSeries(Field):
 
 class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
+
     # ------ table defining class attributes -------- #
     # Note, nothing needs be added to the database representation.
 
