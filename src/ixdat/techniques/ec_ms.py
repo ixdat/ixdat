@@ -116,6 +116,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mass,
         n_el,
         tspan_list=None,
+        selector_list=None,
+        selector_name=None,
+        tspan_steady_pulse=0,
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
@@ -138,12 +141,15 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 plotted together with the MSCalResult. Defaults to False.
 
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
-            curve axis if requested)
+            curve axis if requested) based on integration of selected time periods.
         """
         axis_ms = axes_measurement[0] if axes_measurement else None
         axis_current = axes_measurement[3] if axes_measurement else None
         Y_list = []
         n_list = []
+        if not tspan_list:
+            tspan_list = self._get_tspan_list(selector_list,
+                                              selector_name, tspan_steady_pulse)
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
@@ -176,6 +182,45 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         if return_ax:
             return cal, ax
         return cal
+
+    def _get_tspan_list(
+            self,
+            selector_list,
+            selector_name=None,
+            tspan_steady_pulse=0,
+    ):
+        """
+        Generate a t_span list from input of selectors.
+
+        Args:
+            selector_list (list of selector): selector numbers that define the
+                                            tspans over which data should be integrated
+            selector_name (str): selector name that should be, which by default will
+                                                refer to data['selector']
+            tspan_steady_pulse (float): length of steady state pulse period to integrate
+                                    (will choose the last x seconds)
+
+        Returns tspan_list(list of tspan)
+        """
+        t_index = -1
+        if tspan_steady_pulse == 0:
+            t_index = 0
+        if not selector_name or selector_name == "selector":
+            tspan_list = [[self.select_values(selector=selector_value).grab('t')[0][t_index] - tspan_steady_pulse,
+                           self.select_values(selector=selector_value).grab('t')[0][-1]]
+                          for selector_value in selector_list]
+        elif selector_name == "Ns":
+            tspan_list = [[self.select_values(Ns=selector_value).grab('t')[0][t_index] - tspan_steady_pulse,
+                           self.select_values(Ns=selector_value).grab('t')[0][-1]]
+                          for selector_value in selector_list]
+        elif selector_name == "cycle":
+            tspan_list = [[self.select_values(cycle=selector_value).grab('t')[0][t_index] - tspan_steady_pulse,
+                           self.select_values(cycle=selector_value).grab('t')[0][-1]]
+                          for selector_value in selector_list]
+        else:
+            print("Choose a selector_name that is present in your data.")
+        print("I have selected following tspans for calibration: " + str(tspan_list))
+        return tspan_list
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
