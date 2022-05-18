@@ -10,18 +10,23 @@ class AvantageAVGReader:
     def __init__(self, path_to_file=None):
         self.path_to_file = path_to_file
 
-    def read(self, path_to_file, cls=Spectrum, **kwargs):
+    def read(self, path_to_file, cls=None, **kwargs):
         """Load data stored as text by Advantage's default exporting mode
 
         Copied from pyThetaProbe, written by Anna Winiwarter and Soren Scott in 2019
-
         This is also that used by the "TXT" batch exporter.
-        Written for simple intensity-vs-energy, but with possible future expansion in mind.
-
+        Written for simple intensity-vs-energy, but with possible future expansion in
+        mind.
         Returns the dataset as a python dictionary.
+
+        Args:
+            path_to_file (str or Path): Path to the .avg data
+            cls (Spectrum subclass): Class of spectrum to return an object of
+            kwargs: Additional keyword arguments are passed to cls.__init__
         """
 
         path_to_file = Path(path_to_file or self.path_to_file)
+        cls = cls or Spectrum
 
         get_data_ax_keys, get_data_ax_vals, get_space_ax_keys, get_space_ax_vals = (
             False,

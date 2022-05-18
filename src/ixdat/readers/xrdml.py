@@ -19,6 +19,7 @@ class XRDMLReader:
                 Defaults to `Spectrum`.
             kwargs: Additional keyword arguments are passed on to `cls.from_field`
         """
+        cls = cls or Spectrum
         with open(path_to_file, "r") as f:
             document = parse(f)
         datapoint_node = document.getElementsByTagName("dataPoints")[0]
