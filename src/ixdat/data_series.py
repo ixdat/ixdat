@@ -150,20 +150,20 @@ class Field(DataSeries):
         N = self.N_dimensions
         if len(self._a_ids) != N:
             raise AxisError(
-                f"{self} is {N}-D but initiated with {len(self._a_ids)} axis id's"
+                f"{self!r} is {N}-D but initiated with {len(self._a_ids)} axis id's"
             )
         if len(self._axes_series) != N:
             raise AxisError(
-                f"{self} is {N}-D but initiated with {len(self._axes_series)} axes"
+                f"{self!r} is {N}-D but initiated with {len(self._axes_series)} axes"
             )
         for n, (a_id, axis_series) in enumerate(zip(self._a_ids, self._axes_series)):
             if a_id is not None and axis_series is not None and a_id != axis_series.id:
                 raise AxisError(
-                    f"{self} initiated with contradicting id's for {n}'th axis"
+                    f"{self!r} initiated with contradicting id's for {n}'th axis"
                 )
             elif a_id is None and axis_series is None:
                 raise AxisError(
-                    f"{self} has no axis id for series or id for its {n}'th axis"
+                    f"{self!r} has no axis id for series or id for its {n}'th axis"
                 )
 
     @property
@@ -173,7 +173,7 @@ class Field(DataSeries):
             self._data = self.load_data()
             if len(self._data.shape) != self.N_dimensions:
                 raise AxisError(
-                    f"{self} has {self.N_dimensions} axes but its data is "
+                    f"{self!r} has {self.N_dimensions} axes but its data is "
                     f"{len(self._data.shape)}-dimensional."
                 )
         return self._data.copy()  # TODO: make data series data immutable with numpy flag
@@ -295,7 +295,7 @@ def append_series(series_list, sorted=True, name=None, tstamp=None):
             series_list, sorted=sorted, name=name, tstamp=tstamp
         )
     raise BuildError(
-        f"An algorithm of append_series for series like {s0} is not yet implemented"
+        f"An algorithm of append_series for series like {s0!r} is not yet implemented"
     )
 
 

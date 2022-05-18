@@ -273,7 +273,7 @@ class CyclicVoltammogram(ECMeasurement):
         if not len(my_sweep_specs) == len(others_sweep_specs):
             raise BuildError(
                 "Can only make diff of CyclicVoltammograms with same number of sweeps."
-                f"{self} has {my_sweep_specs} and {other} has {others_sweep_specs}."
+                f"{self!r} has {my_sweep_specs} and {other!r} has {others_sweep_specs}."
             )
 
         diff_values = {name: np.array([]) for name in v_list}
@@ -284,7 +284,7 @@ class CyclicVoltammogram(ECMeasurement):
             if not other_spec[1] == sweep_type:
                 raise BuildError(
                     "Corresponding sweeps must be of same type when making diff."
-                    f"Can't align {self}'s {my_spec} with {other}'s {other_spec}."
+                    f"Can't align {self!r}'s {my_spec} with {other!r}'s {other_spec}."
                 )
             my_tspan = my_spec[0]
             other_tspan = other_spec[0]

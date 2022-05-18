@@ -494,7 +494,7 @@ class Measurement(Saveable):
             calibration_class = CALIBRATION_CLASSES[self.technique]
         else:
             raise TechniqueError(
-                f"{self} is of technique '{self.technique}', for which there is not an "
+                f"{self!r} is of technique '{self.technique}, for which there is not an "
                 "available default calibration. Instead, import one of the following "
                 "classes to initiate a calibration, and then use `add_calibration`. "
                 f"\nOptions: \n{CALIBRATION_CLASSES}"
@@ -731,7 +731,7 @@ class Measurement(Saveable):
                 if k == key:  # this would result in infinite recursion.
                     print(  # TODO: Real warnings.
                         "WARNING!!!\n"
-                        f"\t{self} has {key} in its aliases for {key}:\n"
+                        f"\t{self!r} has {key} in its aliases for {key}:\n"
                         f"\tself.aliases['{key}'] = {self.aliases[key]}"
                     )
                     continue
@@ -753,7 +753,7 @@ class Measurement(Saveable):
         if key.endswith("-v") or key.endswith("-y"):
             return self[key[:-2]]
 
-        raise SeriesNotFoundError(f"{self} does not contain '{key}'")
+        raise SeriesNotFoundError(f"{self!r} does not contain '{key}'")
 
     def replace_series(self, series_name, new_series=None):
         """Remove an existing series, add a series to the measurement, or both.
@@ -771,7 +771,7 @@ class Measurement(Saveable):
         """
         if new_series and not series_name == new_series.name:
             raise TypeError(
-                f"Cannot replace {series_name} in {self} with {new_series}. "
+                f"Cannot replace {series_name} in {self!r} with {new_series}. "
                 f"Names must agree."
             )
         if series_name in self._cached_series:
@@ -1146,7 +1146,7 @@ class Measurement(Saveable):
         if args:
             if not self.selector_name:
                 raise BuildError(
-                    f"{self} does not have a default selection string "
+                    f"{self!r} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
             kwargs[self.selector_name] = args[0]
@@ -1212,7 +1212,7 @@ class Measurement(Saveable):
             selector_name = selector_name or self.selector_name
             if not selector_name:
                 raise BuildError(
-                    f"{self} does not have a default selector_name "
+                    f"{self:r} does not have a default selector_name "
                     f"(Measurement.selector_name), and so selection only works "
                     f"with a selector_name specified "
                     f"(see `help(Measurement.select_values)`)"
