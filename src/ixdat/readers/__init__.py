@@ -34,6 +34,9 @@ from .xrdml import XRDMLReader
 # xps
 from .avantage import AvantageAVGReader
 
+# xas
+from .qexafs import QexafsDATReader
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicMPTReader,
@@ -51,4 +54,5 @@ READER_CLASSES = {
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
     "xrdml": XRDMLReader,
+    "qexafs": QexafsDATReader,
 }
