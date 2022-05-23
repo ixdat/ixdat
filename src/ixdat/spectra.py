@@ -1,7 +1,7 @@
 """Base classes for spectra and spectrum series"""
 
 import numpy as np
-from .db import Saveable, PlaceHolderObject
+from .db import Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
@@ -234,7 +234,7 @@ class Spectrum(Saveable):
         if not self.x == other.x:  # FIXME: Some depreciation here. How else?
             raise BuildError(
                 "can't add spectra with different `x`. "
-                "Consider the function `append_spectra` instead."
+                # "Consider the function `append_spectra` instead."
             )
         t = np.array([0, other.tstamp - self.tstamp])
         tseries = TimeSeries(
@@ -251,6 +251,109 @@ class Spectrum(Saveable):
         del spectrum_series_as_dict["field_id"]
 
         return SpectrumSeries.from_dict(spectrum_series_as_dict)
+
+
+class MultiSpectrum(Saveable):
+    """The MultiSpectrum class.
+
+    A collection of spectra having the same x values and tstamp. The y values of the
+    spectra in a MultiSpectrum can describe the same kind of thing, such as in the
+    multiple scans of an XPS measurement, where the average of the spectra is the
+    most-used quantity; or can different things, like fluorescence and transmission
+    measured simultaneously while varying the incident x-ray energy on a beamline.
+
+    Indexing with a spectrum name returns a `Spectrum` object with that thing, or a
+    smaller `MultiSpectrum` if there are multiple spectra with that name.
+    """
+
+    table_name = "multispectrum"
+    column_attrs = {
+        "name",
+        "technique",
+        "metadata",
+        "tstamp",
+        "sample_name",
+    }
+    extra_linkers = {"multispectrum_fields": {"data_series", "f_ids"}}
+    child_attrs = ["fields"]
+
+    def __init__(
+        self,
+        name,
+        tstamp=None,
+        technique=None,
+        metadata=None,
+        sample_name=None,
+        f_ids=None,
+        fields=None,
+    ):
+        super().__init__()
+        self.name = name
+        self.technique = technique
+        self.metadata = metadata
+        self.tstamp = tstamp
+        self.sample_name = sample_name
+        self._fields = fill_object_list(object_list=fields, obj_ids=f_ids, cls=Field)
+        self._xseries = None
+        self._spectra = None
+
+    @property
+    def fields(self):
+        """Make sure Fields are loaded and have the same xseries"""
+        xseries = None
+        for i, f in enumerate(self._fields):
+            if isinstance(f, PlaceHolderObject):
+                self.fields[i] = f.get_object()
+            xseries = xseries or self._fields[i].axes_series[0]
+            assert self._fields[i].axes_series[0] == xseries
+        self._xseries = xseries
+        return self._fields
+
+    @property
+    def xseries(self):
+        return self._xseries or self._fields[0].xseries
+
+    @property
+    def spectrum_list(self):
+        if not self._spectra:
+            self._spectra = []
+            for field in self.fields:
+                s = Spectrum.from_field(
+                    field,
+                    name=self.name + " - " + field.name,
+                    technique=self.technique,
+                    metadata=self.metadata,
+                    tstamp=self.tstamp,
+                    sample_name=self.sample_name,
+                )
+                self._spectra.append(s)
+        return self._spectra
+
+    def __getitem__(self, name):
+        spectrum_list = [s for s in self.spectrum_list if s.name == name]
+        if len(spectrum_list) == 1:
+            return spectrum_list[0]
+        elif len(spectrum_list) > 1:
+            return self.__class__.from_spectrum_list(
+                spectrum_list,
+                technique=self.technique,
+                metadata=self.metadata,
+            )
+
+    @classmethod
+    def from_spectrum_list(
+        cls, spectrum_list, technique=None, metadata=None, sample_name=None
+    ):
+        fields = [spectrum.field for spectrum in spectrum_list]
+        tstamp = spectrum_list[0].tstamp
+        obj_as_dict = {
+            "fields": fields,
+            "technique": technique,
+            "metadata": metadata,
+            "tstamp": tstamp,
+            "sample_name": sample_name,
+        }
+        return cls.from_dict(obj_as_dict)
 
 
 class SpectrumSeries(Spectrum):

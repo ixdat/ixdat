@@ -8,7 +8,7 @@ from .base_mpl_plotter import MPLPlotter
 
 
 class SpectrumPlotter(MPLPlotter):
-    """A plotter for spectrums"""
+    """A plotter for spectrum_list"""
 
     def __init__(self, spectrum=None):
         super().__init__()
