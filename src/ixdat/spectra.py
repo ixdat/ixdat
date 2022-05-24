@@ -95,8 +95,16 @@ class Spectrum(Saveable):
         return reader.read(path_to_file, cls=cls, **kwargs)
 
     @classmethod
-    def read_set(cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs):
-        """Read and append a set of spectra.
+    def read_set(
+        cls,
+        path_to_file_start=None,
+        part=None,
+        suffix=None,
+        file_list=None,
+        reader=None,
+        **kwargs,
+    ):
+        """Read and append a set of spectra as a SpectrumSeries
 
         Args:
             path_to_file_start (Path or str): The path to the files to read including
@@ -104,20 +112,20 @@ class Spectrum(Saveable):
                 interpreted as the folder where the file are.
                 `Path(path_to_file).name` is interpreted as the shared start of the files
                 to be appended.
-            reader (str or Reader class): The (name of the) reader to read the files with
-            file_list (list of Path): As an alternative to path_to_file_start, the
-                exact files to append can be specified in a list
+            part (Path or str): A path where the folder is the folder containing data
+                and the name is a part of the name of each of the files to be read and
+                combined.
             suffix (str): If a suffix is given, only files with the specified ending are
                 added to the file list
+            file_list (list of Path): As an alternative to path_to_file_start or part,
+                the exact files to append can be specified in a list
+            reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
                 method, AND to cls.from_component_measurements()
         """
-        if not file_list:
-            folder = Path(path_to_file_start).parent
-            base_name = Path(path_to_file_start).name
-            file_list = [f for f in folder.iterdir() if base_name in f.name]
-            if suffix:
-                file_list = [f for f in file_list if f.suffix == suffix]
+        from .readers.reading_tools import get_file_list
+
+        file_list = file_list or get_file_list(path_to_file_start, part, suffix)
         spectrum_list = [cls.read(f, reader=reader, **kwargs) for f in file_list]
         return SpectrumSeries.from_spectrum_list(spectrum_list)
 
