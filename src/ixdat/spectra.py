@@ -1,5 +1,6 @@
 """Base classes for spectra and spectrum series"""
 
+from pathlib import Path
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
@@ -92,6 +93,33 @@ class Spectrum(Saveable):
             reader = READER_CLASSES[reader]()
         # print(f"{__name__}. cls={cls}")  # debugging
         return reader.read(path_to_file, cls=cls, **kwargs)
+
+    @classmethod
+    def read_set(cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs):
+        """Read and append a set of spectra.
+
+        Args:
+            path_to_file_start (Path or str): The path to the files to read including
+                the shared start of the file name: `Path(path_to_file).parent` is
+                interpreted as the folder where the file are.
+                `Path(path_to_file).name` is interpreted as the shared start of the files
+                to be appended.
+            reader (str or Reader class): The (name of the) reader to read the files with
+            file_list (list of Path): As an alternative to path_to_file_start, the
+                exact files to append can be specified in a list
+            suffix (str): If a suffix is given, only files with the specified ending are
+                added to the file list
+            kwargs: Key-word arguments are passed via cls.read() to the reader's read()
+                method, AND to cls.from_component_measurements()
+        """
+        if not file_list:
+            folder = Path(path_to_file_start).parent
+            base_name = Path(path_to_file_start).name
+            file_list = [f for f in folder.iterdir() if base_name in f.name]
+            if suffix:
+                file_list = [f for f in file_list if f.suffix == suffix]
+        spectrum_list = [cls.read(f, reader=reader, **kwargs) for f in file_list]
+        return SpectrumSeries.from_spectrum_list(spectrum_list)
 
     @property
     def data_objects(self):
@@ -392,6 +420,34 @@ class SpectrumSeries(Spectrum):
             kwargs["technique"] = "spectra"
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
+        self.heat_plot = self.plotter.heat_plot
+
+    @classmethod
+    def from_spectrum_list(cls, spectrum_list, **kwargs):
+        xseries = None
+        tstamp_list = []
+        ys = []
+        for spectrum in spectrum_list:
+            tstamp_list.append(spectrum.tstamp)
+            xseries = xseries or spectrum.xseries
+            ys.append(spectrum.y)
+
+        tseries = TimeSeries(
+            name="Spectrum Time",
+            unit_name="s",
+            data=np.array(tstamp_list) - tstamp_list[0],
+            tstamp=tstamp_list[0],
+        )
+        field = Field(
+            name=spectrum_list[0].field.name,
+            unit_name=spectrum_list[0].field.unit_name,
+            axes_series=[tseries, xseries],
+            data=np.stack(ys),
+        )
+        obj_as_dict = spectrum_list[0].as_dict()
+        obj_as_dict["field"] = field
+        del obj_as_dict["field_id"]
+        return cls.from_dict(obj_as_dict)
 
     @property
     def yseries(self):

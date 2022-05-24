@@ -145,6 +145,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
             x = x[wl_mask]
             data = data[:, wl_mask]
 
+        if not ax:
+            ax = self.new_ax()
+
         ax.imshow(
             data.swapaxes(0, 1),
             cmap=cmap_name,
