@@ -1239,6 +1239,11 @@ class Measurement(Saveable):
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
         """
+        from .spectra import SpectrumSeries, add_spectrum_series_to_measurement
+
+        if isinstance(other, SpectrumSeries):
+            return add_spectrum_series_to_measurement(self, other)
+
         new_name = self.name + " AND " + other.name
         new_technique = get_combined_technique(self.technique, other.technique)
 

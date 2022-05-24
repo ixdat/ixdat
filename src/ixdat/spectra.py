@@ -6,6 +6,7 @@ from .db import Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
+from .measurements import Measurement, get_combined_technique
 
 
 class Spectrum(Saveable):
@@ -525,3 +526,31 @@ class SpectrumSeries(Spectrum):
     def y_average(self):
         """The y-data of the average spectrum"""
         return np.mean(self.y, axis=0)
+
+    def __add__(self, other):
+        if isinstance(other, Measurement):
+            return add_spectrum_series_to_measurement(other, self)
+        raise NotImplementedError("Appending `SpectrumSeries` is not yet implemented")
+
+
+def add_spectrum_series_to_measurement(measurement, spectrum_series):
+    new_name = measurement.name + " AND " + spectrum_series.name
+    new_technique = get_combined_technique(
+        measurement.technique, spectrum_series.technique
+    )
+
+    # TODO: see if there isn't a way to put the import at the top of the module.
+    #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+    from .techniques import TECHNIQUE_CLASSES
+
+    if new_technique in TECHNIQUE_CLASSES:
+        cls = TECHNIQUE_CLASSES[new_technique]
+    else:
+        cls = measurement.__class__
+
+    obj_as_dict = measurement.as_dict()
+    obj_as_dict["series_list"] = measurement.series_list + [spectrum_series.field]
+    del obj_as_dict["s_ids"]
+    obj_as_dict["name"] = new_name
+    obj_as_dict["technique"] = new_technique
+    return cls.from_dict(obj_as_dict)
