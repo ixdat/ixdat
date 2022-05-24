@@ -8,6 +8,7 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 
 import numpy as np
 from .db import Saveable
+from .tools import tstamp_to_string
 from .units import Unit
 from .exceptions import AxisError, BuildError
 
@@ -80,6 +81,15 @@ class TimeSeries(DataSeries):
         """
         super().__init__(name, unit_name, data)
         self.tstamp = tstamp
+
+    def __str__(self):
+        """Return TimeSeries string representation"""
+        # On the form: TimeSeries: 'NAME', Span: 12..4000s @ 22E18 14:34:55
+        return (
+            f"{self.__class__.__name__}: '{self.name}', "
+            f"Span: {min(self.data):.0f}..{max(self.data):.0f} {self.unit.name} "
+            f"@ {tstamp_to_string(self.tstamp)}"
+        )
 
     @property
     def t(self):
@@ -223,6 +233,13 @@ class ValueSeries(Field):
         # TODO: This could probably be handled more nicely with PlaceHolderObjects
         #   see: Measurement and
         #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
+
+    def __str__(self):
+        """Return string representation"""
+        return (
+            f"{self.__class__.__name__}: '{self.name}', "
+            f"Span: {min(self.data):.1e}..{max(self.data):.1e} {self.unit.name}"
+        )
 
     @property
     def tseries(self):

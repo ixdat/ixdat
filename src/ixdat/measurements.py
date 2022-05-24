@@ -149,6 +149,35 @@ class Measurement(Saveable):
         #    dynamically choose plotters (Nice idea from Anna:
         #    https://github.com/ixdat/ixdat/issues/32)
 
+    def __str__(self):
+        """Return string representation"""
+        tseries_to_valueseries = {}
+        for series in self.series_list:
+            if isinstance(series, TimeSeries):
+                if series not in tseries_to_valueseries:
+                    tseries_to_valueseries[series] = []
+            else:
+                if series.tseries in tseries_to_valueseries:
+                    tseries_to_valueseries[series.tseries].append(series)
+                else:
+                    tseries_to_valueseries[series.tseries] = [series]
+
+        out = []
+        for tseries, value_serieses in tseries_to_valueseries.items():
+            out.append("┏ " + str(tseries))
+            for n, value_series in enumerate(value_serieses):
+                if n == len(value_serieses) - 1:
+                    out.append("┗━ " + str(value_series))
+                else:
+                    out.append("┣━ " + str(value_series))
+
+        return (
+            f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} series\n"
+            "\n"
+            "Series list:\n" + "\n".join(out)
+        )
+        return out
+
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return an object of the measurement class of the right technique

@@ -11,3 +11,4 @@ twine
 setuputils3
 tox
 invoke
+dateutil  # For timezone handling in tests

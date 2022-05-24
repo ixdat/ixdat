@@ -1,13 +1,16 @@
 """This module contains general purpose tools"""
+import datetime
 import inspect
 import time
 import warnings
 from functools import wraps
+from string import ascii_uppercase
 
 import numpy as np
 from packaging import version
 
 from ixdat.exceptions import DeprecationError
+from ixdat.config import CFG
 from ixdat import __version__
 
 warnings.simplefilter("default")
@@ -259,17 +262,21 @@ def deprecate(
     return decorator
 
 
-def tstamp_to_yyMdd(tstamp: float) -> str:
-    """Return the date in compact form "yyMdd" format given the unix time (float).
+def tstamp_to_string(tstamp):
+    """Return a string representation if unix timestamps `tstamp`"""
+    dt = datetime.datetime.fromtimestamp(tstamp)
+    print(dt.tzinfo)
+    string_format = CFG.timestamp_string_format
+    if string_format == "native":
+        # ixdat shows months as capital letters, where Jan->A, Feb->B etc.
+        month_letter = ascii_uppercase[dt.month - 1]
+        # Brings to the total format to: 22E18 14:34:55
+        string_format = f"%y{month_letter}%d %H:%M:%S"
+    return dt.astimezone(CFG.timezone).strftime(string_format)
 
-    In this format the month is given as a capital letter, starting with A for January.
-    E.g. June 4th, 2022 will become 22F04.
-    """
-    a = time.localtime(tstamp)
-    year = a.tm_year
-    month = a.tm_mon
-    day = a.tm_mday
-    date_string = "{0:02d}{1:1s}{2:02d}".format(
-        year % 100, chr(ord("A") + month - 1), day
-    )
-    return date_string
+
+if __name__ == "__main__":
+    from time import time
+
+    t0 = time()
+    print(tstamp_to_string(t0))
