@@ -149,7 +149,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
             ax = self.new_ax()
 
         ax.imshow(
-            data.swapaxes(0, 1),
+            np.flip(data.swapaxes(0, 1), axis=0),
             cmap=cmap_name,
             aspect="auto",
             extent=(v[0], v[-1], x[0], x[-1]),

@@ -23,7 +23,8 @@ if True:
     xas_series = Spectrum.read_set(
         part=data_dir / "IrO2_crys", suffix=".dat", reader="qexafs", technique="xas"
     )
-    xas_series.heat_plot()
+    ax = xas_series.heat_plot()
+    ax.get_figure().savefig("xas_heat_plot.png")
 
     ec = Measurement.read(data_dir / "IrO2_CA_0p60_C02_dat.mpt", reader="biologic")
     ec.plot()
