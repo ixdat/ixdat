@@ -118,7 +118,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         tspan_list=None,
         selector_list=None,
         selector_name=None,
-        tspan_steady_pulse=0,
+        t_steady_pulse=0,
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
@@ -149,7 +149,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n_list = []
         if not tspan_list:
             tspan_list = self._get_tspan_list(selector_list,
-                                              selector_name, tspan_steady_pulse)
+                                              selector_name, t_steady_pulse)
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
@@ -187,7 +187,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             self,
             selector_list,
             selector_name=None,
-            tspan_steady_pulse=0,
+            t_steady_pulse=0,
     ):
         """
         Generate a t_span list from input of selectors.
@@ -195,31 +195,28 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Args:
             selector_list (list of selector): selector numbers that define the
                                             tspans over which data should be integrated
-            selector_name (str): selector name that should be, which by default will
-                                                refer to data['selector']
-            tspan_steady_pulse (float): length of steady state pulse period to integrate
+            selector_name (str): name of selector that will be used to determine sections
+                                of data. Will refer to data['selector'] by default.
+                                selector_name cannot contain a space character due to
+                                limitations of self.select_values().
+            t_steady_pulse (float): length of steady state pulse period to integrate
                                     (will choose the last x seconds)
 
         Returns tspan_list(list of tspan)
         """
-        t_index = -1
-        if tspan_steady_pulse == 0:
-            t_index = 0
-        if not selector_name or selector_name == "selector":
-            tspan_list = [[self.select_values(selector=selector_value).grab('t')[0][t_index] - tspan_steady_pulse,
-                           self.select_values(selector=selector_value).grab('t')[0][-1]]
-                          for selector_value in selector_list]
-        elif selector_name == "Ns":
-            tspan_list = [[self.select_values(Ns=selector_value).grab('t')[0][t_index] - tspan_steady_pulse,
-                           self.select_values(Ns=selector_value).grab('t')[0][-1]]
-                          for selector_value in selector_list]
-        elif selector_name == "cycle":
-            tspan_list = [[self.select_values(cycle=selector_value).grab('t')[0][t_index] - tspan_steady_pulse,
-                           self.select_values(cycle=selector_value).grab('t')[0][-1]]
-                          for selector_value in selector_list]
-        else:
-            print("Choose a selector_name that is present in your data.")
-        print("I have selected following tspans for calibration: " + str(tspan_list))
+        t_idx = -1
+        if t_steady_pulse == 0:
+            t_idx = 0
+
+        tspan_list = [
+            [self.select_values(**{selector_name: selector_value}).grab('t')[0][t_idx]
+             - t_steady_pulse,
+             self.select_values(**{selector_name: selector_value}).grab('t')[0][-1]]
+            for selector_value in selector_list]
+
+        print("Choose a selector_name that is present in your data.")
+
+        print("Following tspans were selected for calibration: " + str(tspan_list))
         return tspan_list
 
 
