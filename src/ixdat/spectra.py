@@ -533,7 +533,7 @@ class SpectrumSeries(Spectrum):
         raise NotImplementedError("Appending `SpectrumSeries` is not yet implemented")
 
 
-def add_spectrum_series_to_measurement(measurement, spectrum_series):
+def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
     new_name = measurement.name + " AND " + spectrum_series.name
     new_technique = get_combined_technique(
         measurement.technique, spectrum_series.technique
@@ -541,16 +541,44 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series):
 
     # TODO: see if there isn't a way to put the import at the top of the module.
     #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
-    from .techniques import TECHNIQUE_CLASSES
-
-    if new_technique in TECHNIQUE_CLASSES:
-        cls = TECHNIQUE_CLASSES[new_technique]
-    else:
-        cls = measurement.__class__
+    from .techniques import TECHNIQUE_CLASSES, ECMeasurement, SpectroECMeasurement
 
     obj_as_dict = measurement.as_dict()
     obj_as_dict["series_list"] = measurement.series_list + [spectrum_series.field]
     del obj_as_dict["s_ids"]
     obj_as_dict["name"] = new_name
     obj_as_dict["technique"] = new_technique
+
+    if new_technique in TECHNIQUE_CLASSES:
+        cls = TECHNIQUE_CLASSES[new_technique]
+    elif isinstance(measurement, ECMeasurement):
+        cls = SpectroECMeasurement
+        # SpectroECMeasurement requires the spectra to be in a field named "spectra":
+        field = Field(
+            name="spectra",
+            unit_name=spectrum_series.field.unit_name,
+            axes_series=spectrum_series.field.axes_series,
+            data=spectrum_series.field.data,
+        )
+        # SpectroECMeasurement requires a reference spectrum
+        # If a reference spectrum is not provided in kwargs, we'll use a spectrum of 1's
+        xseries = DataSeries(
+            name=spectrum_series.x_name,
+            unit_name=spectrum_series.xseries.unit_name,
+            data=spectrum_series.x,
+        )
+        reference_spectrum = Field(
+            name="reference",
+            unit_name="",
+            data=np.ones(spectrum_series.x.shape),
+            axes_series=[xseries],
+        )
+        obj_as_dict["series_list"] = measurement.series_list + [
+            field,
+            reference_spectrum,
+        ]
+    else:
+        cls = measurement.__class__
+
+    obj_as_dict.update(kwargs)
     return cls.from_dict(obj_as_dict)

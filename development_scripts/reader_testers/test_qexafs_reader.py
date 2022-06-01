@@ -26,7 +26,9 @@ if True:
     ax = xas_series.heat_plot()
     ax.get_figure().savefig("xas_heat_plot.png")
 
-    ec = Measurement.read(data_dir / "IrO2_CA_0p60_C02_dat.mpt", reader="biologic")
+    ec = Measurement.read(data_dir / "IrO2_CA_0p60_C02.mpt", reader="biologic")
     ec.plot()
 
     ec_xas = ec + xas_series
+
+    ec_xas.plot()

@@ -22,7 +22,7 @@ class SpectroECMeasurement(ECMeasurement):
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
         self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
-        self.technique = "S-EC"
+        self.technique = "SEC"
 
     @property
     def reference_spectrum(self):

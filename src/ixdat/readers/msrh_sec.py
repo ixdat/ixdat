@@ -117,9 +117,9 @@ class MsrhSECReader:
             spectra,
         ]
 
-        # Figure out which measurement class to return. Use S-EC unless this read
+        # Figure out which measurement class to return. Use SEC unless this read
         #   function is provided an even more specific technique class:
-        measurement_class = TECHNIQUE_CLASSES["S-EC"]
+        measurement_class = TECHNIQUE_CLASSES["SEC"]
         if issubclass(cls, measurement_class):
             measurement_class = cls
 
@@ -225,7 +225,7 @@ class MsrhSECDecayReader:
             spectra,
         ]
 
-        measurement_class = TECHNIQUE_CLASSES["S-EC"]
+        measurement_class = TECHNIQUE_CLASSES["SEC"]
         if issubclass(cls, measurement_class):
             measurement_class = cls
 

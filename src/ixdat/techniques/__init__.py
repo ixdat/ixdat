@@ -22,7 +22,7 @@ TECHNIQUE_CLASSES = {
     "CV": CyclicVoltammogram,
     "MS": MSMeasurement,
     "EC-MS": ECMSMeasurement,
-    "S-EC": SpectroECMeasurement,
+    "SEC": SpectroECMeasurement,
 }
 
 CALIBRATION_CLASSES = {
