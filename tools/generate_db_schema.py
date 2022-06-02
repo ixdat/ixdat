@@ -131,19 +131,27 @@ def _generate_DBML_for_primary_tables(primary_table_classes):
     # Generate schema for primary classes
     table_name_to_id_column_name = {}
     for cls in primary_table_classes:
-        if "ecms" in cls.table_name:  # Broken, so skip for now
-            continue
-
         schema += f"table {cls.table_name}{{\n"
         # If the class has a `parent_table_class`, then it is an expansion of a parent
         # class and the id from the parent class is re-used
         if cls.parent_table_class:
-            id_column_name = f"{cls.parent_table_class.table_name.rstrip('s')}_id"
-            table_name_to_id_column_name[cls.table_name] = id_column_name
-            schema += (
-                f"  {id_column_name} {_id_type} "
-                f"[pk, ref: - {cls.parent_table_class.table_name}.id]\n"
-            )
+            if isinstance(cls.parent_table_class, tuple):  # Multiple inheritance case
+                for parent_class in cls.parent_table_class:
+                    id_column_name = table_name_to_id_column_name[
+                        parent_class.table_name
+                    ]
+                    schema += (
+                        f"  {parent_class.table_name.rstrip('s')}_id {_id_type} "
+                        f"[pk, ref: - {parent_class.table_name}."
+                        f"{id_column_name}]\n"
+                    )
+            else:  # Single super class
+                id_column_name = f"{cls.parent_table_class.table_name.rstrip('s')}_id"
+                table_name_to_id_column_name[cls.table_name] = id_column_name
+                schema += (
+                    f"  {id_column_name} {_id_type} "
+                    f"[pk, ref: - {cls.parent_table_class.table_name}.id]\n"
+                )
         else:
             table_name_to_id_column_name[cls.table_name] = "id"
 

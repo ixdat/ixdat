@@ -14,7 +14,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
     #  ----- table describing attributes --------- #
-    parent_table_class = ECMeasurement
+    parent_table_class = (ECMeasurement, MSMeasurement)
     table_name = "ecms_measurements"
     columns = []  # no additional columns.
     owned_object_lists = []  # no additional owned objects
@@ -187,7 +187,7 @@ class ECMSCalibration(ECCalibration, MSCalibration):
     """Class for calibrations useful for ECMSMeasurements"""
 
     table_name = "ecms_calibrations"
-    parent_table_class = MSCalibration
+    parent_table_class = (ECCalibration, MSCalibration)
     # simpler to use MSCalibration as parent_table_class instead of ECCalibration to use
     #    its MSCalibration's owned_object_lists
     columns = [

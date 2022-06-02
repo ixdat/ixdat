@@ -118,6 +118,16 @@ class Column:
     def __repr__(self):
         return f"Column(name={self.name}, ctype='{self.ctype}')"
 
+    def __eq__(self, other):
+        """Returns whether `self` is equal to `other`"""
+        return all(
+            (
+                self.name == other.name,
+                self.ctype == other.ctype,
+                self.attribute_name == other.attribute_name,
+            )
+        )
+
 
 class OwnedObjectList:
     def __init__(self, list_name, owned_object_table_name, joining_table_name):
@@ -275,7 +285,18 @@ class Saveable(metaclass=SaveableMetaClass):
     def full_columns(cls):
         """A class's full columns list includes that of its parent table class"""
         if cls.parent_table_class:
-            return cls.parent_table_class.full_columns() + cls.columns
+            if isinstance(cls.parent_table_class, tuple):
+                assert len(cls.parent_table_class) == 2
+                # Produce all columns, but ensure to not have duplicates of columns from
+                # shared ancestor
+                all_columns = cls.parent_table_class[0].full_columns() + cls.columns
+                for parent_class in cls.parent_table_class[1:]:
+                    for column in parent_class.full_columns():
+                        if column not in all_columns:
+                            all_columns.append(column)
+                return all_columns
+            else:
+                return cls.parent_table_class.full_columns() + cls.columns
         else:
             return cls.columns
 
@@ -283,9 +304,16 @@ class Saveable(metaclass=SaveableMetaClass):
     def full_owned_object_lists(cls):
         """A class's full owned object lists includes those of its parent table class"""
         if cls.parent_table_class:
-            return (
-                cls.parent_table_class.full_owned_object_lists() + cls.owned_object_lists
-            )
+            if isinstance(cls.parent_table_class, tuple):
+                all_owned_object_lists = list(cls.owned_object_lists)
+                for parent_class in cls.parent_table_class:
+                    all_owned_object_lists += parent_class.full_owned_object_lists()
+                return all_owned_object_lists
+            else:
+                return (
+                    cls.parent_table_class.full_owned_object_lists()
+                    + cls.owned_object_lists
+                )
         else:
             return cls.owned_object_lists
 
