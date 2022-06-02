@@ -156,7 +156,48 @@ class OwnedObjectList:
         return f"OwnedObjectList(list_name={self.list_name})"
 
 
-class Saveable:
+ALL_SAVABLE_CLASSES = set()
+
+
+class SaveableMetaClass(type):
+    """Metaclass which records all classes created with this metaclass and performs
+    checks on DB related class variable values
+
+    """
+
+    def __new__(cls, name, bases, attrs):
+        """Create a new instance
+
+        Args:
+            name (str): Name of the class
+            bases (tuple): Base classes
+            attrs (dict): Attributes defined for the class
+        """
+        new_cls = super().__new__(cls, name, bases, attrs)
+
+        if getattr(new_cls, "table_name") and "_SKIP_IN_TABLE_SCAN" not in attrs:
+            ALL_SAVABLE_CLASSES.add(new_cls)
+
+            # Check class property integrity. If the class defines columns it must also
+            # define a new table
+            if attrs.get("columns", []):
+                if "table_name" not in attrs:
+                    raise ValueError(
+                        f"Saveable class `{name}` which defines `columns` doesn't "
+                        "define `table_name` as it should"
+                    )
+                for base_class in bases:
+                    if attrs["table_name"] == base_class.table_name:
+                        raise ValueError(
+                            f"Saveable class `{name}` which defines `columns`, has the "
+                            "same `table_name` as one of its bases "
+                            f"`{base_class.__name__}`"
+                        )
+
+        return new_cls
+
+
+class Saveable(metaclass=SaveableMetaClass):
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
