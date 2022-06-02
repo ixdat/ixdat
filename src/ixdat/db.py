@@ -244,7 +244,8 @@ class Saveable(metaclass=SaveableMetaClass):
 
     db = DB
     table_name = None  # This MUST be overwritten in inheriting classes
-    columns = [Column("id", int), ("name", str)]  # This should probably be overwritten
+    columns = [Column("id", int), Column("name", str)]  # This should probably be
+    # overwritten
     owned_object_lists = []  # This can be overwritten in inheriting classes
     parent_table_class = None  # This can be overwritten in double-inheriting classes
     principle_key = "id"  # This can be overwritten in inheriting classes

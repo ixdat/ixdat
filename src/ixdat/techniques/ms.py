@@ -306,6 +306,7 @@ class MSCalResult(Saveable):
 class MSCalibration(Calibration):
     """Class for mass spec calibrations. TODO: replace with powerful external package"""
 
+    table_name = "ms_calibrations"
     parent_table_class = Calibration
     columns = [Column("signal_bgs", dict)]
     owned_object_lists = [

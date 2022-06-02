@@ -88,6 +88,7 @@ class ECMeasurement(Measurement):
     """
 
     # ------ table description class attributes -------- #
+    table_name = "ec_measurements"
     parent_table_class = Measurement
     columns = [Column("ec_technique", str)]
     owned_object_lists = []  # no additional owned objects
