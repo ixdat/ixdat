@@ -148,8 +148,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Y_list = []
         n_list = []
         if not tspan_list:
-            tspan_list = self._get_tspan_list(selector_list,
-                                              selector_name, t_steady_pulse)
+            tspan_list = self._get_tspan_list(
+                selector_list, selector_name, t_steady_pulse
+            )
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
@@ -184,10 +185,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return cal
 
     def _get_tspan_list(
-            self,
-            selector_list,
-            selector_name=None,
-            t_steady_pulse=0,
+        self,
+        selector_list,
+        selector_name=None,
+        t_steady_pulse=0,
     ):
         """
         Generate a t_span list from input of selectors.
@@ -209,10 +210,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             t_idx = 0
 
         tspan_list = [
-            [self.select_values(**{selector_name: selector_value}).grab('t')[0][t_idx]
-             - t_steady_pulse,
-             self.select_values(**{selector_name: selector_value}).grab('t')[0][-1]]
-            for selector_value in selector_list]
+            [
+                self.select_values(**{selector_name: selector_value}).grab("t")[0][t_idx]
+                - t_steady_pulse,
+                self.select_values(**{selector_name: selector_value}).grab("t")[0][-1],
+            ]
+            for selector_value in selector_list
+        ]
 
         print("Choose a selector_name that is present in your data.")
 
