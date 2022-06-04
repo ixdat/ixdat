@@ -593,6 +593,11 @@ class SpectroMeasurement(Measurement):
             self._spectrum_series = spectrum_series
         elif spec_id:
             self._spectrum_series = PlaceHolderObject(spec_id, cls=SpectrumSeries)
+        else:
+            raise TypeError(
+                "A SpectroMeasurement must be "
+                "initialized with a `spectrum_series` or `spec_id`"
+            )
 
     @property
     def spectrum_series(self):

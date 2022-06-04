@@ -10,7 +10,32 @@ from ..plotters.sec_plotter import SECPlotter
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
-    pass
+    def __init__(self, **kwargs):
+        """FIXME: Passing the right key-word arguments on is a mess"""
+        ec_kwargs = {
+            k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
+        }
+        spec_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k in SpectroMeasurement.get_all_column_attrs()
+        }
+        # ms_kwargs["ms_calibration"] = self.ms_calibration  # FIXME: This is a mess.
+        # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
+        #  works together with MemoryBackend
+        if "series_list" in kwargs:
+            ec_kwargs.update(series_list=kwargs["series_list"])
+            spec_kwargs.update(series_list=kwargs["series_list"])
+        if "component_measurements" in kwargs:
+            ec_kwargs.update(component_measurements=kwargs["component_measurements"])
+            spec_kwargs.update(component_measurements=kwargs["component_measurements"])
+        if "calibration_list" in kwargs:
+            ec_kwargs.update(calibration_list=kwargs["calibration_list"])
+            spec_kwargs.update(calibration_list=kwargs["calibration_list"])
+        if "spectrum_series" in kwargs:
+            spec_kwargs.update(spectrum_series=kwargs["spectrum_series"])
+        ECMeasurement.__init__(self, **ec_kwargs)
+        SpectroMeasurement.__init__(self, **spec_kwargs)
 
 
 class ECXASMeasurement(SpectroECMeasurement):
@@ -22,9 +47,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
     default_plotter = SECPlotter
     default_exporter = SECExporter
 
-    def __init__(self, *args, reference_spectrum=None, ref_id=None, **kwargs):
+    def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
-        SpectroECMeasurement.__init__(self, *args, **kwargs)
+        SpectroECMeasurement.__init__(self, **kwargs)
         if reference_spectrum:
             self._reference_spectrum = reference_spectrum
         elif ref_id:
@@ -33,7 +58,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
         self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
-        self.technique = "SEC"
+        self.technique = "EC-Optical"
 
     @property
     def reference_spectrum(self):

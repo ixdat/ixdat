@@ -4,6 +4,7 @@ import pandas as pd
 from .reading_tools import prompt_for_tstamp
 from ..techniques import TECHNIQUE_CLASSES
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
+from ..spectra import Spectrum, SpectrumSeries
 from ..techniques.analysis_tools import calc_t_using_scan_rate
 
 
@@ -86,6 +87,7 @@ class MsrhSECReader:
             axes_series=[wl_series],
             data=ref_signal,
         )
+        reference_spectrum = Spectrum.from_field(reference)
         # The spectra span a space defined by time and wavelength:
         spectra = Field(
             name="spectra",
@@ -93,6 +95,7 @@ class MsrhSECReader:
             axes_series=[tseries, wl_series],
             data=spectra,
         )
+        spectrum_series = SpectrumSeries.from_field(spectra, tstamp=tstamp)
 
         # Now we process the current and potential:
         U_0 = EI_df["U"].to_numpy()  # ... but we'll actually use U from the sec data
@@ -112,14 +115,11 @@ class MsrhSECReader:
             tseries,
             U_series,
             J_series,
-            wl_series,
-            reference,
-            spectra,
         ]
 
         # Figure out which measurement class to return. Use SEC unless this read
         #   function is provided an even more specific technique class:
-        measurement_class = TECHNIQUE_CLASSES["SEC"]
+        measurement_class = TECHNIQUE_CLASSES["EC-Optical"]
         if issubclass(cls, measurement_class):
             measurement_class = cls
 
@@ -133,6 +133,8 @@ class MsrhSECReader:
                 "raw_current": (J_series.name,),
                 "t": (tseries.name,),
             },
+            spectrum_series=spectrum_series,
+            reference_spectrum=reference_spectrum,
         )
 
         return measurement
@@ -189,11 +191,14 @@ class MsrhSECDecayReader:
         ref_signal = ref_df["counts"].to_numpy()[excess_wl_points:]
 
         wl_series = DataSeries("wavelength / [nm]", "nm", wl)
-        reference = Field(
-            name="reference",
-            unit_name="counts",
-            axes_series=[wl_series],
-            data=np.array(ref_signal),
+        reference_spectrum = Spectrum.from_field(
+            Field(
+                name="reference",
+                unit_name="counts",
+                axes_series=[wl_series],
+                data=np.array(ref_signal),
+            ),
+            tstamp=tstamp,
         )
 
         U = t_U_df["U"].to_numpy()
@@ -208,11 +213,14 @@ class MsrhSECDecayReader:
         tseries_spectra = TimeSeries("t for spectra", "s", t_spectra, tstamp)
         U_series = ValueSeries("raw potential / [V]", "V", U, tseries=tseries_U)
         J_series = ValueSeries("raw current / [mA]", "mA", J, tseries=tseries_J)
-        spectra = Field(
-            name="spectra",
-            unit_name="counts",
-            axes_series=[tseries_spectra, wl_series],
-            data=spectra,
+        spectrum_series = SpectrumSeries.from_field(
+            Field(
+                name="spectra",
+                unit_name="counts",
+                axes_series=[tseries_spectra, wl_series],
+                data=spectra,
+            ),
+            tstamp=tstamp,
         )
         series_list = [
             tseries_J,
@@ -221,11 +229,9 @@ class MsrhSECDecayReader:
             U_series,
             J_series,
             wl_series,
-            reference,
-            spectra,
         ]
 
-        measurement_class = TECHNIQUE_CLASSES["SEC"]
+        measurement_class = TECHNIQUE_CLASSES["EC-Optical"]
         if issubclass(cls, measurement_class):
             measurement_class = cls
 
@@ -238,6 +244,8 @@ class MsrhSECDecayReader:
                 "raw_current": (J_series.name,),
                 "t": (tseries_U.name,),
             },
+            spectrum_series=spectrum_series,
+            reference_spectrum=reference_spectrum,
         )
 
         return measurement
