@@ -582,3 +582,44 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 
     obj_as_dict.update(kwargs)
     return cls.from_dict(obj_as_dict)
+
+
+class SpectroMeasurement(Measurement):
+    extra_column_attrs = {"spectro_measurement": {"spec_id"}}
+
+    def __init__(self, *args, spectrum_series=None, spec_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if spectrum_series:
+            self._spectrum_series = spectrum_series
+        elif spec_id:
+            self._spectrum_series = PlaceHolderObject(spec_id, cls=SpectrumSeries)
+
+    @property
+    def spectrum_series(self):
+        if isinstance(self._spectrum_series, PlaceHolderObject):
+            self._spectrum_series = self._spectrum_series.get_object()
+        return self._spectrum_series
+
+    @property
+    def spec_id(self):
+        return self.spectrum_series.id
+
+    @property
+    def spectra(self):
+        return self.spectrum_series.field
+
+    def set_spectrum_series(self, spectrum_series):
+        self._spectrum_series = spectrum_series
+
+    def __add__(self, other):
+        added_measurement = super().__add__(other)
+        if isinstance(other, SpectroMeasurement):
+            spectrum_series = self.spectrum_series + other.spectrum_series
+            added_measurement.set_spectrum_series(spectrum_series)
+        return added_measurement
+
+    def cut(self, tspan, t_zero=None):
+        cut_measurement = super().cut(tspan, t_zero=t_zero)
+        spectrum_series = self.spectrum_series.cut(tspan=tspan)
+        cut_measurement.set_spectrum_series(spectrum_series)
+        return cut_measurement

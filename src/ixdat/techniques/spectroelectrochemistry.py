@@ -2,22 +2,33 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
-from ..spectra import Spectrum
+from ..db import PlaceHolderObject
+from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..data_series import Field, ValueSeries
-from ..spectra import SpectrumSeries
 from ..exporters.sec_exporter import SECExporter
 from ..plotters.sec_plotter import SECPlotter
 
 
-class SpectroECMeasurement(ECMeasurement):
+class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
+    pass
+
+
+class ECXASMeasurement(SpectroECMeasurement):
+    pass
+
+
+class ECOpticalMeasurement(SpectroECMeasurement):
 
     default_plotter = SECPlotter
     default_exporter = SECExporter
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
-        ECMeasurement.__init__(self, *args, **kwargs)
-        self._reference_spectrum = None
+        SpectroECMeasurement.__init__(self, *args, **kwargs)
+        if reference_spectrum:
+            self._reference_spectrum = reference_spectrum
+        elif ref_id:
+            self._reference_spectrum = PlaceHolderObject(ref_id, cls=Spectrum)
         self.tracked_wavelengths = []
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
@@ -26,9 +37,9 @@ class SpectroECMeasurement(ECMeasurement):
 
     @property
     def reference_spectrum(self):
-        """The spectrum which will by default be used to calculate dOD"""
-        if not self._reference_spectrum or self._reference_spectrum == "reference":
-            self._reference_spectrum = Spectrum.from_field(self["reference"])
+        """The reference spectrum which will by default be used to calculate dOD"""
+        if isinstance(self._reference_spectrum, PlaceHolderObject):
+            self._reference_spectrum = self._reference_spectrum.get_object()
         return self._reference_spectrum
 
     def set_reference_spectrum(
@@ -56,20 +67,6 @@ class SpectroECMeasurement(ECMeasurement):
         if not spectrum:
             raise ValueError("must provide a spectrum, t_ref, or V_ref!")
         self._reference_spectrum = spectrum
-
-    @property
-    def spectra(self):
-        """The Field that is the spectra of the SEC Measurement"""
-        return self["spectra"]
-
-    @property
-    def spectrum_series(self):
-        """The SpectrumSeries that is the spectra of the SEC Measurement"""
-        return SpectrumSeries.from_field(
-            self.spectra,
-            tstamp=self.tstamp,
-            name=self.name + " spectra",
-        )
 
     @property
     def wavelength(self):
