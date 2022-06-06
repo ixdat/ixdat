@@ -28,7 +28,7 @@ class QexafsDATReader:
                 no technique is provided.
             technique (str): The technique to read. This may determine which data is
                 incorporated into a `Spectrum` object. Options:
-                    i. "xas". Returns a `Spectrum` object with `x` from the first column
+                    i. "XAS". Returns a `Spectrum` object with `x` from the first column
                        (e.g. "qexafs_energy") and `y` based on `y_name` and `ref_name`
                 If no technique is requested and cls is None or `Spectrum`, a
                 `MultiSpectrum` will be returned including all the data of the .dat file.
@@ -59,7 +59,7 @@ class QexafsDATReader:
         x = df[x_name].to_numpy()
         x_unit = "eV"
         xseries = DataSeries(name=x_name, unit_name=x_unit, data=x)
-        if technique == "xas":
+        if technique == "XAS":
             y_name = y_name or "QexafsFFI0"
             if not y_name.endswith("I0"):
                 ref_name = ref_name or "I0"

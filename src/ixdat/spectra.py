@@ -544,41 +544,19 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
     from .techniques import TECHNIQUE_CLASSES, ECMeasurement, SpectroECMeasurement
 
     obj_as_dict = measurement.as_dict()
-    obj_as_dict["series_list"] = measurement.series_list + [spectrum_series.field]
-    del obj_as_dict["s_ids"]
+    obj_as_dict["spectrum_series"] = spectrum_series
     obj_as_dict["name"] = new_name
     obj_as_dict["technique"] = new_technique
 
     if new_technique in TECHNIQUE_CLASSES:
         cls = TECHNIQUE_CLASSES[new_technique]
-    elif isinstance(measurement, ECMeasurement):
-        cls = SpectroECMeasurement
-        # SpectroECMeasurement requires the spectra to be in a field named "spectra":
-        field = Field(
-            name="spectra",
-            unit_name=spectrum_series.field.unit_name,
-            axes_series=spectrum_series.field.axes_series,
-            data=spectrum_series.field.data,
-        )
-        # SpectroECMeasurement requires a reference spectrum
-        # If a reference spectrum is not provided in kwargs, we'll use a spectrum of 1's
-        xseries = DataSeries(
-            name=spectrum_series.x_name,
-            unit_name=spectrum_series.xseries.unit_name,
-            data=spectrum_series.x,
-        )
-        reference_spectrum = Field(
-            name="reference",
-            unit_name="",
-            data=np.ones(spectrum_series.x.shape),
-            axes_series=[xseries],
-        )
-        obj_as_dict["series_list"] = measurement.series_list + [
-            field,
-            reference_spectrum,
-        ]
     else:
-        cls = measurement.__class__
+        cls = SpectroMeasurement
+    if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
+        # Then we need a reference spectrum!
+        # But so far the only EC-Optical reader doesn't support reading Optical and
+        # EC parts separately, so this needs not be implemented yet.
+        raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
     return cls.from_dict(obj_as_dict)

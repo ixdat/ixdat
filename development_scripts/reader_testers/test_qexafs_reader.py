@@ -7,7 +7,7 @@ data_dir = Path(
 
 if True:
     xas = Spectrum.read(
-        data_dir / "540117_IrO2_crys_0.60V_1.dat", reader="qexafs", technique="xas"
+        data_dir / "540117_IrO2_crys_0.60V_1.dat", reader="qexafs", technique="XAS"
     )
     xas.plot()
 
@@ -21,7 +21,7 @@ if False:
 
 if True:
     xas_series = Spectrum.read_set(
-        part=data_dir / "IrO2_crys", suffix=".dat", reader="qexafs", technique="xas"
+        part=data_dir / "IrO2_crys", suffix=".dat", reader="qexafs", technique="XAS"
     )
     ax = xas_series.heat_plot()
     ax.get_figure().savefig("xas_heat_plot.png")
