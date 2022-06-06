@@ -70,7 +70,7 @@ class IxdatCSVReader:
         self.column_names = []
         self.column_data = {}
         self.technique = None
-        self.aux_series_list = []
+        self.aux_file_objects = {}
         self.measurement_class = Measurement
         self.file_has_been_read = False
         self.measurement = None
@@ -151,7 +151,7 @@ class IxdatCSVReader:
             )
             data_series_dict[column_name] = vseries
 
-        data_series_list = list(data_series_dict.values()) + self.aux_series_list
+        data_series_list = list(data_series_dict.values())
         self.meas_as_dict.update(
             name=self.name,
             technique=self.technique,
@@ -159,6 +159,7 @@ class IxdatCSVReader:
             series_list=data_series_list,
             tstamp=self.tstamp,
         )
+        self.meas_as_dict.update(self.aux_file_objects)
         self.meas_as_dict.update(kwargs)
 
         if issubclass(cls, self.measurement_class):
@@ -248,7 +249,7 @@ class IxdatCSVReader:
     def read_aux_file(self, path_to_aux_file, name):
         """Read an auxiliary file and include its series list in the measurement"""
         spec = IxdatSpectrumReader().read(path_to_aux_file, name=name)
-        self.aux_series_list += spec.series_list
+        self.aux_file_objects[name] = spec
 
     def print_header(self):
         """Print the file header including column names. read() must be called first."""
