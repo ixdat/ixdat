@@ -357,7 +357,7 @@ class MultiSpectrum(Saveable):
             for field in self.fields:
                 s = Spectrum.from_field(
                     field,
-                    name=self.name + " - " + field.name,
+                    name=field.name,
                     technique=self.technique,
                     metadata=self.metadata,
                     tstamp=self.tstamp,
