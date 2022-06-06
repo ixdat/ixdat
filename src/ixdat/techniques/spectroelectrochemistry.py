@@ -3,13 +3,18 @@ from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
 from ..db import PlaceHolderObject
-from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
+from ..spectra import Spectrum, SpectroMeasurement
 from ..data_series import Field, ValueSeries
 from ..exporters.sec_exporter import SECExporter
-from ..plotters.sec_plotter import SECPlotter
+from ..plotters.sec_plotter import SECPlotter, ECOpticalPlotter
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
+    """Electrochemistry with spectrometry."""
+
+    default_exporter = SECExporter
+    default_plotter = SECPlotter
+
     def __init__(self, **kwargs):
         """FIXME: Passing the right key-word arguments on is a mess"""
         ec_kwargs = {
@@ -20,7 +25,6 @@ class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
             for k, v in kwargs.items()
             if k in SpectroMeasurement.get_all_column_attrs()
         }
-        # ms_kwargs["ms_calibration"] = self.ms_calibration  # FIXME: This is a mess.
         # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
         #  works together with MemoryBackend
         if "series_list" in kwargs:
@@ -34,18 +38,25 @@ class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
             spec_kwargs.update(calibration_list=kwargs["calibration_list"])
         if "spectrum_series" in kwargs:
             spec_kwargs.update(spectrum_series=kwargs["spectrum_series"])
-        ECMeasurement.__init__(self, **ec_kwargs)
         SpectroMeasurement.__init__(self, **spec_kwargs)
+        ECMeasurement.__init__(self, **ec_kwargs)
 
 
 class ECXASMeasurement(SpectroECMeasurement):
+    """Electrochemistry with X-ray Absorption Spectroscopy"""
+
     pass
 
 
 class ECOpticalMeasurement(SpectroECMeasurement):
+    """Electrochemistry with optical Spectroscopy
 
-    default_plotter = SECPlotter
-    default_exporter = SECExporter
+    This adds, to the SpectroElectrochemistry base class, methods for normalizing to a
+    reference spectrum to get optical density, and for tracking intensity at specific
+    wavelengths.
+    """
+
+    default_plotter = ECOpticalPlotter
 
     def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
