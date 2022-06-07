@@ -9,7 +9,6 @@ A Measurement will typically be accompanied by one or more Calibration. This mod
 also defines the base class for Calibration, while technique-specific Calibration
 classes will be defined in the corresponding module in ./techniques/
 """
-from pathlib import Path
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list

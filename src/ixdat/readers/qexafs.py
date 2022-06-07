@@ -11,7 +11,7 @@ class QexafsDATReader:
     def read(
         self,
         path_to_file,
-        cls=None,
+        cls=Spectrum,
         technique=None,
         y_name=None,
         ref_name=None,

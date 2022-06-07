@@ -1,6 +1,5 @@
 """Base classes for spectra and spectrum series"""
 
-from pathlib import Path
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field
@@ -541,7 +540,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 
     # TODO: see if there isn't a way to put the import at the top of the module.
     #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
-    from .techniques import TECHNIQUE_CLASSES, ECMeasurement, SpectroECMeasurement
+    from .techniques import TECHNIQUE_CLASSES
 
     obj_as_dict = measurement.as_dict()
     obj_as_dict["spectrum_series"] = spectrum_series

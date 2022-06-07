@@ -2,7 +2,6 @@
 
 import matplotlib as mpl
 
-from .base_mpl_plotter import MPLPlotter
 from .ec_plotter import ECPlotter
 from .spectrum_plotter import SpectrumSeriesPlotter, SpectroMeasurementPlotter
 from ..exceptions import SeriesNotFoundError
