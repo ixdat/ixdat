@@ -58,6 +58,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
     default_plotter = ECOpticalPlotter
 
+    extra_linkers = SpectroECMeasurement.extra_linkers.copy()
+    extra_linkers.update({"ec_optical_measurements": ("spectra", "ref_id")})
+
     def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
         SpectroECMeasurement.__init__(self, **kwargs)

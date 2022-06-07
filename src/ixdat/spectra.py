@@ -562,7 +562,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 
 
 class SpectroMeasurement(Measurement):
-    extra_column_attrs = {"spectro_measurement": {"spec_id"}}
+    extra_column_attrs = {"spectro_measurements": {"spec_id"}}
 
     def __init__(self, *args, spectrum_series=None, spec_id=None, **kwargs):
         super().__init__(*args, **kwargs)
