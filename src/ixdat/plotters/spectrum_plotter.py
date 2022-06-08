@@ -14,7 +14,7 @@ class SpectrumPlotter(MPLPlotter):
         super().__init__()
         self.spectrum = spectrum
 
-    def plot(self, spectrum=None, ax=None, **kwargs):
+    def plot(self, *, spectrum=None, ax=None, **kwargs):
         """Plot a spectrum as y (signal) vs x (scanning variable)
 
         Args:
@@ -43,7 +43,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
         """The default plot of a SpectrumSeries is heat_plot"""
         return self.heat_plot
 
-    def plot_average(self, spectrum_series=None, ax=None, **kwargs):
+    def plot_average(self, *, spectrum_series=None, ax=None, **kwargs):
         """Take an average of the spectra and plot that."""
         spectrum_series = spectrum_series or self.spectrum_series
         if not ax:
@@ -55,6 +55,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
     def heat_plot(
         self,
+        *,
         spectrum_series=None,
         field=None,
         tspan=None,
@@ -66,24 +67,20 @@ class SpectrumSeriesPlotter(MPLPlotter):
         t_name=None,
     ):
         """
-        Plot an SECMeasurement in two panels with time as x-asis.
-
-        The top panel is a heat plot with wavelength on y-axis and color representing
-        spectrum. At most one of V_ref and t_ref should be given, and if neither are
-        given the measurement's default reference_spectrum is used to calculate the
-        optical density.
+        Plot a spectrum series with `t` on the horizontal axis, `x` on the vertical axis,
+        and color representing `y`.
 
         Args:
-            measurement (SpectrumSeries): The spectrum series to be plotted, if
+            spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
                 different from self.spectrum_series.
             field (Field): The field to be plotted, if different from
                 spectrum_series.field
             tspan (iterable): The span of the time data to plot
             xspan (iterable): The span of the spectral data to plot
             ax (mpl.Axis): The axes to plot on. A new one is made by default
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present mis-alignes axes
             t (numpy array): Time data to use if not the data in spectrum_series
@@ -129,11 +126,12 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
     def plot_waterfall(
         self,
+        *,
         spectrum_series=None,
         field=None,
+        ax=None,
         cmap_name="jet",
         make_colorbar=True,
-        ax=None,
         t=None,
         t_name=None,
     ):
@@ -145,9 +143,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
             field (Field): The field to be plotted, if different from
                 spectrum_series.field
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
@@ -196,14 +194,15 @@ class SpectroMeasurementPlotter(MPLPlotter):
 
     def heat_plot_vs(
         self,
+        *,
         measurement=None,
         field=None,
+        vs=None,
         vspan=None,
         xspan=None,
         ax=None,
         cmap_name="inferno",
         make_colorbar=False,
-        vs=None,
     ):
         """Plot a SpectroMeasurement in two panels with time as x-asis.
 
@@ -217,14 +216,15 @@ class SpectroMeasurementPlotter(MPLPlotter):
                 different from self.spectrum_series.
             field (Field): The field to be plotted, if different from
                 spectrum_series.field
+            vs (str): The name of the value series or time series to plot against.
+            vspan (iterable): The span of the value series or time series to include
             xspan (iterable): The span of the spectral data to plot
             ax (mpl.Axis): The axes to plot on. A new one is made by default
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present mis-alignes axes
-            vs (str): The ValueSeries or TimeSeries to plot against.
         """
         measurement = measurement or self.measurement
 
@@ -238,7 +238,7 @@ class SpectroMeasurementPlotter(MPLPlotter):
             v = measurement.grab_for_t(vs, t=tseries.t)
 
         return self.spectrum_series_plotter.heat_plot(
-            measurement.spectrum_series,
+            spectrum_series=measurement.spectrum_series,
             field=field,
             tspan=vspan,
             xspan=xspan,
@@ -251,26 +251,26 @@ class SpectroMeasurementPlotter(MPLPlotter):
 
     def plot_waterfall_vs(
         self,
+        *,
         measurement=None,
         field=None,
+        vs=None,
+        ax=None,
         cmap_name="jet",
         make_colorbar=True,
-        ax=None,
-        vs=None,
     ):
         """Plot a SpectrumSeries as spectra colored by the value at which they are taken
 
         Args:
-            spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
-                different from self.spectrum_series.
+            measurement (SpectroMeasurement): The measurement to be plotted if different
+                from self.measurement.
             field (Field): The field to be plotted, if different from
                 spectrum_series.field
-            ax (matplotlib Axis): The axes to plot on. A new one is made by default.
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
-            make_colorbar (bool): Whether to make a colorbar.
             vs (str): The name of the value to use for the color scale. Defaults to time
+            ax (matplotlib Axis): The axes to plot on. A new one is made by default.
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
+            make_colorbar (bool): Whether to make a colorbar.
         """
         measurement = measurement or self.measurement
 
@@ -284,7 +284,7 @@ class SpectroMeasurementPlotter(MPLPlotter):
             v = measurement.grab_for_t(vs, t=tseries.t)
 
         return self.spectrum_series_plotter.plot_waterfall(
-            measurement.spectrum_series,
+            spectrum_series=measurement.spectrum_series,
             field=field,
             ax=ax,
             cmap_name=cmap_name,

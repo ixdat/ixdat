@@ -259,8 +259,6 @@ class Measurement(Saveable):
                 added to the file list
             file_list (list of Path): As an alternative to path_to_file_start, the
                 exact files to append can be specified in a list
-            suffix (str): If a suffix is given, only files with the specified ending are
-                added to the file list
             reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
                 method, AND to cls.from_component_measurements()

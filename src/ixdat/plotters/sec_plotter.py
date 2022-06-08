@@ -8,7 +8,7 @@ from ..exceptions import SeriesNotFoundError
 
 
 class SECPlotter(SpectroMeasurementPlotter):
-    """An spectroelectrochemsitry (SEC) matplotlib plotter."""
+    """An spectroelectrochemistry (SEC) matplotlib plotter."""
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""
@@ -19,13 +19,14 @@ class SECPlotter(SpectroMeasurementPlotter):
 
     def plot_measurement(
         self,
+        *,
         measurement=None,
+        field=None,
         tspan=None,
         xspan=None,
         axes=None,
         cmap_name="inferno",
         make_colorbar=False,
-        field=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with time as x-asis.
@@ -37,19 +38,18 @@ class SECPlotter(SpectroMeasurementPlotter):
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
                 self.measurement
+            field (Field): The field with the spectral data to plot. Defaults to
+                `measurement.spectra`
             tspan (timespan): The timespan of data to keep for the measurement.
             xspan (iterable): The span of spectral data to plot
             axes (list of mpl.Axis): The axes to plot on. axes[0] is for the heat
                 plot, axes[1] for potential, and axes[2] for current. The axes are
                 optional and a new set of axes, where axes[1] and axes[2] are twinned on
                 x, are generated if not provided.
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present mis-alignes axes
-            field (Field): The field with the spectral data to plot. Defaults to
-                `measurement.spectra`
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
 
@@ -75,8 +75,8 @@ class SECPlotter(SpectroMeasurementPlotter):
             **kwargs,
         )
         axes[0] = self.spectrum_series_plotter.heat_plot(
-            self.measurement.spectrum_series,
-            field=field or self.measurement.spectra,
+            spectrum_series=measurement.spectrum_series,
+            field=field or measurement.spectra,
             tspan=tspan,
             ax=axes[0],
             cmap_name=cmap_name,
@@ -91,7 +91,9 @@ class SECPlotter(SpectroMeasurementPlotter):
 
     def plot_vs_potential(
         self,
+        *,
         measurement=None,
+        field=None,
         tspan=None,
         vspan=None,
         U_name=None,
@@ -100,7 +102,6 @@ class SECPlotter(SpectroMeasurementPlotter):
         axes=None,
         cmap_name="inferno",
         make_colorbar=False,
-        field=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with potential as x-asis.
@@ -113,6 +114,8 @@ class SECPlotter(SpectroMeasurementPlotter):
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
                 self.measurement
+            field (Field): The field with the spectral data to plot. Defaults to
+                `measurement.spectra`
             tspan (timespan): The timespan of data to keep for the measurement.
             vspan (timespan): The potential span of data to keep for the measurement.
             U_name (str): Optional. The name of the data series to use as potential.
@@ -120,9 +123,8 @@ class SECPlotter(SpectroMeasurementPlotter):
             xspan (iterable): The span of spectral data to plot
             axes (list of numpy Axes): The axes to plot on. axes[0] is for the heat
                 plot and axes[1] for potential. New are made by default.
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_vs_potential().
@@ -145,9 +147,9 @@ class SECPlotter(SpectroMeasurementPlotter):
             **kwargs,
         )
 
-        axes[0] = super().heat_plot_vs(
-            self.measurement,
-            field=field or self.measurement.spectra,
+        super().heat_plot_vs(
+            measurement=measurement,
+            field=field or measurement.spectra,
             vspan=vspan,
             xspan=xspan,
             ax=axes[0],
@@ -162,6 +164,7 @@ class SECPlotter(SpectroMeasurementPlotter):
 class ECOpticalPlotter(SECPlotter):
     def plot_measurement(
         self,
+        *,
         measurement=None,
         tspan=None,
         wlspan=None,
@@ -190,11 +193,10 @@ class ECOpticalPlotter(SECPlotter):
                 x, are generated if not provided.
             V_ref (float): Potential to use as reference for calculating optical density
             t_ref (float): Time to use as a reference for calculating optical density
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
-                FIXME: colorbar at present mis-alignes axes
+                FIXME: colorbar at present misaligns axes
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
 
@@ -222,6 +224,7 @@ class ECOpticalPlotter(SECPlotter):
 
     def plot_vs_potential(
         self,
+        *,
         measurement=None,
         tspan=None,
         vspan=None,
@@ -256,9 +259,8 @@ class ECOpticalPlotter(SECPlotter):
                 x, are generated if not provided.
             V_ref (float): Potential to use as reference for calculating optical density
             t_ref (float): Time to use as a reference for calculating optical density
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present mis-alignes axes
             kwargs: Additional key-word arguments are passed on to
@@ -291,6 +293,7 @@ class ECOpticalPlotter(SECPlotter):
 
     def plot_waterfall(
         self,
+        *,
         measurement=None,
         ax=None,
         V_ref=None,
@@ -305,7 +308,7 @@ class ECOpticalPlotter(SECPlotter):
         given the measurement's default reference_spectrum is used to calculate the
         optical density.
 
-        This uses SpectrumSeriesPlotter.plot_waterfall()
+        This uses :func:`~spectrum_plotter.SpectrumSeriesPlotter.plot_waterfall()`
 
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
@@ -315,9 +318,8 @@ class ECOpticalPlotter(SECPlotter):
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
             V_ref (float): potential to use as reference for calculating optical density
             t_ref (float): time to use as a reference for calculating optical density
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno",
-                which ranges from black through red and orange to yellow-white. "jet"
-                is also good.
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
             make_colorbar (bool): Whether to make a colorbar.
         """
         measurement = measurement or self.measurement
@@ -334,6 +336,7 @@ class ECOpticalPlotter(SECPlotter):
 
     def plot_wavelengths(
         self,
+        *,
         measurement=None,
         wavelengths=None,
         axes=None,
@@ -349,7 +352,8 @@ class ECOpticalPlotter(SECPlotter):
             wavelengths (list of str): The names of the wavelengths to track as strings,
                 e.g. "w400" for 400 nm
             axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
-            cmap_name (str): Name of the colormap. Defaults to "jet"
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
             tspan (timespan): The timespan to plot
             **kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement
@@ -379,6 +383,7 @@ class ECOpticalPlotter(SECPlotter):
 
     def plot_wavelengths_vs_potential(
         self,
+        *,
         measurement=None,
         wavelengths=None,
         axes=None,
@@ -394,7 +399,8 @@ class ECOpticalPlotter(SECPlotter):
             wavelengths (list of str): The names of the wavelengths to track as strings,
                 e.g. "w400" for 400 nm
             axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
-            cmap_name (str): Name of the colormap. Defaults to "jet"
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
             tspan (timespan): The timespan to plot
             **kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_vs_potential

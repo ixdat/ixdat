@@ -1,3 +1,5 @@
+"""Sandbox script to aid in development and demo of the XRDML reader"""
+
 from pathlib import Path
 
 from ixdat import Spectrum

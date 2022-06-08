@@ -14,7 +14,12 @@ class AvantageAVGReader:
         """Load data stored as text by Advantage's default exporting mode
 
         Copied from pyThetaProbe, written by Anna Winiwarter and Soren Scott in 2019
-        This is also that used by the "TXT" batch exporter.
+        TODO: Improve this code. See suggestions here:
+                https://github.com/ixdat/ixdat/pull/73#discussion_r892233369
+            See also more powerful reader ideas here:
+                https://github.com/CINF/PyExpLabSys/blob/master/PyExpLabSys/file_parsers/avantage.py#L384
+            and here:
+                https://github.com/ixdat/LowOverpotentialRegime/blob/main/src/pyOER/iss.py
         Written for simple intensity-vs-energy, but with possible future expansion in
         mind.
         Returns the dataset as a python dictionary.

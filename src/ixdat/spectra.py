@@ -38,6 +38,7 @@ class Spectrum(Saveable):
 
     def __init__(
         self,
+        *,
         name,
         technique="spectrum",
         metadata=None,
@@ -310,49 +311,70 @@ class MultiSpectrum(Saveable):
         "tstamp",
         "sample_name",
     }
-    extra_linkers = {"multispectrum_fields": {"data_series", "f_ids"}}
+    extra_linkers = {"multispectrum_fields": {"data_series", "field_ids"}}
     child_attrs = ["fields"]
 
     def __init__(
         self,
+        *,
         name,
-        tstamp=None,
         technique=None,
-        metadata=None,
+        tstamp=None,
         sample_name=None,
-        f_ids=None,
+        metadata=None,
         fields=None,
+        field_ids=None,
     ):
+        """Initiate a multi-spectrum
+
+        Args:
+            name (str): The name of the multi-spectrum
+            technique (str): The spectrum technique
+            tstamp (float): The unix epoch timestamp of the spectrum
+            sample_name (str): The sample name
+            metadata (dict): Free-form spectrum metadata. Must be json-compatible.
+            fields (list of Field): The Fields containing the data (x, y)
+            field_ids (list of int): The id's of Fields if available from the backend.
+        """
         super().__init__()
         self.name = name
         self.technique = technique
         self.metadata = metadata
         self.tstamp = tstamp
         self.sample_name = sample_name
-        self._fields = fill_object_list(object_list=fields, obj_ids=f_ids, cls=Field)
+        self._fields = fill_object_list(object_list=fields, obj_ids=field_ids, cls=Field)
         self._xseries = None
-        self._spectra = None
+        self._spectrum_list = None
 
     @property
     def fields(self):
         """Make sure Fields are loaded and have the same xseries"""
-        xseries = None
+        xseries = None  # Enter the loop without an x series
         for i, f in enumerate(self._fields):
             if isinstance(f, PlaceHolderObject):
-                self.fields[i] = f.get_object()
-            xseries = xseries or self._fields[i].axes_series[0]
-            assert self._fields[i].axes_series[0] == xseries
-        self._xseries = xseries
+                # load or "unpack" any fields for which only the id's were loaded:
+                self._fields[i] = f.get_object()
+            if i > 0:
+                # If all the xseries are the same, every field after the first should
+                # have an equivalent xseries to that of the previous field:
+                assert self._fields[i].axes_series[0] == xseries
+            # use the xseries of this field for comparison with the xseries of the next:
+            xseries = self._fields[i].axes_series[0]
+        # Now we've loaded any place-holder fields and checked their xseries are equal.
         return self._fields
 
     @property
     def xseries(self):
-        return self._xseries or self._fields[0].xseries
+        """The shared xseries of all the spectra in the multi-spectrum"""
+        if not self._xseries:
+            self._xseries = self._fields[0].xseries
+        return self._xseries
 
     @property
     def spectrum_list(self):
-        if not self._spectra:
-            self._spectra = []
+        """The spectra of the multi-spectrum as a list of Spectrum objects."""
+        if not self._spectrum_list:
+            self._spectrum_list = []
             for field in self.fields:
                 s = Spectrum.from_field(
                     field,
@@ -362,10 +384,11 @@ class MultiSpectrum(Saveable):
                     tstamp=self.tstamp,
                     sample_name=self.sample_name,
                 )
-                self._spectra.append(s)
-        return self._spectra
+                self._spectrum_list.append(s)
+        return self._spectrum_list
 
     def __getitem__(self, name):
+        """Indexing a MultiSpectrum returns the spectrum with the requested name."""
         spectrum_list = [s for s in self.spectrum_list if s.name == name]
         if len(spectrum_list) == 1:
             return spectrum_list[0]
@@ -380,6 +403,7 @@ class MultiSpectrum(Saveable):
     def from_spectrum_list(
         cls, spectrum_list, technique=None, metadata=None, sample_name=None
     ):
+        """Build a SpectrumSeries from a list of Spectrum's"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
         obj_as_dict = {
@@ -432,6 +456,7 @@ class SpectrumSeries(Spectrum):
 
     @classmethod
     def from_spectrum_list(cls, spectrum_list, **kwargs):
+        """Build a SpectrumSeries from a list of Spectrum objects."""
         xseries = None
         tstamp_list = []
         ys = []
@@ -455,6 +480,7 @@ class SpectrumSeries(Spectrum):
         obj_as_dict = spectrum_list[0].as_dict()
         obj_as_dict["field"] = field
         del obj_as_dict["field_id"]
+        obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)
 
     @property
@@ -533,6 +559,19 @@ class SpectrumSeries(Spectrum):
 
 
 def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
+    """Add a measurement and a spectrum measurement.
+
+    Args:
+        measurement (Measurement): The `Measurement` object containing the time-resolved
+            scalar values.
+        spectrum_seires (SpectrumSeries): The `SpectrumSeries` object containing the 2-D
+            time-resolved spectral data.
+
+    Returns SpectroMeasurement: The addition results in an object of SpectroMeasurement
+        or a subclass thereof if ixdat supports the hyphenated technique. For example,
+        addition of an `ECMeasurement` and an XAS `SpectrumSeries` results in an
+        `ECXASMeasurement` object.
+    """
     new_name = measurement.name + " AND " + spectrum_series.name
     new_technique = get_combined_technique(
         measurement.technique, spectrum_series.technique
@@ -562,7 +601,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 
 
 class SpectroMeasurement(Measurement):
-    extra_column_attrs = {"spectro_measurements": {"spec_id"}}
+    extra_column_attrs = {"spectro_measurements": {"spectrum_id"}}
 
     def __init__(self, *args, spectrum_series=None, spec_id=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -578,19 +617,23 @@ class SpectroMeasurement(Measurement):
 
     @property
     def spectrum_series(self):
+        """The `SpectrumSeries` with the spectral data"""
         if isinstance(self._spectrum_series, PlaceHolderObject):
             self._spectrum_series = self._spectrum_series.get_object()
         return self._spectrum_series
 
     @property
-    def spec_id(self):
+    def spectrum_id(self):
+        """The id of the `SpectrumSeries`"""
         return self.spectrum_series.id
 
     @property
     def spectra(self):
+        """The field of the `SpectrumSeries`. `spectra.data` is a 2-D array"""
         return self.spectrum_series.field
 
     def set_spectrum_series(self, spectrum_series):
+        """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
 
     def __add__(self, other):
@@ -601,6 +644,10 @@ class SpectroMeasurement(Measurement):
         return added_measurement
 
     def cut(self, tspan, t_zero=None):
+        """Select the portion of the data in a given tspan.
+
+        See :func:`~measurements.Measurement.cut`
+        """
         cut_measurement = super().cut(tspan, t_zero=t_zero)
         spectrum_series = self.spectrum_series.cut(tspan=tspan)
         cut_measurement.set_spectrum_series(spectrum_series)

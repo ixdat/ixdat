@@ -21,7 +21,14 @@ def color_axis(ax, color, lr="right", xy="y"):
 
 
 def get_color_from_cmap(x, cmap_name):
-    """Return the color as a 4-tuple, given a value btwn 0 and 1, and color map name"""
+    """Return the color as a 4-tuple, given a value btwn 0 and 1, and color map name
+
+    Args:
+        x (float): Value between 0 and 1 defining a location on a matplotlib colormap
+        cmap_name (str): The name of a matplotlib colormap. Popular ones include
+            "inferno" (0=black --> 1=yellow) and "jet" (0=blue --> 1=red)
+            See https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
+    """
 
     cmap = mpl.cm.get_cmap(cmap_name)
 
@@ -30,6 +37,15 @@ def get_color_from_cmap(x, cmap_name):
 
 
 def add_colorbar(ax, cmap_name, vmin, vmax, label="intensity"):
+    """Add a colorbar to a matplotlib axis
+
+    ax (matplotlib Axis): The axis (with data plotted on it) to add a colorbar for
+    cmap_name (str): The name of the color map
+    vmin (float): The minimum value in the plotted data
+    vmax (float): The maximum value in the plotted data
+    label (str): A label for the color bar (the name of the value represented by color)
+    """
+
     cmap = mpl.cm.get_cmap(cmap_name)
     norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
     cb = plt.colorbar(

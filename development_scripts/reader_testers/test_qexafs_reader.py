@@ -1,3 +1,5 @@
+"""Sandbox script for use in the development of the qexafs reader"""
+
 from pathlib import Path
 from ixdat import Spectrum, Measurement
 

@@ -47,8 +47,8 @@ readers
   XAS data (the "FFIO" column) is returned::
 
     from ixdat import Spectrum
-    all_the_stuff = Spectrum.read("my_file.dat", reader="qexafs")
-    my_xas = all_the_stuff["FFI0"]   # index retrieves a Spectrum from a MultiSpectrum
+    multi_spectrum = Spectrum.read("my_file.dat", reader="qexafs")
+    my_xas = multi_spectrum["QexafsFFI0"]   # index retrieves a Spectrum from a MultiSpectrum
     # OR
     my_xas = Spectrum.read("my_file.dat", reader="qexafs", technique="XAS")
     my_xas.plot()
@@ -141,7 +141,7 @@ Debugging
   whereas before it would only have identified as masses columns which ended with "_amu".
 
 - ``ECPlotter.plot_measurement`` and ``ECMSPlotter.plot_measuremnt`` raise warnings instead
-  of ``SeriesNotFoundError``s if they can't find the requested
+  of ``SeriesNotFoundError``\ s if they can't find the requested
   potential (``U_name``) or current (``J_name``).
 
 - ``SpectrumSeriesPlotter.heat_plot()`` now correctly orients its data. Previously it

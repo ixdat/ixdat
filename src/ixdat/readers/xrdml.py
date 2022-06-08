@@ -37,7 +37,7 @@ class XRDMLReader:
         ][0]
         intensity_node = intensity_parent_node.childNodes[0]
         intensity_string = intensity_node.data
-        y_vec = np.array([float(y_str) for y_str in intensity_string.split(" ")])
+        y_vec = np.fromstring(intensity_string, dtype=float, sep=" ")
         x_vec = np.linspace(x_min, x_max, len(y_vec))
         xseries = DataSeries(name="two theta", unit_name="degree", data=x_vec)
         field = Field(
