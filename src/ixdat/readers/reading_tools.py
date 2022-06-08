@@ -133,6 +133,8 @@ def url_to_file(url, file_name="temp", directory=None):
 def get_file_list(path_to_file_start=None, part=None, suffix=None):
     """Get a list of files given their shared start of part.
 
+    Use either `path_to_file_start` OR `part`.
+
     Args:
         path_to_file_start (Path or str): The path to the files to read including
             the shared start of the file name: `Path(path_to_file).parent` is
@@ -141,7 +143,7 @@ def get_file_list(path_to_file_start=None, part=None, suffix=None):
             to be appended.
         part (Path or str): A path where the folder is the folder containing data
             and the name is a part of the name of each of the files to be read and
-            combined.
+            combined. Not to be used together with `path_to_file_start`.
         suffix (str): If a suffix is given, only files with the specified ending are
             added to the file list
     """

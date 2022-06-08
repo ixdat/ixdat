@@ -1,4 +1,16 @@
-"""Base classes for spectra and spectrum series"""
+"""Base classes for spectra and spectrum series
+
+
+Note on grammar:
+----------------
+The spectrum class corresponds to a database table which we call "spectrums". This
+is an intentional misspelling of the plural of "spectrum". The correctly spelled
+plural, "spectra", is reserved for a Field wrapping a 2-D array, each row of which
+is the y values of a spectrum. This use of two plurals of "spectrum" is analogous
+to the use of "persons" and "people" as distinct plurals of the word "person". While
+"persons" implies that each person referred to should be considered individually,
+"people" can be considered as a group.
+"""
 
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
@@ -13,7 +25,7 @@ class Spectrum(Saveable):
 
     A spectrum is a data structure including one-dimensional arrays of x and y variables
     of equal length. Typically, information about the state of a sample can be obtained
-    from a plot of y (e.g. absorbance OR intensity OR counts) vs x (e.g energy OR
+    from a plot of y (e.g. absorbtion OR intensity OR counts) vs x (e.g energy OR
     wavelength OR angle OR mass-to-charge ratio). Even though in reality it takes time
     to require a spectrum, a spectrum is considered to represent one instance in time.
 
@@ -25,7 +37,7 @@ class Spectrum(Saveable):
     while spec.xseries and spec.yseries give the corresponding DataSeries.
     """
 
-    table_name = "spectrum"
+    table_name = "spectrums"  # The misspelling is intentional. See :module:`~spectra`
     column_attrs = {
         "name",
         "technique",
@@ -403,7 +415,7 @@ class MultiSpectrum(Saveable):
     def from_spectrum_list(
         cls, spectrum_list, technique=None, metadata=None, sample_name=None
     ):
-        """Build a SpectrumSeries from a list of Spectrum's"""
+        """Build a SpectrumSeries from a list of Spectrums"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
         obj_as_dict = {
@@ -564,8 +576,10 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
     Args:
         measurement (Measurement): The `Measurement` object containing the time-resolved
             scalar values.
-        spectrum_seires (SpectrumSeries): The `SpectrumSeries` object containing the 2-D
+        spectrum_series (SpectrumSeries): The `SpectrumSeries` object containing the 2-D
             time-resolved spectral data.
+        kwargs: Additional key-word arguments are passed on to the `from_dict`
+            constructor of the resulting object.
 
     Returns SpectroMeasurement: The addition results in an object of SpectroMeasurement
         or a subclass thereof if ixdat supports the hyphenated technique. For example,
@@ -612,7 +626,7 @@ class SpectroMeasurement(Measurement):
         else:
             raise TypeError(
                 "A SpectroMeasurement must be "
-                "initialized with a `spectrum_series` or `spec_id`"
+                "initialized with a `spectrum_series` or `spectrum_id`"
             )
 
     @property

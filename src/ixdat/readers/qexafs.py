@@ -53,8 +53,12 @@ class QexafsDATReader:
                     )
 
         df = pd.read_csv(path_to_file, sep="\t", header=i - 1)
+
+        # these lines remove "#" and whitespace from the beginning of column names:
+        # see https://pandas.pydata.org/docs/user_guide/text.html#string-methods
         df.columns = df.columns.str.strip("#")
         df.columns = df.columns.str.strip()
+
         x_name = df.keys()[0]
         x = df[x_name].to_numpy()
         x_unit = "eV"
