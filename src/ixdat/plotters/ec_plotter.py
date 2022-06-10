@@ -1,9 +1,11 @@
 """Plotter for Electrochemistry"""
 
+import warnings
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 from .plotting_tools import color_axis
 from ..tools import deprecate
+from ..exceptions import SeriesNotFoundError
 
 
 class ECPlotter(MPLPlotter):
@@ -77,21 +79,32 @@ class ECPlotter(MPLPlotter):
         U_color = U_color or "k"
         J_color = J_color or "r"
 
-        t_v, v = measurement.grab(U_name, tspan=tspan)
-        t_j, j = measurement.grab(J_name, tspan=tspan)
         if axes:
             ax1, ax2 = axes
         else:
             ax1 = self.new_ax()
             ax2 = ax1.twinx()
             axes = [ax1, ax2]
-        ax1.plot(t_v, v, "-", color=U_color, label=U_name, **plot_kwargs)
-        ax2.plot(t_j, j, "-", color=J_color, label=J_name, **plot_kwargs)
         ax1.set_xlabel("time / [s]")
         ax1.set_ylabel(U_name)
         ax2.set_ylabel(J_name)
         color_axis(ax1, U_color, lr="left")
         color_axis(ax2, J_color, lr="right")
+
+        try:
+            t_v, v = measurement.grab(U_name, tspan=tspan)
+        except SeriesNotFoundError:
+            warnings.warn(f"No '{U_name}' found in {measurement}")
+        else:
+            ax1.plot(t_v, v, "-", color=U_color, label=U_name, **plot_kwargs)
+
+        try:
+            t_j, j = measurement.grab(J_name, tspan=tspan)
+        except SeriesNotFoundError:
+            warnings.warn(f"No '{J_name}' found in {measurement}")
+        else:
+            ax2.plot(t_j, j, "-", color=J_color, label=J_name, **plot_kwargs)
+
         return axes
 
     def plot_vs_potential(

@@ -9,7 +9,6 @@ A Measurement will typically be accompanied by one or more Calibration. This mod
 also defines the base class for Calibration, while technique-specific Calibration
 classes will be defined in the corresponding module in ./techniques/
 """
-from pathlib import Path
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
@@ -236,7 +235,15 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    def read_set(cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs):
+    def read_set(
+        cls,
+        path_to_file_start=True,
+        part=None,
+        suffix=None,
+        file_list=None,
+        reader=None,
+        **kwargs,
+    ):
         """Read and append a set of files.
 
         Args:
@@ -245,26 +252,23 @@ class Measurement(Saveable):
                 interpreted as the folder where the file are.
                 `Path(path_to_file).name` is interpreted as the shared start of the files
                 to be appended.
-            reader (str or Reader class): The (name of the) reader to read the files with
-            file_list (list of Path): As an alternative to path_to_file_start, the
-                exact files to append can be specified in a list
+            part (Path or str): A path where the folder is the folder containing data
+                and the name is a part of the name of each of the files to be read and
+                combined.
             suffix (str): If a suffix is given, only files with the specified ending are
                 added to the file list
+            file_list (list of Path): As an alternative to path_to_file_start, the
+                exact files to append can be specified in a list
+            reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
                 method, AND to cls.from_component_measurements()
         """
-        base_name = None
-        if not file_list:
-            folder = Path(path_to_file_start).parent
-            base_name = Path(path_to_file_start).name
-            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
-            if suffix:
-                file_list = [f for f in file_list if f.suffix == suffix]
+        from .readers.reading_tools import get_file_list
 
+        file_list = file_list or get_file_list(path_to_file_start, part, suffix)
         component_measurements = [
             cls.read(f, reader=reader, **kwargs) for f in file_list
         ]
-
         measurement = None
         for meas in component_measurements:
             measurement = measurement + meas if measurement else meas
@@ -1128,9 +1132,6 @@ class Measurement(Saveable):
         are those where the values match the provided criteria, i.e. the part of the
         measurement where `self[series_name] == value`
 
-        TODO: Testing and documentation with examples like those suggested here:
-            https://github.com/ixdat/ixdat/pull/11#discussion_r677324246
-
         Any series can be selected for using the series name as a key-word. Arguments
         can be single acceptable values or lists of acceptable values. In the latter
         case, each acceptable value is selected for on its own and the resulting
@@ -1140,6 +1141,20 @@ class Measurement(Saveable):
         Arguments without key-word are considered valid values of the default selector,
         which is named by `self.selelector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
+
+        Examples of valid calls given a measurement `meas`:
+        ```
+        # to select where the default selector is 3, use:
+        meas.select_values(3)
+        # to select for where the default selector is 4 OR 5:
+        meas.select_values(4, 5)
+        # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
+        select_values(cycle=4)
+        # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
+        meas.select_values(loop_number=1, cycle=[3, 4, 5])
+        ```
+        Note, a value name with a space in it (like "cycle number") can unfortunately
+        not be selected for with this method.
 
         Args:
             args (tuple): Argument(s) given without keyword are understood as acceptable
@@ -1221,6 +1236,11 @@ class Measurement(Saveable):
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
         """
+        from .spectra import SpectrumSeries, add_spectrum_series_to_measurement
+
+        if isinstance(other, SpectrumSeries):
+            return add_spectrum_series_to_measurement(self, other)
+
         new_name = self.name + " AND " + other.name
         new_technique = get_combined_technique(self.technique, other.technique)
 

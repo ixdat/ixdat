@@ -132,18 +132,18 @@ class ECMSPlotter(MPLPlotter):
             else:
                 tspan = measurement.tspan
 
-        if hasattr(measurement, "potential") and measurement.potential:
-            # then we have EC data!
-            self.ec_plotter.plot_measurement(
-                measurement=measurement,
-                axes=[axes[1], axes[3]],
-                tspan=tspan,
-                U_name=U_name,
-                J_name=J_name,
-                U_color=U_color,
-                J_color=J_color,
-                **kwargs,
-            )
+        # plot the EC data (note that the EC plotter will skip current and/or potential
+        #   in the case that the data is missing).
+        self.ec_plotter.plot_measurement(
+            measurement=measurement,
+            axes=[axes[1], axes[3]],
+            tspan=tspan,
+            U_name=U_name,
+            J_name=J_name,
+            U_color=U_color,
+            J_color=J_color,
+            **kwargs,
+        )
         if (
             mass_list
             or mass_lists

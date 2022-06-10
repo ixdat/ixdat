@@ -2,33 +2,83 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
-from ..spectra import Spectrum
+from ..db import PlaceHolderObject
+from ..spectra import Spectrum, SpectroMeasurement
 from ..data_series import Field, ValueSeries
-from ..spectra import SpectrumSeries
 from ..exporters.sec_exporter import SECExporter
-from ..plotters.sec_plotter import SECPlotter
+from ..plotters.sec_plotter import SECPlotter, ECOpticalPlotter
 
 
-class SpectroECMeasurement(ECMeasurement):
+class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
+    """Electrochemistry with spectrometry."""
 
-    default_plotter = SECPlotter
     default_exporter = SECExporter
+    default_plotter = SECPlotter
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
+        """FIXME: Passing the right key-word arguments on is a mess"""
+        ec_kwargs = {
+            k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
+        }
+        spec_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k in SpectroMeasurement.get_all_column_attrs()
+        }
+        # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
+        #  works together with MemoryBackend
+        if "series_list" in kwargs:
+            ec_kwargs.update(series_list=kwargs["series_list"])
+            spec_kwargs.update(series_list=kwargs["series_list"])
+        if "component_measurements" in kwargs:
+            ec_kwargs.update(component_measurements=kwargs["component_measurements"])
+            spec_kwargs.update(component_measurements=kwargs["component_measurements"])
+        if "calibration_list" in kwargs:
+            ec_kwargs.update(calibration_list=kwargs["calibration_list"])
+            spec_kwargs.update(calibration_list=kwargs["calibration_list"])
+        if "spectrum_series" in kwargs:
+            spec_kwargs.update(spectrum_series=kwargs["spectrum_series"])
+        SpectroMeasurement.__init__(self, **spec_kwargs)
+        ECMeasurement.__init__(self, **ec_kwargs)
+
+
+class ECXASMeasurement(SpectroECMeasurement):
+    """Electrochemistry with X-ray Absorption Spectroscopy"""
+
+    pass
+
+
+class ECOpticalMeasurement(SpectroECMeasurement):
+    """Electrochemistry with optical Spectroscopy
+
+    This adds, to the SpectroElectrochemistry base class, methods for normalizing to a
+    reference spectrum to get optical density, and for tracking intensity at specific
+    wavelengths.
+    """
+
+    default_plotter = ECOpticalPlotter
+
+    extra_linkers = SpectroECMeasurement.extra_linkers.copy()
+    extra_linkers.update({"ec_optical_measurements": ("spectra", "ref_id")})
+
+    def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
-        ECMeasurement.__init__(self, *args, **kwargs)
-        self._reference_spectrum = None
+        SpectroECMeasurement.__init__(self, **kwargs)
+        if reference_spectrum:
+            self._reference_spectrum = reference_spectrum
+        elif ref_id:
+            self._reference_spectrum = PlaceHolderObject(ref_id, cls=Spectrum)
         self.tracked_wavelengths = []
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
         self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
-        self.technique = "S-EC"
+        self.technique = "EC-Optical"
 
     @property
     def reference_spectrum(self):
-        """The spectrum which will by default be used to calculate dOD"""
-        if not self._reference_spectrum or self._reference_spectrum == "reference":
-            self._reference_spectrum = Spectrum.from_field(self["reference"])
+        """The reference spectrum which will by default be used to calculate dOD"""
+        if isinstance(self._reference_spectrum, PlaceHolderObject):
+            self._reference_spectrum = self._reference_spectrum.get_object()
         return self._reference_spectrum
 
     def set_reference_spectrum(
@@ -56,20 +106,6 @@ class SpectroECMeasurement(ECMeasurement):
         if not spectrum:
             raise ValueError("must provide a spectrum, t_ref, or V_ref!")
         self._reference_spectrum = spectrum
-
-    @property
-    def spectra(self):
-        """The Field that is the spectra of the SEC Measurement"""
-        return self["spectra"]
-
-    @property
-    def spectrum_series(self):
-        """The SpectrumSeries that is the spectra of the SEC Measurement"""
-        return SpectrumSeries.from_field(
-            self.spectra,
-            tstamp=self.tstamp,
-            name=self.name + " spectra",
-        )
 
     @property
     def wavelength(self):
