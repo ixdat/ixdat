@@ -67,7 +67,6 @@ readers
     )  # reads .dat files in the directory "data" with "XAS_spectrum" in their name
     spectrum_series.plot()  # heat plot with time on x-axis and energy on y-axis
 
-
 techniques
 ^^^^^^^^^^
 
@@ -110,7 +109,14 @@ techniques
     # ECXASMeasurement(...) , EC-XAS
 
     my_ec_xas.plot()  # XAS data heat plot in top panel and EC data in bottom panel.
-
+   
+- ``ECMSMeasurement.ecms_calibration_curve`` now supports data specification using a
+  a selector. To do so, specify the section to use as numbers in the argument ``selector_list``,
+  the counter defining the sections (if different from the default selector) in ``selector_name``,
+  and the length of the steady-state period at the end of the pulse in ``t_steady_pulse``.
+  This can be much more convenient than manually specifying ``tspans``.
+  Implemented in #74.
+ 
 plotters
 ^^^^^^^^
 
