@@ -76,10 +76,13 @@ designed into every level.
      - - msrh_sec: .csv file sets from Imperial College London's SEC system
    * - X-ray photoelectron spectroscopy (XPS)
      - Development
-     -
+     - - avantage: .avg files from Thermo Scientific's Avantage software
    * - X-ray diffraction (XRD)
      - Development
-     -
+     - - xrdml: .xrdml files from e.g. PanAnalytical's Empyereon
+   * - In-situ Electrochemistry - X-ray adsorption spectroscopy
+     - Development
+     - - qexafs: .dat files from Diamond's B18 beamline
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -

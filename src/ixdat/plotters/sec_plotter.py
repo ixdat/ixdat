@@ -327,7 +327,7 @@ class ECOpticalPlotter(SECPlotter):
         dOD = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref)
 
         return super().plot_waterfall_vs(
-            self.measurement,
+            measurement=self.measurement,
             field=dOD,
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
