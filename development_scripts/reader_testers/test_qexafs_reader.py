@@ -13,13 +13,15 @@ if True:
     )
     xas.plot()
 
-if False:
+if True:
     multi_spec = Spectrum.read(
         data_dir / "540117_IrO2_crys_0.60V_1.dat",
         reader="qexafs",
     )
-    for spectrum in multi_spec.spectrum_list:
-        spectrum.plot()
+    ax = multi_spec["QexafsFFI0"].plot()
+    ax2 = ax.twinx()
+    multi_spec["I0"].plot(ax=ax2, color="r")
+    ax2.set_ylim([-1e6, 2e6])
 
 if True:
     xas_series = Spectrum.read_set(
@@ -32,5 +34,7 @@ if True:
     ec.plot()
 
     ec_xas = ec + xas_series
+    ec_xas.tstamp += ec_xas.t[0]
 
-    ec_xas.plot()
+    axes = ec_xas.plot(xspan=[11200, 11300])
+

@@ -78,6 +78,7 @@ class SECPlotter(SpectroMeasurementPlotter):
             spectrum_series=measurement.spectrum_series,
             field=field or measurement.spectra,
             tspan=tspan,
+            xspan=xspan,
             ax=axes[0],
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,

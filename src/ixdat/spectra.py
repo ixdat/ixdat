@@ -379,7 +379,7 @@ class MultiSpectrum(Saveable):
     def xseries(self):
         """The shared xseries of all the spectra in the multi-spectrum"""
         if not self._xseries:
-            self._xseries = self._fields[0].xseries
+            self._xseries = self._fields[0].axes_series[0]
         return self._xseries
 
     @property
