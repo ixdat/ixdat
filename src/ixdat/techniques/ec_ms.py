@@ -217,9 +217,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ]
             for selector_value in selector_list
         ]
-
-        print("Choose a selector_name that is present in your data.")
-
         print("Following tspans were selected for calibration: " + str(tspan_list))
         return tspan_list
 
