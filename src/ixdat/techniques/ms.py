@@ -679,6 +679,7 @@ class MSInlet:
 
     def gas_flux_calibration_curve(
         self,
+        measurement,
         mol,
         mass,
         tspan_list=None,
@@ -686,48 +687,68 @@ class MSInlet:
         selector_name=None,
         carrier_mol=None,
         mol_conc_ppm=None,
+        p_list=None,
         t_steady_pulse=0,
         tspan_bg=None,
         ax="new",
-        axes_measurement=None,
+        # axes_measurement=None, #TODO: add this
         return_ax=False,
     ):
         """Fit mol's sensitivity at mass based on steady periods with different
         molecule concentrations or at different pressure
 
         Args:
+            measurement (MSMeasurement): The measurement with the ms_calibration data
             mol (str): Name of the molecule to calibrate
             mass (str): Name of the mass at which to calibrate
             tspan_list (list of tspan): The timespans of steady concentration
-            /pressure
+                or pressure
+            selector_name (str): Name of selector which identifies the periods
+                of steady electrolysis for automatic selection of timespans of steady
+                electrolysis. E.g. "selector" or "Ns" for biologic EC data
+            selector_list (list): List of values for selector_name for automatic
+                selection of timespans of steady electrolysis
             carrier_mol (str): The name of the molecule of the carrier gas if
                 a dilute analyte is used. Calibration assumes total flux of the
                 capillary is the same as the flux of pure carrier gas. Defaults
                 to None.
             mol_conc_ppm (float, list): Concentration of the dilute analyte in
-            the carrier gas in ppm. Defaults to None. Accepts float (for pressure
-            calibration) or list for concentration calibration.
+                the carrier gas in ppm. Defaults to None. Accepts float (for pressure
+                calibration) or list for concentration calibration. If list needs
+                to be same length as tspan_list or selector_list.
+            p_list(list): Pressure at the inlet (Pa). Overwrites the pressure
+                inherent to self. Needs to be same length as tspan_list or
+                selector_list.
+            t_steady_pulse (float): Length of steady electrolysis for each segment
+                given by selector_list. Defaults to None = entire length of segment
             tspan_bg (tspan): The time to use as a background
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
-            axes_measurement (list of Axes): The EC-MS plot axes to highlight the
-                ms_calibration on. Defaults to None. These axes are not returned.
             return_ax (bool): Whether to return the axis on which the calibration is
                 plotted together with the MSCalResult. Defaults to False.
 
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
             curve axis if requested) based on flux calculation during selected time
             periods.
+        TODO: automatically recognize the pressure from measurement (if available)
         """
-        axis_ms = axes_measurement[0] if axes_measurement else None
-        axis_current = axes_measurement[3] if axes_measurement else None
-        S_list = []
-        n_dot_list = []
         if not tspan_list:
             tspan_list = self._get_tspan_list(
                 selector_list, selector_name, t_steady_pulse
             )
-        for tspan in tspan_list:
+        if type(mol_conc_ppm) is not list:
+            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
+        else:
+            mol_conc_ppm_list = mol_conc_ppm
+        if p_list is None:
+            p_list = [None for x in tspan_list]
+        if not len(mol_conc_ppm) == len(p_list) == len(tspan_list):
+            raise QuantificationError("Length of input lists for concentrations"
+                                      " and tspan or pressures and tspan is not equal")
+        S_list = []
+        n_dot_list = []
+        for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list,
+                                                 p_list):
             t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if ax:
                 ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
@@ -748,7 +769,7 @@ class MSInlet:
                 cal_type = "gas_flux_calibration_curve"
                 mol_conc_ppm = 10**6
                 carrier_mol = mol
-            n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
+            n_dot = self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             S_list.append(np.mean(S))
             n_dot_list.append(n_dot)
         n_dot_vec = np.array(n_dot_list)
@@ -758,9 +779,9 @@ class MSInlet:
         if ax:
             color = STANDARD_COLORS[mass]
             if ax == "new":
-                ax = self.plotter.new_ax()
-                ax.set_xlabel("amount produced / [nmol]")
-                ax.set_ylabel("integrated signal / [nC]")
+                ax = measurement.plotter.new_ax()
+                ax.set_xlabel("molecule flux / [nmol/s]")
+                ax.set_ylabel("signal / [nA]")
             ax.plot(n_dot_vec * 1e9, S_vec * 1e9, "o", color=color)
             n_dot_fit = np.array([0, max(n_dot_vec)])
             S_fit = n_dot_fit * pfit[0] + pfit[1]
