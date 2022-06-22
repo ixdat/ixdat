@@ -691,7 +691,7 @@ class MSInlet:
         t_steady_pulse=0,
         tspan_bg=None,
         ax="new",
-        # axes_measurement=None, #TODO: add this
+        axes_measurement=None,
         return_ax=False,
     ):
         """Fit mol's sensitivity at mass based on steady periods with different
@@ -724,6 +724,8 @@ class MSInlet:
             tspan_bg (tspan): The time to use as a background
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
+            axes_measurement (list of Axes): The EC-MS plot axes to highlight the
+                ms_calibration on. Defaults to None. These axes are not returned.
             return_ax (bool): Whether to return the axis on which the calibration is
                 plotted together with the MSCalResult. Defaults to False.
 
@@ -742,7 +744,7 @@ class MSInlet:
             mol_conc_ppm_list = mol_conc_ppm
         if p_list is None:
             p_list = [None for x in tspan_list]
-        if not len(mol_conc_ppm) == len(p_list) == len(tspan_list):
+        if not len(mol_conc_ppm_list) == len(p_list) == len(tspan_list):
             raise QuantificationError("Length of input lists for concentrations"
                                       " and tspan or pressures and tspan is not equal")
         S_list = []
@@ -750,10 +752,10 @@ class MSInlet:
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list,
                                                  p_list):
             t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
-            if ax:
-                ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+            if axes_measurement:
+                axes_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
             if carrier_mol:
-                if mol_conc_ppm:
+                if mol_conc_ppm is not None:
                     cal_type = "carrier_gas_flux_calibration_curve"
                 else:
                     raise QuantificationError(
