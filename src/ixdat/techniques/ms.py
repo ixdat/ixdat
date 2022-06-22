@@ -677,6 +677,105 @@ class MSInlet:
             F=F,
         )
 
+    def gas_flux_calibration_curve(
+        self,
+        mol,
+        mass,
+        tspan_list=None,
+        selector_list=None,
+        selector_name=None,
+        carrier_mol=None,
+        mol_conc_ppm=None,
+        t_steady_pulse=0,
+        tspan_bg=None,
+        ax="new",
+        axes_measurement=None,
+        return_ax=False,
+    ):
+        """Fit mol's sensitivity at mass based on steady periods with different
+        molecule concentrations or at different pressure
+
+        Args:
+            mol (str): Name of the molecule to calibrate
+            mass (str): Name of the mass at which to calibrate
+            tspan_list (list of tspan): The timespans of steady concentration
+            /pressure
+            carrier_mol (str): The name of the molecule of the carrier gas if
+                a dilute analyte is used. Calibration assumes total flux of the
+                capillary is the same as the flux of pure carrier gas. Defaults
+                to None.
+            mol_conc_ppm (float, list): Concentration of the dilute analyte in
+            the carrier gas in ppm. Defaults to None. Accepts float (for pressure
+            calibration) or list for concentration calibration.
+            tspan_bg (tspan): The time to use as a background
+            ax (Axis): The axis on which to plot the ms_calibration curve result.
+                Defaults to a new axis.
+            axes_measurement (list of Axes): The EC-MS plot axes to highlight the
+                ms_calibration on. Defaults to None. These axes are not returned.
+            return_ax (bool): Whether to return the axis on which the calibration is
+                plotted together with the MSCalResult. Defaults to False.
+
+        Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
+            curve axis if requested) based on flux calculation during selected time
+            periods.
+        """
+        axis_ms = axes_measurement[0] if axes_measurement else None
+        axis_current = axes_measurement[3] if axes_measurement else None
+        S_list = []
+        n_dot_list = []
+        if not tspan_list:
+            tspan_list = self._get_tspan_list(
+                selector_list, selector_name, t_steady_pulse
+            )
+        for tspan in tspan_list:
+            t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
+            if ax:
+                ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+            if carrier_mol:
+                if mol_conc_ppm:
+                    cal_type = "carrier_gas_flux_calibration_curve"
+                else:
+                    raise QuantificationError(
+                        "Cannot use carrier gas calibration without analyte"
+                        " concentration. mol_conc_ppm is missing."
+                    )
+            elif mol_conc_ppm:
+                raise QuantificationError(
+                    "Cannot use carrier gas calibration without carrier"
+                    " gas definition. carrier_mol is missing."
+                )
+            else:
+                cal_type = "gas_flux_calibration_curve"
+                mol_conc_ppm = 10**6
+                carrier_mol = mol
+            n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
+            S_list.append(np.mean(S))
+            n_dot_list.append(n_dot)
+        n_dot_vec = np.array(n_dot_list)
+        S_vec = np.array(S_list)
+        pfit = np.polyfit(n_dot_vec, S_vec, deg=1)
+        F = pfit[0]
+        if ax:
+            color = STANDARD_COLORS[mass]
+            if ax == "new":
+                ax = self.plotter.new_ax()
+                ax.set_xlabel("amount produced / [nmol]")
+                ax.set_ylabel("integrated signal / [nC]")
+            ax.plot(n_dot_vec * 1e9, S_vec * 1e9, "o", color=color)
+            n_dot_fit = np.array([0, max(n_dot_vec)])
+            S_fit = n_dot_fit * pfit[0] + pfit[1]
+            ax.plot(n_dot_fit * 1e9, S_fit * 1e9, "--", color=color)
+        cal = MSCalResult(
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type=cal_type,
+            F=F,
+        )
+        if return_ax:
+            return cal, ax
+        return cal
+
 
 class MSSpectrum(Spectrum):
     """Nothing to add to normal spectrum yet.
