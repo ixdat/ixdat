@@ -1,0 +1,3 @@
+[submodule "submodules/ixdat-large-test-files"]
+	path = submodules/ixdat-large-test-files
+	url = git@github.com:ixdat/ixdat-large-test-files.git
