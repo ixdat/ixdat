@@ -116,15 +116,15 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mass,
         n_el,
         tspan_list=None,
-        selector_list=None,
         selector_name=None,
-        t_steady_pulse=0,
+        selector_list=None,
+        t_steady_pulse=None,
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
         return_ax=False,
     ):
-        """Fit mol's sensitivity at mass based on steady periods of EC production
+        """Fit mol's sensitivity at mass based on steady periods of EC production.
 
         Args:
             mol (str): Name of the molecule to calibrate
@@ -132,6 +132,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
             tspan_list (list of tspan): The timespans of steady electrolysis
+            selector_name (str): Name of selector which identifies the periods
+                of steady electrolysis for automatic selection of timespans of steady
+                electrolysis. E.g. "selector" or "Ns" for biologic EC data
+            selector_list (list): List of values for selector_name for automatic
+                selection of timespans of steady electrolysis
+            t_steady_pulse (float): Length of steady electrolysis for each segment
+                given by selector_list. Defaults to None = entire length of segment
             tspan_bg (tspan): The time to use as a background
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
@@ -188,7 +195,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         self,
         selector_list,
         selector_name=None,
-        t_steady_pulse=0,
+        t_steady_pulse=None,
     ):
         """
         Generate a t_span list from input of selectors.
@@ -201,13 +208,15 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                                 selector_name cannot contain a space character due to
                                 limitations of self.select_values().
             t_steady_pulse (float): length of steady state pulse period to integrate
-                                    (will choose the last x seconds)
+                                    (will choose the last x seconds of the period).
+                                    Defaults to None: uses entire steady state pulse
 
         Returns tspan_list(list of tspan)
         """
         t_idx = -1
-        if t_steady_pulse == 0:
+        if t_steady_pulse is None:
             t_idx = 0
+            t_steady_pulse = 0
 
         tspan_list = [
             [
