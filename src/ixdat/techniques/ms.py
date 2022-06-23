@@ -687,7 +687,7 @@ class MSInlet:
         selector_name=None,
         carrier_mol=None,
         mol_conc_ppm=None,
-        p_list=None,
+        p_inlet=None,
         t_steady_pulse=0,
         tspan_bg=None,
         ax="new",
@@ -716,9 +716,10 @@ class MSInlet:
                 the carrier gas in ppm. Defaults to None. Accepts float (for pressure
                 calibration) or list for concentration calibration. If list needs
                 to be same length as tspan_list or selector_list.
-            p_list(list): Pressure at the inlet (Pa). Overwrites the pressure
-                inherent to self. Needs to be same length as tspan_list or
-                selector_list.
+            p_inlet (float, list): Pressure at the inlet (Pa). Overwrites the pressure
+                inherent to self (i.e. the MSInlet object). Accepts float (for conc.
+                calibration) or list for pressure calibration. If list, then
+                needs to be same length as tspan_list or selector_list.
             t_steady_pulse (float): Length of steady electrolysis for each segment
                 given by selector_list. Defaults to None = entire length of segment
             tspan_bg (tspan): The time to use as a background
@@ -742,8 +743,8 @@ class MSInlet:
             mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
         else:
             mol_conc_ppm_list = mol_conc_ppm
-        if p_list is None:
-            p_list = [None for x in tspan_list]
+        if type(p_inlet) is not list:
+            p_list = [p_inlet for x in tspan_list]
         if not len(mol_conc_ppm_list) == len(p_list) == len(tspan_list):
             raise QuantificationError("Length of input lists for concentrations"
                                       " and tspan or pressures and tspan is not equal")
