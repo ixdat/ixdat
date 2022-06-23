@@ -17,23 +17,15 @@ from pytest import fixture, mark
 DATA_DIR = (
     Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/multiple_techniques_dataset/"
 )
-FILE_NAMES = (
-    "multiple_techniques_dataset_01_02_CVA_C01.mpt",
-    "multiple_techniques_dataset_01_03_CP_C01.mpt",
-    # "multiple_techniques_dataset_01_04_CP_C01.mpt",
-    # "multiple_techniques_dataset_01_05_CA_C01.mpt",
-    # "multiple_techniques_dataset_01_06_CA_C01.mpt",
-    # "multiple_techniques_dataset_01_07_ZIR_C01.mpt",
-    # "multiple_techniques_dataset_01_08_CVA_C01.mpt",
-)
-FILE_PATHS = [DATA_DIR / filename for filename in FILE_NAMES]
 
-# technique_type: {
-#   "column_name": ("unit", (first_column_value, last_column_value)),
-#   ...
-# }
-COLUMN_DATA = {
-    "02_CVA": {
+"""
+filename_with_technique: {
+  "column_name": ("unit", (first_column_value, last_column_value)),
+  ...
+}
+"""
+TEST_DATA = {
+    "multiple_techniques_dataset_01_02_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 1)),
         "error": ("", (0, 0)),
@@ -51,7 +43,7 @@ COLUMN_DATA = {
         "P/W": ("W", (-4.0162254E-007, 1.0149774E-005)),
         "Ns": ("", (0, 0))  # this is automatically added by ixdat as a ConstantValue
     },
-    "03_CP": {
+    "multiple_techniques_dataset_01_03_CP_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (1, 0)),
         "error": ("", (0, 0)),
@@ -80,7 +72,7 @@ COLUMN_DATA = {
         "cycle number": ("", (0.000000000000000E+000, 0.000000000000000E+000)),
         "P/W": ("W", (1.1309961E-009, -1.6560911E-006)),
     },
-    "04_CP": {
+    "multiple_techniques_dataset_01_04_CP_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (0, 0)),
@@ -109,7 +101,7 @@ COLUMN_DATA = {
         "cycle number": ("", (0.000000000000000E+000, 0.000000000000000E+000)),
         "P/W": ("W", (-1.6289529E-006, -1.2163383E-006)),
     },
-    "05_CA": {
+    "multiple_techniques_dataset_01_05_CA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (1, 0)),
@@ -138,7 +130,7 @@ COLUMN_DATA = {
         "cycle number": ("", (0.000000000000000E+000, 1.000000000000000E+000)),
         "P/W": ("W", (-1.8127311E-006, -2.0061668E-007)),
     },
-    "06_CA": {
+    "multiple_techniques_dataset_01_06_CA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (0, 0)),
@@ -167,7 +159,7 @@ COLUMN_DATA = {
         "cycle number": ("", (0.000000000000000E+000, 5.000000000000000E+000)),
         "P/W": ("W", (-4.9556947E-005, -9.2322317E-008)),
     },
-    "07_ZIR": {
+    "multiple_techniques_dataset_01_07_ZIR_C01.mpt": {
         "freq/Hz": ("Hz", None),
         "Re(Z)/Ohm": ("Ohm", None),
         "-Im(Z)/Ohm": ("Ohm", None),
@@ -184,7 +176,7 @@ COLUMN_DATA = {
         "|Y|/Ohm-1": ("Ohm-1", None),
         "Phase(Y)/deg": ("deg", None),
     },
-    "08_CVA": {
+    "multiple_techniques_dataset_01_08_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (1, 0)),
@@ -204,24 +196,56 @@ COLUMN_DATA = {
 }
 
 
-@fixture(scope="module")
+@fixture(scope="module", params=tuple(TEST_DATA.items()))
 @mark.submodule_multiple_techniques
-def measurements():
-    return [Measurement.read(fp, reader="biologic") for fp in FILE_PATHS]
-
-
-@fixture(params=tuple(COLUMN_DATA.values()))
-def shapes(request, measurement):
-    return measurement, request.param
+def measurements_with_data(request):
+    filename = request.param[0]
+    column_data = request.param[1]
+    measurement = Measurement.read(DATA_DIR / filename, reader="biologic")
+    return measurement, column_data
 
 
 @mark.submodule_multiple_techniques
-# def test_shape(measurement, measurement2, expected):
-def test_shape(shapes):
-    print(shapes)
-    print(shapes)
+def test_shape(measurements_with_data):
+    measurement = measurements_with_data[0]
+    column_names = measurements_with_data[1].keys()
 
-    # assert len(measurement.series_list) == len(expected)
-    # for name in expected:
-    #     if name not in measurement.series_names:
-    #         assert False
+    # test amount of columns
+    assert len(measurement.series_list) == len(column_names)
+
+    # test names of columns
+    for name in column_names:
+        if name not in measurement.series_names:
+            assert False
+
+
+@mark.submodule_multiple_techniques
+def test_units(measurements_with_data):
+    measurement = measurements_with_data[0]
+    column_data = measurements_with_data[1]
+
+    for column_name, unit_values in column_data.items():
+        expected_unit = unit_values[0]
+
+        # TODO do this easier
+        #  Does Ixdat have similar method to `grab()`,
+        #  that returns an object from the `series_list`?
+        for series in measurement.series_list:
+            if column_name == series.name:
+                assert expected_unit == series.unit_name
+                break
+
+
+@mark.submodule_multiple_techniques
+def test_values(measurements_with_data):
+    measurement = measurements_with_data[0]
+    column_data = measurements_with_data[1]
+
+    # test first and last values in columns
+    for column_name, unit_values in column_data.items():
+        first_value = unit_values[1][0]
+        last_value = unit_values[1][1]
+        parsed_values = measurement.grab(column_name)[1]
+
+        assert first_value == parsed_values[0]
+        assert last_value == parsed_values[-1]
