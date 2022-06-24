@@ -746,12 +746,13 @@ class MSInlet:
         if type(p_inlet) is not list:
             p_list = [p_inlet for x in tspan_list]
         if not len(mol_conc_ppm_list) == len(p_list) == len(tspan_list):
-            raise QuantificationError("Length of input lists for concentrations"
-                                      " and tspan or pressures and tspan is not equal")
+            raise QuantificationError(
+                "Length of input lists for concentrations"
+                " and tspan or pressures and tspan is not equal"
+            )
         S_list = []
         n_dot_list = []
-        for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list,
-                                                 p_list):
+        for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axes_measurement:
                 axes_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
@@ -772,7 +773,9 @@ class MSInlet:
                 cal_type = "gas_flux_calibration_curve"
                 mol_conc_ppm = 10**6
                 carrier_mol = mol
-            n_dot = self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
+            n_dot = (
+                self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
+            )
             S_list.append(np.mean(S))
             n_dot_list.append(n_dot)
         n_dot_vec = np.array(n_dot_list)
