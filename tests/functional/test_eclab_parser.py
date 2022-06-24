@@ -15,7 +15,8 @@ from pytest import fixture, mark
 
 
 DATA_DIR = (
-    Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/multiple_techniques_dataset/"
+    Path(__file__).parent.parent.parent
+    / "submodules/ixdat-large-test-files/multiple_techniques_dataset/"
 )
 
 """
@@ -32,16 +33,16 @@ TEST_DATA = {
         "control changes": ("", (0, 0)),
         "Ns changes": ("", (0, 0)),
         "counter inc.": ("", (0, 0)),
-        "time/s": ("s", (2.868160128949967E+001, 5.592763878855476E+002)),
-        "control/V": ("V", (9.1791922E-001, 8.9992851E-001)),
-        "Ewe/V": ("V", (9.1770262E-001, 9.0080881E-001)),
-        "<I>/mA": ("mA", (-4.376391007099301E-004, 1.126740008349650E-002)),
-        "cycle number": ("", (1.000000000000000E+000, 6.000000000000000E+000)),
-        "(Q-Qo)/C": ("C", (0.0000000E+000, 1.4638975E-003)),
+        "time/s": ("s", (2.868160128949967e001, 5.592763878855476e002)),
+        "control/V": ("V", (9.1791922e-001, 8.9992851e-001)),
+        "Ewe/V": ("V", (9.1770262e-001, 9.0080881e-001)),
+        "<I>/mA": ("mA", (-4.376391007099301e-004, 1.126740008349650e-002)),
+        "cycle number": ("", (1.000000000000000e000, 6.000000000000000e000)),
+        "(Q-Qo)/C": ("C", (0.0000000e000, 1.4638975e-003)),
         "I Range": ("", (41, 41)),
-        "Rcmp/Ohm": ("Ohm", (0.0000000E+000, 0.0000000E+000)),
-        "P/W": ("W", (-4.0162254E-007, 1.0149774E-005)),
-        "Ns": ("", (0, 0))  # this is automatically added by ixdat as a ConstantValue
+        "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
+        "P/W": ("W", (-4.0162254e-007, 1.0149774e-005)),
+        "Ns": ("", (0, 0)),  # this is automatically added by ixdat as a ConstantValue
     },
     "multiple_techniques_dataset_01_03_CP_C01.mpt": {
         "mode": ("", (1, 1)),
@@ -51,26 +52,35 @@ TEST_DATA = {
         "Ns changes": ("", (0, 0)),
         "counter inc.": ("", (0, 0)),
         "Ns": ("", (0, 2)),
-        "time/s": ("s", (5.602763878602855E+002, 5.893783871251071E+002)),
-        "control/mA": ("mA", (0.0000000E+000, -2.0000001E-003)),
-        "<Ewe>/V": ("V", (8.8483948E-001, 8.2798851E-001)),
-        "I/mA": ("mA", (1.2781935E-006, -2.0001377E-003)),
-        "dQ/C": ("C", (7.1232675E-010, -1.9990615E-005)),
-        "(Q-Qo)/C": ("C", (7.1232675E-010, 5.0315875E-006)),
+        "time/s": ("s", (5.602763878602855e002, 5.893783871251071e002)),
+        "control/mA": ("mA", (0.0000000e000, -2.0000001e-003)),
+        "<Ewe>/V": ("V", (8.8483948e-001, 8.2798851e-001)),
+        "I/mA": ("mA", (1.2781935e-006, -2.0001377e-003)),
+        "dQ/C": ("C", (7.1232675e-010, -1.9990615e-005)),
+        "(Q-Qo)/C": ("C", (7.1232675e-010, 5.0315875e-006)),
         "half cycle": ("", (0, 1)),
-        "Q charge/discharge/mA.h": ("mA.h", (1.978685425384362E-010, -5.552948449702752E-006)),
+        "Q charge/discharge/mA.h": (
+            "mA.h",
+            (1.978685425384362e-010, -5.552948449702752e-006),
+        ),
         "I Range": ("", (42, 42)),
-        "Rcmp/Ohm": ("Ohm", (0.0000000E+000, 0.0000000E+000)),
-        "Energy charge/W.h": ("W.h", (1.750818973293703E-013, 6.555031900229182E-009)),
-        "Energy discharge/W.h": ("W.h", (0.000000000000000E+000, -4.919033634676710E-009)),
-        "Capacitance charge/µF": ("µF", (0.000000000000000E+000, 2.273762151181344E+002)),
-        "Capacitance discharge/µF": ("µF", (0.000000000000000E+000, 1.369492186275801E+002)),
-        "Q discharge/mA.h": ("mA.h", (0.000000000000000E+000, 5.552948449702752E-006)),
-        "Q charge/mA.h": ("mA.h", (1.978685425384362E-010, 0.000000000000000E+000)),
-        "Capacity/mA.h": ("mA.h", (1.978685425384362E-010, 5.552948449702752E-006)),
-        "Efficiency/%": ("%", (0.0000000E+000, 7.9891510E+001)),
-        "cycle number": ("", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "P/W": ("W", (1.1309961E-009, -1.6560911E-006)),
+        "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
+        "Energy charge/W.h": ("W.h", (1.750818973293703e-013, 6.555031900229182e-009)),
+        "Energy discharge/W.h": (
+            "W.h",
+            (0.000000000000000e000, -4.919033634676710e-009),
+        ),
+        "Capacitance charge/µF": ("µF", (0.000000000000000e000, 2.273762151181344e002)),
+        "Capacitance discharge/µF": (
+            "µF",
+            (0.000000000000000e000, 1.369492186275801e002),
+        ),
+        "Q discharge/mA.h": ("mA.h", (0.000000000000000e000, 5.552948449702752e-006)),
+        "Q charge/mA.h": ("mA.h", (1.978685425384362e-010, 0.000000000000000e000)),
+        "Capacity/mA.h": ("mA.h", (1.978685425384362e-010, 5.552948449702752e-006)),
+        "Efficiency/%": ("%", (0.0000000e000, 7.9891510e001)),
+        "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
+        "P/W": ("W", (1.1309961e-009, -1.6560911e-006)),
     },
     "multiple_techniques_dataset_01_04_CP_C01.mpt": {
         "mode": ("", (1, 1)),
@@ -80,26 +90,35 @@ TEST_DATA = {
         "Ns changes": ("", (0, 0)),
         "counter inc.": ("", (0, 0)),
         "Ns": ("", (0, 0)),
-        "time/s": ("s", (5.894805871225253E+002, 5.994803868699091E+002)),
-        "control/mA": ("mA", (-2.0000001E-003, -2.0000001E-003)),
-        "Ewe/V": ("V", (8.2613617E-001, 6.2719619E-001)),
-        "I/mA": ("mA", (-1.9717729E-003, -1.9393268E-003)),
-        "dQ/C": ("C", (0.0000000E+000, -1.9855208E-005)),
-        "(Q-Qo)/C": ("C", (0.0000000E+000, -1.9855208E-005)),
+        "time/s": ("s", (5.894805871225253e002, 5.994803868699091e002)),
+        "control/mA": ("mA", (-2.0000001e-003, -2.0000001e-003)),
+        "Ewe/V": ("V", (8.2613617e-001, 6.2719619e-001)),
+        "I/mA": ("mA", (-1.9717729e-003, -1.9393268e-003)),
+        "dQ/C": ("C", (0.0000000e000, -1.9855208e-005)),
+        "(Q-Qo)/C": ("C", (0.0000000e000, -1.9855208e-005)),
         "half cycle": ("", (0, 0)),
-        "Q charge/discharge/mA.h": ("mA.h", (0.000000000000000E+000, -5.515335538398682E-006)),
+        "Q charge/discharge/mA.h": (
+            "mA.h",
+            (0.000000000000000e000, -5.515335538398682e-006),
+        ),
         "I Range": ("", (41, 41)),
-        "Rcmp/Ohm": ("Ohm", (0.0000000E+000, 0.0000000E+000)),
-        "Energy charge/W.h": ("W.h", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "Energy discharge/W.h": ("W.h", (0.000000000000000E+000, -4.130971864776140E-009)),
-        "Capacitance charge/µF": ("µF", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "Capacitance discharge/µF": ("µF", (0.000000000000000E+000, 1.050930137626443E+002)),
-        "Q discharge/mA.h": ("mA.h", (0.000000000000000E+000, 5.515335538398682E-006)),
-        "Q charge/mA.h": ("mA.h", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "Capacity/mA.h": ("mA.h", (0.000000000000000E+000, 5.515335538398682E-006)),
-        "Efficiency/%": ("%", (0.0000000E+000, 0.0000000E+000)),
-        "cycle number": ("", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "P/W": ("W", (-1.6289529E-006, -1.2163383E-006)),
+        "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
+        "Energy charge/W.h": ("W.h", (0.000000000000000e000, 0.000000000000000e000)),
+        "Energy discharge/W.h": (
+            "W.h",
+            (0.000000000000000e000, -4.130971864776140e-009),
+        ),
+        "Capacitance charge/µF": ("µF", (0.000000000000000e000, 0.000000000000000e000)),
+        "Capacitance discharge/µF": (
+            "µF",
+            (0.000000000000000e000, 1.050930137626443e002),
+        ),
+        "Q discharge/mA.h": ("mA.h", (0.000000000000000e000, 5.515335538398682e-006)),
+        "Q charge/mA.h": ("mA.h", (0.000000000000000e000, 0.000000000000000e000)),
+        "Capacity/mA.h": ("mA.h", (0.000000000000000e000, 5.515335538398682e-006)),
+        "Efficiency/%": ("%", (0.0000000e000, 0.0000000e000)),
+        "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
+        "P/W": ("W", (-1.6289529e-006, -1.2163383e-006)),
     },
     "multiple_techniques_dataset_01_05_CA_C01.mpt": {
         "mode": ("", (2, 2)),
@@ -109,26 +128,35 @@ TEST_DATA = {
         "Ns changes": ("", (0, 0)),
         "counter inc.": ("", (0, 0)),
         "Ns": ("", (0, 2)),
-        "time/s": ("s", (6.005809868421056E+002, 6.295807861095091E+002)),
-        "control/V": ("V", (5.0035376E-002, 1.9995773E-001)),
-        "Ewe/V": ("V", (4.9797375E-002, 2.0026733E-001)),
-        "<I>/mA": ("mA", (-3.640213997266856E-002, -1.001744437708906E-003)),
-        "dQ/C": ("C", (-3.6402140E-005, -1.4945253E-004)),
-        "(Q-Qo)/C": ("C", (-3.6402140E-005, 4.7911013E-005)),
+        "time/s": ("s", (6.005809868421056e002, 6.295807861095091e002)),
+        "control/V": ("V", (5.0035376e-002, 1.9995773e-001)),
+        "Ewe/V": ("V", (4.9797375e-002, 2.0026733e-001)),
+        "<I>/mA": ("mA", (-3.640213997266856e-002, -1.001744437708906e-003)),
+        "dQ/C": ("C", (-3.6402140e-005, -1.4945253e-004)),
+        "(Q-Qo)/C": ("C", (-3.6402140e-005, 4.7911013e-005)),
         "I Range": ("", (41, 41)),
-        "Rcmp/Ohm": ("Ohm", (0.0000000E+000, 0.0000000E+000)),
-        "Q charge/discharge/mA.h": ("mA.h", (-1.011170550352997E-005, -4.151459001554434E-005)),
+        "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
+        "Q charge/discharge/mA.h": (
+            "mA.h",
+            (-1.011170550352997e-005, -4.151459001554434e-005),
+        ),
         "half cycle": ("", (0, 3)),
-        "Energy charge/W.h": ("W.h", (0.000000000000000E+000, 1.143620235377176E-007)),
-        "Energy discharge/W.h": ("W.h", (-5.035363883729353E-010, -8.224704148866127E-009)),
-        "Capacitance charge/µF": ("µF", (0.000000000000000E+000, 1.845039442322728E+002)),
-        "Capacitance discharge/µF": ("µF", (0.000000000000000E+000, 2.743783797316349E+004)),
-        "Q discharge/mA.h": ("mA.h", (1.011170550352997E-005, 4.151459001554434E-005)),
-        "Q charge/mA.h": ("mA.h", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "Capacity/mA.h": ("mA.h", (1.011170550352997E-005, 4.151459001554434E-005)),
-        "Efficiency/%": ("%", (0.0000000E+000, 5.8165386E+001)),
-        "cycle number": ("", (0.000000000000000E+000, 1.000000000000000E+000)),
-        "P/W": ("W", (-1.8127311E-006, -2.0061668E-007)),
+        "Energy charge/W.h": ("W.h", (0.000000000000000e000, 1.143620235377176e-007)),
+        "Energy discharge/W.h": (
+            "W.h",
+            (-5.035363883729353e-010, -8.224704148866127e-009),
+        ),
+        "Capacitance charge/µF": ("µF", (0.000000000000000e000, 1.845039442322728e002)),
+        "Capacitance discharge/µF": (
+            "µF",
+            (0.000000000000000e000, 2.743783797316349e004),
+        ),
+        "Q discharge/mA.h": ("mA.h", (1.011170550352997e-005, 4.151459001554434e-005)),
+        "Q charge/mA.h": ("mA.h", (0.000000000000000e000, 0.000000000000000e000)),
+        "Capacity/mA.h": ("mA.h", (1.011170550352997e-005, 4.151459001554434e-005)),
+        "Efficiency/%": ("%", (0.0000000e000, 5.8165386e001)),
+        "cycle number": ("", (0.000000000000000e000, 1.000000000000000e000)),
+        "P/W": ("W", (-1.8127311e-006, -2.0061668e-007)),
     },
     "multiple_techniques_dataset_01_06_CA_C01.mpt": {
         "mode": ("", (2, 2)),
@@ -138,26 +166,35 @@ TEST_DATA = {
         "Ns changes": ("", (0, 0)),
         "counter inc.": ("", (0, 0)),
         "Ns": ("", (0, 0)),
-        "time/s": ("s", (6.296813861069677E+002, 6.396811858543515E+002)),
-        "control/V": ("V", (5.0035376E-002, 5.0035376E-002)),
-        "Ewe/V": ("V", (1.9815466E-001, 5.0038058E-002)),
-        "I/mA": ("mA", (-2.5009227E-001, -1.8450420E-003)),
-        "dQ/C": ("C", (0.0000000E+000, -4.4130393E-005)),
-        "(Q-Qo)/C": ("C", (0.0000000E+000, -4.4130393E-005)),
+        "time/s": ("s", (6.296813861069677e002, 6.396811858543515e002)),
+        "control/V": ("V", (5.0035376e-002, 5.0035376e-002)),
+        "Ewe/V": ("V", (1.9815466e-001, 5.0038058e-002)),
+        "I/mA": ("mA", (-2.5009227e-001, -1.8450420e-003)),
+        "dQ/C": ("C", (0.0000000e000, -4.4130393e-005)),
+        "(Q-Qo)/C": ("C", (0.0000000e000, -4.4130393e-005)),
         "I Range": ("", (41, 41)),
-        "Rcmp/Ohm": ("Ohm", (0.0000000E+000, 0.0000000E+000)),
-        "Q charge/discharge/mA.h": ("mA.h", (0.000000000000000E+000, -6.561739509278495E-006)),
+        "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
+        "Q charge/discharge/mA.h": (
+            "mA.h",
+            (0.000000000000000e000, -6.561739509278495e-006),
+        ),
         "half cycle": ("", (0, 11)),
-        "Energy charge/W.h": ("W.h", (0.000000000000000E+000, 3.031160052865908E-013)),
-        "Energy discharge/W.h": ("W.h", (0.000000000000000E+000, -3.327533907569938E-010)),
-        "Capacitance charge/µF": ("µF", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "Capacitance discharge/µF": ("µF", (0.000000000000000E+000, 5.665210811458426E+005)),
-        "Q discharge/mA.h": ("mA.h", (0.000000000000000E+000, 6.561739509278495E-006)),
-        "Q charge/mA.h": ("mA.h", (0.000000000000000E+000, 0.000000000000000E+000)),
-        "Capacity/mA.h": ("mA.h", (0.000000000000000E+000, 6.561739509278495E-006)),
-        "Efficiency/%": ("%", (0.0000000E+000, 1.0970160E+005)),
-        "cycle number": ("", (0.000000000000000E+000, 5.000000000000000E+000)),
-        "P/W": ("W", (-4.9556947E-005, -9.2322317E-008)),
+        "Energy charge/W.h": ("W.h", (0.000000000000000e000, 3.031160052865908e-013)),
+        "Energy discharge/W.h": (
+            "W.h",
+            (0.000000000000000e000, -3.327533907569938e-010),
+        ),
+        "Capacitance charge/µF": ("µF", (0.000000000000000e000, 0.000000000000000e000)),
+        "Capacitance discharge/µF": (
+            "µF",
+            (0.000000000000000e000, 5.665210811458426e005),
+        ),
+        "Q discharge/mA.h": ("mA.h", (0.000000000000000e000, 6.561739509278495e-006)),
+        "Q charge/mA.h": ("mA.h", (0.000000000000000e000, 0.000000000000000e000)),
+        "Capacity/mA.h": ("mA.h", (0.000000000000000e000, 6.561739509278495e-006)),
+        "Efficiency/%": ("%", (0.0000000e000, 1.0970160e005)),
+        "cycle number": ("", (0.000000000000000e000, 5.000000000000000e000)),
+        "P/W": ("W", (-4.9556947e-005, -9.2322317e-008)),
     },
     "multiple_techniques_dataset_01_07_ZIR_C01.mpt": {
         "freq/Hz": ("Hz", None),
@@ -175,6 +212,8 @@ TEST_DATA = {
         "Im(Y)/Ohm-1": ("Ohm-1", None),
         "|Y|/Ohm-1": ("Ohm-1", None),
         "Phase(Y)/deg": ("deg", None),
+        "cycle number": ("", None),  # added by Ixdat
+        "Ns": ("", None),  # added by Ixdat
     },
     "multiple_techniques_dataset_01_08_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
@@ -183,16 +222,17 @@ TEST_DATA = {
         "control changes": ("", (1, 0)),
         "Ns changes": ("", (0, 0)),
         "counter inc.": ("", (0, 0)),
-        "time/s": ("s", (6.409993858441158E+002, 1.426767165993951E+003)),
-        "control/V": ("V", (-6.1258295E-005, 8.7560779E-001)),
-        "Ewe/V": ("V", (-3.8347600E-004, 8.7638128E-001)),
-        "<I>/mA": ("mA", (-2.500922679901123E-001, 2.756041360240096E-004)),
-        "cycle number": ("", (1.000000000000000E+000, 7.000000000000000E+000)),
-        "(Q-Qo)/C": ("C", (0.0000000E+000, -3.1572717E-004)),
+        "time/s": ("s", (6.409993858441158e002, 1.426767165993951e003)),
+        "control/V": ("V", (-6.1258295e-005, 8.7560779e-001)),
+        "Ewe/V": ("V", (-3.8347600e-004, 8.7638128e-001)),
+        "<I>/mA": ("mA", (-2.500922679901123e-001, 2.756041360240096e-004)),
+        "cycle number": ("", (1.000000000000000e000, 7.000000000000000e000)),
+        "(Q-Qo)/C": ("C", (0.0000000e000, -3.1572717e-004)),
         "I Range": ("", (41, 41)),
-        "Rcmp/Ohm": ("Ohm", (0.0000000E+000, 0.0000000E+000)),
-        "P/W": ("W", (9.5904383E-008, 2.4153431E-007)),
-    }
+        "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
+        "P/W": ("W", (9.5904383e-008, 2.4153431e-007)),
+        "Ns": ("", (0, 0)),  # added by Ixdat
+    },
 }
 
 
@@ -216,7 +256,9 @@ def test_shape(measurements_with_data):
     # test names of columns
     for name in column_names:
         if name not in measurement.series_names:
-            assert False
+            assert (
+                False
+            ), f"Parsed value does not match with the value in a column: {name}"
 
 
 @mark.submodule_multiple_techniques
@@ -232,7 +274,9 @@ def test_units(measurements_with_data):
         #  that returns an object from the `series_list`?
         for series in measurement.series_list:
             if column_name == series.name:
-                assert expected_unit == series.unit_name
+                assert (
+                    expected_unit == series.unit_name
+                ), f"Parsed value does not match with the value in a column: {series.name}"
                 break
 
 
@@ -243,9 +287,30 @@ def test_values(measurements_with_data):
 
     # test first and last values in columns
     for column_name, unit_values in column_data.items():
-        first_value = unit_values[1][0]
-        last_value = unit_values[1][1]
+        # no values in generate mpt file
+        if unit_values[1] is None:
+            first_value = None
+            last_value = None
+        # generated mpt file has values
+        else:
+            first_value = unit_values[1][0]
+            last_value = unit_values[1][1]
+
         parsed_values = measurement.grab(column_name)[1]
 
-        assert first_value == parsed_values[0]
-        assert last_value == parsed_values[-1]
+        # Ixdat did not parse any values from mpt file, because there are none
+        if parsed_values.size == 0:
+            assert (
+                first_value is None
+            ), f"Parsed value does not match with the value in a column: {column_name}"
+            assert (
+                last_value is None
+            ), f"Parsed value does not match with the value in a column: {column_name}"
+        # Ixdat parsed values from mpt file
+        else:
+            assert (
+                first_value == parsed_values[0]
+            ), f"Parsed value does not match with the value in a column: {column_name}"
+            assert (
+                last_value == parsed_values[-1]
+            ), f"Parsed value does not match with the value in a column: {column_name}"
