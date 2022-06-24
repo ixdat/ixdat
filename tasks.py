@@ -25,6 +25,7 @@ Read more about invoke here: https://www.pyinvoke.org/
 
 """
 
+import os
 import sys
 import configparser
 import platform
@@ -274,7 +275,8 @@ def dependencies(context):
     See docstring of :func:`flake8` for explanation of `context` argument
     """
     # See https://stackoverflow.com/a/1883251/11640721 for virtual env detection trick
-    if sys.prefix == sys.base_prefix:
+    conda_environment = os.environ.get("CONDA_PREFIX")
+    if conda_environment is None and sys.prefix == sys.base_prefix:
         raise RuntimeError(
             "Current python does not seem to be in a virtual environment, which is the "
             "recommended way to install dependencies for development. Please "
