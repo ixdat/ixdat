@@ -66,15 +66,18 @@ def flake8(context):
 
 
 @task(aliases=["test", "tests"])
-def pytest(context):
+def pytest(context, external=False):
     """Run the pytest task
 
     See docstring of :func:`flake8` for explanation of `context` argument
 
     """
     print("# pytest")
+    args = []
+    if external:
+        args.append("--external")
     with context.cd(THIS_DIR):
-        return context.run("pytest tests").return_code
+        return context.run(f"pytest tests {' '.join(args)}").return_code
 
 
 @task(
