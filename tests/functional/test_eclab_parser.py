@@ -12,10 +12,7 @@ from ixdat import Measurement
 from pytest import fixture, mark
 
 
-DATA_DIR = (
-    Path(__file__).parent.parent.parent
-    / "submodules/ixdat-large-test-files/multiple_techniques_dataset/"
-)
+DATA_DIR = Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/"
 
 """
 Data to use in the test.
@@ -28,7 +25,8 @@ filename_with_technique: {
 }
 """
 TEST_DATA = {
-    "multiple_techniques_dataset_01_02_CVA_C01.mpt": {
+    # MULTI-TECHNIQUE DATASET
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_02_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 1)),
         "error": ("", (0, 0)),
@@ -46,7 +44,7 @@ TEST_DATA = {
         "P/W": ("W", (-4.0162254e-007, 1.0149774e-005)),
         "Ns": ("", (0, 0)),  # this is automatically added by ixdat as a ConstantValue
     },
-    "multiple_techniques_dataset_01_03_CP_C01.mpt": {
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_03_CP_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (1, 0)),
         "error": ("", (0, 0)),
@@ -84,7 +82,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
         "P/W": ("W", (1.1309961e-009, -1.6560911e-006)),
     },
-    "multiple_techniques_dataset_01_04_CP_C01.mpt": {
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_04_CP_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (0, 0)),
@@ -122,7 +120,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
         "P/W": ("W", (-1.6289529e-006, -1.2163383e-006)),
     },
-    "multiple_techniques_dataset_01_05_CA_C01.mpt": {
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_05_CA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (1, 0)),
@@ -160,7 +158,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 1.000000000000000e000)),
         "P/W": ("W", (-1.8127311e-006, -2.0061668e-007)),
     },
-    "multiple_techniques_dataset_01_06_CA_C01.mpt": {
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_06_CA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (0, 0)),
@@ -198,7 +196,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 5.000000000000000e000)),
         "P/W": ("W", (-4.9556947e-005, -9.2322317e-008)),
     },
-    "multiple_techniques_dataset_01_07_ZIR_C01.mpt": {
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_07_ZIR_C01.mpt": {
         "freq/Hz": ("Hz", None),
         "Re(Z)/Ohm": ("Ohm", None),
         "-Im(Z)/Ohm": ("Ohm", None),
@@ -217,7 +215,7 @@ TEST_DATA = {
         "cycle number": ("", None),  # added by Ixdat
         "Ns": ("", None),  # added by Ixdat
     },
-    "multiple_techniques_dataset_01_08_CVA_C01.mpt": {
+    "multiple_techniques_dataset/multiple_techniques_dataset_01_08_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (1, 0)),
@@ -234,6 +232,69 @@ TEST_DATA = {
         "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
         "P/W": ("W", (9.5904383e-008, 2.4153431e-007)),
         "Ns": ("", (0, 0)),  # added by Ixdat
+    },
+    # DATASET WITH A LOOP
+    "dataset_with_loop/dataset_with_loop_01_01_OCV_DUSB0_C01.mpt": {
+        "mode": ("", (3, 3)),
+        "error": ("", (1, 0)),
+        "time/s": ("s", (0.000000000000000e000, 9.999799747383804e000)),
+        "Ewe/V": ("V", (8.5495901e-001, 8.5425603e-001)),
+        "Ece/V": ("V", (1.0547562e000, 1.0526601e000)),
+        "Ewe-Ece/V": ("V", (-1.9979715e-001, -1.9840407e-001)),
+        "loop_number": ("", (0, 0)),  # added by Ixdat
+        "raw_current=0": ("", (0, 0)),  # added by Ixdat
+        "cycle number": ("", (0, 0)),  # added by Ixdat
+        "Ns": ("", (0, 0)),  # added by Ixdat
+    },
+    "dataset_with_loop/dataset_with_loop_01_02_CVA_DUSB0_C01.mpt": {
+        "mode": ("", (2, 2)),
+        "ox/red": ("red", (1, 0)),
+        "error": ("", (0, 0)),
+        "control changes": ("", (1, 1)),
+        "Ns changes": ("", (0, 0)),
+        "counter inc.": ("", (0, 1)),
+        "time/s": ("s", (1.100059972210147e001, 1.021461974195699e002)),
+        "control/V": ("V", (8.5430270e-001, 8.5370302e-001)),
+        "Ewe/V": ("V", (8.5430568e-001, 8.5386628e-001)),
+        "<I>/mA": ("mA", (3.681490779854357e-004, 6.457082499764510e-004)),
+        "cycle number": ("", (1.000000000000000e000, 2.000000000000000e000)),
+        "(Q-Qo)/C": ("C", (0.0000000e000, 7.0078465e-007)),
+        "I Range": ("", (40, 40)),
+        "<Ece>/V": ("V", (1.0487431e000, 1.0656431e000)),
+        "P/W": ("W", (3.1451185e-007, 5.5134848e-007)),
+        "Ewe-Ece/V": ("V", (-1.9443744e-001, -2.1177679e-001)),
+        "loop_number": ("", (0, 1)),  # added by Ixdat
+        "Ns": ("", (0, 0)),  # added by Ixdat
+    },
+    "dataset_with_loop/dataset_with_loop_01_03_CP_DUSB0_C01.mpt": {
+        "mode": ("", (1, 1)),
+        "ox/red": ("red", (1, 1)),
+        "error": ("", (0, 0)),
+        "control changes": ("", (0, 0)),
+        "Ns changes": ("", (0, 0)),
+        "counter inc.": ("", (0, 0)),
+        "Ns": ("", (0, 0)),
+        "time/s": ("s", (5.109679870918626e001, 1.122481971643720e002)),
+        "control/mA": ("mA", (0.0000000e000, 0.0000000e000)),
+        "Ewe/V": ("V", (8.1625509e-001, 8.4291708e-001)),
+        "I/mA": ("mA", (2.7354923e-005, 3.2436059e-005)),
+        "dQ/C": ("C", (0.0000000e000, 3.2346591e-007)),
+        "(Q-Qo)/C": ("C", (0.0000000e000, 3.2346591e-007)),
+        "half cycle": ("", (0, 0)),
+        "Q charge/discharge/mA.h": (
+            "mA.h",
+            (0.000000000000000e000, 8.985164472556385e-008),
+        ),
+        "I Range": ("", (41, 41)),
+        "Ece/V": ("V", (1.0758879e000, 1.0688440e000)),
+        "Q discharge/mA.h": ("mA.h", (0.000000000000000e000, 0.000000000000000e000)),
+        "Q charge/mA.h": ("mA.h", (0.000000000000000e000, 8.985164472556385e-008)),
+        "Capacity/mA.h": ("mA.h", (0.000000000000000e000, 8.985164472556385e-008)),
+        "Efficiency/%": ("%", (0.0000000e000, 0.0000000e000)),
+        "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
+        "P/W": ("W", (2.2328596e-008, 2.7340908e-008)),
+        "Ewe-Ece/V": ("V", (-2.5963283e-001, -2.2592688e-001)),
+        "loop_number": ("", (0, 1)),  # added by Ixdat
     },
 }
 

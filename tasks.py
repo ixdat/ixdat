@@ -66,18 +66,20 @@ def flake8(context):
 
 
 @task(aliases=["test", "tests"])
-def pytest(context, external=False):
+def pytest(context, color="yes", external=False):
     """Run the pytest task
 
     See docstring of :func:`flake8` for explanation of `context` argument
 
     """
     print("# pytest")
+    if platform.system() == "Windows":
+        color = "no"
     args = []
     if external:
         args.append("--external")
     with context.cd(THIS_DIR):
-        return context.run(f"pytest tests {' '.join(args)}").return_code
+        return context.run(f"pytest tests --color '{color}' {' '.join(args)}").return_code
 
 
 @task(
