@@ -17,3 +17,8 @@ API changes
 
 Debugging
 ---------
+
+Other changes
+-------------
+
+- Tests for EC-lab parser using a dataset with multiple techniques and a dataset with looping techniques.
