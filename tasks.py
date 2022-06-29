@@ -65,7 +65,13 @@ def flake8(context):
         return context.run(f"flake8 {SOURCE_DIR} {TESTS_DIR}").return_code
 
 
-@task(aliases=["test", "tests"])
+@task(
+    aliases=["test", "tests"],
+    help={
+        "color": "Whether to display pytest output in color, 'yes' or 'no'",
+        "external": "Also run external tests from submodules, disabled by default",
+    },
+)
 def pytest(context, color="yes", external=False):
     """Run the pytest task
 
@@ -79,7 +85,9 @@ def pytest(context, color="yes", external=False):
     if external:
         args.append("--external")
     with context.cd(THIS_DIR):
-        return context.run(f"pytest tests --color '{color}' {' '.join(args)}").return_code
+        return context.run(
+            f"pytest tests --color '{color}' {' '.join(args)}"
+        ).return_code
 
 
 @task(
