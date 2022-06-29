@@ -101,6 +101,34 @@ We use tools to make sure that our code is both functional and pretty. This make
 easier to work together. See instructions for the tools in `tools.rst <https://github.com/ixdat/ixdat/blob/main/TOOLS.rst>`_
 
 
+Testing
+*******
+
+Software tests are welcomed! The basic test suite is included in this
+repository in the ``tests`` directory.
+
+However, if your tests have a specific purpose and/or depend on additional
+data, then the data should be initialized in a **submodule**.  Additionally,
+the tests should be **marked** as ``external`` with the pytest mark decorator.
+It is done like this, so other developers do not have to download your data
+through submodules, when they do not wish to test their new feature with your
+tests and data.
+
+If you want to run the complete test suite that includes external tests from
+all contributing developers, you need to initialize necessary submodules::
+
+    git submodule update --init --recursive
+
+And then run command for testing with ``--external`` option::
+
+    # the 'tests' here is an invoke command
+    invoke tests --external
+
+    # or just with pytest, if you wish:
+    # the 'tests' here is a project directory with the tests
+    pytest tests --external
+
+
 Write to us
 ***********
 We'd love to know what you're working on and help with any issues developing, even
