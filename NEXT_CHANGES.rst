@@ -30,3 +30,9 @@ readers
 The biologic reader now checks for "Ns" and "cycle number" rather than assuming it
 knows which EC techniques have which of these selector-defining series.
 Resolves `Issue #87 <https://github.com/ixdat/ixdat/issues/87>`_
+
+techniques
+^^^^^^^^^^
+``MSMeasurement.reset_bg`` works again! It now adds a new calibration with bg=0 for
+masses that had previously had a bg set.
+Resolves `Issue #82 <https://github.com/ixdat/ixdat/issues/82>`_
