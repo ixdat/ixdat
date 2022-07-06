@@ -32,15 +32,6 @@ BIOLOGIC_ALIASES = {
     "raw_current": ["I/mA", "<I>/mA"],
     "cycle": ["cycle number"],
 }
-EC_TECHNIQUES_WITH_CYCLE_NUMBER = (
-    "Cyclic Voltammetry Advanced",
-    "Cyclic Voltammetry",
-)
-EC_TECHNIQUES_WITH_STEP_NUMBER = (
-    "Chronoamperometry",
-    "Chronoamperometry / Chronocoulometry",
-    "Chronopotentiometry",
-)
 
 
 class BiologicMPTReader:
@@ -174,13 +165,15 @@ class BiologicMPTReader:
                 )
                 aliases[series_name] = [name_0]
 
-        if self.ec_technique not in EC_TECHNIQUES_WITH_CYCLE_NUMBER:
-            data_series_list = [s for s in data_series_list if s.name != "cycle number"]
+        # All biologic ECMeasurements need a `cycle number` and `Ns` in order for the
+        # `selector` to be built correctly when these files are appended, but some .mpt
+        # files are missing those columns. Here, we put in a constant=0 for "Ns" and/or
+        # "cycle number" if they are missing:
+        if "cycle number" not in [s.name for s in data_series_list]:
             data_series_list.append(
                 ConstantValue(name="cycle number", unit_name="", data=0, tseries=tseries)
             )
-        if self.ec_technique not in EC_TECHNIQUES_WITH_STEP_NUMBER:
-            data_series_list = [s for s in data_series_list if s.name != "Ns"]
+        if "Ns" not in [s.name for s in data_series_list]:
             data_series_list.append(
                 ConstantValue(name="Ns", unit_name="", data=0, tseries=tseries)
             )

@@ -17,3 +17,9 @@ API changes
 
 Debugging
 ---------
+
+readers
+^^^^^^^
+The biologic reader now checks for "Ns" and "cycle number" rather than assuming it
+knows which EC techniques have which of these selector-defining series.
+Resolves `Issue #87 <https://github.com/ixdat/ixdat/issues/87>`_
