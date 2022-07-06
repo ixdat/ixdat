@@ -252,6 +252,8 @@ class Measurement(Saveable):
                 interpreted as the folder where the file are.
                 `Path(path_to_file).name` is interpreted as the shared start of the files
                 to be appended.
+                Alternatively, path_to_file_start can be a folder, in which case all
+                files in that folder (with the specified suffix) are included.
             part (Path or str): A path where the folder is the folder containing data
                 and the name is a part of the name of each of the files to be read and
                 combined.

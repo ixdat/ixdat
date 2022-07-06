@@ -15,6 +15,13 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 API changes
 -----------
 
+readers
+^^^^^^^
+``Mesurement.read_set`` can now take a folder as the first argument, in which case  all
+files in that folder (with the specified suffix) are appended.
+Resolves `Issue #88 <https://github.com/ixdat/ixdat/issues/88>`_
+
+
 Debugging
 ---------
 

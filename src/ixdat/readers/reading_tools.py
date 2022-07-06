@@ -141,6 +141,8 @@ def get_file_list(path_to_file_start=None, part=None, suffix=None):
             interpreted as the folder where the file are.
             `Path(path_to_file).name` is interpreted as the shared start of the files
             to be appended.
+            Alternatively, path_to_file_start can be a folder, in which case all
+            files in that folder (with the specified suffix) are included.
         part (Path or str): A path where the folder is the folder containing data
             and the name is a part of the name of each of the files to be read and
             combined. Not to be used together with `path_to_file_start`.
@@ -149,9 +151,13 @@ def get_file_list(path_to_file_start=None, part=None, suffix=None):
     """
     file_list = []
     if path_to_file_start:
-        folder = Path(path_to_file_start).parent
-        base_name = Path(path_to_file_start).name
-        file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
+        path_to_file_start = Path(path_to_file_start)
+        if path_to_file_start.is_dir():
+            file_list = [f for f in path_to_file_start.iterdir() if f.is_file()]
+        else:
+            folder = path_to_file_start.parent
+            base_name = path_to_file_start.name
+            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
     elif part:
         folder = Path(part).parent
         part_name = Path(part).name
