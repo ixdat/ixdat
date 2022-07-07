@@ -102,7 +102,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         n = Q / (n_el * FARADAY_CONSTANT)
         F = Y / n
         cal = MSCalResult(
-            name=f"{mol}@{mass}", mol=mol, mass=mass, cal_type="ecms_calibration", F=F,
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type="ecms_calibration",
+            F=F,
         )
         return cal
 
@@ -188,7 +192,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return cal
 
     def _get_tspan_list(
-        self, selector_list, selector_name=None, t_steady_pulse=None,
+        self,
+        selector_list,
+        selector_name=None,
+        t_steady_pulse=None,
     ):
         """
         Generate a t_span list from input of selectors.
@@ -263,7 +270,10 @@ class ECMSCalibration(ECCalibration, MSCalibration):
             L (float): The working distance in [m]
         """
         ECCalibration.__init__(
-            self, A_el=A_el, RE_vs_RHE=RE_vs_RHE, R_Ohm=R_Ohm,
+            self,
+            A_el=A_el,
+            RE_vs_RHE=RE_vs_RHE,
+            R_Ohm=R_Ohm,
         )
         MSCalibration.__init__(
             self,
