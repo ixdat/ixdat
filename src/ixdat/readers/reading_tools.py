@@ -11,6 +11,17 @@ from ..measurements import TimeSeries, ValueSeries, ConstantValue
 STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'
 USA_TIMESTAMP_FORM = "%m/%d/%Y %H:%M:%S"  # like '12/31/2020 23:59:59'
 FLOAT_MATCH = "[-]?\\d+[\\.]?\\d*(?:e[-]?\\d+)?"  # matches floats like '5' or '-2.3e5'
+DEFAULT_READER_NAMES = {
+    ".mpt": "biologic",
+    ".tsv": "zilien",
+    ".xrdml": "xrdml",
+    ".avg": "avantage",
+}
+
+
+def get_default_reader_name(path_to_file):
+    """Return a default reader if available given a file's full name with suffix"""
+    return DEFAULT_READER_NAMES.get(Path(path_to_file).suffix, None)
 
 
 def timestamp_string_to_tstamp(
@@ -141,6 +152,8 @@ def get_file_list(path_to_file_start=None, part=None, suffix=None):
             interpreted as the folder where the file are.
             `Path(path_to_file).name` is interpreted as the shared start of the files
             to be appended.
+            Alternatively, path_to_file_start can be a folder, in which case all
+            files in that folder (with the specified suffix) are included.
         part (Path or str): A path where the folder is the folder containing data
             and the name is a part of the name of each of the files to be read and
             combined. Not to be used together with `path_to_file_start`.
@@ -149,9 +162,13 @@ def get_file_list(path_to_file_start=None, part=None, suffix=None):
     """
     file_list = []
     if path_to_file_start:
-        folder = Path(path_to_file_start).parent
-        base_name = Path(path_to_file_start).name
-        file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
+        path_to_file_start = Path(path_to_file_start)
+        if path_to_file_start.is_dir():
+            file_list = [f for f in path_to_file_start.iterdir() if f.is_file()]
+        else:
+            folder = path_to_file_start.parent
+            base_name = path_to_file_start.name
+            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
     elif part:
         folder = Path(part).parent
         part_name = Path(part).name

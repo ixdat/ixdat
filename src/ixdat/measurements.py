@@ -205,6 +205,17 @@ class Measurement(Saveable):
             reader (str or Reader class): The (name of the) reader to read the file with.
             kwargs: key-word arguments are passed on to the reader's read() method.
         """
+        if not reader:
+            # Check if there is a default reader based on the file's suffix
+            from .readers.reading_tools import get_default_reader_name
+
+            reader = get_default_reader_name(path_to_file)
+            if not reader:
+                raise ValueError(
+                    f"There is no default reader for files of the type {path_to_file}. "
+                    "Please specify a reader to read this file."
+                )
+
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
@@ -252,6 +263,8 @@ class Measurement(Saveable):
                 interpreted as the folder where the file are.
                 `Path(path_to_file).name` is interpreted as the shared start of the files
                 to be appended.
+                Alternatively, path_to_file_start can be a folder, in which case all
+                files in that folder (with the specified suffix) are included.
             part (Path or str): A path where the folder is the folder containing data
                 and the name is a part of the name of each of the files to be read and
                 combined.
@@ -1125,7 +1138,7 @@ class Measurement(Saveable):
         # now we go through the tspans, cuting the measurement and appending the results:
         return self.multicut(tspans)
 
-    def select_values(self, *args, **kwargs):
+    def select_values(self, *args, selector_name=None, **kwargs):
         """Return a selection of the measurement based on one or several criteria
 
         Specifically, this method returns a new Measurement where the time(s) returned
@@ -1149,37 +1162,54 @@ class Measurement(Saveable):
         # to select for where the default selector is 4 OR 5:
         meas.select_values(4, 5)
         # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
-        select_values(cycle=4)
+        meas.select_values(cycle=4)
         # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
         meas.select_values(loop_number=1, cycle=[3, 4, 5])
+        # to select for where "cycle number" (notice the space) is 2 or 3:
+        meas.select_values("cycle_number", [2, 3])
+        # which is equivalent to:
+        meas.select_values([2, 3], selector_name="cycle number")
         ```
         Note, a value name with a space in it (like "cycle number") can unfortunately
         not be selected for with this method.
 
         Args:
             args (tuple): Argument(s) given without keyword are understood as acceptable
-                value(s) for the default selector (that named by self.sel_str)
+                value(s) for the selector (that named by self.sel_str).
+                Alternatively, two args can be given where the first, a string, is the
+                selector name and the second is the allowed value(s).
+            selector_name: The name of the selector to which the args specify
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
         """
         if args:
-            if not self.selector_name:
-                raise BuildError(
-                    f"{self} does not have a default selection string "
-                    f"(Measurement.sel_str), and so selection only works with kwargs."
-                )
-            flat_args = []
-            for arg in args:
-                if hasattr(arg, "__iter__"):
-                    flat_args += list(arg)
-                else:
-                    flat_args.append(arg)
-            if self.selector_name in kwargs:
-                raise BuildError(
-                    "Don't call select values with both arguments and "
-                    "'{self.selector_name}' as a key-word argument"
-                )
-            kwargs[self.selector_name] = flat_args
+            if len(args) == 2 and isinstance(args[0], str):
+                # Then we can interpret the args as (selector_name, selector_value)
+                kwargs[args[0]] = args[1]
+            else:
+                # Then we must interpret the arguments as allowed values of a selector,
+                #  either specified in the kwargs or
+                selector_name = selector_name or self.selector_name
+                if not selector_name:
+                    raise BuildError(
+                        f"{self} does not have a default selector_name "
+                        f"(Measurement.selector_name), and so selection only works "
+                        f"with a selector_name specified "
+                        f"(see `help(Measurement.select_values)`)"
+                    )
+                # We need to flatten the args, in case they
+                flat_args = []
+                for arg in args:
+                    if hasattr(arg, "__iter__"):
+                        flat_args += list(arg)
+                    else:
+                        flat_args.append(arg)
+                if selector_name in kwargs:
+                    raise BuildError(
+                        "Don't call select values with both arguments and "
+                        "'{self.selector_name}' as a key-word argument"
+                    )
+                kwargs[self.selector_name] = flat_args
 
         t = self.t
         mask = np.tile(np.array([True]), t.shape)
@@ -1199,12 +1229,14 @@ class Measurement(Saveable):
     def select(self, *args, tspan=None, **kwargs):
         """`cut` (with tspan) and `select_values` (with *args and/or **kwargs).
 
-        These all work:
-        - `meas.select_values(1, 2)`
-        - `meas.select_values(tspan=[200, 300])`
-        - `meas.select_values(range(10))`
-        - `meas.select_values(cycle=4)`
-        - `meas.select_values(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
+        These all work for measurements that have the indicated columns:
+        - `meas.select(1, 2)`
+        - `meas.select(tspan=[200, 300])`
+        - `meas.select(range(10))`
+        - `meas.select(cycle=4)`
+        - `meas.select([20, 21], selector_name="cycle number")
+        - `meas.select("loop_number", 1, tspan=[1000, 2000])
+        - `meas.select(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
         """
         new_measurement = self
         if tspan:

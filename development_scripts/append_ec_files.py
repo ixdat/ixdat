@@ -11,10 +11,16 @@ from ixdat import Measurement
 
 plt.close("all")
 
+data_dir = Path.home() / ("Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/")
+
+if True:  # test reading from directory
+    full_measurement = Measurement.read_set(data_dir, suffix=".mpt", reader="biologic")
+    full_measurement.plot(J_name="cycle number")
+    # test selection:
+    cycle = full_measurement.select([1, 2])
+    cycle.plot()
+
 if True:
-    data_dir = Path.home() / (
-        "Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/"
-    )
 
     ocp_file = data_dir / "01_demo_02_OCV_C01.mpt"
     cv_file = data_dir / "01_demo_03_CVA_C01.mpt"
