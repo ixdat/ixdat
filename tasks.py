@@ -25,6 +25,7 @@ Read more about invoke here: https://www.pyinvoke.org/
 
 """
 
+import os
 import sys
 import configparser
 import platform
@@ -90,13 +91,7 @@ def pytest(context, color="yes", external=False):
         ).return_code
 
 
-@task(
-    aliases=(
-        "check_black",
-        "black_check",
-        "bc",
-    )
-)
+@task(aliases=("check_black", "black_check", "bc",))
 def check_code_format(context):
     """Check that the code, tests and development_scripts are black formatted
 
@@ -156,7 +151,6 @@ def tox(context, single=False):
         )
     else:
         environments_to_run = filter_tox_environments_linux(environments, single=single)
-
     context.run("tox -p auto -e " + ",".join(environments_to_run))
 
 
@@ -177,13 +171,11 @@ def filter_tox_environments_linux(environments, single=False):
             else:
                 # The environments look like: py36
                 command = "python{}.{}".format(*environment[2:4])
-
             # Check that the executable exists
             try:
                 check_call([command, "--version"], stdout=DEVNULL)
             except (CalledProcessError, FileNotFoundError):
                 continue
-
             # Certain version of Ubuntu may have a old "reduced"
             # Python version, with an "m" suffix. It is insufficient
             # for tox so check that it isn't there.
@@ -192,13 +184,10 @@ def filter_tox_environments_linux(environments, single=False):
                 continue
             except (CalledProcessError, FileNotFoundError):
                 pass
-
             if found_at_least_one_python and single:
                 continue
-
             environments_to_run.append(environment)
             found_at_least_one_python = True
-
         else:
             environments_to_run.append(environment)
     return environments_to_run
@@ -225,7 +214,6 @@ def filter_tox_environments_windows(environments, single=False):
             version_numbers = version_string.replace("Python ", "").split(".")
             version = "".join(version_numbers[:2])
             python_versions.append("py" + version)
-
     environments_to_run = []
     found_at_least_one_python = False
     for environment in environments:
@@ -233,12 +221,10 @@ def filter_tox_environments_windows(environments, single=False):
             if environment in python_versions:
                 if found_at_least_one_python and single:
                     continue
-
                 environments_to_run.append(environment)
                 found_at_least_one_python = True
         else:
             environments_to_run.append(environment)
-
     return environments_to_run
 
 
@@ -287,7 +273,9 @@ def dependencies(context):
     See docstring of :func:`flake8` for explanation of `context` argument
     """
     # See https://stackoverflow.com/a/1883251/11640721 for virtual env detection trick
-    if sys.prefix == sys.base_prefix:
+    conda_environment = os.environ.get("CONDA_PREFIX")
+    # conda_environment is None if not using Anaconda python
+    if conda_environment is None and sys.prefix == sys.base_prefix:
         raise RuntimeError(
             "Current python does not seem to be in a virtual environment, which is the "
             "recommended way to install dependencies for development. Please "
