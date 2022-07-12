@@ -119,6 +119,10 @@ all contributing developers, you need to initialize necessary submodules::
 
     git submodule update --init --recursive
 
+In order to download a specific submodule (e.g. ``ixdat-large-test-files``), the command is::
+
+    git submodule update --init submodules/ixdat-large-test-files
+
 And then run command for testing with ``--external`` option::
 
     # the 'tests' here is an invoke command

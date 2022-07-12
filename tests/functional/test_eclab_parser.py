@@ -361,19 +361,6 @@ def test_values(measurements_with_data):
 
     # test first and last values in columns
     for column_name, units_values in columns_data.items():
-        # FIXME test fails for this column in these files, because the cycle number
-        #  increments in the files and we don't fully understand why -- error in
-        #  the dataset or ixdat? (https://github.com/ixdat/ixdat/issues/87)
-        if (
-            measurement.name
-            in (
-                "multiple_techniques_dataset_01_05_CA_C01.mpt",
-                "multiple_techniques_dataset_01_06_CA_C01.mpt",
-            )
-            and column_name == "cycle number"
-        ):
-            continue
-
         # actual parsed data by the Ixdat
         parsed_values = measurement[column_name].data
 
