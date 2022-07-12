@@ -13,8 +13,12 @@ plt.close("all")
 
 data_dir = Path.home() / ("Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/")
 
-full_measurement = Measurement.read_set(data_dir, suffix=".mpt", reader="biologic")
-full_measurement.plot()
+if True:  # test reading from directory
+    full_measurement = Measurement.read_set(data_dir, suffix=".mpt", reader="biologic")
+    full_measurement.plot(J_name="cycle number")
+    # test selection:
+    cycle = full_measurement.select([1, 2])
+    cycle.plot()
 
 if True:
 

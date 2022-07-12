@@ -21,6 +21,16 @@ readers
 files in that folder (with the specified suffix) are appended.
 Resolves `Issue #88 <https://github.com/ixdat/ixdat/issues/88>`_
 
+``Measurement.read`` (and by extension ``Measurement.read_set``) can now be called
+without a specified reader for certain known file types. To see which file types, use::
+
+  from ixdat.readers.reading_tools import DEFAULT_READER_NAMES
+  print(DEFAULT_READER_NAMES)
+
+``Measurement.select`` is now even more versatile. A user can specify a ``selector_name``
+for args to work on. This enables selection based on columns with a space in them, like
+"cycle number".
+Resolves `Issue #77 <https://github.com/ixdat/ixdat/issues/77>`_
 
 Debugging
 ---------

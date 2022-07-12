@@ -11,6 +11,17 @@ from ..measurements import TimeSeries, ValueSeries, ConstantValue
 STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'
 USA_TIMESTAMP_FORM = "%m/%d/%Y %H:%M:%S"  # like '12/31/2020 23:59:59'
 FLOAT_MATCH = "[-]?\\d+[\\.]?\\d*(?:e[-]?\\d+)?"  # matches floats like '5' or '-2.3e5'
+DEFAULT_READER_NAMES = {
+    ".mpt": "biologic",
+    ".tsv": "zilien",
+    ".xrdml": "xrdml",
+    ".avg": "avantage",
+}
+
+
+def get_default_reader_name(path_to_file):
+    """Return a default reader if available given a file's full name with suffix"""
+    return DEFAULT_READER_NAMES.get(Path(path_to_file).suffix, None)
 
 
 def timestamp_string_to_tstamp(
