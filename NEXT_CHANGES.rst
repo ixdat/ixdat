@@ -27,10 +27,18 @@ without a specified reader for certain known file types. To see which file types
   from ixdat.readers.reading_tools import DEFAULT_READER_NAMES
   print(DEFAULT_READER_NAMES)
 
+techniques
+^^^^^^^^^^
 ``Measurement.select`` is now even more versatile. A user can specify a ``selector_name``
 for args to work on. This enables selection based on columns with a space in them, like
 "cycle number".
 Resolves `Issue #77 <https://github.com/ixdat/ixdat/issues/77>`_
+
+plotters
+^^^^^^^^
+
+``ECMSPlotter.plot_measurment`` and ``plot_potential`` can take string options "all",
+"ms", and "ec" to specify the time span of the data to plot.
 
 Debugging
 ---------

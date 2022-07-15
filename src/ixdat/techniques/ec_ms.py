@@ -74,6 +74,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         obj = super(ECMSMeasurement, cls).from_dict(obj_as_dict)
         return obj
 
+    @property
+    def tspan(self):
+        """The tspan of an MS measurement is the tspan of its potential data"""
+        return [self.t[0], self.t[-1]]
+
     def as_cv(self):
         self_as_dict = self.as_dict()
 

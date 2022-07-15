@@ -992,8 +992,8 @@ class Measurement(Saveable):
             return None
         for t_name in self.time_names:
             t = self[t_name].data
-            t_start = min(t_start, t[0]) if t_start else t[0]
-            t_finish = max(t_finish, t.data[-1]) if t_finish else t[-1]
+            t_start = t[0] if t_start is None else min(t_start, t[0])
+            t_finish = t[-1] if t_finish is None else max(t_finish, t[-1])
         return [t_start, t_finish]
 
     def cut(self, tspan, t_zero=None):
