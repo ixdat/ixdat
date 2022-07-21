@@ -1068,6 +1068,10 @@ class Measurement(Saveable):
             #    as it duplicates data (a big no)... especially bad because
             #    new_measurement.save() saves them.
             #    The step is here in order for file_number to get built correctly.
+            try:
+                _ = m.tspan[0]  # Gives an IndexError for empty component measurements.
+            except IndexError:
+                continue
             if not m.tspan:
                 # if it has no TimeSeries it must be a "constant". Best to include:
                 new_component_measurements.append(m)

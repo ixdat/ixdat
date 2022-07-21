@@ -19,8 +19,9 @@ if True:  # test reading from directory
     # test selection:
     cycle = full_measurement.select([1, 2])
     cycle.plot()
-    full_measurement.select_values("cycle number", 0, file_number=1).plot()
-    # THe following line raises a BuildError:
+    full_measurement.cut([1000, 2000]).plot()
+    full_measurement.select_values("cycle number", 0, loop_number=1).plot()
+    # The following line raises a BuildError:
     full_measurement.select_values("loop_number", 0, loop_number=1).plot()
 
 if True:

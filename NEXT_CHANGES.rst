@@ -17,8 +17,14 @@ API changes
 techniques
 ^^^^^^^^^^^
 - Improved docstring for ``ECMSMeasurement.ecms_calibration_curve()`` to include the new additions from previous release.
-- Added MSInlet``gas_flux_calibration_curve`` to enable multiple point calibration using calculated gas flux 
+
+- Added MSInlet``gas_flux_calibration_curve`` to enable multiple point calibration using calculated gas flux
 either with different concentrations in carrier gas or at different inlet pressures. Note, concentration needs to be given in ppm, as the flux calculation uses various constants from the carrier gas molecule instead of a mixture, which will lead to significant inaccuracy for high concentrations.
+
+- ``Measurement.select`` is now even more versatile. A user can specify a ``selector_name``
+  for args to work on. This enables selection based on columns with a space in them, like
+  "cycle number".
+  Resolves `Issue #77 <https://github.com/ixdat/ixdat/issues/77>`_
 
 readers
 ^^^^^^^
@@ -33,16 +39,6 @@ without a specified reader for certain known file types. To see which file types
 
   from ixdat.readers.reading_tools import DEFAULT_READER_NAMES
   print(DEFAULT_READER_NAMES)
-
-techniques
-^^^^^^^^^^
-- ``Measurement.select`` is now even more versatile. A user can specify a ``selector_name``
-  for args to work on. This enables selection based on columns with a space in them, like
-  "cycle number".
-  Resolves `Issue #77 <https://github.com/ixdat/ixdat/issues/77>`_
-
-- ``MSInlet.gas_flux_calibration_curve`` added for multi-point calibration of MS data
-  using a known gas composition and the capillary equation.
 
 plotters
 ^^^^^^^^
@@ -62,6 +58,9 @@ Resolves `Issue #87 <https://github.com/ixdat/ixdat/issues/87>`_
 
 techniques
 ^^^^^^^^^^
+- ``Measurement.cut`` now skips empty component measurements rather than crashing.
+  Resolves `Issue #93 <https://github.com/ixdat/ixdat/issues/93>`_
+
 - ``MSMeasurement.reset_bg`` works again! It now adds a new calibration with bg=0 for
   masses that had previously had a bg set.
   Resolves `Issue #82 <https://github.com/ixdat/ixdat/issues/82>`_
