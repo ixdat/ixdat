@@ -14,11 +14,14 @@ plt.close("all")
 data_dir = Path.home() / ("Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/")
 
 if True:  # test reading from directory
-    full_measurement = Measurement.read_set(data_dir, suffix=".mpt", reader="biologic")
+    full_measurement = Measurement.read_set(data_dir, suffix="mpt")
     full_measurement.plot(J_name="cycle number")
     # test selection:
     cycle = full_measurement.select([1, 2])
     cycle.plot()
+    full_measurement.select_values("cycle number", 0, file_number=1).plot()
+    # THe following line raises a BuildError:
+    full_measurement.select_values("loop_number", 0, loop_number=1).plot()
 
 if True:
 

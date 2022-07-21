@@ -25,7 +25,7 @@ from .projects.samples import Sample
 from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
-from .exceptions import BuildError, SeriesNotFoundError, TechniqueError
+from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
 from .tools import deprecate
 
 
@@ -202,7 +202,9 @@ class Measurement(Saveable):
 
         Args:
             path_to_file (Path or str): The path to the file to read
-            reader (str or Reader class): The (name of the) reader to read the file with.
+            reader (str or Reader class): The (name of the) reader to read the file
+                with. If not specified, ixdat will try to determine the reader from the
+                file suffix.
             kwargs: key-word arguments are passed on to the reader's read() method.
         """
         if not reader:
@@ -279,6 +281,11 @@ class Measurement(Saveable):
         from .readers.reading_tools import get_file_list
 
         file_list = file_list or get_file_list(path_to_file_start, part, suffix)
+        if not file_list:
+            raise ReadError(
+                "No files found! Please check that there are files satisfying:\n"
+                f"path_to_file_start={path_to_file_start}, part={part}, suffix={suffix}"
+            )
         component_measurements = [
             cls.read(f, reader=reader, **kwargs) for f in file_list
         ]
@@ -1185,6 +1192,11 @@ class Measurement(Saveable):
         if args:
             if len(args) == 2 and isinstance(args[0], str):
                 # Then we can interpret the args as (selector_name, selector_value)
+                if args[0] in kwargs:
+                    raise ValueError(
+                        f"Don't call select_values with '{args[0]}' as first argument"
+                        " and also as a key-word argument"
+                    )
                 kwargs[args[0]] = args[1]
             else:
                 # Then we must interpret the arguments as allowed values of a selector,
@@ -1205,8 +1217,8 @@ class Measurement(Saveable):
                     else:
                         flat_args.append(arg)
                 if selector_name in kwargs:
-                    raise BuildError(
-                        "Don't call select values with both arguments and "
+                    raise ValueError(
+                        "Don't call select_values with both arguments and "
                         "'{self.selector_name}' as a key-word argument"
                     )
                 kwargs[self.selector_name] = flat_args

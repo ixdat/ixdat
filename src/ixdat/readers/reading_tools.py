@@ -21,7 +21,7 @@ DEFAULT_READER_NAMES = {
 
 def get_default_reader_name(path_to_file):
     """Return a default reader if available given a file's full name with suffix"""
-    return DEFAULT_READER_NAMES.get(Path(path_to_file).suffix, None)
+    return DEFAULT_READER_NAMES.get(Path(path_to_file).suffix)
 
 
 def timestamp_string_to_tstamp(
@@ -174,5 +174,8 @@ def get_file_list(path_to_file_start=None, part=None, suffix=None):
         part_name = Path(part).name
         file_list = [f for f in folder.iterdir() if part_name in f.name]
     if suffix:
+        if not suffix.startswith("."):
+            # So that the user can type e.g. `suffix="mpt"` as well as `suffix=".mpt"`
+            suffix = "." + suffix
         file_list = [f for f in file_list if f.suffix == suffix]
     return file_list

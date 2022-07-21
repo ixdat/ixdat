@@ -25,6 +25,8 @@ readers
 ``Mesurement.read_set`` can now take a folder as the first argument, in which case  all
 files in that folder (with the specified suffix) are appended.
 Resolves `Issue #88 <https://github.com/ixdat/ixdat/issues/88>`_
+``Measurement.read_set`` now also raises a ``ReadError` rather than returning ``None`` in
+the case of no matching files.
 
 ``Measurement.read`` (and by extension ``Measurement.read_set``) can now be called
 without a specified reader for certain known file types. To see which file types, use::
