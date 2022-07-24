@@ -197,7 +197,7 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    def read(cls, path_to_file, reader, **kwargs):
+    def read(cls, path_to_file, reader=None, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader
 
         Args:
@@ -238,7 +238,7 @@ class Measurement(Saveable):
         return obj
 
     @classmethod
-    def read_url(cls, url, reader, **kwargs):
+    def read_url(cls, url, reader=None, **kwargs):
         """Read a url (via a temporary file) using the specified reader"""
         from .readers.reading_tools import url_to_file
 
@@ -1157,75 +1157,62 @@ class Measurement(Saveable):
         measurement where `self[series_name] == value`
 
         Any series can be selected for using the series name as a key-word. Arguments
-        can be single acceptable values or lists of acceptable values. In the latter
-        case, each acceptable value is selected for on its own and the resulting
-        measurements added together.
-        # FIXME: That is sloppy because it multiplies the number of DataSeries
-            containing the same amount of data.
-        Arguments without key-word are considered valid values of the default selector,
-        which is named by `self.selelector_name`. Multiple criteria are
+        can be single acceptable values or lists of acceptable values.
+        You can select for one or more series without valid python variable names by
+        providing the kwargs using ** notation (see last example below).
+
+        Arguments without key-word are considered valid values of the default
+        selector, which is normally `self.selector_name` but can also be specified
+        here using the key-word argument `selector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
 
         Examples of valid calls given a measurement `meas`:
         ```
         # to select where the default selector is 3, use:
         meas.select_values(3)
-        # to select for where the default selector is 4 OR 5:
+        # to select for where the default selector is 4 or 5:
         meas.select_values(4, 5)
         # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
         meas.select_values(cycle=4)
         # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
         meas.select_values(loop_number=1, cycle=[3, 4, 5])
         # to select for where "cycle number" (notice the space) is 2 or 3:
-        meas.select_values("cycle_number", [2, 3])
-        # which is equivalent to:
         meas.select_values([2, 3], selector_name="cycle number")
-        ```
-        Note, a value name with a space in it (like "cycle number") can unfortunately
-        not be selected for with this method.
+        # which is equivalent to:
+        meas.select_values(**{"cycle number": [2, 3]})
 
         Args:
             args (tuple): Argument(s) given without keyword are understood as acceptable
-                value(s) for the selector (that named by self.sel_str).
-                Alternatively, two args can be given where the first, a string, is the
-                selector name and the second is the allowed value(s).
+                value(s) for the selector (that named by selector_name or
+                self.selector_name).
             selector_name: The name of the selector to which the args specify
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
         """
         if args:
-            if len(args) == 2 and isinstance(args[0], str):
-                # Then we can interpret the args as (selector_name, selector_value)
-                if args[0] in kwargs:
-                    raise ValueError(
-                        f"Don't call select_values with '{args[0]}' as first argument"
-                        " and also as a key-word argument"
-                    )
-                kwargs[args[0]] = args[1]
-            else:
-                # Then we must interpret the arguments as allowed values of a selector,
-                #  either specified in the kwargs or
-                selector_name = selector_name or self.selector_name
-                if not selector_name:
-                    raise BuildError(
-                        f"{self} does not have a default selector_name "
-                        f"(Measurement.selector_name), and so selection only works "
-                        f"with a selector_name specified "
-                        f"(see `help(Measurement.select_values)`)"
-                    )
-                # We need to flatten the args, in case they
-                flat_args = []
-                for arg in args:
-                    if hasattr(arg, "__iter__"):
-                        flat_args += list(arg)
-                    else:
-                        flat_args.append(arg)
-                if selector_name in kwargs:
-                    raise ValueError(
-                        "Don't call select_values with both arguments and "
-                        "'{self.selector_name}' as a key-word argument"
-                    )
-                kwargs[self.selector_name] = flat_args
+            # Then we must interpret the arguments as allowed values of a selector,
+            #  either specified in the kwargs or the Measurement's default selector:
+            selector_name = selector_name or self.selector_name
+            if not selector_name:
+                raise BuildError(
+                    f"{self} does not have a default selector_name "
+                    f"(Measurement.selector_name), and so selection only works "
+                    f"with a selector_name specified "
+                    f"(see `help(Measurement.select_values)`)"
+                )
+            # Get the args into a simple list:
+            flat_args = []
+            for arg in args:
+                if hasattr(arg, "__iter__"):
+                    flat_args += list(arg)
+                else:
+                    flat_args.append(arg)
+            if selector_name in kwargs:
+                raise ValueError(
+                    "Don't call select_values with both arguments and "
+                    "'{self.selector_name}' as a key-word argument"
+                )
+            kwargs[self.selector_name] = flat_args
 
         t = self.t
         mask = np.tile(np.array([True]), t.shape)
@@ -1245,13 +1232,14 @@ class Measurement(Saveable):
     def select(self, *args, tspan=None, **kwargs):
         """`cut` (with tspan) and `select_values` (with *args and/or **kwargs).
 
-        These all work for measurements that have the indicated columns:
+        These all work for measurements that have a default selector and/or the
+        indicated columns:
         - `meas.select(1, 2)`
         - `meas.select(tspan=[200, 300])`
         - `meas.select(range(10))`
         - `meas.select(cycle=4)`
-        - `meas.select([20, 21], selector_name="cycle number")
-        - `meas.select("loop_number", 1, tspan=[1000, 2000])
+        - `meas.select(**{"cycle number": [20, 21]})
+        - `meas.select(loop_number=1, tspan=[1000, 2000])
         - `meas.select(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
         """
         new_measurement = self
