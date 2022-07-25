@@ -91,7 +91,13 @@ def pytest(context, color="yes", external=False):
         ).return_code
 
 
-@task(aliases=("check_black", "black_check", "bc",))
+@task(
+    aliases=(
+        "check_black",
+        "black_check",
+        "bc",
+    )
+)
 def check_code_format(context):
     """Check that the code, tests and development_scripts are black formatted
 

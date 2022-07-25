@@ -1077,7 +1077,7 @@ class Measurement(Saveable):
             try:
                 tspan_m = [tspan[0] - dt, tspan[1] - dt]
             except IndexError:  # Apparently this can happen for empty files. See:
-                continue        # https://github.com/ixdat/ixdat/issues/93
+                continue  # https://github.com/ixdat/ixdat/issues/93
             if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
                 continue
             new_component_measurements.append(m.cut(tspan_m))
