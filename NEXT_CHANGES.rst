@@ -57,7 +57,7 @@ knows which EC techniques have which of these selector-defining series.
 Resolves `Issue #87 <https://github.com/ixdat/ixdat/issues/87>`_
 
 techniques
-^^^^^^^^^^
+^^^^^^^^^^^
 - ``Measurement.cut`` now skips empty component measurements rather than crashing.
   Resolves `Issue #93 <https://github.com/ixdat/ixdat/issues/93>`_
 
@@ -69,3 +69,10 @@ techniques
   instead of ``0``, which simplifies explanation in docstring and makes it more clear what
   it does (i.e. if now a pulse time of 0 is given it will actually use 0s instead of the
   entire pulse)
+
+
+Other changes
+-------------
+
+- Tests for EC-lab parser using a dataset with multiple techniques and a dataset with looping techniques.
+
