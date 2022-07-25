@@ -1068,17 +1068,16 @@ class Measurement(Saveable):
             #    as it duplicates data (a big no)... especially bad because
             #    new_measurement.save() saves them.
             #    The step is here in order for file_number to get built correctly.
-            try:
-                _ = m.tspan[0]  # Gives an IndexError for empty component measurements.
-            except IndexError:
-                continue
             if not m.tspan:
                 # if it has no TimeSeries it must be a "constant". Best to include:
                 new_component_measurements.append(m)
                 continue
             # Otherwise we have to cut it according to the present tspan.
             dt = m.tstamp - self.tstamp
-            tspan_m = [tspan[0] - dt, tspan[1] - dt]
+            try:
+                tspan_m = [tspan[0] - dt, tspan[1] - dt]
+            except IndexError:  # Apparently this can happen for empty files. See:
+                continue        # https://github.com/ixdat/ixdat/issues/93
             if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
                 continue
             new_component_measurements.append(m.cut(tspan_m))

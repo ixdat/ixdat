@@ -21,8 +21,8 @@ if True:  # test reading from directory
     cycle.plot()
     full_measurement.cut([1000, 2000]).plot()
     full_measurement.select_values(loop_number=0, **{"cycle number": 1}).plot()
-    # The following line raises a TypeError:
-    full_measurement.select_values(loop_number=1, **{"loop_number": 0}).plot()
+    # # The following line raises a TypeError:
+    # full_measurement.select_values(loop_number=1, **{"loop_number": 0}).plot()
 
 if True:
 
@@ -30,7 +30,7 @@ if True:
     cv_file = data_dir / "01_demo_03_CVA_C01.mpt"
     cp_file = data_dir / "01_demo_04_CP_C01.mpt"
 
-    ocp_meas = Measurement.read(ocp_file, reader="biologic", name="Pt_demo_ocp")
+    ocp_meas = Measurement.read(ocp_file, name="Pt_demo_ocp")
     print("read ocp file!")
     cv_meas = Measurement.read(cv_file, reader="biologic", name="Pt_demo_cv")
     print("read cv file!")
