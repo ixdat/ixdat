@@ -64,9 +64,11 @@ class MSMeasurement(Measurement):
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
         mass_list = mass_list or self.mass_list
+        new_signal_bgs = {}
         for mass in mass_list:
             if mass in self.signal_bgs:
-                del self.signal_bgs[mass]
+                new_signal_bgs[mass] = 0
+        self.add_calibration(MSCalibration(signal_bgs=new_signal_bgs))
 
     def grab(
         self,
