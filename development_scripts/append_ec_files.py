@@ -14,11 +14,15 @@ plt.close("all")
 data_dir = Path.home() / ("Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/")
 
 if True:  # test reading from directory
-    full_measurement = Measurement.read_set(data_dir, suffix=".mpt", reader="biologic")
+    full_measurement = Measurement.read_set(data_dir, suffix="mpt")
     full_measurement.plot(J_name="cycle number")
     # test selection:
     cycle = full_measurement.select([1, 2])
     cycle.plot()
+    full_measurement.cut([1000, 2000]).plot()
+    full_measurement.select_values(loop_number=0, **{"cycle number": 1}).plot()
+    # The following line raises a TypeError:
+    full_measurement.select_values(loop_number=1, **{"loop_number": 0}).plot()
 
 if True:
 

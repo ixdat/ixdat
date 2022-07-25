@@ -72,7 +72,9 @@ class ECMSPlotter(MPLPlotter):
             mol_lists (list of list of str): Alternately, two lists can be given for
                 molecules in which case one list is plotted on the left y-axis and the
                 other on the right y-axis of the top panel.
-            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan (str or iter of float): The time interval `(t_start, t_end)` to plot,
+                wrt measurement.tstamp. Use `tspan="all"` to plot all the data.
+                Defaults to EC data tspan. See :fun:`determine_tspan`_ for more details.
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
@@ -107,6 +109,7 @@ class ECMSPlotter(MPLPlotter):
                 axes[3] is bottom_right is current.
         """
         measurement = measurement or self.measurement
+        tspan = determine_tspan(tspan, measurement)
 
         logplot = (not mass_lists) if logplot is None else logplot
 
@@ -124,13 +127,6 @@ class ECMSPlotter(MPLPlotter):
                 n_top=(2 if (mass_lists or mol_lists) else 1),
                 emphasis=emphasis,
             )
-
-        if not tspan:
-            if hasattr(measurement, "potential") and measurement.potential:
-                t, _ = measurement.grab("potential")
-                tspan = [t[0], t[-1]]
-            else:
-                tspan = measurement.tspan
 
         # plot the EC data (note that the EC plotter will skip current and/or potential
         #   in the case that the data is missing).
@@ -213,7 +209,9 @@ class ECMSPlotter(MPLPlotter):
             mol_lists (list of list of str): Alternately, two lists can be given for
                 molecules in which case one list is plotted on the left y-axis and the
                 other on the right y-axis of the top panel.
-            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan (str or iter of float): The time interval `(t_start, t_end)` to plot,
+                wrt measurement.tstamp. Use `tspan="all"` to plot all the data.
+                Defaults to EC data tspan. See :fun:`determine_tspan`_ for more details.
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
@@ -229,6 +227,8 @@ class ECMSPlotter(MPLPlotter):
                 bottom panel, None for equal-sized panels
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
         """
+        measurement = measurement or self.measurement
+        tspan = determine_tspan(tspan, measurement)
         if removebackground is not None:
             remove_background = removebackground
         if not axes:
@@ -260,3 +260,46 @@ class ECMSPlotter(MPLPlotter):
         )
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
+
+
+def determine_tspan(tspan=None, measurement=None):
+    """Return a timespan based on a requested timespan and the EC-MS measurement
+
+    `tspan` is most directly given as two numbers, which are taken to be
+    start time and end time (wrt to measurement.tstamp), e.g. `[800, 1000]`.
+    `tspan` can also be one of these strings:
+        "all": The full timespan from the first data point to the last
+        "ec": The full timespan of the EC data.
+        "ms": The full timespan of the MS data.
+    If tspan is not used, the measurement's default timespan `measurement.tspan` is
+    used, which for EC-MS measurements will be "ec".
+
+    Args:
+         tspan (str or iter of float): The timespan specification
+         measurement (ECMSMeasurement): The measurement for which to determine a timespan
+    """
+    if isinstance(tspan, str):
+        ec_start = measurement.t[0]
+        ec_end = measurement.t[-1]
+        ms_start = None
+        ms_end = None
+        for mass in measurement.mass_list:
+            t_M, y = measurement.grab(mass)
+            ms_start = t_M[0] if ms_start is None else min(ms_start, t_M[0])
+            ms_end = t_M[-1] if ms_end is None else max(ms_end, t_M[-1])
+        t_start = min(ec_start, ms_start)
+        t_end = max(ec_end, ms_end)
+        if tspan == "all":
+            return [t_start, t_end]
+        elif tspan == "ec":
+            return [ec_start, ec_end]
+        elif tspan == "ms":
+            return [ms_start, ms_end]
+        else:
+            raise ValueError(
+                f"Invalid tspan: '{tspan}'. String options are 'all', 'ec', and 'ms'."
+            )
+    elif tspan:
+        return tspan
+    else:
+        return measurement.tspan
