@@ -127,11 +127,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
-<<<<<<< HEAD
         return_ax=False,
-=======
-        return_axes=False,
->>>>>>> fd9e891 (debug ECMSMeasurement.ecms_calibration_curve())
     ):
         """Fit mol's sensitivity at mass based on steady periods of EC production.
 
@@ -202,13 +198,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             cal_type="ecms_calibration_curve",
             F=F,
         )
-<<<<<<< HEAD
         if return_ax:
-=======
-        if ax and return_axes:
-            if axes_measurement:
-                return cal, ax, axes_measurement
->>>>>>> fd9e891 (debug ECMSMeasurement.ecms_calibration_curve())
             return cal, ax
         return cal
 

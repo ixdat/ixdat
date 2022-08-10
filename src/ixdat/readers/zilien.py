@@ -145,11 +145,7 @@ class ZilienTSVReader:
             )
             return self._measurement
 
-<<<<<<< HEAD
-=======
-        from EC_MS import Zilien_Dataset
 
->>>>>>> fd9e891 (debug ECMSMeasurement.ecms_calibration_curve())
         if "technique" in kwargs:
             if kwargs["technique"] == "EC-MS":
                 cls = ECMSMeasurement
