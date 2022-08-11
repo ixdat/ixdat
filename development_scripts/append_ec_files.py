@@ -11,16 +11,26 @@ from ixdat import Measurement
 
 plt.close("all")
 
+data_dir = Path.home() / ("Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/")
+
+if True:  # test reading from directory
+    full_measurement = Measurement.read_set(data_dir, suffix="mpt")
+    full_measurement.plot(J_name="cycle number")
+    # test selection:
+    cycle = full_measurement.select([1, 2])
+    cycle.plot()
+    full_measurement.cut([1000, 2000]).plot()
+    full_measurement.select_values(loop_number=0, **{"cycle number": 1}).plot()
+    # # The following line raises a TypeError:
+    # full_measurement.select_values(loop_number=1, **{"loop_number": 0}).plot()
+
 if True:
-    data_dir = Path.home() / (
-        "Dropbox/ixdat_resources/tutorials_data/extended_platinum_ec/"
-    )
 
     ocp_file = data_dir / "01_demo_02_OCV_C01.mpt"
     cv_file = data_dir / "01_demo_03_CVA_C01.mpt"
     cp_file = data_dir / "01_demo_04_CP_C01.mpt"
 
-    ocp_meas = Measurement.read(ocp_file, reader="biologic", name="Pt_demo_ocp")
+    ocp_meas = Measurement.read(ocp_file, name="Pt_demo_ocp")
     print("read ocp file!")
     cv_meas = Measurement.read(cv_file, reader="biologic", name="Pt_demo_cv")
     print("read cv file!")

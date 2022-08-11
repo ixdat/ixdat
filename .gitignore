@@ -4,7 +4,7 @@ development_scripts/*/*.png
 development_scripts/*/*.svg
 development_scripts/*/*.csv
 docs/source/figures/big_src/
-
+*.pkl
 
 
 # Byte-compiled / optimized / DLL files

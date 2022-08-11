@@ -8,6 +8,7 @@ from .analysis_tools import (
     find_signed_sections,
 )
 from ..plotters.ec_plotter import CVDiffPlotter
+from ..plotters.plotting_tools import get_color_from_cmap, add_colorbar
 from ..tools import deprecate
 
 
@@ -336,6 +337,24 @@ class CyclicVoltammogram(ECMeasurement):
         diff.cv_compare_1 = self
         diff.cv_compare_2 = other
         return diff
+
+    def plot_cycles(self, ax=None, cmap_name="jet"):
+        """Plot the cycles on a color scale.
+
+        Args:
+            ax (mpl.Axis): The axes to plot on. A new one is made by default
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", which
+                ranges from blue to red
+        """
+        cycle_numbers = set(self["cycle"].data)
+        c_max = max(cycle_numbers)
+        for c in cycle_numbers:
+            color = get_color_from_cmap(c / c_max, cmap_name=cmap_name)
+            ax = self[int(c)].plot(ax=ax, color=color)
+        add_colorbar(
+            ax, cmap_name, vmin=min(cycle_numbers), vmax=c_max, label="cycle number"
+        )
+        return ax
 
 
 class CyclicVoltammagram(CyclicVoltammogram):

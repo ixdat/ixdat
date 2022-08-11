@@ -9,7 +9,6 @@ A Measurement will typically be accompanied by one or more Calibration. This mod
 also defines the base class for Calibration, while technique-specific Calibration
 classes will be defined in the corresponding module in ./techniques/
 """
-from pathlib import Path
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
@@ -26,7 +25,7 @@ from .projects.samples import Sample
 from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
-from .exceptions import BuildError, SeriesNotFoundError, TechniqueError
+from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
 from .tools import deprecate
 
 
@@ -198,14 +197,27 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    def read(cls, path_to_file, reader, **kwargs):
+    def read(cls, path_to_file, reader=None, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader
 
         Args:
             path_to_file (Path or str): The path to the file to read
-            reader (str or Reader class): The (name of the) reader to read the file with.
+            reader (str or Reader class): The (name of the) reader to read the file
+                with. If not specified, ixdat will try to determine the reader from the
+                file suffix.
             kwargs: key-word arguments are passed on to the reader's read() method.
         """
+        if not reader:
+            # Check if there is a default reader based on the file's suffix
+            from .readers.reading_tools import get_default_reader_name
+
+            reader = get_default_reader_name(path_to_file)
+            if not reader:
+                raise ValueError(
+                    f"There is no default reader for files of the type {path_to_file}. "
+                    "Please specify a reader to read this file."
+                )
+
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
@@ -226,7 +238,7 @@ class Measurement(Saveable):
         return obj
 
     @classmethod
-    def read_url(cls, url, reader, **kwargs):
+    def read_url(cls, url, reader=None, **kwargs):
         """Read a url (via a temporary file) using the specified reader"""
         from .readers.reading_tools import url_to_file
 
@@ -236,7 +248,15 @@ class Measurement(Saveable):
         return measurement
 
     @classmethod
-    def read_set(cls, path_to_file_start, reader, suffix=None, file_list=None, **kwargs):
+    def read_set(
+        cls,
+        path_to_file_start=True,
+        part=None,
+        suffix=None,
+        file_list=None,
+        reader=None,
+        **kwargs,
+    ):
         """Read and append a set of files.
 
         Args:
@@ -245,26 +265,30 @@ class Measurement(Saveable):
                 interpreted as the folder where the file are.
                 `Path(path_to_file).name` is interpreted as the shared start of the files
                 to be appended.
-            reader (str or Reader class): The (name of the) reader to read the files with
-            file_list (list of Path): As an alternative to path_to_file_start, the
-                exact files to append can be specified in a list
+                Alternatively, path_to_file_start can be a folder, in which case all
+                files in that folder (with the specified suffix) are included.
+            part (Path or str): A path where the folder is the folder containing data
+                and the name is a part of the name of each of the files to be read and
+                combined.
             suffix (str): If a suffix is given, only files with the specified ending are
                 added to the file list
+            file_list (list of Path): As an alternative to path_to_file_start, the
+                exact files to append can be specified in a list
+            reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
                 method, AND to cls.from_component_measurements()
         """
-        base_name = None
-        if not file_list:
-            folder = Path(path_to_file_start).parent
-            base_name = Path(path_to_file_start).name
-            file_list = [f for f in folder.iterdir() if f.name.startswith(base_name)]
-            if suffix:
-                file_list = [f for f in file_list if f.suffix == suffix]
+        from .readers.reading_tools import get_file_list
 
+        file_list = file_list or get_file_list(path_to_file_start, part, suffix)
+        if not file_list:
+            raise ReadError(
+                "No files found! Please check that there are files satisfying:\n"
+                f"path_to_file_start={path_to_file_start}, part={part}, suffix={suffix}"
+            )
         component_measurements = [
             cls.read(f, reader=reader, **kwargs) for f in file_list
         ]
-
         measurement = None
         for meas in component_measurements:
             measurement = measurement + meas if measurement else meas
@@ -975,8 +999,8 @@ class Measurement(Saveable):
             return None
         for t_name in self.time_names:
             t = self[t_name].data
-            t_start = min(t_start, t[0]) if t_start else t[0]
-            t_finish = max(t_finish, t.data[-1]) if t_finish else t[-1]
+            t_start = t[0] if t_start is None else min(t_start, t[0])
+            t_finish = t[-1] if t_finish is None else max(t_finish, t[-1])
         return [t_start, t_finish]
 
     def cut(self, tspan, t_zero=None):
@@ -1050,7 +1074,10 @@ class Measurement(Saveable):
                 continue
             # Otherwise we have to cut it according to the present tspan.
             dt = m.tstamp - self.tstamp
-            tspan_m = [tspan[0] - dt, tspan[1] - dt]
+            try:
+                tspan_m = [tspan[0] - dt, tspan[1] - dt]
+            except IndexError:  # Apparently this can happen for empty files. See:
+                continue  # https://github.com/ixdat/ixdat/issues/93
             if m.tspan[-1] < tspan_m[0] or tspan_m[-1] < m.tspan[0]:
                 continue
             new_component_measurements.append(m.cut(tspan_m))
@@ -1121,47 +1148,67 @@ class Measurement(Saveable):
         # now we go through the tspans, cuting the measurement and appending the results:
         return self.multicut(tspans)
 
-    def select_values(self, *args, **kwargs):
+    def select_values(self, *args, selector_name=None, **kwargs):
         """Return a selection of the measurement based on one or several criteria
 
         Specifically, this method returns a new Measurement where the time(s) returned
         are those where the values match the provided criteria, i.e. the part of the
         measurement where `self[series_name] == value`
 
-        TODO: Testing and documentation with examples like those suggested here:
-            https://github.com/ixdat/ixdat/pull/11#discussion_r677324246
-
         Any series can be selected for using the series name as a key-word. Arguments
-        can be single acceptable values or lists of acceptable values. In the latter
-        case, each acceptable value is selected for on its own and the resulting
-        measurements added together.
-        # FIXME: That is sloppy because it multiplies the number of DataSeries
-            containing the same amount of data.
-        Arguments without key-word are considered valid values of the default selector,
-        which is named by `self.selelector_name`. Multiple criteria are
+        can be single acceptable values or lists of acceptable values.
+        You can select for one or more series without valid python variable names by
+        providing the kwargs using ** notation (see last example below).
+
+        Arguments without key-word are considered valid values of the default
+        selector, which is normally `self.selector_name` but can also be specified
+        here using the key-word argument `selector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
+
+        Examples of valid calls given a measurement `meas`:
+        ```
+        # to select where the default selector is 3, use:
+        meas.select_values(3)
+        # to select for where the default selector is 4 or 5:
+        meas.select_values(4, 5)
+        # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
+        meas.select_values(cycle=4)
+        # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
+        meas.select_values(loop_number=1, cycle=[3, 4, 5])
+        # to select for where "cycle number" (notice the space) is 2 or 3:
+        meas.select_values([2, 3], selector_name="cycle number")
+        # which is equivalent to:
+        meas.select_values(**{"cycle number": [2, 3]})
 
         Args:
             args (tuple): Argument(s) given without keyword are understood as acceptable
-                value(s) for the default selector (that named by self.sel_str)
+                value(s) for the selector (that named by selector_name or
+                self.selector_name).
+            selector_name: The name of the selector to which the args specify
             kwargs (dict): Each key-word arguments is understood as the name
                 of a series and its acceptable value(s).
         """
         if args:
-            if not self.selector_name:
+            # Then we must interpret the arguments as allowed values of a selector,
+            #  either specified in the kwargs or the Measurement's default selector:
+            selector_name = selector_name or self.selector_name
+            if not selector_name:
                 raise BuildError(
-                    f"{self} does not have a default selection string "
-                    f"(Measurement.sel_str), and so selection only works with kwargs."
+                    f"{self} does not have a default selector_name "
+                    f"(Measurement.selector_name), and so selection only works "
+                    f"with a selector_name specified "
+                    f"(see `help(Measurement.select_values)`)"
                 )
+            # Get the args into a simple list:
             flat_args = []
             for arg in args:
                 if hasattr(arg, "__iter__"):
                     flat_args += list(arg)
                 else:
                     flat_args.append(arg)
-            if self.selector_name in kwargs:
-                raise BuildError(
-                    "Don't call select values with both arguments and "
+            if selector_name in kwargs:
+                raise ValueError(
+                    "Don't call select_values with both arguments and "
                     "'{self.selector_name}' as a key-word argument"
                 )
             kwargs[self.selector_name] = flat_args
@@ -1184,12 +1231,15 @@ class Measurement(Saveable):
     def select(self, *args, tspan=None, **kwargs):
         """`cut` (with tspan) and `select_values` (with *args and/or **kwargs).
 
-        These all work:
-        - `meas.select_values(1, 2)`
-        - `meas.select_values(tspan=[200, 300])`
-        - `meas.select_values(range(10))`
-        - `meas.select_values(cycle=4)`
-        - `meas.select_values(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
+        These all work for measurements that have a default selector and/or the
+        indicated columns:
+        - `meas.select(1, 2)`
+        - `meas.select(tspan=[200, 300])`
+        - `meas.select(range(10))`
+        - `meas.select(cycle=4)`
+        - `meas.select(**{"cycle number": [20, 21]})
+        - `meas.select(loop_number=1, tspan=[1000, 2000])
+        - `meas.select(1, range(5, 20), file_number=1, tspan=[1000, 2000])`
         """
         new_measurement = self
         if tspan:
@@ -1221,6 +1271,11 @@ class Measurement(Saveable):
         MS datasets, for example) and appending (sequential EC datasets). Either way,
         all the raw series (or their placeholders) are just stored in the lists.
         """
+        from .spectra import SpectrumSeries, add_spectrum_series_to_measurement
+
+        if isinstance(other, SpectrumSeries):
+            return add_spectrum_series_to_measurement(self, other)
+
         new_name = self.name + " AND " + other.name
         new_technique = get_combined_technique(self.technique, other.technique)
 

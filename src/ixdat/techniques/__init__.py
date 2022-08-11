@@ -11,7 +11,12 @@ from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammogram, CyclicVoltammagram  # The latter is deprecated.
 from .ms import MSMeasurement, MSCalibration
 from .ec_ms import ECMSMeasurement, ECMSCalibration
-from .spectroelectrochemistry import SpectroECMeasurement
+from .spectroelectrochemistry import (
+    SpectroECMeasurement,
+    ECXASMeasurement,
+    ECOpticalMeasurement,
+)
+from ..spectra import Spectrum
 from ..measurements import Measurement  # for importing in the technique modules
 
 # TODO: Is something like DecoMeasurement a Measurement or something else?
@@ -22,7 +27,12 @@ TECHNIQUE_CLASSES = {
     "CV": CyclicVoltammogram,
     "MS": MSMeasurement,
     "EC-MS": ECMSMeasurement,
-    "S-EC": SpectroECMeasurement,
+    "XRD": Spectrum,
+    "XPS": Spectrum,
+    "XAS": Spectrum,
+    "EC-Optical": ECOpticalMeasurement,
+    "SEC": SpectroECMeasurement,
+    "EC-XAS": ECXASMeasurement,
 }
 
 CALIBRATION_CLASSES = {

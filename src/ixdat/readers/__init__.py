@@ -29,9 +29,19 @@ from .ec_ms_pkl import EC_MS_CONVERTER
 # spectroelectrochemistry
 from .msrh_sec import MsrhSECReader, MsrhSECDecayReader
 
+# xrd
+from .xrdml import XRDMLReader
+
+# xps
+from .avantage import AvantageAVGReader
+
+# xas
+from .qexafs import QexafsDATReader
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicMPTReader,
+    "avantage": AvantageAVGReader,
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
     "chi": CHInstrumentsTXTReader,
@@ -45,4 +55,6 @@ READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
+    "xrdml": XRDMLReader,
+    "qexafs": QexafsDATReader,
 }
