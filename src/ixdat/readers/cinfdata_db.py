@@ -1,7 +1,8 @@
 """Module defining direct DB reader connection to Surfcat's legendary cinfdata system"""
-
+import time
 from pathlib import Path
 from cinfdata import Cinfdata
+from tqdm import tqdm
 import numpy as np
 from ..exceptions import ReadError
 from ..data_series import ValueSeries, TimeSeries
@@ -9,7 +10,7 @@ from ..techniques import MSMeasurement
 from .reading_tools import timestamp_string_to_tstamp
 
 
-class CinfDatabaseReader:
+class CinfdataDBReader:
     """A class that connects to cinf_database or read from cache
     https://cinfdata-dababase-client.readthedocs.io/en/latest/index.html
 
@@ -52,7 +53,7 @@ class CinfDatabaseReader:
         self.technique = "MS"  # TODO: MS? Figure out how to tell if it's something else
         self.measurement_class = MSMeasurement
         self.measurement = None
-        self.db = None
+        self.cinf_db = None
 
     def read(self, setup_name, timestamp, name=None, cls=None, units=None, **kwargs):
         """Return a MSMeasurement with the data and metadata recorded from 
@@ -68,24 +69,45 @@ class CinfDatabaseReader:
             timestamp (str): Timestamp the measurement started (YYYY-MM-DD HH:MM:SS)
             **kwargs (dict): Key-word arguments are passed to cinf Measurement.__init__
         """
+        if setup_name:
+            self.setup_name = setup_name
+        if timestamp:
+            self.timestamp = timestamp
 
-        self.db = Cinfdata(setup_name=setup_name, grouping_column = 'time')
+        self.cinf_db = Cinfdata(setup_name='microreactorNG', grouping_column = 'time')
 
-        self.group_data = self.db.get_data_group(timestamp, scaling_factors=(1E-3, None))
-        self.group_meta = self.db.get_metadata_group(timestamp, scaling_factors=(1E-3, None))
+        self.group_data = self.cinf_db.get_data_group(timestamp,
+                                                      scaling_factors=(1E-3, None))
+        self.group_meta = self.cinf_db.get_metadata_group(timestamp)
         self.meta = self.group_meta[list(self.group_meta.keys())[0]]  #
 
-
-
-        for key in self.group_data.keys():
+        self.tstamp = float(self.meta['unixtime'])
+        self.name = self.meta['time'].strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            self.sample_name = self.meta['Comment']
+        except KeyError:
+            try:
+                self.sample_name = self.meta['comment']
+            except KeyError as e:
+                self.sample_name = None
+                print('No comment to set as sample_name. ', e)
+        print(self.sample_name)
+        #print(self.meta)
+        #print(self.group_meta)
+        data_series_list = []
+        for key in tqdm(self.group_data.keys()):
             column_name = self.group_meta[key]['mass_label']
-            tstamp = self.group_meta[key]['unixtime']
+            print(column_name)
+            unixtime = self.group_meta[key]['unixtime']
+            tstamp = float(unixtime)
+
             tcol  = self.group_data[key][:, 0]
+            #print(key)
             vcol = self.group_data[key][:, 1]
 
             tseries = TimeSeries(
                     name=column_name+"-x",
-                    unit_name=get_column_unit(name) or "s",
+                    unit_name=get_column_unit(column_name+"-x") or "s",
                     data=tcol,
                     tstamp=tstamp,
             )
@@ -93,7 +115,7 @@ class CinfDatabaseReader:
                     name=column_name,
                     data=vcol,
                     tseries=tseries,
-                    unit_name=get_column_unit(vcol),
+                    unit_name=get_column_unit(column_name+"-y"),
             )
             data_series_list.append(tseries)
             data_series_list.append(vseries)
@@ -130,7 +152,7 @@ class CinfDatabaseReader:
         self.name = self.meta['time'].strftime("%Y-%m-%d %H:%M:%S")
 
     def set_tstamp(self):
-        self.tstamp = meta['unixtime']
+        self.tstamp = float(self.meta['unixtime'])
 
 
     def add_mass_scans(self):
@@ -141,7 +163,7 @@ class CinfDatabaseReader:
 
         for i, key in enumerate(group_meta.keys()):
             if group_meta[key]['mass_label'] == 'Mass Scan' or \
-            group_meta[key]['type'] == 4:
+                group_meta[key]['type'] == 4:
                 pass  #create spectrum with unixtime to stich in in the measruement
             else:
                 pass
@@ -153,6 +175,15 @@ def get_column_unit(column_name):
         unit_name = "A"
     elif column_name.startswith("M") and column_name.endswith("-x"):
         unit_name = "s"
+    elif column_name.startswith("Reactor") and column_name.endswith("pressure-y"):
+        unit_name = "bar"
+    elif not column_name.startswith("Reactor") and column_name.endswith("pressure-y"):
+        unit_name = "mbar"
+    elif column_name.endswith("temperature-y"):
+        unit_name = "celcius"
+    elif column_name.startswith("Flow"):
+        unit_name = "ml/min"
+
     else:
         # TODO: Figure out how cinfdata represents units for other stuff.
         #    see https://github.com/ixdat/ixdat/pull/30/files#r811432543, and
