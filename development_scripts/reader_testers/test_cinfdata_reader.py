@@ -20,14 +20,14 @@ ec_meas.plot_measurement()
 
 ecms_meas = ec_meas + ms_meas
 axes = ecms_meas.plot_measurement(
-    mass_lists=[["M44", "M2"], ["M4", "M28"]],
-    tspan_bg=[30, 40],
+    mass_lists=[["M4", "M28"], ["M44", "M2"]],
+    tspan_bg=[None, [30, 40]],
     legend=False,
     unit="pA",
 )
 
-axes[0].set_ylim([-7, 70])
-axes[2].set_ylim([-1.8e3, 18e3])
+axes[2].set_ylim([-7, 70])
+axes[0].set_ylim([-1.8e3, 18e3])
 fig = axes[0].get_figure()
 fig.tight_layout()
 # fig.savefig("../../docs/source/figures/ec_ms.svg")

@@ -21,6 +21,7 @@ regular_expressions = {
     "unit": r"/ \[(.+)\]",
     "aux_file": r"'(.*)' in file: '(.*)'",
 }
+bad_keys = ("time_step",)
 
 
 class IxdatCSVReader:
@@ -214,6 +215,8 @@ class IxdatCSVReader:
             return
         if " = " in line:
             key, value = line.strip().split(" = ")
+            if key in bad_keys:
+                return
             if key in ("name", "id"):
                 return
             try:
