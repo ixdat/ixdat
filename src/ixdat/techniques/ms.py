@@ -21,6 +21,7 @@ from ..constants import (
 from ..data_series import ValueSeries
 from ..db import Saveable
 from ..tools import deprecate
+from .. import options
 
 
 class MSMeasurement(Measurement):
@@ -256,6 +257,34 @@ class MSMeasurement(Measurement):
         if self.is_mass(new_item):
             return self.as_mass(new_item)
         raise TypeError(f"{self} does not recognize '{item}' as a mass.")
+
+    def gas_flux_calibration(self, mol, mass, tspan):
+        if not options.USE_QUANT:
+            raise QuantificationError(
+                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
+                "called from an instance of `MSInlet`."
+            )
+
+    def multicomp_gas_flux_calibration(
+        self, mol_list, mass_list, gas, tspan, gas_bg=None, tspan_bg=None
+    ):
+        if not options.USE_QUANT:
+            raise QuantificationError(
+                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
+                "called from an instance of `MSInlet`."
+            )
+
+    def set_quantifier(self, quantifier=None, calibration=None):
+        if not options.USE_QUANT:
+            raise QuantificationError(
+                "`MSMeasurement.set_quatnifier` only works when using an "
+                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
+            )
 
 
 class MSCalResult(Saveable):
