@@ -259,6 +259,15 @@ class MSMeasurement(Measurement):
         raise TypeError(f"{self} does not recognize '{item}' as a mass.")
 
     def gas_flux_calibration(self, mol, mass, tspan, chip=None):
+        """Simple pure-gas flux calibration, using external MS quantification package
+
+        Args:
+            mol (str): Name of molecule to be calibrated (e.g. "He")
+            mass (str): Mass at which to calibrate it (e.g. "M4")
+            tspan (timespan): A timespan during which the pure gas is in the chip
+            chip (Chip, optional): An object defining the capillary inlet, if different
+                than the standard chip assumed by the external package.
+        """
         if not plugins.USE_QUANT:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
@@ -275,8 +284,23 @@ class MSMeasurement(Measurement):
         return CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
 
     def multicomp_gas_flux_calibration(
-        self, mol_list, mass_list, gas, tspan, gas_bg=None, tspan_bg=None
+        self, mol_list, mass_list, gas, tspan, gas_bg=None, tspan_bg=None, chip=None
     ):
+        """Calibration of multiple components of a calibration gas simultaneously
+
+        Uses a matrix equation and the reference spectra in the molecule data files.
+
+        Args:
+            mol_list (list of str): List of the names of the molecules to calibrate
+            mass_list (list of str): List of the masses to calibrate
+            gas (Gas, dict, or str): Composition of the calibration gas, e.g.
+               {"Ar": 0.95, "H2": 0.05} for 5% H2 in Ar
+            tspan (Timespan): Timespan during which the calibration gas is in the chip
+            gas_bg (Gas, dict, or str): Composition of the background gas
+            tspan_bg (Timespan): Timespan during which the background gas is in the chip
+            chip (Chip, optional): object describing the MS capillary, if different than
+               the standard chip in the MS quantification package
+        """
         if not plugins.USE_QUANT:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
@@ -284,6 +308,72 @@ class MSMeasurement(Measurement):
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
+        from spectro_inlets_quantification.chip import Chip
+        from spectro_inlets_quantification.calibration import CalPoint, Calibration
+
+        chip = chip or Chip()
+        chip.gas = gas
+        flux = chip.calc_n_dot()
+
+        chip_bg = chip or Chip()
+        chip_bg.gas = gas_bg
+        flux_bg = chip_bg.calc_n_dot()
+
+        delta_flux_list = []
+        for mol in mol_list:
+            delta_flux = flux.get(mol, 0) - flux_bg.get(mol, 0)
+            delta_flux_list.append(delta_flux)
+        delta_flux_vec = np.array(delta_flux_list)
+
+        delta_signal_list = []
+        for mass in mass_list:
+            S = self.grab_signal(mass, tspan=tspan)[1].mean()
+            S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            delta_S = S - S_bg
+            delta_signal_list.append(delta_S)
+        delta_signal_vec = np.array(delta_signal_list)
+
+        spectrum_vec_list = []
+        for mol in mol_list:
+            spectrum = chip.gas.mdict[mol].norm_spectrum
+            spectrum_vec = np.array([spectrum.get(mass, 0) for mass in mass_list])
+            spectrum_vec_list.append(spectrum_vec)
+        spectrum_mat = np.stack(spectrum_vec_list)
+
+        # The fundamental matrix equation is:
+        #  S_vec = F_mat @ n_dot_vec
+        # Elementwise, this is:
+        #  S_M = sum_i ( F^i_M * n_dot^i )
+        # Rewrite to show that sensitivity factors follow each molecule's spectrum:
+        #  S_M = sum_i (F_weight_i * spectrum^i_M * n_dot^i)
+        # And regroup the parts that only depend on the molecule (^i):
+        #  S_M = sum_i (spectrum^i_M * (F_weight^i * n_dot^i))
+        #  S_M = sum_i (spectrum^i_M * sensitivity_flux^i)
+        # Change back into a matrix equation, and solve it:
+        #  S_vec = spectrum_mat @ sensitivity_flux_vec
+        #  sensitivity_flux_vec = spectrum_mat^-1 @ S_vec   # eq. 1
+        # Ungroup the part we grouped before (the "sensitivity_flux"):
+        #  F_weight^i = sensitivity_flux^i / n_dot^i  # eq. 2
+        # And, in the end, each sensitivity factor is:
+        #  F_M^i = F_weight^i * spectrum^i_M   # eq. 3
+        # Now, in code:
+
+        inverse_spectrum_mat = np.linalg.inv(spectrum_mat)
+        sensitivity_flux_vec = inverse_spectrum_mat @ delta_signal_vec  # eq. 1
+        F_weight_vec = sensitivity_flux_vec / delta_flux_vec  # eq. 2
+
+        cal_list = []
+        for i, mol in enumerate(mol_list):
+            for M, mass in enumerate(mass_list):
+                F = F_weight_vec[i] * spectrum_mat[i, M]  # eq. 3
+                if F:
+                    cal = CalPoint(
+                        mol=mol, mass=mass, F=F, F_type="capillary"
+                    )
+                    cal_list.append(cal)
+
+        return Calibration(cal_list=cal_list)
+
 
     def set_quantifier(self, quantifier=None, calibration=None):
         if not plugins.USE_QUANT:
