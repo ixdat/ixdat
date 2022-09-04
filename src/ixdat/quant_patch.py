@@ -53,4 +53,51 @@ def append_two_sensitivity_factors(sf_1, sf_2):
 
 
 def add_isotopes(calibration, isotope_spec):
-    pass
+    """Duplicate sensitivity factor(s) in the calibration to cover different isotopes
+
+    This method adds CalPoints in the calibration for each new tracked isotope. It
+    assumes that the sensitivity factor for each isotope at its respective mass is
+    the same.
+
+    The isotopes have to be treated as different molecules, or they will end up on the
+      same row of a SensitivityMatrix, convoluting their quantification. This means
+      that the `mol` attribute of their CalPoints much indicate the isotope, here
+      done with "@" and the mass.
+    Because SI quant's Quantifier object makes sure each of the molecules in the
+      calibration are in its MoleculeDict, Molecules of the new name must be added to
+      the MoleculeDict
+
+    Args:
+        calibration (Calibration): The calibration to expand
+        isotope_spec (dict): A specification of the isotopes to expand the calibration
+            with. The keys are molecules and the values are a tuple with the base mass,
+            which already exists in the calibration, followed by a list of masses to
+            add. An example for CO2 and O2 in 18-O labeling experiments is:
+             {"CO2": ("M44", ["M46", "M48"]), "O2": ("M32", ["M34", "M36"])}
+    """
+    from spectro_inlets_quantification.calibration import CalPoint
+    from spectro_inlets_quantification.molecule import MoleculeDict, Molecule
+
+
+    mdict = MoleculeDict()
+
+    for mol, (mass, new_masses) in isotope_spec.items():
+        cal_point = calibration.get(mol, mass)
+        molecule_as_dict = mdict.get(mol).as_dict()
+        for new_mass in new_masses:
+            new_mol = mol + "@" + new_mass
+            new_cal_point = CalPoint(
+                mol=new_mol,
+                mass=new_mass,
+                F=cal_point.F,
+                F_type=cal_point.F_type
+            )
+            calibration.append(new_cal_point)
+            new_molecule_as_dict = molecule_as_dict.copy()
+            new_molecule_as_dict["mol"] = new_mol
+            # To avoid quant incorrectly predicting sensitivity factors at other masses,
+            #    we set a spectrum predicting intensity only at the specified mass.
+            new_molecule_as_dict["spectrum"] = {new_mass: 1}
+            new_molecule = Molecule(**new_molecule_as_dict)
+            mdict[new_mol] = new_molecule
+

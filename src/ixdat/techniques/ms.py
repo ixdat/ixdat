@@ -34,6 +34,7 @@ class MSMeasurement(Measurement):
         tspan_bg = kwargs.pop("tspan_bg", None)
         super().__init__(name, **kwargs)
         self.tspan_bg = tspan_bg
+        self._quantifier = None  # Used with external quantification package
 
     @property
     def ms_calibration(self):
@@ -144,8 +145,11 @@ class MSMeasurement(Measurement):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Note:
-        `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
-        remove_background=True by default. An MSCalibration does the maths.
+        - With native ixdat quantification (USE_QUANT=False),
+          `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
+          remove_background=True by default. An MSCalibration does the maths.
+        - With an external quantification package (USE_QUANT=True), the maths are done
+          here with the help of self.quantifier
 
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
@@ -159,6 +163,34 @@ class MSMeasurement(Measurement):
         """
         if removebackground is not None:
             remove_background = removebackground
+
+        if plugins.USE_QUANT:
+            # We have to calculate the fluxes of all the mols and masses in the
+            # quantifier's sensitivity matrix. But this method only returns one.
+            # TODO: The results should therefore be cached. But how to know when they
+            #   need to be recalculated?
+            sm = self._quantifier.sm
+            signals = {}
+            t = None
+            for mass in sm.mass_list:
+                if t is None:
+                    t, S = self.grab(
+                        mass,
+                        tspan_bg=tspan_bg,
+                        remove_background=remove_background,
+                        include_endpoints=include_endpoints,
+                    )
+                else:
+                    S = self.grab_for_t(
+                        mass,
+                        t=t,
+                        tspan_bg=tspan_bg,
+                        remove_background=remove_background,
+                    )
+                signals[mass] = S
+            n_dots = sm.calc_n_dot(signals=signals)
+            return t, n_dots[mol]
+
         if isinstance(mol, MSCalResult):
             t, signal = self.grab(
                 mol.mass,
@@ -374,14 +406,42 @@ class MSMeasurement(Measurement):
 
         return Calibration(cal_list=cal_list)
 
+    def set_quantifier(
+        self, quantifier=None, calibration=None, mol_list=None, mass_list=None, carrier=None,
+    ):
+        """Set the external-package quantifier.
 
-    def set_quantifier(self, quantifier=None, calibration=None):
+        Args:
+            quantifier (Quantifier): The quantifier, if prepared before method call.
+               No additional arguments needed. Otherwise, the following three are needed:
+            calibration (Calibration): The calibration to build the quantifier with
+            mol_list (list of str): The list of molecules to use in flux calculations.
+               These should all be represented in the Calibration. If not provided,
+               we'll use all the mols in the Calibration.
+            mass_list (list of str): The list of masses to use in flux calculations.
+               These should all be represented in the Calibration. If not provided,
+               we'll use all the masses in the Calibration.
+        """
         if not plugins.USE_QUANT:
             raise QuantificationError(
                 "`MSMeasurement.set_quatnifier` only works when using an "
                 "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
             )
+        from spectro_inlets_quantification.quantifier import Quantifier
+
+        if quantifier:
+            self._quantifier
+        else:
+            mol_list = mol_list or calibration.mol_list
+            mass_list = mass_list or calibration.mass_list
+            self._quantifier = Quantifier(
+                calibration=calibration, mol_list=mol_list, mass_list=mass_list, carrier=carrier,
+            )
+
+    @property
+    def quantifier(self):
+        return self._quantifier
 
 
 class MSCalResult(Saveable):
