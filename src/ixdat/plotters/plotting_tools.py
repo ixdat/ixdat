@@ -1,5 +1,6 @@
 """This module contains loose functions and stuff useful for ixdat plotting."""
 
+import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
@@ -55,3 +56,31 @@ def add_colorbar(ax, cmap_name, vmin, vmax, label="intensity"):
         anchor=(0.75, 0),
     )
     cb.set_label(label)
+
+def smooth_vector(y, n_points):
+    """Return copy of the vector `y` smoothed by a running average of `n_points`"""
+    smoother = np.ones((n_points,)) / n_points
+    y = np.append(np.append(y[0] * np.ones((n_points,)), y), y[-1] * np.ones((n_points,)))
+    y_smooth = np.convolve(y, smoother, mode="same")[n_points:-n_points]
+    return y_smooth
+
+def calc_linear_background(t, y, tspans):
+    """Return a copy of the vector `y` that interpolates linearly between tspans
+
+    The vector `y - calc_linear_background(t, y, tspans)` will go to zero at the times
+    on `t` specified by `tspam
+
+    Args:
+        t (numpy Array): time
+        y (numpy Array): the value to calculate a background to
+        tspans (list of timespans): The times to interpolate the backround between
+    """
+    t_bg_list = []
+    y_bg_list = []
+    for tspan in tspans:
+        mask = np.logical_and(tspan[0]<t, t<tspan[-1])
+        if True not in mask:
+            continue
+        t_bg_list.append(t[mask].mean())
+        y_bg_list.append(y[mask].mean())
+    return np.interp(t, t_bg_list, y_bg_list)

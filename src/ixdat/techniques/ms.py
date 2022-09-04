@@ -169,26 +169,12 @@ class MSMeasurement(Measurement):
             # quantifier's sensitivity matrix. But this method only returns one.
             # TODO: The results should therefore be cached. But how to know when they
             #   need to be recalculated?
-            sm = self._quantifier.sm
-            signals = {}
-            t = None
-            for mass in sm.mass_list:
-                if t is None:
-                    t, S = self.grab(
-                        mass,
-                        tspan_bg=tspan_bg,
-                        remove_background=remove_background,
-                        include_endpoints=include_endpoints,
-                    )
-                else:
-                    S = self.grab_for_t(
-                        mass,
-                        t=t,
-                        tspan_bg=tspan_bg,
-                        remove_background=remove_background,
-                    )
-                signals[mass] = S
-            n_dots = sm.calc_n_dot(signals=signals)
+            t, n_dots = self.grab_fluxes(
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                include_endpoints=include_endpoints
+            )
             return t, n_dots[mol]
 
         if isinstance(mol, MSCalResult):
@@ -210,6 +196,48 @@ class MSMeasurement(Measurement):
             remove_background=remove_background,
             include_endpoints=include_endpoints,
         )
+
+    def grab_fluxes(
+            self,
+            tspan=None,
+            tspan_bg=None,
+            remove_background=False,
+            include_endpoints=False
+    ):
+        """Return a time vector and a dictionary with all the quantified fluxes
+
+        Args:
+            tspan (list): Timespan for which the signal is returned.
+            tspan_bg (list): Timespan that corresponds to the background signal.
+                If not given, no background is subtracted.
+            remove_background (bool): Whether to remove a pre-set background if available
+                Defaults to True.
+            removebackground (bool): DEPRECATED. Use `remove_background`.
+            include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
+        """
+        sm = self._quantifier.sm
+        signals = {}
+        t = None
+        for mass in sm.mass_list:
+            if t is None:
+                t, S = self.grab(
+                    mass,
+                    tspan=tspan,
+                    tspan_bg=tspan_bg,
+                    remove_background=remove_background,
+                    include_endpoints=include_endpoints,
+                )
+            else:
+                S = self.grab_for_t(
+                    mass,
+                    t=t,
+                    tspan_bg=tspan_bg,
+                    remove_background=remove_background,
+                )
+            signals[mass] = S
+        n_dots = sm.calc_n_dot(signals=signals)
+        return t, n_dots
+
 
     @deprecate(
         "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
