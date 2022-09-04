@@ -22,13 +22,14 @@ def append_two_sensitivity_factors(sf_1, sf_2):
         sf_2 (CalPoint or Calibration): The second sensitivity factor or list thereof
     """
     from spectro_inlets_quantification.sensitivity import (
-        SensitivityList, SensitivityFactor
+        SensitivityList,
+        SensitivityFactor,
     )
     from spectro_inlets_quantification.calibration import Calibration
 
     if isinstance(sf_1, SensitivityList):
         if isinstance(sf_2, SensitivityList):
-            return sf_1 + sf_2   # this is implemented in spectro_inlets_quantification
+            return sf_1 + sf_2  # this is implemented in spectro_inlets_quantification
         elif isinstance(sf_2, SensitivityFactor):
             sf_list = sf_1.sf_list + [sf_2]
             obj_as_dict = sf_1.as_dict()
@@ -78,7 +79,6 @@ def add_isotopes(calibration, isotope_spec):
     from spectro_inlets_quantification.calibration import CalPoint
     from spectro_inlets_quantification.molecule import MoleculeDict, Molecule
 
-
     mdict = MoleculeDict()
 
     for mol, (mass, new_masses) in isotope_spec.items():
@@ -87,10 +87,7 @@ def add_isotopes(calibration, isotope_spec):
         for new_mass in new_masses:
             new_mol = mol + "@" + new_mass
             new_cal_point = CalPoint(
-                mol=new_mol,
-                mass=new_mass,
-                F=cal_point.F,
-                F_type=cal_point.F_type
+                mol=new_mol, mass=new_mass, F=cal_point.F, F_type=cal_point.F_type
             )
             calibration.append(new_cal_point)
             new_molecule_as_dict = molecule_as_dict.copy()
@@ -100,4 +97,3 @@ def add_isotopes(calibration, isotope_spec):
             new_molecule_as_dict["spectrum"] = {new_mass: 1}
             new_molecule = Molecule(**new_molecule_as_dict)
             mdict[new_mol] = new_molecule
-

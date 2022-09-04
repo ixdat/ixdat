@@ -399,15 +399,18 @@ class MSMeasurement(Measurement):
             for M, mass in enumerate(mass_list):
                 F = F_weight_vec[i] * spectrum_mat[i, M]  # eq. 3
                 if F:
-                    cal = CalPoint(
-                        mol=mol, mass=mass, F=F, F_type="capillary"
-                    )
+                    cal = CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
                     cal_list.append(cal)
 
         return Calibration(cal_list=cal_list)
 
     def set_quantifier(
-        self, quantifier=None, calibration=None, mol_list=None, mass_list=None, carrier=None,
+        self,
+        quantifier=None,
+        calibration=None,
+        mol_list=None,
+        mass_list=None,
+        carrier=None,
     ):
         """Set the external-package quantifier.
 
@@ -436,7 +439,10 @@ class MSMeasurement(Measurement):
             mol_list = mol_list or calibration.mol_list
             mass_list = mass_list or calibration.mass_list
             self._quantifier = Quantifier(
-                calibration=calibration, mol_list=mol_list, mass_list=mass_list, carrier=carrier,
+                calibration=calibration,
+                mol_list=mol_list,
+                mass_list=mass_list,
+                carrier=carrier,
             )
 
     @property
