@@ -398,7 +398,7 @@ class MSMeasurement(Measurement):
             spectrum = chip.gas.mdict[mol].norm_spectrum
             spectrum_vec = np.array([spectrum.get(mass, 0) for mass in mass_list])
             spectrum_vec_list.append(spectrum_vec)
-        spectrum_mat = np.stack(spectrum_vec_list)
+        spectrum_mat = np.stack(spectrum_vec_list).transpose()
 
         # The fundamental matrix equation is:
         #  S_vec = F_mat @ n_dot_vec
