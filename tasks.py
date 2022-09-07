@@ -86,9 +86,7 @@ def pytest(context, color="yes", external=False):
     if external:
         args.append("--external")
     with context.cd(THIS_DIR):
-        return context.run(
-            f"pytest tests --color {color} {' '.join(args)}"
-        ).return_code
+        return context.run(f"pytest tests --color {color} {' '.join(args)}").return_code
 
 
 @task(

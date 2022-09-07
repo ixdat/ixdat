@@ -21,7 +21,7 @@ from ..constants import (
 from ..data_series import ValueSeries
 from ..db import Saveable
 from ..tools import deprecate
-from ..options import plugins
+from ..config import plugins
 
 
 class MSMeasurement(Measurement):
@@ -322,6 +322,9 @@ class MSMeasurement(Measurement):
             tspan (timespan): A timespan during which the pure gas is in the chip
             chip (Chip, optional): An object defining the capillary inlet, if different
                 than the standard chip assumed by the external package.
+
+        Returns CalPoint: An object from the external MS quantification package,
+           representing the calibration result
         """
         if not plugins.USE_QUANT:
             raise QuantificationError(
@@ -345,6 +348,32 @@ class MSMeasurement(Measurement):
 
         Uses a matrix equation and the reference spectra in the molecule data files.
 
+        The results are only as accurate as the reference spectrum used. For this reason,
+        this method is a last resort and it is recommended *not* to use a multicomponent
+        calibration gas. Instead, get a separate calibration gas for each molecule to
+        be calibrated.
+
+        Here is an explanation of the math used in this method:
+
+        The fundamental matrix equation is:
+          S_vec = F_mat @ n_dot_vec
+        Elementwise, this is:
+         S_M = sum_i ( F^i_M * n_dot^i )
+        Rewrite to show that sensitivity factors follow each molecule's spectrum:
+         S_M = sum_i (F_weight_i * spectrum^i_M * n_dot^i)
+        And regroup the parts that only depend on the molecule (^i):
+         S_M = sum_i (spectrum^i_M * (F_weight^i * n_dot^i))
+         S_M = sum_i (spectrum^i_M * sensitivity_flux^i)
+        Change back into a matrix equation, and solve it:
+         S_vec = spectrum_mat @ sensitivity_flux_vec
+         sensitivity_flux_vec = spectrum_mat^-1 @ S_vec   # eq. 1
+        Ungroup the part we grouped before (the "sensitivity_flux"):
+         F_weight^i = sensitivity_flux^i / n_dot^i        # eq. 2
+        And, in the end, each sensitivity factor is:
+         F_M^i = F_weight^i * spectrum^i_M                # eq. 3
+
+        Equations 1, 2, and 3 are implemented in the code of this method.
+
         Args:
             mol_list (list of str): List of the names of the molecules to calibrate
             mass_list (list of str): List of the masses to calibrate
@@ -355,6 +384,9 @@ class MSMeasurement(Measurement):
             tspan_bg (Timespan): Timespan during which the background gas is in the chip
             chip (Chip, optional): object describing the MS capillary, if different than
                the standard chip in the MS quantification package
+
+        Returns Calibration: An object from the external MS quantification package,
+           representing all the calibration results from the calibration.
         """
         if not plugins.USE_QUANT:
             raise QuantificationError(
@@ -395,24 +427,6 @@ class MSMeasurement(Measurement):
             spectrum_vec_list.append(spectrum_vec)
         spectrum_mat = np.stack(spectrum_vec_list).transpose()
 
-        # The fundamental matrix equation is:
-        #  S_vec = F_mat @ n_dot_vec
-        # Elementwise, this is:
-        #  S_M = sum_i ( F^i_M * n_dot^i )
-        # Rewrite to show that sensitivity factors follow each molecule's spectrum:
-        #  S_M = sum_i (F_weight_i * spectrum^i_M * n_dot^i)
-        # And regroup the parts that only depend on the molecule (^i):
-        #  S_M = sum_i (spectrum^i_M * (F_weight^i * n_dot^i))
-        #  S_M = sum_i (spectrum^i_M * sensitivity_flux^i)
-        # Change back into a matrix equation, and solve it:
-        #  S_vec = spectrum_mat @ sensitivity_flux_vec
-        #  sensitivity_flux_vec = spectrum_mat^-1 @ S_vec   # eq. 1
-        # Ungroup the part we grouped before (the "sensitivity_flux"):
-        #  F_weight^i = sensitivity_flux^i / n_dot^i  # eq. 2
-        # And, in the end, each sensitivity factor is:
-        #  F_M^i = F_weight^i * spectrum^i_M   # eq. 3
-        # Now, in code:
-
         inverse_spectrum_mat = np.linalg.inv(spectrum_mat)
         sensitivity_flux_vec = inverse_spectrum_mat @ delta_signal_vec  # eq. 1
         F_weight_vec = sensitivity_flux_vec / delta_flux_vec  # eq. 2
@@ -433,9 +447,32 @@ class MSMeasurement(Measurement):
         calibration=None,
         mol_list=None,
         mass_list=None,
-        carrier=None,
+        carrier="He",
     ):
         """Set the external-package quantifier.
+
+        The Quantifier is an object with the method `calc_n_dot`, which takes a
+        dictionary of signals or signal vectors in [A] and return a dictionary of
+        molecular fluxes in [mol/s].
+        The quantifier typically does by solving the linear equations of
+        S_M = sum_i ( F_M^i * n_dot^i )
+        Where n_dot^i is the flux to the vacuum chamber of molecule i in [mol/s], S_M
+        is the signal at mass M in [A], and F_M^i is the *sensitivity factor* of molecule
+        i at mass M.
+        The quantifier thus needs access to a set of sensitivity factors.
+
+        The quantifier can be built in this method (avoiding explicit import of the
+        external package) by providing the sensitivity factors in the form of a
+        `Calibration` (which can be obtained from e.g.
+        MSMeasurement.multicomp_gas_flux_cal) and the specification of which ones to
+        use by `mol_list` and `mass_list`.
+        The quantifier will always use all the masses in `mass_list` to solve for the
+        flux of all the mols in `mol_list`.
+
+        The argument `carrier` is required by some quantifiers but only used if
+        partial pressures before the MS inlet are required (`quantifier.calc_pp`)
+
+        Quantification is only as accurate as your sensitivity factors!
 
         Args:
             quantifier (Quantifier): The quantifier, if prepared before method call.
@@ -447,6 +484,7 @@ class MSMeasurement(Measurement):
             mass_list (list of str): The list of masses to use in flux calculations.
                These should all be represented in the Calibration. If not provided,
                we'll use all the masses in the Calibration.
+            carrier (optional, str): The carrier gas in the experiment. Defaults to "He".
         """
         if not plugins.USE_QUANT:
             raise QuantificationError(
