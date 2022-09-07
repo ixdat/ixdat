@@ -173,7 +173,7 @@ class MSMeasurement(Measurement):
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
-                include_endpoints=include_endpoints
+                include_endpoints=include_endpoints,
             )
             return t, n_dots[mol]
 
@@ -198,11 +198,7 @@ class MSMeasurement(Measurement):
         )
 
     def grab_fluxes(
-            self,
-            tspan=None,
-            tspan_bg=None,
-            remove_background=False,
-            include_endpoints=False
+        self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
     ):
         """Return a time vector and a dictionary with all the quantified fluxes
 
@@ -237,7 +233,6 @@ class MSMeasurement(Measurement):
             signals[mass] = S
         n_dots = sm.calc_n_dot(signals=signals)
         return t, n_dots
-
 
     @deprecate(
         "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
