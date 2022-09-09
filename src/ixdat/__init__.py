@@ -15,6 +15,7 @@ from . import techniques
 from . import plotters
 from . import exporters
 from . import config
+from .config import plugins
 
 # I like this to be sure I'm importing from where I think I am:
 print(f"importing ixdat v{__version__} from {__file__}")
