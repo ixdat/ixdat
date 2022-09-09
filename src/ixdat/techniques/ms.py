@@ -442,7 +442,7 @@ class MSMeasurement(Measurement):
         cal_list = []
         for i, mol in enumerate(mol_list):
             for M, mass in enumerate(mass_list):
-                F = F_weight_vec[i] * spectrum_mat[i, M]  # eq. 3
+                F = F_weight_vec[i] * spectrum_mat[M, i]  # eq. 3
                 if F:
                     cal = CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
                     cal_list.append(cal)
