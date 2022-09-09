@@ -207,8 +207,7 @@ class MSMeasurement(Measurement):
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
             remove_background (bool): Whether to remove a pre-set background if available
-                Defaults to True.
-            removebackground (bool): DEPRECATED. Use `remove_background`.
+                Defaults to True..
             include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
         """
         sm = self._quantifier.sm
@@ -454,7 +453,7 @@ class MSMeasurement(Measurement):
         The Quantifier is an object with the method `calc_n_dot`, which takes a
         dictionary of signals or signal vectors in [A] and return a dictionary of
         molecular fluxes in [mol/s].
-        The quantifier typically does by solving the linear equations of
+        The quantifier typically does this by solving the linear equations of
         S_M = sum_i ( F_M^i * n_dot^i )
         Where n_dot^i is the flux to the vacuum chamber of molecule i in [mol/s], S_M
         is the signal at mass M in [A], and F_M^i is the *sensitivity factor* of molecule
@@ -495,7 +494,7 @@ class MSMeasurement(Measurement):
         from spectro_inlets_quantification.quantifier import Quantifier
 
         if quantifier:
-            self._quantifier
+            self._quantifier = quantifier
         else:
             mol_list = mol_list or calibration.mol_list
             mass_list = mass_list or calibration.mass_list

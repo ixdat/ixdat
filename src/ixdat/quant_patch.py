@@ -20,6 +20,10 @@ def append_two_sensitivity_factors(sf_1, sf_2):
         sf_1 (SensitivityFactor or SensitivityList): The first sensitivity factor or list
             thereof.
         sf_2 (CalPoint or Calibration): The second sensitivity factor or list thereof
+
+    Returns SensitivityList: a `SensitivityList` containing all of the sensitivity factors
+        in `sf_1` and `sf_2`. This will be a `Calibration` unless both `sf_1` and `sf_2`
+        are both themselves plain `SensitivityList`s
     """
     from spectro_inlets_quantification.sensitivity import (
         SensitivityList,
@@ -62,7 +66,7 @@ def add_isotopes(calibration, isotope_spec):
 
     The isotopes have to be treated as different molecules, or they will end up on the
       same row of a SensitivityMatrix, convoluting their quantification. This means
-      that the `mol` attribute of their CalPoints much indicate the isotope, here
+      that the `mol` attribute of their CalPoints must indicate the isotope, here
       done with "@" and the mass.
     Because SI quant's Quantifier object makes sure each of the molecules in the
       calibration are in its MoleculeDict, Molecules of the new name must be added to
