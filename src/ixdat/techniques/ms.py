@@ -210,6 +210,13 @@ class MSMeasurement(Measurement):
                 Defaults to True..
             include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
         """
+        if not plugins.USE_QUANT:
+            raise QuantificationError(
+                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
+                "called from an instance of `MSInlet`."
+            )
         sm = self._quantifier.sm
         signals = {}
         t = None
@@ -332,7 +339,8 @@ class MSMeasurement(Measurement):
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        from spectro_inlets_quantification import Chip, CalPoint
+        Chip = plugins.quant.Chip
+        CalPoint = plugins.quant.CalPoint
 
         chip = chip or Chip()
         n_dot = chip.calc_n_dot_0(gas=mol)
@@ -394,8 +402,9 @@ class MSMeasurement(Measurement):
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        from spectro_inlets_quantification.chip import Chip
-        from spectro_inlets_quantification.calibration import CalPoint, Calibration
+        Chip = plugins.quant.Chip
+        CalPoint = plugins.quant.CalPoint
+        Calibration = plugins.quant.Calibration
 
         chip = chip or Chip()
         chip.gas = gas
@@ -491,7 +500,7 @@ class MSMeasurement(Measurement):
                 "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
             )
-        from spectro_inlets_quantification.quantifier import Quantifier
+        Quantifier = plugins.quant.Quantifier
 
         if quantifier:
             self._quantifier = quantifier

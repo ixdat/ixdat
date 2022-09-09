@@ -21,9 +21,9 @@ def append_two_sensitivity_factors(sf_1, sf_2):
             thereof.
         sf_2 (CalPoint or Calibration): The second sensitivity factor or list thereof
 
-    Returns SensitivityList: a `SensitivityList` containing all of the sensitivity factors
-        in `sf_1` and `sf_2`. This will be a `Calibration` unless both `sf_1` and `sf_2`
-        are both themselves plain `SensitivityList`s
+    Returns SensitivityList: a `SensitivityList` containing all of the sensitivity
+        factors in `sf_1` and `sf_2`. This will be a `Calibration` unless both `sf_1` and
+        `sf_2` are both themselves plain `SensitivityList`s
     """
     from spectro_inlets_quantification.sensitivity import (
         SensitivityList,
