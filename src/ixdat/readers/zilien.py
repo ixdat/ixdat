@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 
-from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
+from ..data_series import ConstantValue, DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
 from ..techniques.ms import MSSpectrum
 from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
@@ -67,8 +67,12 @@ def to_snake_case(string):
     return string.lower().replace(" ", "_")
 
 
-COLUMN_HEADER_RE = re.compile(r"^(.+?) \[(.+?)\]$")  # Matches: "{name} [{unit}]
-MASS_SERIES_RE = re.compile(r"^C[0-9]+M([0-9]+)$")  # Matches: "C??M{mass}"
+# Matches: "{name} [{unit}]"
+ZILIEN_COLUMN_HEADER_RE = re.compile(r"^(.+?) \[(.+?)\]$")
+# Matches: "{name}/{unit}" and "{name1/name2}/{unit}"
+BIOLOGIC_COLUMN_HEADER_RE = re.compile(r"^(.+)/(.+)$")
+# Matches: "C??M{mass}"
+MASS_SERIES_RE = re.compile(r"^C[0-9]+M([0-9]+)$")
 
 
 def to_mass(string):
@@ -195,7 +199,10 @@ class ZilienTSVReader:
             last_series_header = series_header or last_series_header
 
             # Skip series not relevant for the type of measurement
-            if not issubclass(self._cls, ECMeasurement) and last_series_header == "pot":
+            if not issubclass(self._cls, ECMeasurement) and last_series_header in (
+                "pot",
+                "EC-lab",
+            ):
                 continue
             elif not issubclass(self._cls, MSMeasurement) and to_mass(
                 last_series_header
@@ -219,9 +226,14 @@ class ZilienTSVReader:
                 "unit_name": unit,
                 "data": column_data,
             }
-            if column_header == "Time [s]":  # Form TimeSeries
+            if column_header in ("Time [s]", "time/s"):  # Form TimeSeries
                 column_series = TimeSeries(**series_kwargs, tstamp=timestamp)
                 last_time_series = column_series
+            elif np.all(column_data == column_data[0]):
+                column_series = ConstantValue(**series_kwargs, tseries=last_time_series)
+            # TODO-O remove `column_header` for this one (?)
+            elif all(np.isnan(column_data)):
+                continue
             else:
                 column_series = ValueSeries(**series_kwargs, tseries=last_time_series)
 
@@ -242,22 +254,28 @@ class ZilienTSVReader:
 
         """
         standard_name = None
-        if column_header == "Time [s]":  # Form TimeSeries
+        if column_header in ("Time [s]", "time/s"):  # Form TimeSeries
             unit = "s"
             if series_header == "pot":
                 name = f"Potential {column_header.lower()}"
+            elif series_header == "EC-lab":
+                name = f"Biologic {column_header.lower()}"
             else:
                 name = f"{series_header} {column_header.lower()}"
         else:  # ValueSeries
             # Perform a bit of reasonable name adaption, first break name and unit out
             # from the column header on the form: Pressure [mbar]
-            column_components_match = COLUMN_HEADER_RE.match(column_header)
-            if column_components_match:
-                _, unit = column_components_match.groups()
+            zilien_components_match = ZILIEN_COLUMN_HEADER_RE.match(column_header)
+            biologic_components_match = BIOLOGIC_COLUMN_HEADER_RE.match(column_header)
+
+            if zilien_components_match:
+                _, unit = zilien_components_match.groups()
+            elif biologic_components_match:
+                _, unit = biologic_components_match.groups()
             else:
                 _, unit = column_header, ""
 
-            # Is the the column a "setpoint" or "value" type
+            # Is the column a "setpoint" or "value" type
             setpoint_or_value = None
             for option in ("setpoint", "value"):
                 if series_header.endswith(option):
@@ -279,27 +297,25 @@ class ZilienTSVReader:
     @staticmethod
     def _read_metadata(file_handle):
         """Read metadata from `file_handle`"""
+
+        # The first 4 lines always include the file version, number of header lines,
+        # number of data header lines and data start line in this order.
+        # Backwards compatibility is ensured, because the one extra line read will be
+        # just added to the 'metadata' dict and ignored later.
         metadata = {}
-        # The first lines always include 3 pieces of information about the length of the
-        # header and sometimes a file format version. Start by reading the first 3 lines,
-        # to figure out if the version is amongst them
-        next_line_number_to_read = 3
-        for n in range(next_line_number_to_read):
+        fixed_metadata_lines_amount = 4
+        for _ in range(fixed_metadata_lines_amount):
             key, value = parse_metadata_line(file_handle.readline())
             metadata[key] = value
 
-        # If the version is among the first three lines, then we need to read one more
-        # line of metadata before we're guaranteed to have the num_header_lines
-        if "file_format_version" in metadata:
+        # read the rest when the total amount is known
+        for _ in range(metadata["num_header_lines"] - fixed_metadata_lines_amount):
             key, value = parse_metadata_line(file_handle.readline())
             metadata[key] = value
-            next_line_number_to_read += 1
-        else:
+
+        # version 1 of the file format is sometimes missing this value
+        if "file_format_version" not in metadata:
             metadata["file_format_version"] = 1
-
-        for _ in range(next_line_number_to_read, metadata["num_header_lines"]):
-            key, value = parse_metadata_line(file_handle.readline())
-            metadata[key] = value
 
         series_headers = file_handle.readline().strip("\n").split("\t")
         column_headers = file_handle.readline().strip("\n").split("\t")
