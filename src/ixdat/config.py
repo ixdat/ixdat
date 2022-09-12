@@ -93,7 +93,7 @@ class _PluginOptions:
     @deprecate(
         last_supported_release="0.2.4",
         update_message="This has changed to lower-case: `use_si_quant`",
-        remove_release="0.3",
+        remove_release="0.2.5",
     )
     def USE_QUANT(self):
         return self.use_si_quant
@@ -103,7 +103,7 @@ class _PluginOptions:
         last_supported_release="0.2.4",
         update_message="Use the methods `activate_si_quant()` and "
         "`deactivate_si_quant()` instead.",
-        remove_release="0.3",
+        remove_release="0.2.5",
     )
     def USE_QUANT(self, use_quant):
         if use_quant:
