@@ -118,6 +118,16 @@ class Column:
     def __repr__(self):
         return f"Column(name={self.name}, ctype='{self.ctype}')"
 
+    def __eq__(self, other):
+        """Returns whether `self` is equal to `other`"""
+        return all(
+            (
+                self.name == other.name,
+                self.ctype == other.ctype,
+                self.attribute_name == other.attribute_name,
+            )
+        )
+
 
 class OwnedObjectList:
     def __init__(self, list_name, owned_object_table_name, joining_table_name):
@@ -156,7 +166,48 @@ class OwnedObjectList:
         return f"OwnedObjectList(list_name={self.list_name})"
 
 
-class Saveable:
+ALL_SAVABLE_CLASSES = set()
+
+
+class SaveableMetaClass(type):
+    """Metaclass which records all classes created with this metaclass and performs
+    checks on DB related class variable values
+
+    """
+
+    def __new__(cls, name, bases, attrs):
+        """Create a new instance
+
+        Args:
+            name (str): Name of the class
+            bases (tuple): Base classes
+            attrs (dict): Attributes defined for the class
+        """
+        new_cls = super().__new__(cls, name, bases, attrs)
+
+        if getattr(new_cls, "table_name") and "_SKIP_IN_TABLE_SCAN" not in attrs:
+            ALL_SAVABLE_CLASSES.add(new_cls)
+
+            # Check class property integrity. If the class defines columns it must also
+            # define a new table
+            if attrs.get("columns", []):
+                if "table_name" not in attrs:
+                    raise ValueError(
+                        f"Saveable class `{name}` which defines `columns` doesn't "
+                        "define `table_name` as it should"
+                    )
+                for base_class in bases:
+                    if attrs["table_name"] == base_class.table_name:
+                        raise ValueError(
+                            f"Saveable class `{name}` which defines `columns`, has the "
+                            "same `table_name` as one of its bases "
+                            f"`{base_class.__name__}`"
+                        )
+
+        return new_cls
+
+
+class Saveable(metaclass=SaveableMetaClass):
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
@@ -203,7 +254,8 @@ class Saveable:
 
     db = DB
     table_name = None  # This MUST be overwritten in inheriting classes
-    columns = [Column("id", int), ("name", str)]  # This should probably be overwritten
+    columns = [Column("id", int), Column("name", str)]  # This should probably be
+    # overwritten
     owned_object_lists = []  # This can be overwritten in inheriting classes
     parent_table_class = None  # This can be overwritten in double-inheriting classes
     principle_key = "id"  # This can be overwritten in inheriting classes
@@ -233,7 +285,18 @@ class Saveable:
     def full_columns(cls):
         """A class's full columns list includes that of its parent table class"""
         if cls.parent_table_class:
-            return cls.parent_table_class.full_columns() + cls.columns
+            if isinstance(cls.parent_table_class, tuple):
+                assert len(cls.parent_table_class) == 2
+                # Produce all columns, but ensure to not have duplicates of columns from
+                # shared ancestor
+                all_columns = cls.parent_table_class[0].full_columns() + cls.columns
+                for parent_class in cls.parent_table_class[1:]:
+                    for column in parent_class.full_columns():
+                        if column not in all_columns:
+                            all_columns.append(column)
+                return all_columns
+            else:
+                return cls.parent_table_class.full_columns() + cls.columns
         else:
             return cls.columns
 
@@ -241,9 +304,16 @@ class Saveable:
     def full_owned_object_lists(cls):
         """A class's full owned object lists includes those of its parent table class"""
         if cls.parent_table_class:
-            return (
-                cls.parent_table_class.full_owned_object_lists() + cls.owned_object_lists
-            )
+            if isinstance(cls.parent_table_class, tuple):
+                all_owned_object_lists = list(cls.owned_object_lists)
+                for parent_class in cls.parent_table_class:
+                    all_owned_object_lists += parent_class.full_owned_object_lists()
+                return all_owned_object_lists
+            else:
+                return (
+                    cls.parent_table_class.full_owned_object_lists()
+                    + cls.owned_object_lists
+                )
         else:
             return cls.owned_object_lists
 

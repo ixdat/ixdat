@@ -34,7 +34,7 @@ class Measurement(Saveable):
     """The Measurement class"""
 
     # ------ table description class attributes -------- #
-    table_name = "measurement"
+    table_name = "measurements"
     columns = [
         Column("id", int),
         Column("name", str),
@@ -46,9 +46,9 @@ class Measurement(Saveable):
     ]
     owned_object_lists = [
         OwnedObjectList(
-            "component_measurements", "measurement", "component_measurements"
+            "component_measurements", "measurements", "component_measurements"
         ),
-        OwnedObjectList("calibration_list", "calibration", "measurement_calibrations"),
+        OwnedObjectList("calibration_list", "calibrations", "measurement_calibrations"),
         OwnedObjectList("series_list", "data_series", "measurement_series"),
     ]
 
