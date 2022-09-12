@@ -21,6 +21,7 @@ from ..constants import (
 from ..data_series import ValueSeries
 from ..db import Saveable
 from ..tools import deprecate
+from ..config import plugins
 
 
 class MSMeasurement(Measurement):
@@ -33,6 +34,7 @@ class MSMeasurement(Measurement):
         tspan_bg = kwargs.pop("tspan_bg", None)
         super().__init__(name, **kwargs)
         self.tspan_bg = tspan_bg
+        self._quantifier = None  # Used with external quantification package
 
     @property
     def ms_calibration(self):
@@ -143,8 +145,11 @@ class MSMeasurement(Measurement):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Note:
-        `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
-        remove_background=True by default. An MSCalibration does the maths.
+        - With native ixdat quantification (use_si_quant=False),
+          `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
+          remove_background=True by default. An MSCalibration does the maths.
+        - With an external quantification package (use_si_quant=True), the maths are done
+          here with the help of self.quantifier
 
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
@@ -158,6 +163,20 @@ class MSMeasurement(Measurement):
         """
         if removebackground is not None:
             remove_background = removebackground
+
+        if plugins.use_si_quant:
+            # We have to calculate the fluxes of all the mols and masses in the
+            # quantifier's sensitivity matrix. But this method only returns one.
+            # TODO: The results should therefore be cached. But how to know when they
+            #   need to be recalculated?
+            t, n_dots = self.grab_fluxes(
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                include_endpoints=include_endpoints,
+            )
+            return t, n_dots[mol]
+
         if isinstance(mol, MSCalResult):
             t, signal = self.grab(
                 mol.mass,
@@ -177,6 +196,50 @@ class MSMeasurement(Measurement):
             remove_background=remove_background,
             include_endpoints=include_endpoints,
         )
+
+    def grab_fluxes(
+        self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
+    ):
+        """Return a time vector and a dictionary with all the quantified fluxes
+
+        Args:
+            tspan (list): Timespan for which the signal is returned.
+            tspan_bg (list): Timespan that corresponds to the background signal.
+                If not given, no background is subtracted.
+            remove_background (bool): Whether to remove a pre-set background if available
+                Defaults to True..
+            include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
+        """
+        if not plugins.use_si_quant:
+            raise QuantificationError(
+                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
+                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
+                "called from an instance of `MSInlet`."
+            )
+        sm = self._quantifier.sm
+        signals = {}
+        t = None
+        for mass in sm.mass_list:
+            if t is None:
+                t, S = self.grab(
+                    mass,
+                    tspan=tspan,
+                    tspan_bg=tspan_bg,
+                    remove_background=remove_background,
+                    include_endpoints=include_endpoints,
+                )
+            else:
+                S = self.grab_for_t(
+                    mass,
+                    t=t,
+                    tspan_bg=tspan_bg,
+                    remove_background=remove_background,
+                )
+            signals[mass] = S
+        n_dots = sm.calc_n_dot(signals=signals)
+        return t, n_dots
 
     @deprecate(
         "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
@@ -256,6 +319,208 @@ class MSMeasurement(Measurement):
         if self.is_mass(new_item):
             return self.as_mass(new_item)
         raise TypeError(f"{self} does not recognize '{item}' as a mass.")
+
+    def gas_flux_calibration(self, mol, mass, tspan, chip=None):
+        """Simple pure-gas flux calibration, using external MS quantification package
+
+        Args:
+            mol (str): Name of molecule to be calibrated (e.g. "He")
+            mass (str): Mass at which to calibrate it (e.g. "M4")
+            tspan (timespan): A timespan during which the pure gas is in the chip
+            chip (Chip, optional): An object defining the capillary inlet, if different
+                than the standard chip assumed by the external package.
+
+        Returns CalPoint: An object from the external MS quantification package,
+           representing the calibration result
+        """
+        if not plugins.use_si_quant:
+            raise QuantificationError(
+                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
+                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
+                "called from an instance of `MSInlet`."
+            )
+        Chip = plugins.si_quant.Chip
+        CalPoint = plugins.si_quant.CalPoint
+
+        chip = chip or Chip()
+        n_dot = chip.calc_n_dot_0(gas=mol)
+        S = self.grab_signal(mass, tspan=tspan)[1].mean()
+        F = S / n_dot
+        return CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
+
+    def multicomp_gas_flux_calibration(
+        self, mol_list, mass_list, gas, tspan, gas_bg=None, tspan_bg=None, chip=None
+    ):
+        """Calibration of multiple components of a calibration gas simultaneously
+
+        Uses a matrix equation and the reference spectra in the molecule data files.
+
+        The results are only as accurate as the reference spectrum used. For this reason,
+        this method is a last resort and it is recommended *not* to use a multicomponent
+        calibration gas. Instead, get a separate calibration gas for each molecule to
+        be calibrated.
+
+        Here is an explanation of the math used in this method:
+
+        The fundamental matrix equation is:
+          S_vec = F_mat @ n_dot_vec
+        Elementwise, this is:
+         S_M = sum_i ( F^i_M * n_dot^i )
+        Rewrite to show that sensitivity factors follow each molecule's spectrum:
+         S_M = sum_i (F_weight_i * spectrum^i_M * n_dot^i)
+        And regroup the parts that only depend on the molecule (^i):
+         S_M = sum_i (spectrum^i_M * (F_weight^i * n_dot^i))
+         S_M = sum_i (spectrum^i_M * sensitivity_flux^i)
+        Change back into a matrix equation, and solve it:
+         S_vec = spectrum_mat @ sensitivity_flux_vec
+         sensitivity_flux_vec = spectrum_mat^-1 @ S_vec   # eq. 1
+        Ungroup the part we grouped before (the "sensitivity_flux"):
+         F_weight^i = sensitivity_flux^i / n_dot^i        # eq. 2
+        And, in the end, each sensitivity factor is:
+         F_M^i = F_weight^i * spectrum^i_M                # eq. 3
+
+        Equations 1, 2, and 3 are implemented in the code of this method.
+
+        Args:
+            mol_list (list of str): List of the names of the molecules to calibrate
+            mass_list (list of str): List of the masses to calibrate
+            gas (Gas, dict, or str): Composition of the calibration gas, e.g.
+               {"Ar": 0.95, "H2": 0.05} for 5% H2 in Ar
+            tspan (Timespan): Timespan during which the calibration gas is in the chip
+            gas_bg (Gas, dict, or str): Composition of the background gas
+            tspan_bg (Timespan): Timespan during which the background gas is in the chip
+            chip (Chip, optional): object describing the MS capillary, if different than
+               the standard chip in the MS quantification package
+
+        Returns Calibration: An object from the external MS quantification package,
+           representing all the calibration results from the calibration.
+        """
+        if not plugins.use_si_quant:
+            raise QuantificationError(
+                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
+                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
+                "called from an instance of `MSInlet`."
+            )
+        Chip = plugins.si_quant.Chip
+        CalPoint = plugins.si_quant.CalPoint
+        Calibration = plugins.si_quant.Calibration
+
+        chip = chip or Chip()
+        chip.gas = gas
+        flux = chip.calc_n_dot()
+
+        chip_bg = chip or Chip()
+        chip_bg.gas = gas_bg
+        flux_bg = chip_bg.calc_n_dot()
+
+        delta_flux_list = []
+        for mol in mol_list:
+            delta_flux = flux.get(mol, 0) - flux_bg.get(mol, 0)
+            delta_flux_list.append(delta_flux)
+        delta_flux_vec = np.array(delta_flux_list)
+
+        delta_signal_list = []
+        for mass in mass_list:
+            S = self.grab_signal(mass, tspan=tspan)[1].mean()
+            S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            delta_S = S - S_bg
+            delta_signal_list.append(delta_S)
+        delta_signal_vec = np.array(delta_signal_list)
+
+        spectrum_vec_list = []
+        for mol in mol_list:
+            spectrum = chip.gas.mdict[mol].norm_spectrum
+            spectrum_vec = np.array([spectrum.get(mass, 0) for mass in mass_list])
+            spectrum_vec_list.append(spectrum_vec)
+        spectrum_mat = np.stack(spectrum_vec_list).transpose()
+
+        inverse_spectrum_mat = np.linalg.inv(spectrum_mat)
+        sensitivity_flux_vec = inverse_spectrum_mat @ delta_signal_vec  # eq. 1
+        F_weight_vec = sensitivity_flux_vec / delta_flux_vec  # eq. 2
+
+        cal_list = []
+        for i, mol in enumerate(mol_list):
+            for M, mass in enumerate(mass_list):
+                F = F_weight_vec[i] * spectrum_mat[M, i]  # eq. 3
+                if F:
+                    cal = CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
+                    cal_list.append(cal)
+
+        return Calibration(cal_list=cal_list)
+
+    def set_quantifier(
+        self,
+        quantifier=None,
+        calibration=None,
+        mol_list=None,
+        mass_list=None,
+        carrier="He",
+    ):
+        """Set the external-package quantifier.
+
+        The Quantifier is an object with the method `calc_n_dot`, which takes a
+        dictionary of signals or signal vectors in [A] and return a dictionary of
+        molecular fluxes in [mol/s].
+        The quantifier typically does this by solving the linear equations of
+        S_M = sum_i ( F_M^i * n_dot^i )
+        Where n_dot^i is the flux to the vacuum chamber of molecule i in [mol/s], S_M
+        is the signal at mass M in [A], and F_M^i is the *sensitivity factor* of molecule
+        i at mass M.
+        The quantifier thus needs access to a set of sensitivity factors.
+
+        The quantifier can be built in this method (avoiding explicit import of the
+        external package) by providing the sensitivity factors in the form of a
+        `Calibration` (which can be obtained from e.g.
+        MSMeasurement.multicomp_gas_flux_cal) and the specification of which ones to
+        use by `mol_list` and `mass_list`.
+        The quantifier will always use all the masses in `mass_list` to solve for the
+        flux of all the mols in `mol_list`.
+
+        The argument `carrier` is required by some quantifiers but only used if
+        partial pressures before the MS inlet are required (`quantifier.calc_pp`)
+
+        Quantification is only as accurate as your sensitivity factors!
+
+        Args:
+            quantifier (Quantifier): The quantifier, if prepared before method call.
+               No additional arguments needed. Otherwise, the following three are needed:
+            calibration (Calibration): The calibration to build the quantifier with
+            mol_list (list of str): The list of molecules to use in flux calculations.
+               These should all be represented in the Calibration. If not provided,
+               we'll use all the mols in the Calibration.
+            mass_list (list of str): The list of masses to use in flux calculations.
+               These should all be represented in the Calibration. If not provided,
+               we'll use all the masses in the Calibration.
+            carrier (optional, str): The carrier gas in the experiment. Defaults to "He".
+        """
+        if not plugins.use_si_quant:
+            raise QuantificationError(
+                "`MSMeasurement.set_quatnifier` only works when using an "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
+                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
+            )
+        Quantifier = plugins.si_quant.Quantifier
+
+        if quantifier:
+            self._quantifier = quantifier
+        else:
+            mol_list = mol_list or calibration.mol_list
+            mass_list = mass_list or calibration.mass_list
+            self._quantifier = Quantifier(
+                calibration=calibration,
+                mol_list=mol_list,
+                mass_list=mass_list,
+                carrier=carrier,
+            )
+
+    @property
+    def quantifier(self):
+        return self._quantifier
 
 
 class MSCalResult(Saveable):
