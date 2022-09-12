@@ -97,7 +97,117 @@ def get_database_name():
     return DB.backend.__class__.__name__
 
 
-class Saveable:
+class Column:
+    """The metadata for an ixdat attribute corresponding to a database column"""
+
+    def __init__(self, name, ctype, attribute_name=None):
+        """Initialize a database column representation.
+
+        Args:
+            name (str): The name of the column
+            ctype (Any): The *python* type of the column. This will be converted by a
+                backend to be a type in that database. For example, in SQLite,
+                int --> INTEGER, float --> REAL, str --> TEXT, dict --> BLOB
+            attribute_name (str): The name of the attribute of the class, if different
+                from name.
+        """
+        self.name = name
+        self.ctype = ctype
+        self.attribute_name = attribute_name or name
+
+    def __repr__(self):
+        return f"Column(name={self.name}, ctype='{self.ctype}')"
+
+    def __eq__(self, other):
+        """Returns whether `self` is equal to `other`"""
+        return all(
+            (
+                self.name == other.name,
+                self.ctype == other.ctype,
+                self.attribute_name == other.attribute_name,
+            )
+        )
+
+
+class OwnedObjectList:
+    def __init__(self, list_name, owned_object_table_name, joining_table_name):
+        """Initialize an OwnedObjectList, representing a many-to-many relationship
+
+        For example, a Measurement owns a list of DataSeries. In python, this is
+        represented by the attribute `Measurement.series_list` which, for a `Measurement`
+        object, is a list of the `DataSeries`objects it owns. In a relational database,
+        this is represented by a table called "measurement_series" which has the
+        columns "measurement_id" and "data_series_id", and each row represents the
+        ownership of one DataSeries by one Measurement. This class enables a backend
+        to convert the python representation into the database representation. For
+        this example, we have
+        ```
+        class Measurement:
+            ...
+            owned_object_lists = [
+                OwnedObjectList("series_list", "data_series", "measurement_series"),
+                ...
+            ]
+            ...
+        ```
+
+        Args:
+            list_name (str): The name of the attribute that is a list of owned objects
+            owned_object_table_name (Saveable class): The type of the objects in that list
+            joining_table_name (str): The name to be given to the table of relations
+               between the two classes (by convention this is the two corresponding
+               table names separated by an underscore).
+        """
+        self.list_name = list_name
+        self.owned_object_class = owned_object_table_name
+        self.joining_table_name = joining_table_name
+
+    def __repr__(self):
+        return f"OwnedObjectList(list_name={self.list_name})"
+
+
+ALL_SAVABLE_CLASSES = set()
+
+
+class SaveableMetaClass(type):
+    """Metaclass which records all classes created with this metaclass and performs
+    checks on DB related class variable values
+
+    """
+
+    def __new__(cls, name, bases, attrs):
+        """Create a new instance
+
+        Args:
+            name (str): Name of the class
+            bases (tuple): Base classes
+            attrs (dict): Attributes defined for the class
+        """
+        new_cls = super().__new__(cls, name, bases, attrs)
+
+        if getattr(new_cls, "table_name") and "_SKIP_IN_TABLE_SCAN" not in attrs:
+            ALL_SAVABLE_CLASSES.add(new_cls)
+
+            # Check class property integrity. If the class defines columns it must also
+            # define a new table
+            if attrs.get("columns", []):
+                if "table_name" not in attrs:
+                    raise ValueError(
+                        f"Saveable class `{name}` which defines `columns` doesn't "
+                        "define `table_name` as it should"
+                    )
+                for base_class in bases:
+                    if attrs["table_name"] == base_class.table_name:
+                        raise ValueError(
+                            f"Saveable class `{name}` which defines `columns`, has the "
+                            "same `table_name` as one of its bases "
+                            f"`{base_class.__name__}`"
+                        )
+
+        return new_cls
+
+
+class Saveable(metaclass=SaveableMetaClass):
     """Base class for table-representing classes implementing database functionality.
 
     This enables seamless interoperability between database tables and ixdat classes.
@@ -122,12 +232,13 @@ class Saveable:
     Class attributes:
         db (DataBase): the database, DB, which has the save, get, and load_data methods
         table_name (str): The name of the table or folder in which objects are saved
-        column_attrs (set of str): {attr} where attr is the name of the column in the
-            table and also the name of the attribute of the class.
-        extra_column_attrs (dict): {table_name: {attr}} for auxiliary tables
-            to represent the "extra" attributes, for double-inheriting classes.
-        linkers (dict): {table_name: (reference_table, attr)} for defining
-            the connections between objects.
+        columns (list of Column): The (meta)data-containing columns in this class
+        owned_object_list (list of OwnedObjectList):
+        parent_table_class (Saveable class): The class corresponding to the parent table.
+            If given, the primary key of the parent table is a foreign key of this table,
+            and the columns and owned_object_lists that make up the dictionary
+            representations of objects of this class include those of the parent table class.
+        principle_key (str): The name of the column which is the principle key.
 
     Object attributes:
         backend (Backend): the backend where the object is saved. For a
@@ -142,16 +253,12 @@ class Saveable:
     """
 
     db = DB
-    table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
-    # TODO: restructure column_attrs, extra_column_attrs, extra_linkers so that they are
-    #  sufficient to fully define the tables in an SQL backend
-    column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
-    extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
-    extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
-    # TODO: derive child_attrs somehow from the above class attributes, and have it in
-    #   a way where it's easy to tell which id goes with which attribute, i.e. s_ids
-    #   goes with series_list
-    child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
+    table_name = None  # This MUST be overwritten in inheriting classes
+    columns = [Column("id", int), Column("name", str)]  # This should probably be
+    # overwritten
+    owned_object_lists = []  # This can be overwritten in inheriting classes
+    parent_table_class = None  # This can be overwritten in double-inheriting classes
+    principle_key = "id"  # This can be overwritten in inheriting classes
 
     def __init__(self, backend=None, **self_as_dict):
         """Initialize a Saveable object from its dictionary serialization
@@ -173,6 +280,42 @@ class Saveable:
 
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
+
+    @classmethod
+    def full_columns(cls):
+        """A class's full columns list includes that of its parent table class"""
+        if cls.parent_table_class:
+            if isinstance(cls.parent_table_class, tuple):
+                assert len(cls.parent_table_class) == 2
+                # Produce all columns, but ensure to not have duplicates of columns from
+                # shared ancestor
+                all_columns = cls.parent_table_class[0].full_columns() + cls.columns
+                for parent_class in cls.parent_table_class[1:]:
+                    for column in parent_class.full_columns():
+                        if column not in all_columns:
+                            all_columns.append(column)
+                return all_columns
+            else:
+                return cls.parent_table_class.full_columns() + cls.columns
+        else:
+            return cls.columns
+
+    @classmethod
+    def full_owned_object_lists(cls):
+        """A class's full owned object lists includes those of its parent table class"""
+        if cls.parent_table_class:
+            if isinstance(cls.parent_table_class, tuple):
+                all_owned_object_lists = list(cls.owned_object_lists)
+                for parent_class in cls.parent_table_class:
+                    all_owned_object_lists += parent_class.full_owned_object_lists()
+                return all_owned_object_lists
+            else:
+                return (
+                    cls.parent_table_class.full_owned_object_lists()
+                    + cls.owned_object_lists
+                )
+        else:
+            return cls.owned_object_lists
 
     @property
     def id(self):

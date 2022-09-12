@@ -6,6 +6,8 @@ from ixdat.db import Saveable
 class Sample(Saveable):
     """TODO: flush out this class"""
 
+    _SKIP_IN_TABLE_SCAN = True
+
     table_name = "sample"
     column_attrs = {"name": "name"}
 

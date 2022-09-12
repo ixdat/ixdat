@@ -359,6 +359,8 @@ class CyclicVoltammogram(ECMeasurement):
 
 class CyclicVoltammagram(CyclicVoltammogram):
 
+    _SKIP_IN_TABLE_SCAN = True
+
     # FIXME: decorating the class itself doesn't work because the callable returned
     #   by the decorator does not have the class methods. But this works fine.
     @deprecate("0.1", "Use `CyclicVoltammogram` instead ('o' replaces 'a').", "0.3")

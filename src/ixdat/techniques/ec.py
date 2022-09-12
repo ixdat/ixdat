@@ -1,6 +1,7 @@
 """Module for representation and analysis of EC measurements"""
 
 from ..measurements import Measurement, Calibration
+from ..db import Column
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
@@ -86,11 +87,13 @@ class ECMeasurement(Measurement):
     such as `CyclicVoltammogram`.
     """
 
-    extra_column_attrs = {
-        "ec_meaurements": {
-            "ec_technique",
-        }
-    }
+    # ------ table description class attributes -------- #
+    table_name = "ec_measurements"
+    parent_table_class = Measurement
+    columns = [Column("ec_technique", str)]
+    owned_object_lists = []  # no additional owned objects
+
+    # ---- other class attributes ---- #
     control_series_name = "raw_potential"
     essential_series_names = ("t", "raw_potential", "raw_current")
     selection_series_names = ("file_number", "loop_number", "cycle number", "Ns")
@@ -305,8 +308,13 @@ class ECMeasurement(Measurement):
 class ECCalibration(Calibration):
     """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
 
-    extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
-    # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
+    table_name = "ec_calibrations"
+    parent_table_class = Calibration
+    columns = [
+        Column("RE_vs_RHE", float),
+        Column("A_el", float),
+        Column("R_Ohm", float),
+    ]
 
     def __init__(
         self,
