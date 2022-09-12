@@ -1,4 +1,4 @@
-"""Patches corresponding to code that should be added to Spectro Inlets quantification"""
+"""Patches with to code that should be adapted into spectro_inlets_quantification"""
 
 
 def append_sensitivity_factors(*args):
@@ -17,13 +17,13 @@ def append_two_sensitivity_factors(sf_1, sf_2):
     SensitivityFactor (or CalPoint) or a SensitivityList (or Calibration).
 
     Args:
-        sf_1 (SensitivityFactor or SensitivityList): The first sensitivity factor or list
-            thereof.
+        sf_1 (SensitivityFactor or SensitivityList): The first sensitivity factor or
+            list thereof.
         sf_2 (CalPoint or Calibration): The second sensitivity factor or list thereof
 
     Returns SensitivityList: a `SensitivityList` containing all of the sensitivity
-        factors in `sf_1` and `sf_2`. This will be a `Calibration` unless both `sf_1` and
-        `sf_2` are both themselves plain `SensitivityList`s
+        factors in `sf_1` and `sf_2`. This will be a `Calibration` unless both `sf_1`
+        and `sf_2` are both themselves plain `SensitivityList`s
     """
     from spectro_inlets_quantification.sensitivity import (
         SensitivityList,
@@ -96,8 +96,8 @@ def add_isotopes(calibration, isotope_spec):
             calibration.append(new_cal_point)
             new_molecule_as_dict = molecule_as_dict.copy()
             new_molecule_as_dict["mol"] = new_mol
-            # To avoid quant incorrectly predicting sensitivity factors at other masses,
-            #    we set a spectrum predicting intensity only at the specified mass.
+            # To avoid si_quant incorrectly predicting sensitivity factors at other
+            # masses we set a spectrum predicting intensity only at the specified mass.
             new_molecule_as_dict["spectrum"] = {new_mass: 1}
             new_molecule = Molecule(**new_molecule_as_dict)
             mdict[new_mol] = new_molecule

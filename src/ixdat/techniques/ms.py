@@ -145,10 +145,10 @@ class MSMeasurement(Measurement):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
         Note:
-        - With native ixdat quantification (USE_QUANT=False),
+        - With native ixdat quantification (use_si_quant=False),
           `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
           remove_background=True by default. An MSCalibration does the maths.
-        - With an external quantification package (USE_QUANT=True), the maths are done
+        - With an external quantification package (use_si_quant=True), the maths are done
           here with the help of self.quantifier
 
         Args:
@@ -164,7 +164,7 @@ class MSMeasurement(Measurement):
         if removebackground is not None:
             remove_background = removebackground
 
-        if plugins.USE_QUANT:
+        if plugins.use_si_quant:
             # We have to calculate the fluxes of all the mols and masses in the
             # quantifier's sensitivity matrix. But this method only returns one.
             # TODO: The results should therefore be cached. But how to know when they
@@ -210,10 +210,11 @@ class MSMeasurement(Measurement):
                 Defaults to True..
             include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
         """
-        if not plugins.USE_QUANT:
+        if not plugins.use_si_quant:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
@@ -332,15 +333,15 @@ class MSMeasurement(Measurement):
         Returns CalPoint: An object from the external MS quantification package,
            representing the calibration result
         """
-        if not plugins.USE_QUANT:
+        if not plugins.use_si_quant:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "external MS quantification package (`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        Chip = plugins.quant.Chip
-        CalPoint = plugins.quant.CalPoint
+        Chip = plugins.si_quant.Chip
+        CalPoint = plugins.si_quant.CalPoint
 
         chip = chip or Chip()
         n_dot = chip.calc_n_dot_0(gas=mol)
@@ -395,16 +396,17 @@ class MSMeasurement(Measurement):
         Returns Calibration: An object from the external MS quantification package,
            representing all the calibration results from the calibration.
         """
-        if not plugins.USE_QUANT:
+        if not plugins.use_si_quant:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        Chip = plugins.quant.Chip
-        CalPoint = plugins.quant.CalPoint
-        Calibration = plugins.quant.Calibration
+        Chip = plugins.si_quant.Chip
+        CalPoint = plugins.si_quant.CalPoint
+        Calibration = plugins.si_quant.Calibration
 
         chip = chip or Chip()
         chip.gas = gas
@@ -494,13 +496,13 @@ class MSMeasurement(Measurement):
                we'll use all the masses in the Calibration.
             carrier (optional, str): The carrier gas in the experiment. Defaults to "He".
         """
-        if not plugins.USE_QUANT:
+        if not plugins.use_si_quant:
             raise QuantificationError(
                 "`MSMeasurement.set_quatnifier` only works when using an "
-                "external MS quantification package (`ixdat.options.USE_QUANT = True`). "
+                "external MS quantification package (`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
             )
-        Quantifier = plugins.quant.Quantifier
+        Quantifier = plugins.si_quant.Quantifier
 
         if quantifier:
             self._quantifier = quantifier

@@ -10,8 +10,8 @@ ms = Measurement.read(
 )  # an MSMeasurement
 # ms.plot()
 
-# ---- Spectro Inlets calibration inaccessible without USE_QUANT ----- #
-print(ixdat.config.plugins.USE_QUANT)  # False
+# ---- Spectro Inlets calibration inaccessible without use_si_quant ----- #
+print(ixdat.config.plugins.use_si_quant)  # False
 try:
     native_cal = ms.gas_flux_calibration(mol="He", mass="M4", tspan=[100, 200])
 except Exception as e:
@@ -24,7 +24,7 @@ native_cal = MSInlet().gas_flux_calibration(
 print(native_cal)  # An ixdat MSCalResult object
 
 # ---- Spectro Inlets calibration ----- #
-ixdat.config.plugins.USE_QUANT = True
+ixdat.config.plugins.use_si_quant = True
 
 quant_cal = ms.gas_flux_calibration(mol="He", mass="M4", tspan=[100, 200])
 print(quant_cal)  # A CalPoint object of the external package

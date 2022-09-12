@@ -8,13 +8,14 @@ Example useage:
 ```
 import ixdat
 
-ixdat.config.plugins.USE_QUANT = True  # use the spectro_inlets_quantification package
+ixdat.config.plugins.use_si_quant = True  # use the spectro_inlets_quantification package
 ```
 
 See `help(ixdat.options.plugins)` for information.
 """
 
 from pathlib import Path
+from .tools import deprecate
 
 
 class _Config:
@@ -41,7 +42,7 @@ class _Config:
         return temp_dir
 
 
-CFG = _Config()
+config = _Config()
 
 
 def prompt_for_permission(prompt):
@@ -60,30 +61,58 @@ class _PluginOptions:
     Packages
     --------
 
-    spectro_inlets_quantification:
-        - USE_QUANT (bool): Set this to True to use the `spectro_inlets_quantification`
-            package. This changes the behaviour of some methods in `MSMeasurement` and
-            inheriting classes. Defaults to False.
-        - quant (_QuantDeps). This is where the needed imports from the external
-            quantification package go. See the docstring of _QuantDeps
+    spectro_inlets_quantification
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    - use_si_quant (bool): Read-only. If this is True, ixdat uses the
+        `spectro_inlets_quantification` package. This changes the behaviour of some
+        methods in `MSMeasurement` and inheriting classes. Defaults to False.
+    - activate_si_quant(): Sets use_si_quant to True and initializes the quant. package
+    - deactivate_si_quant(): Sets use_si_quant to False.
+    - si_quant (_QuantDeps). This is where the needed imports from the external
+        quantification package go. See the docstring of _QuantDeps
     """
 
     def __init__(self):
-        self._USE_QUANT = False
-        self.quant = _QuantDeps()
+        self._use_si_quant = False
+        self.si_quant = _SIQuantDeps()
 
     @property
+    def use_si_quant(self):
+        return self._use_si_quant
+
+    def activate_si_quant(self):
+        """Changes mass spec methods to use spectro_inlets_quantification"""
+        self._use_si_quant = True
+        self.si_quant.populate()
+
+    def deactivate_si_quant(self):
+        """Changes mass spec methods to use ixdat's native MS quantification"""
+        self._use_si_quant = False
+
+    @property
+    @deprecate(
+        last_supported_release="0.2.4",
+        update_message="This has changed to lower-case: `use_si_quant`",
+        remove_release="0.3",
+    )
     def USE_QUANT(self):
-        return self._USE_QUANT
+        return self.use_si_quant
 
     @USE_QUANT.setter
+    @deprecate(
+        last_supported_release="0.2.4",
+        update_message="Use the methods `activate_si_quant()` and "
+        "`deactivate_si_quant()` instead.",
+        remove_release="0.3",
+    )
     def USE_QUANT(self, use_quant):
-        self._USE_QUANT = use_quant
-        if self._USE_QUANT:
-            self.quant.populate()
+        if use_quant:
+            self.activate_si_quant()
+        else:
+            self.deactivate_si_quant()
 
 
-class _QuantDeps:
+class _SIQuantDeps:
     """Class storing items of the external MS quantification package.
 
     This class has one instance, which is an attribute of `plugins`. To print this
@@ -91,11 +120,11 @@ class _QuantDeps:
     ```
     from ixdat.config import plugins
 
-    plugins.USE_QUANT = True  # Activates plugins.quant.
-    help(plugins.quant)  #
+    plugins.use_si_quant = True  # Activates plugins.quant.
+    help(plugins.si_quant)  #gives information on the si_quant package
     ```
 
-    The attributes of this class are `None` until the property `plugins.USE_QUANT` is set
+    The attributes of this class are `None` until the property `plugins.use_si_quant` is set
     to True, triggering their population (activating quant).
 
     Once activated, the attributes of `plugins.quant` are:
