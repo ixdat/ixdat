@@ -124,8 +124,8 @@ class _SIQuantDeps:
     help(plugins.si_quant)  #gives information on the si_quant package
     ```
 
-    The attributes of this class are `None` until the property `plugins.use_si_quant` is set
-    to True, triggering their population (activating quant).
+    The attributes of this class are `None` until the property `plugins.use_si_quant` is
+    set to True, triggering their population (activating quant).
 
     Once activated, the attributes of `plugins.quant` are:
     - `Chip`: Class describing the MS inlet. More powerful than ixdat's `MSInlet`

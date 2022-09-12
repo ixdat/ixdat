@@ -336,7 +336,8 @@ class MSMeasurement(Measurement):
         if not plugins.use_si_quant:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package (`ixdat.options.use_si_quant = True`). "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
@@ -499,7 +500,8 @@ class MSMeasurement(Measurement):
         if not plugins.use_si_quant:
             raise QuantificationError(
                 "`MSMeasurement.set_quatnifier` only works when using an "
-                "external MS quantification package (`ixdat.options.use_si_quant = True`). "
+                "external MS quantification package "
+                "(`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
             )
         Quantifier = plugins.si_quant.Quantifier
