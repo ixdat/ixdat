@@ -101,3 +101,19 @@ def add_isotopes(calibration, isotope_spec):
             new_molecule_as_dict["spectrum"] = {new_mass: 1}
             new_molecule = Molecule(**new_molecule_as_dict)
             mdict[new_mol] = new_molecule
+
+
+def scale_by_factor(calibration, factor):
+    """Return copy of `calibration` with all sensitivity factors multiplied by `factor`"""
+    from spectro_inlets_quantification import CalPoint, Calibration
+
+    new_calibration_as_dict = calibration.as_dict().copy()
+
+    cal_list = []
+    for cal in calibration.cal_list:
+        new_cal_as_dict = cal.as_dict()
+        new_cal_as_dict.update(F=cal.F * factor, F_type=cal.F_type + " corrected")
+        cal_list.append(CalPoint(**new_cal_as_dict))
+    new_calibration_as_dict.update(cal_list=cal_list)
+    calibration = Calibration(**new_calibration_as_dict)
+    return calibration
