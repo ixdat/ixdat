@@ -90,7 +90,10 @@ class ECMeasurement(Measurement):
     # ------ table description class attributes -------- #
     table_name = "ec_measurements"
     parent_table_class = Measurement
-    columns = [Column("ec_technique", str)]
+    columns = [
+        Column("measurement_id", int, "id", foreign_key=("measurements", "id")),
+        Column("ec_technique", str)
+    ]
     owned_object_lists = []  # no additional owned objects
 
     # ---- other class attributes ---- #
@@ -311,6 +314,7 @@ class ECCalibration(Calibration):
     table_name = "ec_calibrations"
     parent_table_class = Calibration
     columns = [
+        Column("calibration_id", int, "id", foreign_key=("calibrations", "id")),
         Column("RE_vs_RHE", float),
         Column("A_el", float),
         Column("R_Ohm", float),

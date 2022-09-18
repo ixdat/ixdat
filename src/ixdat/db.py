@@ -100,7 +100,13 @@ def get_database_name():
 class Column:
     """The metadata for an ixdat attribute corresponding to a database column"""
 
-    def __init__(self, name, ctype, attribute_name=None):
+    def __init__(
+            self,
+            name,
+            ctype,
+            attribute_name=None,
+            foreign_key=False,
+    ):
         """Initialize a database column representation.
 
         Args:
@@ -110,10 +116,14 @@ class Column:
                 int --> INTEGER, float --> REAL, str --> TEXT, dict --> BLOB
             attribute_name (str): The name of the attribute of the class, if different
                 from name.
+            foreign_key (tuple): Optional. If the column references a column of another
+                table, the foreign key should be specified as a tuple of
+                (table_name, column_name).
         """
         self.name = name
         self.ctype = ctype
         self.attribute_name = attribute_name or name
+        self.foriegn_key = foreign_key
 
     def __repr__(self):
         return f"Column(name={self.name}, ctype='{self.ctype}')"
@@ -258,7 +268,7 @@ class Saveable(metaclass=SaveableMetaClass):
     # overwritten
     owned_object_lists = []  # This can be overwritten in inheriting classes
     parent_table_class = None  # This can be overwritten in double-inheriting classes
-    principle_key = "id"  # This can be overwritten in inheriting classes
+    primary_key = "id"  # This can be overwritten in inheriting classes
 
     def __init__(self, backend=None, **self_as_dict):
         """Initialize a Saveable object from its dictionary serialization
@@ -319,7 +329,7 @@ class Saveable(metaclass=SaveableMetaClass):
 
     @property
     def id(self):
-        """The principle-key identifier. Set by backend or counted in memory."""
+        """The primary-key identifier. Set by backend or counted in memory."""
         if not self._id:
             if self.backend_type in ("none", "memory"):
                 self._id = self.backend.get_next_available_id(self.table_name, obj=self)

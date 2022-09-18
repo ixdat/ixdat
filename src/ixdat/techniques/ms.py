@@ -28,7 +28,9 @@ class MSMeasurement(Measurement):
 
     parent_table_class = Measurement
     table_name = "ms_measurements"
-    columns = []
+    columns = [
+        Column("measurement_id", int, "id", foreign_key=("measurements", "id")),
+    ]
     owned_object_lists = []
 
     default_plotter = MSPlotter
@@ -308,7 +310,10 @@ class MSCalibration(Calibration):
 
     table_name = "ms_calibrations"
     parent_table_class = Calibration
-    columns = [Column("signal_bgs", dict)]
+    columns = [
+        Column("calibration_id", int, "id", foreign_key=("calibrations", "id")),
+        Column("signal_bgs", dict)
+    ]
     owned_object_lists = [
         OwnedObjectList("ms_cal_results", "ms_cal_results", "calibration_ms_cal_results")
     ]

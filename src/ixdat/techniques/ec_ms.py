@@ -13,10 +13,12 @@ from ..plotters.ms_plotter import STANDARD_COLORS
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
-    #  ----- table describing attributes --------- #
+    #  ----- table-describing class attributes --------- #
     parent_table_class = (ECMeasurement, MSMeasurement)
     table_name = "ecms_measurements"
-    columns = []  # no additional columns.
+    columns = [
+        Column("measurement_id", int, "id", foreign_key=("measurements", "id")),
+    ]
     owned_object_lists = []  # no additional owned objects
 
     # ---- other class attributes -------- #
@@ -188,13 +190,9 @@ class ECMSCalibration(ECCalibration, MSCalibration):
 
     table_name = "ecms_calibrations"
     parent_table_class = (ECCalibration, MSCalibration)
-    # simpler to use MSCalibration as parent_table_class instead of ECCalibration to use
-    #    its MSCalibration's owned_object_lists
     columns = [
-        Column("RE_vs_RHE", float),  # same column is in ECCalibration.
-        Column("A_el", float),  # same column is in ECCalibration.
-        Column("R_Ohm", float),  # same column is in ECCalibration.
-        # Column("signal_bgs", dict),  # already there from MSCalibration.
+        # All the columns from ECCalibration and MSCalibration are inherited
+        Column("calibration_id", int, "id", foreign_key=("calibrations", "id")),
         Column("L", float),  # the working distance, special to ECMSCalibration.
     ]
     owned_object_lists = []  # no new owned objects, just the one from MSMeasurement
