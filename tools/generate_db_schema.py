@@ -114,12 +114,12 @@ _id_type = _type_translation[int]
 
 def generate_dbdiagramio_DBML(primary_table_classes, linker_tables):
     """Generate DB schema source code for dbdiagram.io"""
-    schema, table_name_to_id_column_name = _generate_DBML_for_primary_tables(
+    schema = _generate_DBML_for_primary_tables(
         primary_table_classes
     )
 
     schema += _generate_DBML_for_linker_tables(
-        linker_tables, primary_table_classes, table_name_to_id_column_name
+        linker_tables, primary_table_classes
     )
 
     return schema
@@ -132,42 +132,26 @@ def _generate_DBML_for_primary_tables(primary_table_classes):
     table_name_to_id_column_name = {}
     for cls in primary_table_classes:
         schema += f"table {cls.table_name}{{\n"
-        # If the class has a `parent_table_class`, then it is an expansion of a parent
-        # class and the id from the parent class is re-used
-        if cls.parent_table_class:
-            if isinstance(cls.parent_table_class, tuple):  # Multiple inheritance case
-                for parent_class in cls.parent_table_class:
-                    id_column_name = table_name_to_id_column_name[
-                        parent_class.table_name
-                    ]
-                    schema += (
-                        f"  {parent_class.table_name.rstrip('s')}_id {_id_type} "
-                        f"[pk, ref: - {parent_class.table_name}."
-                        f"{id_column_name}]\n"
-                    )
-            else:  # Single super class
-                id_column_name = f"{cls.parent_table_class.table_name.rstrip('s')}_id"
-                table_name_to_id_column_name[cls.table_name] = id_column_name
-                schema += (
-                    f"  {id_column_name} {_id_type} "
-                    f"[pk, ref: - {cls.parent_table_class.table_name}.id]\n"
-                )
-        else:
-            table_name_to_id_column_name[cls.table_name] = "id"
 
         for column in cls.columns:
-            schema += f"  {column.name} {_type_translation[column.ctype]}"
-            if column.name == "id":
-                schema += " [pk, increment]\n"
-            else:
-                schema += "\n"
+            schema_line = f"  {column.name} {_type_translation[column.ctype]}"
+            dbml_column_specs = []
+            if column.name == cls.primary_key:
+                dbml_column_specs.append("pk")
+            if column.foriegn_key:
+                fk_table, fk_column = column.foriegn_key
+                dbml_column_specs.append(f"ref: - {fk_table}.{fk_column}")
+
+            if dbml_column_specs:
+                schema_line += " [" + ", ".join(dbml_column_specs) + "]"
+            schema += schema_line + "\n"
         schema += "}\n\n"
 
-    return schema, table_name_to_id_column_name
+    return schema
 
 
 def _generate_DBML_for_linker_tables(
-    linker_tables, primary_table_classes, table_name_to_id_column_name
+    linker_tables, primary_table_classes
 ):
     """Return DBML for `linker_tables`, using also the set of `primary_table_classes` and
     the table_name -> id_column_name mapping
@@ -187,7 +171,7 @@ def _generate_DBML_for_linker_tables(
         def link(cls_):
             """Return column DBML for link class"""
             # Determin the name of the column the foreign key points to
-            foreign_key_column_name = table_name_to_id_column_name[cls_.table_name]
+            foreign_key_column_name = cls_.table_name
             if foreign_key_column_name == "id":
                 column_name = cls_.table_name.rstrip("s") + "_id"
             else:
