@@ -92,7 +92,7 @@ class ECMeasurement(Measurement):
     parent_table_class = Measurement
     columns = [
         Column("measurement_id", int, "id", foreign_key=("measurements", "id")),
-        Column("ec_technique", str)
+        Column("ec_technique", str),
     ]
     owned_object_lists = []  # no additional owned objects
 

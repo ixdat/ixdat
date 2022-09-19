@@ -24,6 +24,8 @@ class Spectrum(Saveable):
     while spec.xseries and spec.yseries give the corresponding DataSeries.
     """
 
+    _SKIP_IN_TABLE_SCAN = True
+
     table_name = "spectrum"
     column_attrs = {
         "name",
@@ -270,6 +272,8 @@ class SpectrumSeries(Spectrum):
     spec is a spectrum series, spec.x is the x data with shape (N, ), spec.t is the
     time data with shape (M, ), and spec.y is the spectrum data with shape (M, N).
     """
+
+    _SKIP_IN_TABLE_SCAN = True
 
     def __init__(self, *args, **kwargs):
         """Initiate a spectrum series

@@ -84,7 +84,7 @@ class TimeSeries(DataSeries):
     parent_table_class = DataSeries  # The pk is DataSeries.id
     columns = [
         Column("data_series_id", int, "id", foreign_key=("data_series", "id")),
-        Column("tstamp", float)  # this gets "appended" to DataSeries.columns
+        Column("tstamp", float),  # this gets "appended" to DataSeries.columns
     ]
     primary_key = "data_series_id"
 

@@ -1,7 +1,7 @@
 """Module for representation and analysis of EC-MS measurements"""
 import numpy as np
 from ..constants import FARADAY_CONSTANT
-from ..db import Column, OwnedObjectList
+from ..db import Column
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration
 from .cv import CyclicVoltammogram

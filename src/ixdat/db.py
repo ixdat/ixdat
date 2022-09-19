@@ -101,11 +101,11 @@ class Column:
     """The metadata for an ixdat attribute corresponding to a database column"""
 
     def __init__(
-            self,
-            name,
-            ctype,
-            attribute_name=None,
-            foreign_key=False,
+        self,
+        name,
+        ctype,
+        attribute_name=None,
+        foreign_key=False,
     ):
         """Initialize a database column representation.
 
@@ -141,12 +141,12 @@ class Column:
 
 class OwnedObjectList:
     def __init__(
-            self,
-            list_name,
-            owned_object_table_name,
-            joining_table_name,
-            parent_object_id_column_name=None,
-            owned_object_id_column_name=None,
+        self,
+        list_name,
+        owned_object_table_name,
+        joining_table_name,
+        parent_object_id_column_name=None,
+        owned_object_id_column_name=None,
     ):
         """Initialize an OwnedObjectList, representing a many-to-many relationship
 
@@ -189,7 +189,7 @@ class OwnedObjectList:
 
         Args:
             list_name (str): The name of the attribute that is a list of owned objects
-            owned_object_table_name (Saveable class): The type of the objects in that list
+            owned_object_table_name (Saveable class): The type of the objects in the list
             joining_table_name (str): The name to be given to the table of relations
                between the two classes (by convention this is the two corresponding
                table names separated by an underscore).
@@ -275,7 +275,8 @@ class Saveable(metaclass=SaveableMetaClass):
         parent_table_class (Saveable class): The class corresponding to the parent table.
             If given, the primary key of the parent table is a foreign key of this table,
             and the columns and owned_object_lists that make up the dictionary
-            representations of objects of this class include those of the parent table class.
+            representations of objects of this class include those of the parent table
+            class.
         principle_key (str): The name of the column which is the principle key.
 
     Object attributes:

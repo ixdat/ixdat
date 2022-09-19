@@ -1,5 +1,5 @@
 from collections import defaultdict
-from pprint import pprint, pformat
+from pprint import pformat
 
 import numpy as np
 import pyperclip
@@ -121,9 +121,7 @@ _id_type = _type_translation[int]
 
 def generate_dbdiagramio_DBML(primary_table_classes, linker_tables):
     """Generate DB schema source code for dbdiagram.io"""
-    schema = _generate_DBML_for_primary_tables(
-        primary_table_classes
-    )
+    schema = _generate_DBML_for_primary_tables(primary_table_classes)
 
     schema += _generate_DBML_for_linker_tables(linker_tables)
 
@@ -134,7 +132,6 @@ def _generate_DBML_for_primary_tables(primary_table_classes):
     """Return DBML for primary tables and table_name -> id_column_name mapping"""
     schema = ""
     # Generate schema for primary classes
-    table_name_to_id_column_name = {}
     for cls in primary_table_classes:
         schema += f"table {cls.table_name}{{\n"
 
@@ -155,9 +152,7 @@ def _generate_DBML_for_primary_tables(primary_table_classes):
     return schema
 
 
-def _generate_DBML_for_linker_tables(
-    linker_tables
-):
+def _generate_DBML_for_linker_tables(linker_tables):
     """Return DBML for `linker_tables`, using also the set of `primary_table_classes` and
     the table_name -> id_column_name mapping
 

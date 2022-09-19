@@ -312,7 +312,7 @@ class MSCalibration(Calibration):
     parent_table_class = Calibration
     columns = [
         Column("calibration_id", int, "id", foreign_key=("calibrations", "id")),
-        Column("signal_bgs", dict)
+        Column("signal_bgs", dict),
     ]
     owned_object_lists = [
         OwnedObjectList("ms_cal_results", "ms_cal_results", "calibration_ms_cal_results")
@@ -699,4 +699,5 @@ class MSSpectrum(Spectrum):
     TODO: Methods for co-plotting ref spectra from a database
     """
 
+    _SKIP_IN_TABLE_SCAN = True
     pass
