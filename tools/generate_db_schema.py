@@ -29,7 +29,7 @@ def collect_db_classes(*, verbose=False):
     primary_table_classes = _extract_primary_classes(
         table_to_class_mapping, verbose=verbose
     )
-    linker_tables = _extract_linker_tables(primary_table_classes, verbose=verbose)
+    linker_tables = _extract_linker_tables(table_to_class_mapping, verbose=verbose)
     return primary_table_classes, linker_tables
 
 
@@ -83,15 +83,22 @@ def _extract_primary_classes(table_to_class_mapping, *, verbose=False):
     return sorted_primary_table_classes
 
 
-def _extract_linker_tables(primary_table_classes, *, verbose=False):
+def _extract_linker_tables(table_to_class_mapping, *, verbose=False):
     """Return the linker tables defined in the set of `primary_table_classes`
     as a set of (source_class, OwnedObjectList) pairs
 
     """
     linker_tables = set()  # Of (OwningClass, OwnedObjectList)
-    for cls in primary_table_classes:
-        for owned_object_list in cls.owned_object_lists:
-            linker_tables.add((cls, owned_object_list))
+    for table_name, classes in table_to_class_mapping.items():
+        top_cls = classes[0]
+        # FIXME: see if this can't be simpler
+        while top_cls.parent_table_class:
+            top_cls = top_cls.parent_table_class
+            if isinstance(top_cls, tuple):
+                top_cls = top_cls[0]
+        for cls in classes:
+            for owned_object_list in cls.owned_object_lists:
+                linker_tables.add((top_cls, owned_object_list))
 
     if verbose:
         print("\nLinker tables:")
