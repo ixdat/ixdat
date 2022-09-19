@@ -119,7 +119,15 @@ class Field(DataSeries):
 
     # ------ table defining class attributes -------- #
     parent_table_class = DataSeries
-    owned_object_lists = [OwnedObjectList("axes_series", "data_series", "axes_series")]
+    owned_object_lists = [
+        OwnedObjectList(
+            "axes_series",
+            "data_series",
+            "axes_series",
+            parent_object_id_column_name="field_series_id",
+            owned_object_id_column_name="axis_series_id",
+        ),
+    ]
     # explicitly coding that no new columns are added is necessary because otherwise
     # DataSeries' columns get duplicated in "full_column_list":
     columns = []

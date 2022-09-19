@@ -140,7 +140,14 @@ class Column:
 
 
 class OwnedObjectList:
-    def __init__(self, list_name, owned_object_table_name, joining_table_name):
+    def __init__(
+            self,
+            list_name,
+            owned_object_table_name,
+            joining_table_name,
+            parent_object_id_column_name=None,
+            owned_object_id_column_name=None,
+    ):
         """Initialize an OwnedObjectList, representing a many-to-many relationship
 
         For example, a Measurement owns a list of DataSeries. In python, this is
@@ -155,11 +162,30 @@ class OwnedObjectList:
         class Measurement:
             ...
             owned_object_lists = [
-                OwnedObjectList("series_list", "data_series", "measurement_series"),
+                OwnedObjectList(
+                    "series_list",
+                    "data_series",
+                    "measurement_series"
+                    owned_object_id_column_name="data_series_id",
+                ),
                 ...
             ]
             ...
         ```
+        This generates a linker table in the database backend. Note that the
+        specification of owned_object_id_column_name is necessary in this case because
+        of the irregular pluralization of data_series (without this specification the
+        database backend would make a columne called "data_serie_id" (sic).
+        It results in the following table (as defined in DBML):
+
+        table measurement_series{
+          measurement_id int [ref:-> measurement.id],
+          data_series_id int [ref:-> data_series.id],
+          order int
+          indeces {
+            (measurement_id, data_series_id) [pk]
+          }
+        }
 
         Args:
             list_name (str): The name of the attribute that is a list of owned objects
@@ -169,8 +195,10 @@ class OwnedObjectList:
                table names separated by an underscore).
         """
         self.list_name = list_name
-        self.owned_object_class = owned_object_table_name
+        self.owned_object_table_name = owned_object_table_name
         self.joining_table_name = joining_table_name
+        self.parent_object_id_column_name = parent_object_id_column_name
+        self.owned_object_id_column_name = owned_object_id_column_name
 
     def __repr__(self):
         return f"OwnedObjectList(list_name={self.list_name})"

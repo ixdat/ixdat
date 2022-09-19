@@ -118,9 +118,7 @@ def generate_dbdiagramio_DBML(primary_table_classes, linker_tables):
         primary_table_classes
     )
 
-    schema += _generate_DBML_for_linker_tables(
-        linker_tables, primary_table_classes
-    )
+    schema += _generate_DBML_for_linker_tables(linker_tables)
 
     return schema
 
@@ -151,7 +149,7 @@ def _generate_DBML_for_primary_tables(primary_table_classes):
 
 
 def _generate_DBML_for_linker_tables(
-    linker_tables, primary_table_classes
+    linker_tables
 ):
     """Return DBML for `linker_tables`, using also the set of `primary_table_classes` and
     the table_name -> id_column_name mapping
@@ -159,39 +157,32 @@ def _generate_DBML_for_linker_tables(
     """
     schema = ""
     # Generate schema for linker tables
-    table_name_to_primary_class = {cls.table_name: cls for cls in primary_table_classes}
     for parent_class, owned_object_list in linker_tables:
-        # Broken, so skip for now
-        if "component" in owned_object_list.joining_table_name:
-            continue
 
-        # Owner foreign key
+        # linker table name
         schema += f"table {owned_object_list.joining_table_name}{{\n"
 
-        def link(cls_):
-            """Return column DBML for link class"""
-            # Determin the name of the column the foreign key points to
-            foreign_key_column_name = cls_.table_name
-            if foreign_key_column_name == "id":
-                column_name = cls_.table_name.rstrip("s") + "_id"
-            else:
-                column_name = foreign_key_column_name
+        # foreign key to the parent table
+        top_cls = parent_class
+        while top_cls.parent_table_class:
+            top_cls = top_cls.parent_table_class
+        parent_table_name = top_cls.table_name
+        parent_id_column_name = (
+            owned_object_list.parent_object_id_column_name
+            or parent_table_name.rstrip("s") + "_id"
+        )
+        parent_link = parent_id_column_name + " int [ref:> " + parent_table_name + ".id]"
 
-            # Generate link text on the form:
-            #   calibration_id INTEGER [pk, ref: > ms_calibrations.calibration_id]
-            link_text = (
-                f"  {column_name} {_id_type} [pk, ref: > "
-                f"{cls_.table_name}.{foreign_key_column_name}]\n"
-            )
-            return link_text
+        # foreign key to the owned object table
+        owned_table_name = owned_object_list.owned_object_table_name
+        owned_id_column_name = (
+            owned_object_list.owned_object_id_column_name
+            or owned_table_name.rstrip("s") + "_id"
+        )
+        owned_link = owned_id_column_name + " int [ref:> " + owned_table_name + ".id]"
 
-        # Generate columns for the two foreign keys in a linker class e.g:
-        #   calibration_id INTEGER [pk, ref: > ms_calibrations.calibration_id]
-        #   ms_cal_result_id INTEGER [pk, ref: > ms_cal_results.id]
-        owned_cls = table_name_to_primary_class[owned_object_list.owned_object_class]
-        for cls in (parent_class, owned_cls):
-            schema += link(cls)
-        schema += "}\n\n"
+        # put it together:
+        schema += "\n".join([parent_link, owned_link, "}"]) + "\n\n"
 
     return schema
 

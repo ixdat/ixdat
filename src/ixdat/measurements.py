@@ -46,10 +46,19 @@ class Measurement(Saveable):
     ]
     owned_object_lists = [
         OwnedObjectList(
-            "component_measurements", "measurements", "component_measurements"
+            "component_measurements",  # owned object attribute name
+            "measurements",  # owned object table name
+            "component_measurements",  # linker table name
+            parent_object_id_column_name="combined_measurement_id",
+            owned_object_id_column_name="component_measurement_id",
         ),
         OwnedObjectList("calibration_list", "calibrations", "measurement_calibrations"),
-        OwnedObjectList("series_list", "data_series", "measurement_series"),
+        OwnedObjectList(
+            "series_list",
+            "data_series",
+            "measurement_series",
+            owned_object_id_column_name="data_series_id",  # avoid "data_serie_id" (sic)
+        ),
     ]
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
