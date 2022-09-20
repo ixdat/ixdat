@@ -173,7 +173,7 @@ def _generate_DBML_for_linker_tables(linker_tables):
             owned_object_list.parent_object_id_column_name
             or parent_table_name.rstrip("s") + "_id"
         )
-        parent_link = parent_id_column_name + " int [ref:> " + parent_table_name + ".id]"
+        parent_link = f"  {parent_id_column_name} int [ref:> {parent_table_name}.id]"
 
         # foreign key to the owned object table
         owned_table_name = owned_object_list.owned_object_table_name
@@ -181,10 +181,22 @@ def _generate_DBML_for_linker_tables(linker_tables):
             owned_object_list.owned_object_id_column_name
             or owned_table_name.rstrip("s") + "_id"
         )
-        owned_link = owned_id_column_name + " int [ref:> " + owned_table_name + ".id]"
+        owned_link = f"  {owned_id_column_name} int [ref:> {owned_table_name}.id]"
+
+        # order column
+        order_line = "  order int"
+
+        # primary key column
+        pk_lines = [
+            "  indexes {",
+            f"    ({parent_id_column_name}, {owned_id_column_name}) [pk]",
+            "  }",
+        ]
 
         # put it together:
-        schema += "\n".join([parent_link, owned_link, "}"]) + "\n\n"
+        schema += (
+            "\n".join([parent_link, owned_link, order_line] + pk_lines + ["}"]) + "\n\n"
+        )
 
     return schema
 
