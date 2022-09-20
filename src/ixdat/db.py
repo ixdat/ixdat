@@ -205,8 +205,8 @@ class OwnedObjectList:
 
 
 ALL_SAVABLE_CLASSES = set()
-PRIMARY_SAVEABLE_CLASSES = set()
-LINKER_CLASSES = {}
+TABLE_CLASSES = set()
+LINKERS = set()
 
 
 class SaveableMetaClass(type):
@@ -225,24 +225,40 @@ class SaveableMetaClass(type):
         """
         new_cls = super().__new__(cls, name, bases, attrs)
 
-        if getattr(new_cls, "table_name") and "_SKIP_IN_TABLE_SCAN" not in attrs:
-            ALL_SAVABLE_CLASSES.add(new_cls)
+        if not getattr(new_cls, "table_name"):
+            return new_cls
+        if attrs.get("_SKIP_IN_TABLE_SCAN", False):
+            return new_cls
 
-            # Check class property integrity. If the class defines columns it must also
-            # define a new table
-            if attrs.get("columns", []):
-                if "table_name" not in attrs:
+        ALL_SAVABLE_CLASSES.add(new_cls)
+
+        # Check class property integrity. If the class defines columns it must also
+        # define a new table
+        if attrs.get("columns", []):
+            if "table_name" not in attrs:
+                raise ValueError(
+                    f"Saveable class `{name}` which defines `columns` doesn't "
+                    "define `table_name` as it should"
+                )
+            for base_class in bases:
+                if attrs["table_name"] == base_class.table_name:
                     raise ValueError(
-                        f"Saveable class `{name}` which defines `columns` doesn't "
-                        "define `table_name` as it should"
+                        f"Saveable class `{name}` which defines `columns`, has the "
+                        "same `table_name` as one of its bases "
+                        f"`{base_class.__name__}`"
                     )
-                for base_class in bases:
-                    if attrs["table_name"] == base_class.table_name:
-                        raise ValueError(
-                            f"Saveable class `{name}` which defines `columns`, has the "
-                            "same `table_name` as one of its bases "
-                            f"`{base_class.__name__}`"
-                        )
+        if attrs.get("table_name", None):
+            table_name = attrs["table_name"]
+            if "columns" not in attrs:
+                raise ValueError(
+                    f"Saveable class `{name}` which defines `table_name='{table_name}'`,"
+                    f" does not define `columns`."
+                )
+            TABLE_CLASSES.add(new_cls)
+
+        if "owned_object_lists" in attrs:
+            for owned_object_list in attrs["owned_object_lists"]:
+                LINKERS.add((new_cls, owned_object_list))
 
         return new_cls
 
