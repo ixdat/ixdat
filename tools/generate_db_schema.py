@@ -140,8 +140,8 @@ def _generate_DBML_for_primary_tables(primary_table_classes):
             dbml_column_specs = []
             if column.name == cls.primary_key:
                 dbml_column_specs.append("pk")
-            if column.foriegn_key:
-                fk_table, fk_column = column.foriegn_key
+            if column.foreign_key:
+                fk_table, fk_column = column.foreign_key
                 dbml_column_specs.append(f"ref: - {fk_table}.{fk_column}")
 
             if dbml_column_specs:
@@ -201,4 +201,12 @@ def main():
 
 
 if __name__ == "__main__":
+
+    from ixdat.techniques.ec_ms import ECMSCalibration
+
+    cols = ECMSCalibration.get_full_columns()
+    print(cols)
+    owned = ECMSCalibration.get_full_owned_object_lists()
+    print(owned)
+
     main()

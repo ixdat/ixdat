@@ -123,7 +123,7 @@ class Column:
         self.name = name
         self.ctype = ctype
         self.attribute_name = attribute_name or name
-        self.foriegn_key = foreign_key
+        self.foreign_key = foreign_key
 
     def __repr__(self):
         return f"Column(name={self.name}, ctype='{self.ctype}')"
@@ -205,6 +205,8 @@ class OwnedObjectList:
 
 
 ALL_SAVABLE_CLASSES = set()
+PRIMARY_SAVEABLE_CLASSES = set()
+LINKER_CLASSES = {}
 
 
 class SaveableMetaClass(type):
@@ -293,8 +295,7 @@ class Saveable(metaclass=SaveableMetaClass):
 
     db = DB
     table_name = None  # This MUST be overwritten in inheriting classes
-    columns = [Column("id", int), Column("name", str)]  # This should probably be
-    # overwritten
+    columns = []  # This MUST be overwritten in inheriting classes
     owned_object_lists = []  # This can be overwritten in inheriting classes
     parent_table_class = None  # This can be overwritten in double-inheriting classes
     primary_key = "id"  # This can be overwritten in inheriting classes
@@ -321,40 +322,85 @@ class Saveable(metaclass=SaveableMetaClass):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
     @classmethod
-    def full_columns(cls):
-        """A class's full columns list includes that of its parent table class"""
-        if cls.parent_table_class:
-            if isinstance(cls.parent_table_class, tuple):
-                assert len(cls.parent_table_class) == 2
-                # Produce all columns, but ensure to not have duplicates of columns from
-                # shared ancestor
-                all_columns = cls.parent_table_class[0].full_columns() + cls.columns
-                for parent_class in cls.parent_table_class[1:]:
-                    for column in parent_class.full_columns():
-                        if column not in all_columns:
-                            all_columns.append(column)
-                return all_columns
-            else:
-                return cls.parent_table_class.full_columns() + cls.columns
-        else:
-            return cls.columns
+    def column_names(cls):
+        return [c.name for c in cls.columns]
 
     @classmethod
-    def full_owned_object_lists(cls):
-        """A class's full owned object lists includes those of its parent table class"""
-        if cls.parent_table_class:
-            if isinstance(cls.parent_table_class, tuple):
-                all_owned_object_lists = list(cls.owned_object_lists)
-                for parent_class in cls.parent_table_class:
-                    all_owned_object_lists += parent_class.full_owned_object_lists()
-                return all_owned_object_lists
+    def get_column_resolution_order(cls):
+        """Saveable classes in the order they contribute columns to this class
+
+        This resembles the method resolution order (`cls.mro()`) but puts parent classes
+        before their children. The present class comes last.
+        """
+        mro_class_list = cls.mro()  # child class first, parent class last.
+        # We want to keep the same horizontal order as mro, but flip the vertical order
+        # such that parent classes come before their children.
+        cro_class_list = []  # cro is short for "column resolution order"
+        for cls_in_mro in mro_class_list:
+            if not issubclass(cls_in_mro, Saveable):
+                continue
+            if cls_in_mro is Saveable:
+                continue
+            for i, cls_in_cro in enumerate(cro_class_list):
+                if issubclass(cls_in_cro, cls_in_mro):
+                    cro_class_list.insert(i, cls_in_mro)
+                    break
             else:
-                return (
-                    cls.parent_table_class.full_owned_object_lists()
-                    + cls.owned_object_lists
-                )
-        else:
-            return cls.owned_object_lists
+                cro_class_list.append(cls_in_mro)
+        return cro_class_list
+
+    @classmethod
+    def get_full_columns(cls):
+        """A class's full columns list includes that of its parent table class"""
+        full_column_list = []
+        full_saved_attribute_list = []
+        table_classes = {}
+        for parent_class in cls.get_column_resolution_order():
+            if parent_class.table_name in table_classes:
+                continue  # If it doesn't have a new table name, it doesn't have columns
+            table_classes[parent_class.table_name] = parent_class
+            for column in parent_class.columns:
+                # Check that we don't have two columns for the same attribute:
+                attr = column.attribute_name
+                if attr in full_saved_attribute_list:
+                    # ... unless one is a foreign key referring to the other:
+                    if (
+                        column.foreign_key
+                        and column.foreign_key[0] in table_classes
+                        and column.foreign_key[1]
+                        in table_classes[column.foreign_key[0]].column_names()
+                    ):
+                        continue
+                    raise ValueError(
+                        f"in {cls}'s table definition, two distinct "
+                        f"columns refer to the same attribute '{attr}'"
+                    )
+                full_column_list.append(column)
+                full_saved_attribute_list.append(attr)
+
+        return full_column_list
+
+    @classmethod
+    def get_full_owned_object_lists(cls):
+        """A class's full owned object lists includes those of its parent table class"""
+        full_owned_object_list = []
+        full_linking_attribute_list = []
+        table_classes = {}
+        for parent_class in cls.get_column_resolution_order():
+            if parent_class.table_name in table_classes:
+                continue  # If it doesn't have a new table name, it doesn't have columns
+            table_classes[parent_class.table_name] = parent_class
+            for owned_object_list in parent_class.owned_object_lists:
+                # Check that we don't have two links to the same attribute:
+                attr = owned_object_list.list_name
+                if attr in full_linking_attribute_list:
+                    raise ValueError(
+                        f"in {cls}'s table definition, two distinct "
+                        f"owned_object_lists refer to the same attribute '{attr}'"
+                    )
+                full_owned_object_list.append(owned_object_list)
+                full_linking_attribute_list.append(attr)
+        return full_owned_object_list
 
     @property
     def id(self):
