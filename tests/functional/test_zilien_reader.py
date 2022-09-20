@@ -14,9 +14,9 @@ from ixdat.techniques.ec_ms import (
     ECMeasurement,
 )
 
-DATA_DIR = Path(__file__).parent.parent.parent / "test_data"
+DATA_DIR = Path(__file__).parent.parent.parent / "submodules" / "ixdat-large-test-files"
 
-PATH_TO_DATAFILE = DATA_DIR / "Zilien version 1" / "2022-04-06 16_17_23 full set.tsv"
+PATH_TO_DATAFILE = DATA_DIR / "zilien_version_1" / "2022-04-06 16_17_23 full set.tsv"
 TIME_FORMAT = "%Y-%m-%d %H_%M_%S"
 EXPECTED_SERIES_ECMS = {
     "M32 [A]",
