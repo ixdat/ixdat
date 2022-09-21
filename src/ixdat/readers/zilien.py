@@ -2,13 +2,14 @@
 
 import re
 from collections import defaultdict
+from itertools import groupby, zip_longest
 from pathlib import Path
 
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 
-from ..data_series import ConstantValue, DataSeries, TimeSeries, ValueSeries, Field
+from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
 from ..techniques.ms import MSSpectrum
 from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
@@ -173,6 +174,34 @@ class ZilienTSVReader:
         self._measurement = cls(**measurement_kwargs)
         return self._measurement
 
+    @staticmethod
+    def _read_metadata(file_handle):
+        """Read metadata from `file_handle`"""
+
+        # The first 4 lines always include the file version, number of header lines,
+        # number of data header lines and data start line in this order.
+        # Backwards compatibility is ensured, because the one extra line read will be
+        # just added to the 'metadata' dict and ignored later.
+        metadata = {}
+        fixed_metadata_lines_amount = 4
+        for _ in range(fixed_metadata_lines_amount):
+            key, value = parse_metadata_line(file_handle.readline())
+            metadata[key] = value
+
+        # read the rest when the total amount is known
+        for _ in range(metadata["num_header_lines"] - fixed_metadata_lines_amount):
+            key, value = parse_metadata_line(file_handle.readline())
+            metadata[key] = value
+
+        # version 1 of the file format is sometimes missing this value
+        if "file_format_version" not in metadata:
+            metadata["file_format_version"] = 1
+
+        series_headers = file_handle.readline().strip("\n").split("\t")
+        column_headers = file_handle.readline().strip("\n").split("\t")
+
+        return metadata, series_headers, column_headers
+
     def _form_series(self, data, metadata, timestamp, series_headers, column_headers):
         """Form the series and series aliases
 
@@ -187,63 +216,184 @@ class ZilienTSVReader:
         Returns:
             List[Series], DefaultDict(str, List[str]): List of series and dict of aliases
         """
-        series = []
-        last_time_series = None
         aliases = defaultdict(list)
-        last_series_header = ""
+        series = []
 
-        # Iterate over numbered series and column headers
-        for column_number, (series_header, column_header) in enumerate(
-            zip(series_headers, column_headers)
-        ):
-            last_series_header = series_header or last_series_header
+        # Get non-empty series headers and their indices
+        # in order to process whole series chunks
+        series_cut_indices, nonempty_headers = self._get_series_splits(series_headers)
 
+        assert len(nonempty_headers) == len(
+            series_cut_indices
+        ), "Check if your dataset is not corrupted."
+
+        for series_header, (begin, end) in zip(nonempty_headers, series_cut_indices):
             # Skip series not relevant for the type of measurement
-            if not issubclass(self._cls, ECMeasurement) and last_series_header in (
+            if not issubclass(self._cls, ECMeasurement) and series_headers in (
                 "pot",
                 "EC-lab",
             ):
                 continue
-            elif not issubclass(self._cls, MSMeasurement) and to_mass(
-                last_series_header
-            ):
+            elif not issubclass(self._cls, MSMeasurement) and to_mass(series_header):
                 continue
 
-            # Pluck column of the correct length out from the data block and form series
-            count = metadata[f"{last_series_header}_{last_series_header}_count"]
-            column_data = data[:count, column_number]
-
-            # Form the series_name, unit, aliases and update aliases
-            series_name, unit, standard_name = self._form_names_and_unit(
-                last_series_header, column_header
+            args = (
+                series_header,
+                column_headers[begin:end],
+                data[:, begin:end],
+                metadata,
+                timestamp,
             )
+            if series_header == "EC-lab":
+                column_series = self._biologic_dataset_part(*args)
+            else:
+                column_series, aliases_part = self._zilien_dataset_part(*args)
+                for k, v in aliases_part:
+                    aliases[k] += v
+
+            series += column_series
+
+        return series, aliases
+
+    def _zilien_dataset_part(
+        self, series_header, column_headers, data, metadata, timestamp
+    ):
+        """Process necessary data for a Zilien dataset part."""
+
+        count = metadata[f"{series_header}_{series_header}_count"]
+
+        names_and_units = [
+            self._form_names_and_unit(series_header, column_header)
+            for column_header in column_headers
+        ]
+        # fill Mass aliases
+        aliases = defaultdict(list)
+        for series_name, _, standard_name in names_and_units:
             if standard_name:
                 aliases[standard_name].append(series_name)
 
-            # Form series kwargs and the series
+        column_series = self._create_series_objects(
+            column_headers, timestamp, names_and_units, data[:count, :]
+        )
+
+        return column_series, aliases
+
+    def _biologic_dataset_part(
+        self, series_header, column_headers, data, metadata, timestamp
+    ):
+        """Process necessary data for a Biologic dataset part."""
+
+        count = metadata[f"{series_header}_{series_header}_count"]
+
+        names_and_units = [
+            self._form_names_and_unit(series_header, column_header)
+            for column_header in column_headers
+        ]
+        # Split rows according to techniques used according to experiments
+        splits = self._get_biologic_splits(
+            data[:count, column_headers.index("technique_number")]
+        )
+
+        column_series = []
+        for begin, end in splits:
+            column_series += self._create_series_objects(
+                column_headers, timestamp, names_and_units, data[begin:end, :]
+            )
+
+        return column_series
+
+    @staticmethod
+    def _create_series_objects(column_headers, timestamp, names_and_units, data):
+        """Create an Ixdat series objects from a given portion of a dataset."""
+
+        series_objects = []
+        time_series = None
+
+        for column_number, column_header in enumerate(column_headers):
+            # Skip meta columns in the EC-lab dataset
+            if column_header in ("experiment_number", "technique_number"):
+                continue
+
+            column_data = data[:, column_number]
+
+            # Skip holes in the EC-lab dataset
+            if all(np.isnan(column_data)):
+                continue
+
+            # Form series kwargs
+            series_name, unit, standard_name = names_and_units[column_number]
             series_kwargs = {
                 "name": series_name,
                 "unit_name": unit,
                 "data": column_data,
             }
-            if column_header in ("Time [s]", "time/s"):  # Form TimeSeries
-                column_series = TimeSeries(**series_kwargs, tstamp=timestamp)
-                last_time_series = column_series
-            elif np.all(column_data == column_data[0]):
-                column_series = ConstantValue(**series_kwargs, tseries=last_time_series)
-            # TODO-O remove `column_header` for this one (?)
-            elif all(np.isnan(column_data)):
-                continue
+
+            # Create the series
+            if column_header in ("Time [s]", "time/s"):
+                series_object = TimeSeries(**series_kwargs, tstamp=timestamp)
+                time_series = series_object
             else:
-                column_series = ValueSeries(**series_kwargs, tseries=last_time_series)
+                assert (
+                    time_series is not None
+                ), "Time column must be first in a dataset series."
+                series_object = ValueSeries(**series_kwargs, tseries=time_series)
 
-            series.append(column_series)
+            series_objects.append(series_object)
 
-        return series, aliases
+        return series_objects
+
+    # --- UTILS ---
+
+    @staticmethod
+    def _get_series_splits(series_headers):
+        """Series names and their index pairs in the whole read dataset.
+
+        Args:
+            series_headers (list): Series name headers (even empty).
+
+        Returns:
+            list, list: List of tuples with index pairs and non-empty series name headers.
+        """
+        series_cut_indices = []
+        nonempty_headers = []
+
+        for index, series_header in enumerate(series_headers):
+            if series_header != "":
+                series_cut_indices.append(index)
+                nonempty_headers.append(series_header)
+
+        # create cut pairs
+        # zip_longest to have the last pair with the index of the last series header to the end
+        series_cut_indices = [
+            (begin, end)
+            for begin, end in zip_longest(series_cut_indices, series_cut_indices[1:])
+        ]
+
+        return series_cut_indices, nonempty_headers
+
+    @staticmethod
+    def _get_biologic_splits(technique_numbers):
+        """Index pairs of row splits in the biologic dataset columns.
+
+        Args:
+            technique_numbers (np.array): Numbers of techniques during an EC-lab experiment(s).
+
+        Returns:
+            list: List of tuples with index pairs.
+        """
+        index = 0
+        splits = []
+
+        for _, group in groupby(technique_numbers):
+            group_length = len(list(group))
+            splits.append((index, index + group_length))
+            index += group_length
+
+        return splits
 
     @staticmethod
     def _form_names_and_unit(series_header, column_header):
-        """Return names and unit
+        """Form names and unit from headers.
 
         Args:
             series_header (str): Something like "Iongauge value" or "C0M18"
@@ -293,34 +443,6 @@ class ZilienTSVReader:
                 name = column_header
 
         return name, unit, standard_name
-
-    @staticmethod
-    def _read_metadata(file_handle):
-        """Read metadata from `file_handle`"""
-
-        # The first 4 lines always include the file version, number of header lines,
-        # number of data header lines and data start line in this order.
-        # Backwards compatibility is ensured, because the one extra line read will be
-        # just added to the 'metadata' dict and ignored later.
-        metadata = {}
-        fixed_metadata_lines_amount = 4
-        for _ in range(fixed_metadata_lines_amount):
-            key, value = parse_metadata_line(file_handle.readline())
-            metadata[key] = value
-
-        # read the rest when the total amount is known
-        for _ in range(metadata["num_header_lines"] - fixed_metadata_lines_amount):
-            key, value = parse_metadata_line(file_handle.readline())
-            metadata[key] = value
-
-        # version 1 of the file format is sometimes missing this value
-        if "file_format_version" not in metadata:
-            metadata["file_format_version"] = 1
-
-        series_headers = file_handle.readline().strip("\n").split("\t")
-        column_headers = file_handle.readline().strip("\n").split("\t")
-
-        return metadata, series_headers, column_headers
 
 
 class ZilienTMPReader:
@@ -409,7 +531,7 @@ class ZilienSpectrumReader:
             header=9,
             delimiter="\t",
         )
-        x_name = "Mass  [AMU]"
+        x_name = "Mass [AMU]"
         y_name = "Current [A]"
         x = df[x_name].to_numpy()
         y = df[y_name].to_numpy()
