@@ -27,7 +27,7 @@ filename_with_technique: {
 """
 TEST_DATA = {
     # MULTI-TECHNIQUE DATASET
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_02_CVA_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_02_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 1)),
         "error": ("", (0, 0)),
@@ -45,7 +45,7 @@ TEST_DATA = {
         "P/W": ("W", (-4.0162254e-007, 1.0149774e-005)),
         "Ns": ("", (0, 0)),  # this is automatically added by ixdat as a ConstantValue
     },
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_03_CP_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_03_CP_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (1, 0)),
         "error": ("", (0, 0)),
@@ -83,7 +83,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
         "P/W": ("W", (1.1309961e-009, -1.6560911e-006)),
     },
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_04_CP_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_04_CP_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (0, 0)),
@@ -121,7 +121,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 0.000000000000000e000)),
         "P/W": ("W", (-1.6289529e-006, -1.2163383e-006)),
     },
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_05_CA_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_05_CA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (1, 0)),
@@ -159,7 +159,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 1.000000000000000e000)),
         "P/W": ("W", (-1.8127311e-006, -2.0061668e-007)),
     },
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_06_CA_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_06_CA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (0, 0)),
@@ -197,7 +197,7 @@ TEST_DATA = {
         "cycle number": ("", (0.000000000000000e000, 5.000000000000000e000)),
         "P/W": ("W", (-4.9556947e-005, -9.2322317e-008)),
     },
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_07_ZIR_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_07_ZIR_C01.mpt": {
         "freq/Hz": ("Hz", None),
         "Re(Z)/Ohm": ("Ohm", None),
         "-Im(Z)/Ohm": ("Ohm", None),
@@ -216,7 +216,7 @@ TEST_DATA = {
         "cycle number": ("", None),  # added by Ixdat
         "Ns": ("", None),  # added by Ixdat
     },
-    "multiple_techniques_dataset/multiple_techniques_dataset_01_08_CVA_C01.mpt": {
+    "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_08_CVA_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (0, 0)),
         "error": ("", (1, 0)),
@@ -235,7 +235,7 @@ TEST_DATA = {
         "Ns": ("", (0, 0)),  # added by Ixdat
     },
     # DATASET WITH A LOOP
-    "dataset_with_loop/dataset_with_loop_01_01_OCV_DUSB0_C01.mpt": {
+    "biologic_dataset_with_loop/dataset_with_loop_01_01_OCV_DUSB0_C01.mpt": {
         "mode": ("", (3, 3)),
         "error": ("", (1, 0)),
         "time/s": ("s", (0.000000000000000e000, 9.999799747383804e000)),
@@ -247,7 +247,7 @@ TEST_DATA = {
         "cycle number": ("", (0, 0)),  # added by Ixdat
         "Ns": ("", (0, 0)),  # added by Ixdat
     },
-    "dataset_with_loop/dataset_with_loop_01_02_CVA_DUSB0_C01.mpt": {
+    "biologic_dataset_with_loop/dataset_with_loop_01_02_CVA_DUSB0_C01.mpt": {
         "mode": ("", (2, 2)),
         "ox/red": ("red", (1, 0)),
         "error": ("", (0, 0)),
@@ -267,7 +267,7 @@ TEST_DATA = {
         "loop_number": ("", (0, 1)),  # added by Ixdat
         "Ns": ("", (0, 0)),  # added by Ixdat
     },
-    "dataset_with_loop/dataset_with_loop_01_03_CP_DUSB0_C01.mpt": {
+    "biologic_dataset_with_loop/dataset_with_loop_01_03_CP_DUSB0_C01.mpt": {
         "mode": ("", (1, 1)),
         "ox/red": ("red", (1, 1)),
         "error": ("", (0, 0)),
