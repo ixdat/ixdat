@@ -31,6 +31,8 @@ ZILIEN_ALIASES = {
     ECMeasurement: ZILIEN_EC_ALIASES,
 }
 
+BIOLOGIC_SERIES_NAME = "EC-lab"
+
 # TODO: When, in the future, Zilien files include the whole EC dataset, remove the
 #    unflattering example presently in the docs.
 #    https://github.com/ixdat/ixdat/pull/30/files#r810087496
@@ -92,6 +94,12 @@ class ZilienTSVReader:
         self._cls = None
         self._measurement = None
 
+        self._timestamp = None
+        self._metadata = None
+        self._series_headers = None
+        self._column_headers = None
+        self._data = None
+
     def read(self, path_to_file, cls=ECMSMeasurement, name=None, **kwargs):
         """Read a Zilien file
 
@@ -140,25 +148,27 @@ class ZilienTSVReader:
 
         # Extract timestamp from filename on form: 2021-04-20 11_16_18 Measurement name
         file_stem = self._path_to_file.stem  # Part of filename before the extension
-        timestamp = timestamp_string_to_tstamp(
+        self._timestamp = timestamp_string_to_tstamp(
             timestamp_string=" ".join(file_stem.split(" ")[:2]),
             form=ZILIEN_TIMESTAMP_FORM,
         )
 
         # Parse metadata items
         with open(self._path_to_file, encoding="utf-8") as file_handle:
-            metadata, series_headers, column_headers = self._read_metadata(file_handle)
+            (
+                self._metadata,
+                self._series_headers,
+                self._column_headers,
+            ) = self._read_metadata(file_handle)
             file_position = file_handle.tell()
 
         # Read raw data
         with open(self._path_to_file, "rb") as file_handle:
             file_handle.seek(file_position)
-            data = np.genfromtxt(file_handle, delimiter="\t")
+            self._data = np.genfromtxt(file_handle, delimiter="\t")
 
         # Extract series data and form series
-        series, aliases = self._form_series(
-            data, metadata, timestamp, series_headers, column_headers
-        )
+        series, aliases = self._form_series()
         for standard_name, general_aliases in ZILIEN_ALIASES[self._cls].items():
             aliases[standard_name] += general_aliases
         aliases = dict(aliases)  # Convert from defaultdict to normal dict
@@ -167,8 +177,8 @@ class ZilienTSVReader:
             "name": name or file_stem,
             "series_list": series,
             "aliases": aliases,
-            "tstamp": timestamp,
-            "metadata": metadata,
+            "tstamp": self._timestamp,
+            "metadata": self._metadata,
         }
         measurement_kwargs.update(kwargs)
         self._measurement = cls(**measurement_kwargs)
@@ -202,16 +212,8 @@ class ZilienTSVReader:
 
         return metadata, series_headers, column_headers
 
-    def _form_series(self, data, metadata, timestamp, series_headers, column_headers):
+    def _form_series(self):
         """Form the series and series aliases
-
-        Args:
-            data (numpy.array): The data block of the tsv file as an array
-            metadata (dict): Extracted metadata
-            timestamp (float): The timestamp of the measurement
-            series_headers (List[str]): List of series headers, slots with empty strings
-                means the same as the last non-empty one
-            column_headers (List[str]): List of column headers
 
         Returns:
             List[Series], DefaultDict(str, List[str]): List of series and dict of aliases
@@ -221,7 +223,9 @@ class ZilienTSVReader:
 
         # Get non-empty series headers and their indices
         # in order to process whole series chunks
-        series_cut_indices, nonempty_headers = self._get_series_splits(series_headers)
+        series_cut_indices, nonempty_headers = self._get_series_splits(
+            self._series_headers
+        )
 
         assert len(nonempty_headers) == len(
             series_cut_indices
@@ -229,81 +233,77 @@ class ZilienTSVReader:
 
         for series_header, (begin, end) in zip(nonempty_headers, series_cut_indices):
             # Skip series not relevant for the type of measurement
-            if not issubclass(self._cls, ECMeasurement) and series_headers in (
+            if not issubclass(self._cls, ECMeasurement) and series_header in (
                 "pot",
-                "EC-lab",
+                BIOLOGIC_SERIES_NAME,
             ):
                 continue
             elif not issubclass(self._cls, MSMeasurement) and to_mass(series_header):
                 continue
 
-            args = (
-                series_header,
-                column_headers[begin:end],
-                data[:, begin:end],
-                metadata,
-                timestamp,
-            )
-            if series_header == "EC-lab":
-                column_series = self._biologic_dataset_part(*args)
+            column_headers_cut = self._column_headers[begin:end]
+            data_cut = self._data[:, begin:end]
+
+            if series_header == BIOLOGIC_SERIES_NAME:
+                column_series = self._biologic_dataset_part(column_headers_cut, data_cut)
             else:
-                column_series, aliases_part = self._zilien_dataset_part(*args)
-                for k, v in aliases_part:
-                    aliases[k] += v
+                column_series, aliases_part = self._zilien_dataset_part(
+                    series_header, column_headers_cut, data_cut
+                )
+                # update aliases
+                for standard_name, series_name in aliases_part.items():
+                    aliases[standard_name] += series_name
 
             series += column_series
 
         return series, aliases
 
-    def _zilien_dataset_part(
-        self, series_header, column_headers, data, metadata, timestamp
-    ):
+    def _zilien_dataset_part(self, series_header, column_headers, data):
         """Process necessary data for a Zilien dataset part."""
 
-        count = metadata[f"{series_header}_{series_header}_count"]
-
+        count = self._metadata[f"{series_header}_{series_header}_count"]
         names_and_units = [
             self._form_names_and_unit(series_header, column_header)
             for column_header in column_headers
         ]
-        # fill Mass aliases
+
+        # Fill Mass aliases
         aliases = defaultdict(list)
         for series_name, _, standard_name in names_and_units:
             if standard_name:
                 aliases[standard_name].append(series_name)
 
+        # Create Ixdat series
         column_series = self._create_series_objects(
-            column_headers, timestamp, names_and_units, data[:count, :]
+            column_headers, names_and_units, data[:count, :]
         )
 
         return column_series, aliases
 
-    def _biologic_dataset_part(
-        self, series_header, column_headers, data, metadata, timestamp
-    ):
+    def _biologic_dataset_part(self, column_headers, data):
         """Process necessary data for a Biologic dataset part."""
 
-        count = metadata[f"{series_header}_{series_header}_count"]
-
+        count = self._metadata[f"{BIOLOGIC_SERIES_NAME}_{BIOLOGIC_SERIES_NAME}_count"]
         names_and_units = [
-            self._form_names_and_unit(series_header, column_header)
+            self._form_names_and_unit(BIOLOGIC_SERIES_NAME, column_header)
             for column_header in column_headers
         ]
+
         # Split rows according to techniques used according to experiments
         splits = self._get_biologic_splits(
             data[:count, column_headers.index("technique_number")]
         )
 
+        # Create Ixdat series
         column_series = []
         for begin, end in splits:
             column_series += self._create_series_objects(
-                column_headers, timestamp, names_and_units, data[begin:end, :]
+                column_headers, names_and_units, data[begin:end, :]
             )
 
         return column_series
 
-    @staticmethod
-    def _create_series_objects(column_headers, timestamp, names_and_units, data):
+    def _create_series_objects(self, column_headers, names_and_units, data):
         """Create an Ixdat series objects from a given portion of a dataset."""
 
         series_objects = []
@@ -330,7 +330,7 @@ class ZilienTSVReader:
 
             # Create the series
             if column_header in ("Time [s]", "time/s"):
-                series_object = TimeSeries(**series_kwargs, tstamp=timestamp)
+                series_object = TimeSeries(**series_kwargs, tstamp=self._timestamp)
                 time_series = series_object
             else:
                 assert (
@@ -352,7 +352,8 @@ class ZilienTSVReader:
             series_headers (list): Series name headers (even empty).
 
         Returns:
-            list, list: List of tuples with index pairs and non-empty series name headers.
+            list, list: List of tuples with index pairs
+            and a list with non-empty series name headers.
         """
         series_cut_indices = []
         nonempty_headers = []
@@ -363,7 +364,8 @@ class ZilienTSVReader:
                 nonempty_headers.append(series_header)
 
         # create cut pairs
-        # zip_longest to have the last pair with the index of the last series header to the end
+        # zip_longest to have the last pair with the index of the last
+        # series header to the end
         series_cut_indices = [
             (begin, end)
             for begin, end in zip_longest(series_cut_indices, series_cut_indices[1:])
@@ -376,7 +378,8 @@ class ZilienTSVReader:
         """Index pairs of row splits in the biologic dataset columns.
 
         Args:
-            technique_numbers (np.array): Numbers of techniques during an EC-lab experiment(s).
+            technique_numbers (np.array): Numbers of techniques during
+                an EC-lab experiment(s).
 
         Returns:
             list: List of tuples with index pairs.
@@ -408,7 +411,7 @@ class ZilienTSVReader:
             unit = "s"
             if series_header == "pot":
                 name = f"Potential {column_header.lower()}"
-            elif series_header == "EC-lab":
+            elif series_header == BIOLOGIC_SERIES_NAME:
                 name = f"Biologic {column_header.lower()}"
             else:
                 name = f"{series_header} {column_header.lower()}"

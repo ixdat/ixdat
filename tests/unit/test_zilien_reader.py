@@ -20,7 +20,7 @@ class TestZilienTSVReader:
     def _test_first(self):
         m = Measurement.read(
             DATA_DIR
-            / "zilien_version_2/2022-09-19 11_27_59 test-1/2022-09-19 11_27_59 test-21.tsv",
+            / "zilien_version_2/2022-09-19 11_27_59 test-1/2022-09-19 11_27_59 test-21.tsv",  # noqa: E501
             reader="zilien",
         )
         print(m.series_list)
@@ -49,9 +49,19 @@ class TestZilienTSVReaderUtils:
 
     def test_get_series_splits_multi(self, reader):
         """Test series splits for a list with multiple groups."""
-        # fmt: off
-        data = ["pot", "", "", "", "MFC1 setpoint", "", "MFC1 value", "", "EC-lab", "", ""]
-        # fmt: on
+        data = [
+            "pot",
+            "",
+            "",
+            "",
+            "MFC1 setpoint",
+            "",
+            "MFC1 value",
+            "",
+            "EC-lab",
+            "",
+            "",
+        ]
         assert reader._get_series_splits(data) == (
             [(0, 4), (4, 6), (6, 8), (8, None)],
             ["pot", "MFC1 setpoint", "MFC1 value", "EC-lab"],
