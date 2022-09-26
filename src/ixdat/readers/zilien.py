@@ -434,12 +434,12 @@ class ZilienTSVReader:
                 if series_header.endswith(option):
                     setpoint_or_value = option
 
+            mass = to_mass(series_header)
             if setpoint_or_value:
                 # In that case, the column header is something like "Flow [ml/min]" where
                 # "Flow" is unnecessary, because that is apparent from the unit
                 name = f"{series_header} [{unit}]"
-            elif to_mass(series_header) is not None:
-                mass = to_mass(series_header)
+            elif mass is not None:
                 name = f"M{mass} [{unit}]"
                 standard_name = f"M{mass}"
             else:
