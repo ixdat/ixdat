@@ -168,3 +168,15 @@ def test_read(cls_or_technique, expected_series):
         assert time_data[-1] == approx(single_series_details.t_last)
         assert value_data[0] == approx(single_series_details.v_first)
         assert value_data[-1] == approx(single_series_details.v_last)
+
+
+class TestZilienTSVReader:
+    """Tests for Zilien TSV Reader."""
+
+    def _test_first(self):
+        m = Measurement.read(
+            DATA_DIR
+            / "zilien_version_2/2022-09-19 11_27_59 test-1/2022-09-19 11_27_59 test-21.tsv",  # noqa: E501
+            reader="zilien",
+        )
+        print(m.series_list)
