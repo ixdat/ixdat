@@ -11,30 +11,14 @@ from ixdat.data_series import TimeSeries, ValueSeries
 DATA_DIR = Path(__file__).parent.parent.parent / "submodules" / "ixdat-large-test-files"
 
 
-@fixture(scope="class")
-def reader():
-    """Simple Zilien reader object."""
-    return ZilienTSVReader()
-
-
-@fixture(scope="function")
-def reader_initialized():
-    """Zilien reader object with some attributes initialized."""
-    reader = ZilienTSVReader()
-    reader._timestamp = 123456
-    reader._metadata = {
-        "MFC1 value_MFC1 value_count": 2,
-        "C4M26_C4M26_count": 2,
-        "EC-lab_EC-lab_count": 3,
-    }
-    return reader
-
-
 class TestZilienTSVReader:
     """Tests for Zilien TSV Reader."""
 
-    def test_create_series_objects(self, reader_initialized):
+    def test_create_series_objects(self):
         """Test creation of Ixdat series objects."""
+
+        reader = ZilienTSVReader()
+        reader._timestamp = 123456
 
         column_headers = ["time/s", "experiment_number", "I/mA", "Ewe/V"]
         names_and_units = [
@@ -51,7 +35,7 @@ class TestZilienTSVReader:
             dtype=float,
         )
 
-        series = reader_initialized._create_series_objects(
+        series = reader._create_series_objects(
             column_headers, names_and_units, data
         )
 
@@ -70,7 +54,7 @@ class TestZilienTSVReader:
         # when time is not first, the dataset will not be parsed
         column_headers = ["experiment_number", "I/mA", "Ewe/V", "time/s"]
         with pytest.raises(AssertionError):
-            reader_initialized._create_series_objects(
+            reader._create_series_objects(
                 column_headers, names_and_units, data
             )
 
@@ -82,9 +66,16 @@ class TestZilienTSVReader:
         ),
     )
     def test_zilien_dataset_part(
-        self, reader_initialized, series_header, column_headers, expected_aliases
+        self, series_header, column_headers, expected_aliases
     ):
         """Test forming of Zilien part of a dataset."""
+
+        reader = ZilienTSVReader()
+        reader._timestamp = 123456
+        reader._metadata = {
+            "MFC1 value_MFC1 value_count": 2,
+            "C4M26_C4M26_count": 2,
+        }
 
         data = np.array(
             [
@@ -95,7 +86,7 @@ class TestZilienTSVReader:
             dtype=float,
         )
 
-        series, aliases = reader_initialized._zilien_dataset_part(
+        series, aliases = reader._zilien_dataset_part(
             series_header, column_headers, data
         )
 
@@ -152,14 +143,21 @@ class TestZilienTSVReader:
         ),
     )
     def test_biologic_dataset_part(
-        self, reader_initialized, data, lines_count, expected
+        self, data, lines_count, expected
     ):
         """Test forming of Biologic part of a dataset."""
 
-        reader_initialized._metadata["EC-lab_EC-lab_count"] = lines_count
+        reader = ZilienTSVReader()
+        reader._timestamp = 123456
+        reader._metadata = {
+            "MFC1 value_MFC1 value_count": 2,
+            "C4M26_C4M26_count": 2,
+            "EC-lab_EC-lab_count": lines_count,
+        }
+
         column_headers = ["time/s", "technique_number", "Ewe/V", "I/mA"]
 
-        series = reader_initialized._biologic_dataset_part(column_headers, data)
+        series = reader._biologic_dataset_part(column_headers, data)
 
         assert len(series) == len(expected)
 
@@ -234,8 +232,9 @@ class TestZilienTSVReaderUtils:
             ),
         ),
     )
-    def test_get_series_splits(self, reader, data, expected):
+    def test_get_series_splits(self, data, expected):
         """Test series splits."""
+        reader = ZilienTSVReader()
         assert reader._get_series_splits(data) == expected
 
     @pytest.mark.parametrize(
@@ -256,8 +255,9 @@ class TestZilienTSVReaderUtils:
             ),
         ),
     )
-    def test_get_biologic_splits(self, reader, data, expected):
+    def test_get_biologic_splits(self, data, expected):
         """Test biologic splits."""
+        reader = ZilienTSVReader()
         assert reader._get_biologic_splits(data) == expected
 
     @pytest.mark.parametrize(
@@ -279,6 +279,7 @@ class TestZilienTSVReaderUtils:
             ("EC-lab", "I/mA", ("I/mA", "mA", None)),
         ),
     )
-    def test_form_names_and_unit(self, reader, series_header, column_header, expected):
+    def test_form_names_and_unit(self, series_header, column_header, expected):
         """Test forming names and units."""
+        reader = ZilienTSVReader()
         assert reader._form_names_and_unit(series_header, column_header) == expected
