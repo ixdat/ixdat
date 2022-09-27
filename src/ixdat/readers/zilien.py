@@ -400,7 +400,7 @@ class ZilienTSVReader:
 
         Args:
             series_header (str): Something like "Iongauge value" or "C0M18"
-            column_header (str): Something like "Time [s]" or "Time [s]"
+            column_header (str): Something like "Time [s]" or "Flow [ml/min]"
 
         Returns:
             str, str, Optional[str]: Return series_name, unit, standard_name
