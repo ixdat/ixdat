@@ -13,6 +13,7 @@ DATA_DIR = Path(__file__).parent.parent.parent / "submodules" / "ixdat-large-tes
 
 
 def patch_biologic_dataset_part(column_headers_cut, data_cut):
+    """Patch function for a biologic part call inside form series method."""
     return [
         (column_header, data_cut[0, index])
         for index, column_header in enumerate(column_headers_cut)
@@ -20,6 +21,7 @@ def patch_biologic_dataset_part(column_headers_cut, data_cut):
 
 
 def patch_zilien_dataset_part(series_header, column_headers_cut, data_cut):
+    """Patch function for a zilien part call inside form series method."""
     mass = to_mass(series_header)
     aliases = {f"M{mass}": [f"M{mass} [A]"]} if mass is not None else {}
 
@@ -108,43 +110,53 @@ class TestZilienTSVReader:
         assert dict(aliases) == expected_aliases
 
     @pytest.mark.parametrize(
-        "data, lines_count, expected",
+        "data, lines_count, expected_series_length",
         # fmt: off
         (
             (
                 np.array([
-                    [0.1, 1, "NaN", 3],
-                    [0.2, 1, "NaN", 4],
-                    [0.3, 1, "NaN", 5],
-                    ["NaN", "NaN", "NaN", "NaN"],
+                    [0.1, 1, 1, "NaN", 3],
+                    [0.2, 1, 1, "NaN", 4],
+                    [0.3, 1, 1, "NaN", 5],
+                    ["NaN", "NaN", "NaN", "NaN", "NaN"],
                 ], dtype=float),
                 3, (3, 3),
             ),
             (
                 np.array([
-                    [0.1, 1, "NaN", 3],
-                    [0.2, 2, "NaN", 4],
-                    [0.3, 2, "NaN", 5],
-                    ["NaN", "NaN", "NaN", "NaN"],
+                    [0.1, 1, 1, "NaN", 3],
+                    [0.2, 1, 2, "NaN", 4],
+                    [0.3, 1, 2, "NaN", 5],
+                    ["NaN", "NaN", "NaN", "NaN", "NaN"],
                 ], dtype=float),
                 3, (1, 1, 2, 2),
             ),
             (
                 np.array([
-                    [0.1, 1, "NaN", 3],
-                    [0.2, 2, "NaN", 4],
-                    [0.3, 2, "NaN", 5],
-                    [0.4, 1, "NaN", 3],
-                    [0.5, 1, "NaN", 4],
-                    [0.6, 2, "NaN", 5],
-                    ["NaN", "NaN", "NaN", "NaN"],
+                    [0.1, 1, 1, "NaN", 3],
+                    [0.2, 1, 2, "NaN", 4],
+                    [0.3, 1, 2, "NaN", 5],
+                    [0.4, 2, 1, "NaN", 3],
+                    [0.5, 2, 1, "NaN", 4],
+                    [0.6, 2, 2, "NaN", 5],
+                    ["NaN", "NaN", "NaN", "NaN", "NaN"],
                 ], dtype=float),
                 6, (1, 1, 2, 2, 2, 2, 1, 1),
+            ),
+            (
+                np.array([
+                    [0.1, 1, 1, "NaN", 3],
+                    [0.2, 1, 1, "NaN", 4],
+                    [0.3, 2, 1, "NaN", 5],
+                    [0.4, 2, 1, "NaN", 3],
+                    ["NaN", "NaN", "NaN", "NaN", "NaN"],
+                ], dtype=float),
+                4, (2, 2, 2, 2),
             ),
         ),
         # fmt: on
     )
-    def test_biologic_dataset_part(self, data, lines_count, expected):
+    def test_biologic_dataset_part(self, data, lines_count, expected_series_length):
         """Test forming of Biologic part of a dataset."""
 
         reader = ZilienTSVReader()
@@ -155,13 +167,19 @@ class TestZilienTSVReader:
             "EC-lab_EC-lab_count": lines_count,
         }
 
-        column_headers = ["time/s", "technique_number", "Ewe/V", "I/mA"]
+        column_headers = [
+            "time/s",
+            "experiment_number",
+            "technique_number",
+            "Ewe/V",
+            "I/mA",
+        ]
 
         series = reader._biologic_dataset_part(column_headers, data)
 
-        assert len(series) == len(expected)
+        assert len(series) == len(expected_series_length)
 
-        for index, count in enumerate(expected):
+        for index, count in enumerate(expected_series_length):
             assert series[index].data.size == count
 
     @pytest.mark.parametrize(
@@ -267,7 +285,13 @@ class TestZilienTSVReaderUtils:
     )
     def test_parse_metadata_line(self, line, expected_full_name, expected_value):
         """Test parsing metadata lines."""
-        assert parse_metadata_line(line) == (expected_full_name, expected_value)
+        full_name, value = parse_metadata_line(line)
+
+        assert full_name == expected_full_name
+        if isinstance(value, float):
+            assert value == pytest.approx(expected_value)
+        else:
+            assert value == expected_value
 
     def test_parse_metadata_line_error(self):
         """Test raising an error."""
