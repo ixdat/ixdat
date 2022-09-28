@@ -329,6 +329,8 @@ class MSPlotter(MPLPlotter):
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
         if v_lists:
+            if not axes and not ax:
+                ax = self.new_ax()
             axes = axes or [ax, ax.twinx()]  # prepare an axis unless we were given two.
             ax_right = axes[-1]
             ax = axes[0]
