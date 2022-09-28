@@ -294,7 +294,7 @@ class ZilienTSVReader:
         # in order to create unique identifiers for a successful split
         exp_nums = data[:count, column_headers.index("experiment_number")]
         tech_nums = data[:count, column_headers.index("technique_number")]
-        split_vector = exp_nums * 10 + tech_nums
+        split_vector = exp_nums * 1000 + tech_nums
         splits = self._get_biologic_splits(split_vector)
 
         # Create Ixdat series

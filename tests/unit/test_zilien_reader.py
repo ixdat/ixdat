@@ -15,8 +15,8 @@ DATA_DIR = Path(__file__).parent.parent.parent / "submodules" / "ixdat-large-tes
 def patch_biologic_dataset_part(column_headers_cut, data_cut):
     """Patch function for a biologic part call inside form series method."""
     return [
-        (column_header, data_cut[0, index])
-        for index, column_header in enumerate(column_headers_cut)
+        (column_header, data_cut[0, i])
+        for i, column_header in enumerate(column_headers_cut)
     ]
 
 
@@ -26,8 +26,8 @@ def patch_zilien_dataset_part(series_header, column_headers_cut, data_cut):
     aliases = {f"M{mass}": [f"M{mass} [A]"]} if mass is not None else {}
 
     return [
-        (f"{series_header}_{column_header}", data_cut[0, index])
-        for index, column_header in enumerate(column_headers_cut)
+        (f"{series_header}_{column_header}", data_cut[0, i])
+        for i, column_header in enumerate(column_headers_cut)
     ], aliases
 
 
@@ -179,8 +179,8 @@ class TestZilienTSVReader:
 
         assert len(series) == len(expected_series_length)
 
-        for index, count in enumerate(expected_series_length):
-            assert series[index].data.size == count
+        for i, count in enumerate(expected_series_length):
+            assert series[i].data.size == count
 
     @pytest.mark.parametrize(
         "klass, expected_aliases, expected_series",
