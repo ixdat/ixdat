@@ -49,3 +49,14 @@ The workings of ``MSMeasurement.grab_flux`` are changed if ``plugins.USE_QUANT``
 In that case, it invokes the *quantifier* via ``MSMeasurement.grab_fluxes`` and returns
 just the flux of the requested molecule.
 
+New Zilien reader
+=================
+
+A new Zilien reader for the SpectroInlets' new Zilien dataset file format
+version. The new dataset version is able to integrate the Biologic EC-lab
+dataset during a measurement. Such dataset contains a new series with header
+EC-lab with two meta columns experiment_number and technique_number that the
+new reader is using during the process of creating Ixdat series objects. The
+objects created from the Zilien dataset match exactly the objects created from
+the Biologic mpt files, like when read one by one.
+
