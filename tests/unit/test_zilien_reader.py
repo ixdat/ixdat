@@ -13,7 +13,7 @@ DATA_DIR = Path(__file__).parent.parent.parent / "submodules" / "ixdat-large-tes
 
 
 def patch_biologic_dataset_part(column_headers_cut, data_cut):
-    """Patch function for a biologic part call inside form series method."""
+    """A patch function to replace the original one inside the _form_series method."""
     return [
         (column_header, data_cut[0, i])
         for i, column_header in enumerate(column_headers_cut)
@@ -21,7 +21,7 @@ def patch_biologic_dataset_part(column_headers_cut, data_cut):
 
 
 def patch_zilien_dataset_part(series_header, column_headers_cut, data_cut):
-    """Patch function for a zilien part call inside form series method."""
+    """A patch function to replace the original one inside the _form_series method."""
     mass = to_mass(series_header)
     aliases = {f"M{mass}": [f"M{mass} [A]"]} if mass is not None else {}
 
@@ -71,7 +71,7 @@ class TestZilienTSVReader:
 
         # when time is not first, the dataset will not be parsed
         column_headers = ["experiment_number", "I/mA", "Ewe/V", "time/s"]
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             reader._create_series_objects(column_headers, names_and_units, data)
 
     @pytest.mark.parametrize(
