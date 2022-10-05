@@ -130,6 +130,9 @@ SERIES_DETAILS = {
     ),
 }
 
+# the amount of Zilien data columns in the test datasets
+# it is used when testing if the amount of created series
+# by the "biologic" reader and by the "zilien" reader matches
 ZILIEN_COLUMNS_AMOUNT = 56
 
 
@@ -164,15 +167,23 @@ ZILIEN_COLUMNS_AMOUNT = 56
 ))
 # fmt: on
 def datasets(request):
-    """Parametrized fixture for reading datasets and return created series."""
+    """Parametrized fixture for reading datasets and return created series.
+
+    One parameter set contains a path to the Zilien TSV file, a list of paths
+    to the Biologic MPT files and a tuple with time offsets corresponding to
+    the MPT files.
+
+    Args:
+        request: A pytest request class with the parameters.
+    """
     tsv_file_path = request.param[0]
     mpt_file_paths = request.param[1]
-    mpt_offsets = request.param[2]
+    mpt_time_offsets = request.param[2]
 
     tsv = Measurement.read(tsv_file_path, reader="zilien")
     mpts = [Measurement.read(path, reader="biologic") for path in mpt_file_paths]
 
-    return tsv, mpts, mpt_offsets
+    return tsv, mpts, mpt_time_offsets
 
 
 @pytest.mark.external
@@ -264,16 +275,16 @@ class TestZilienIntegrated:
         """Test the same timeseries."""
 
         # coming from parametrized fixture
-        tsv, mpts, mpts_offsets = datasets
+        tsv, mpts, mpts_time_offsets = datasets
 
         # same amount
         tsv_time_series = [
             ser for ser in tsv.series_list if ser.name == "Biologic time/s"
         ]
-        assert len(tsv_time_series) == len(mpts_offsets)
+        assert len(tsv_time_series) == len(mpts_time_offsets)
 
         # same data
-        for i, offset in enumerate(mpts_offsets):
+        for i, offset in enumerate(mpts_time_offsets):
             tsv_times = tsv_time_series[i].data
             mpt_times = mpts[i]["time/s"].data + offset
 
@@ -284,7 +295,7 @@ class TestZilienIntegrated:
         """Test the same data."""
 
         # coming from parametrized fixture
-        tsv, mpts, mpts_offsets = datasets
+        tsv, mpts, mpts_time_offsets = datasets
 
         all_mpts = reduce(lambda x, y: x + y, mpts)
 

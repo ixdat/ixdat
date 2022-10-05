@@ -94,10 +94,15 @@ class ZilienTSVReader:
         self._cls = None
         self._measurement = None
 
+        # start time of the Zilien measurement
         self._timestamp = None
+        # a dictionary with metadata general information about the Zilien measurement
         self._metadata = None
+        # a list with the Zilien TSV series headers
         self._series_headers = None
+        # a list with the Zilien TSV columns headers
         self._column_headers = None
+        # a numpy array of the parsed Zilien data
         self._data = None
 
     def read(self, path_to_file, cls=ECMSMeasurement, name=None, **kwargs):
@@ -146,13 +151,6 @@ class ZilienTSVReader:
 
         self._path_to_file = Path(path_to_file)
 
-        # Extract timestamp from filename on form: 2021-04-20 11_16_18 Measurement name
-        file_stem = self._path_to_file.stem  # Part of filename before the extension
-        self._timestamp = timestamp_string_to_tstamp(
-            timestamp_string=" ".join(file_stem.split(" ")[:2]),
-            form=ZILIEN_TIMESTAMP_FORM,
-        )
-
         # Parse metadata items
         with open(self._path_to_file, encoding="utf-8") as file_handle:
             (
@@ -166,6 +164,20 @@ class ZilienTSVReader:
         with open(self._path_to_file, "rb") as file_handle:
             file_handle.seek(file_position)
             self._data = np.genfromtxt(file_handle, delimiter="\t")
+
+        # Part of filename before the extension
+        file_stem = self._path_to_file.stem
+
+        if "start_time_unix" in self._metadata:
+            # Extract unix timestamp from metadata
+            self._timestamp = float(self._metadata["start_time_unix"])
+        else:
+            # Extract timestamp from filename on form:
+            # 2021-04-20 11_16_18 Measurement name
+            self._timestamp = timestamp_string_to_tstamp(
+                timestamp_string=" ".join(file_stem.split(" ")[:2]),
+                form=ZILIEN_TIMESTAMP_FORM,
+            )
 
         # Extract series data and form series
         series, aliases = self._form_series()
@@ -332,6 +344,10 @@ class ZilienTSVReader:
     def _create_series_objects(self, column_headers, names_and_units, data_rows_cut):
         """Create an Ixdat series objects from a given portion of a dataset.
 
+        The `experiment_number` and the `technique_number` columns are skipped,
+        because they are used only to cut rows in the Biologic dataset by the
+        Zilien reader, in order to create the same series as Ixdat would.
+
         Args:
             column_headers (list): A list with column names from the current series.
             names_and_units (list): A tuple with three elements. A series name,
@@ -476,8 +492,11 @@ class ZilienTSVReader:
             if setpoint_or_value:
                 # In that case, the column header is something like "Flow [ml/min]" where
                 # "Flow" is unnecessary, because that is apparent from the unit
+                # The name will look for example like this "MFC setpoint [ml/min]"
                 name = f"{series_header} [{unit}]"
             elif mass is not None:
+                # e.g. from series header "C1M4" and column header "M4-He [A]"
+                # the name will be "M4 [A]" and standard name will be "M4"
                 name = f"M{mass} [{unit}]"
                 standard_name = f"M{mass}"
             else:

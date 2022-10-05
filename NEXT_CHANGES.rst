@@ -35,7 +35,7 @@ techniques
   a pure gas through an inlet chip
 - ``MSMeasurement.multicomp_gas_flux_calibration`` for sensitivity matrix determination
   by flowing a gas with multiple analyte components. This uses reference spectra and
-  results in sensitivity factors that are as innacurrate as the reference spectra. Its use
+  results in sensitivity factors that are as inaccurate as the reference spectra. Its use
   is therefore discouraged (but sometimes necessary).
 - ``MSMeasurement.set_quantifier`` sets the *quantifier*, which then determines how
   ``MSMeasurement.grab_flux`` and ``MSMeasurement.grab_fluxes`` calculate fluxes of
@@ -54,9 +54,16 @@ New Zilien reader
 
 A new Zilien reader for the SpectroInlets' new Zilien dataset file format
 version. The new dataset version is able to integrate the Biologic EC-lab
-dataset during a measurement. Such dataset contains a new series with header
-EC-lab with two meta columns experiment_number and technique_number that the
-new reader is using during the process of creating Ixdat series objects. The
-objects created from the Zilien dataset match exactly the objects created from
-the Biologic mpt files, like when read one by one.
+dataset during a measurement. Such dataset contains a new series with a header
+name ``EC-lab`` and two meta columns ``experiment_number`` and
+``technique_number`` in the series. The new reader is using the columns during
+the process of creating Ixdat series objects. The objects, created from the
+Zilien dataset, match exactly the objects created from the Biologic MPT files,
+like when read one by one, **except for** the timestamps from the Biologic
+series.  The Biologic series timestamps are incremented by a time offset when
+the Biologic EC-lab measurement was triggered.
+
+E.g. when you start a Zilien measurement and then trigger an EC-lab measurement
+after five seconds, the timestamps in the series of the Biologic dataset part
+will be higher by five, comparing to the timestamps in the MPT files.
 
