@@ -249,11 +249,11 @@ class ZilienTSVReader:
 
         # Get non-empty series headers and their indices
         # in order to process whole series chunks
-        series_cut_indices, nonempty_headers = self._get_series_splits(
+        series_split_indices, nonempty_headers = self._get_series_splits(
             self._series_headers
         )
 
-        for series_header, (begin, end) in zip(nonempty_headers, series_cut_indices):
+        for series_header, (begin, end) in zip(nonempty_headers, series_split_indices):
             # Skip series not relevant for the type of measurement
             if not issubclass(self._cls, ECMeasurement) and series_header in (
                 "pot",
@@ -263,16 +263,16 @@ class ZilienTSVReader:
             elif not issubclass(self._cls, MSMeasurement) and to_mass(series_header):
                 continue
 
-            column_headers_cut = self._column_headers[begin:end]
-            data_columns_cut = self._data[:, begin:end]
+            column_headers_split = self._column_headers[begin:end]
+            data_columns_split = self._data[:, begin:end]
 
             if series_header == BIOLOGIC_SERIES_NAME:
                 column_series = self._biologic_dataset_part(
-                    column_headers_cut, data_columns_cut
+                    column_headers_split, data_columns_split
                 )
             else:
                 column_series, aliases_part = self._zilien_dataset_part(
-                    series_header, column_headers_cut, data_columns_cut
+                    series_header, column_headers_split, data_columns_split
                 )
                 # update aliases
                 for standard_name, series_name in aliases_part.items():
@@ -282,13 +282,13 @@ class ZilienTSVReader:
 
         return series, aliases
 
-    def _zilien_dataset_part(self, series_header, column_headers, data_columns_cut):
+    def _zilien_dataset_part(self, series_header, column_headers, data_columns_split):
         """Process necessary data for a Zilien dataset part.
 
         Args:
             series_header (str): The current series name.
             column_headers (list): A list with column names from the current series.
-            data_columns_cut (np.array): A columns cut out from the parsed dataset,
+            data_columns_split (np.array): A columns taken out from the parsed dataset,
                 that represents the current series.
 
         Returns:
@@ -310,22 +310,22 @@ class ZilienTSVReader:
 
         # Create Ixdat series
         column_series = self._create_series_objects(
-            column_headers, names_and_units, data_columns_cut[:count, :]
+            column_headers, names_and_units, data_columns_split[:count, :]
         )
 
         return column_series, aliases
 
-    def _biologic_dataset_part(self, column_headers, data_columns_cut):
+    def _biologic_dataset_part(self, column_headers, data_columns_split):
         """Process necessary data for a Biologic dataset part.
 
         The `experiment_number` and the `technique_number` columns are used only
-        to create an information how to cut the given data part into rows.
+        to create an information how to split the given data part into rows.
         After that they are not used anymore and no Ixdat series objects
         are created from them.
 
         Args:
             column_headers (list): A list with column names from the current series.
-            data_columns_cut (np.array): A columns cut out from the parsed dataset,
+            data_columns_split (np.array): A columns taken out from the parsed dataset,
                 that represents the current series.
 
         Returns:
@@ -341,8 +341,8 @@ class ZilienTSVReader:
         # Split rows according to techniques used according to experiments
         # Combine the experiment numbers and the technique numbers
         # in order to create unique identifiers for a successful split
-        exp_nums = data_columns_cut[:count, column_headers.index("experiment_number")]
-        tech_nums = data_columns_cut[:count, column_headers.index("technique_number")]
+        exp_nums = data_columns_split[:count, column_headers.index("experiment_number")]
+        tech_nums = data_columns_split[:count, column_headers.index("technique_number")]
         split_vector = exp_nums * 1000 + tech_nums
         splits = self._get_biologic_splits(split_vector)
 
@@ -350,16 +350,16 @@ class ZilienTSVReader:
         column_series = []
         for begin, end in splits:
             column_series += self._create_series_objects(
-                column_headers, names_and_units, data_columns_cut[begin:end, :]
+                column_headers, names_and_units, data_columns_split[begin:end, :]
             )
 
         return column_series
 
-    def _create_series_objects(self, column_headers, names_and_units, data_rows_cut):
+    def _create_series_objects(self, column_headers, names_and_units, data_rows_split):
         """Create an Ixdat series objects from a given portion of a dataset.
 
         The `experiment_number` and the `technique_number` columns are skipped,
-        because they are used only to cut rows in the Biologic dataset by the
+        because they are used only to split rows in the Biologic dataset by the
         Zilien reader, in order to create the same series as Ixdat would.
 
         Args:
@@ -367,7 +367,7 @@ class ZilienTSVReader:
             names_and_units (list): A tuple with three elements. A series name,
                 a unit and a standard name for every given column. (The series name
                 is same for all columns here.)
-            data_rows_cut (np.array): A rows cut out from the columns part.
+            data_rows_split (np.array): A rows taken out from the columns part.
                 In Zilien part it represents the Zilien measurement.
                 In Biologic part it represents the current technique.
 
@@ -383,7 +383,7 @@ class ZilienTSVReader:
             if column_header in ("experiment_number", "technique_number"):
                 continue
 
-            column_data = data_rows_cut[:, column_number]
+            column_data = data_rows_split[:, column_number]
 
             # Skip holes in the EC-lab dataset
             if np.isnan(column_data).all():
@@ -424,23 +424,23 @@ class ZilienTSVReader:
             list, list: List of tuples with index pairs
             and a list with non-empty series name headers.
         """
-        series_cut_indices = []
+        series_split_indices = []
         nonempty_headers = []
 
         for index, series_header in enumerate(series_headers):
             if series_header != "":
-                series_cut_indices.append(index)
+                series_split_indices.append(index)
                 nonempty_headers.append(series_header)
 
-        # create cut pairs
+        # create split pairs
         # zip_longest to have the last pair with the index of the last
         # series header to the end
-        series_cut_indices = [
+        series_split_indices = [
             (begin, end)
-            for begin, end in zip_longest(series_cut_indices, series_cut_indices[1:])
+            for begin, end in zip_longest(series_split_indices, series_split_indices[1:])
         ]
 
-        return series_cut_indices, nonempty_headers
+        return series_split_indices, nonempty_headers
 
     @staticmethod
     def _get_biologic_splits(technique_numbers):
