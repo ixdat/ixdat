@@ -1,4 +1,16 @@
-"""Readers for files produces by the Zilien software from Spectro Inlets"""
+"""Readers for files produces by the Zilien software from Spectro Inlets.
+
+Zilien tsv files have two data header lines to define each of the data columns.
+The first one is referred to as "series header" and explains what the data describes,
+and the second one is called "column header" and specifies the specific column.
+It is done in order to keep the columns headers more readable.
+Typically, a series header will specify the measuring device (e.g. "iongauge value")
+or MS channel (e.g. "C0M2") and will apply for two or more column headers
+where the first is time ("Time [s]", "time/s") and the subsequent are the corresponding
+value(s) ("Pressure [mbar]" or "M2-H2 [A]" etc.).
+Zilien files version 2 and higher may also include all the data from an integrated
+Biologic dataset. These are grouped under the series header "EC-lab".
+"""
 
 import re
 from collections import defaultdict
@@ -98,11 +110,13 @@ class ZilienTSVReader:
         self._timestamp = None
         # a dictionary with metadata general information about the Zilien measurement
         self._metadata = None
-        # a list with the Zilien TSV series headers
+        # a list with the Zilien TSV series headers,
+        # such as "Ionguage value" (see module docstring)
         self._series_headers = None
-        # a list with the Zilien TSV columns headers
+        # a list with the Zilien TSV columns headers,
+        # such as "Time [s]" and "Pressure [mbar]"
         self._column_headers = None
-        # a numpy array of the parsed Zilien data
+        # a numpy array of the parsed Zilien data (a big rectangle with NaN filling)
         self._data = None
 
     def read(self, path_to_file, cls=ECMSMeasurement, name=None, **kwargs):
