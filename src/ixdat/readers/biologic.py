@@ -288,6 +288,7 @@ BIOLOGIC_TIMESTAMP_FORMS = (
     "%m-%d-%Y %H:%M:%S.%f",  # (anticipated)
     "%m/%d/%Y %H:%M:%S.%f",  # like 04/27/2021 11:35:39.227 (EC-Lab v11.34)
     "%m/%d/%Y %H.%M.%S",  # like 01/31/2022 11.19.17
+    "%m/%d/%Y %H.%M.%S.%f",  # like 09/08/2022 13.08.17.338 (EC-Lab v11.43)
 )
 
 # This tuple contains variable names encountered in .mpt files. The tuple can be used by

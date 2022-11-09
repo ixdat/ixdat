@@ -3,20 +3,31 @@
 import datetime
 import time
 from collections import namedtuple
+from functools import reduce
 from pathlib import Path
 
+import numpy as np
 import pytest
+from pytest import approx, fixture
+
 from ixdat import Measurement
-from pytest import approx
 from ixdat.techniques.ec_ms import (
     ECMSMeasurement,
     MSMeasurement,
     ECMeasurement,
 )
 
-DATA_DIR = Path(__file__).parent.parent.parent / "test_data"
 
-PATH_TO_DATAFILE = DATA_DIR / "Zilien version 1" / "2022-04-06 16_17_23 full set.tsv"
+DIR_VERSION_1 = (
+    Path(__file__).parent.parent.parent
+    / "submodules/ixdat-large-test-files/zilien_version_1"
+)
+DIR_VERSION_2 = (
+    Path(__file__).parent.parent.parent
+    / "submodules/ixdat-large-test-files/zilien_version_2"
+)
+
+PATH_TO_DATAFILE = DIR_VERSION_1 / "2022-04-06 16_17_23 full set.tsv"
 TIME_FORMAT = "%Y-%m-%d %H_%M_%S"
 EXPECTED_SERIES_ECMS = {
     "M32 [A]",
@@ -119,7 +130,63 @@ SERIES_DETAILS = {
     ),
 }
 
+# the amount of Zilien data columns in the test datasets
+# it is used when testing if the amount of created series
+# by the "biologic" reader and by the "zilien" reader matches
+ZILIEN_COLUMNS_AMOUNT = 56
 
+
+# fmt: off
+@fixture(scope="class", params=(
+    (
+        DIR_VERSION_2 / "2022-09-19 11_27_59 test-1/2022-09-19 11_27_59 test-21.tsv",
+        [
+            DIR_VERSION_2 / "2022-09-19 11_27_59 test-1/2022-09-19 11_27_59 test-21_01_01_CV_C01.mpt",  # noqa: E501
+            DIR_VERSION_2 / "2022-09-19 11_27_59 test-1/2022-09-19 11_27_59 test-21_01_02_CP_C01.mpt",  # noqa: E501
+        ],
+        (1.344293e+01, 1.344293e+01)
+    ),
+    (
+        DIR_VERSION_2 / "2022-09-19 11_29_04 test-2/2022-09-19 11_29_04 test-22.tsv",
+        [
+            DIR_VERSION_2 / "2022-09-19 11_29_04 test-2/2022-09-19 11_29_04 test-22_01_01_CV_C01.mpt",  # noqa: E501
+            DIR_VERSION_2 / "2022-09-19 11_29_04 test-2/2022-09-19 11_29_04 test-22_01_02_CP_C01.mpt",  # noqa: E501
+            DIR_VERSION_2 / "2022-09-19 11_29_04 test-2/2022-09-19 11_29_04 test-22_02_01_CV_C01.mpt",  # noqa: E501
+            DIR_VERSION_2 / "2022-09-19 11_29_04 test-2/2022-09-19 11_29_04 test-22_02_02_CP_C01.mpt",  # noqa: E501
+        ],
+        (7.223014e+00, 7.223014e+00, 3.286301e+01, 3.286301e+01)
+    ),
+    (
+        DIR_VERSION_2 / "2022-09-19 11_31_19 test-3/2022-09-19 11_31_19 test-23.tsv",
+        (
+            DIR_VERSION_2 / "2022-09-19 11_31_19 test-3/2022-09-19 11_31_19 test-23_01_C01.mpt",  # noqa: E501
+            DIR_VERSION_2 / "2022-09-19 11_31_19 test-3/2022-09-19 11_31_19 test-23_02_C01.mpt",  # noqa: E501
+        ),
+        (3.294874e+00, 4.138740e+01)
+    ),
+))
+# fmt: on
+def datasets(request):
+    """Parametrized fixture for reading datasets and return created series.
+
+    One parameter set contains a path to the Zilien TSV file, a list of paths
+    to the Biologic MPT files and a tuple with time offsets corresponding to
+    the MPT files.
+
+    Args:
+        request: A pytest request class with the parameters.
+    """
+    tsv_file_path = request.param[0]
+    mpt_file_paths = request.param[1]
+    mpt_time_offsets = request.param[2]
+
+    tsv = Measurement.read(tsv_file_path, reader="zilien")
+    mpts = [Measurement.read(path, reader="biologic") for path in mpt_file_paths]
+
+    return tsv, mpts, mpt_time_offsets
+
+
+@pytest.mark.external
 @pytest.mark.parametrize(
     ["cls_or_technique", "expected_series"],
     (
@@ -133,7 +200,8 @@ SERIES_DETAILS = {
     ),
 )
 def test_read(cls_or_technique, expected_series):
-    """Test parsing the file as an ECMSMeasurement"""
+    """Test parsing the file as an ECMSMeasurement. Zilien generated data only."""
+
     if isinstance(cls_or_technique, str):
         expected_measurement_class = TECHNIQUE_NAME_TO_CLASS[cls_or_technique]
         measurement = Measurement.read(
@@ -168,3 +236,71 @@ def test_read(cls_or_technique, expected_series):
         assert time_data[-1] == approx(single_series_details.t_last)
         assert value_data[0] == approx(single_series_details.v_first)
         assert value_data[-1] == approx(single_series_details.v_last)
+
+
+class TestZilienIntegrated:
+    """Tests for reading the Zilien files with integrated Biologic dataset."""
+
+    @pytest.mark.external
+    def test_series_match(self, datasets):
+        """Test presence of all the series from the mpt files in the tsv file."""
+
+        # coming from parametrized fixture
+        tsv, mpts, _ = datasets
+
+        # if one name from a mpt file would match a name from a different mpt
+        # in the integrated tsv dataset, then the test for series amount will
+        # fail, so it is not necessary to check for the exact belonging
+        for mpt in mpts:
+            for mpt_name in mpt.series_names:
+                if mpt_name == "time/s":
+                    assert f"Biologic {mpt_name}" in tsv.series_names
+                else:
+                    assert mpt_name in tsv.series_names
+
+    @pytest.mark.external
+    def test_series_amount(self, datasets):
+        """Test the same amount of created series"""
+
+        # coming from parametrized fixture
+        tsv, mpts, _ = datasets
+
+        tsv_amount = sum([len(mpt.series_list) for mpt in mpts])
+        mpt_amount = len(tsv.series_list) - ZILIEN_COLUMNS_AMOUNT
+
+        assert tsv_amount == mpt_amount
+
+    @pytest.mark.external
+    def test_timeseries_match(self, datasets):
+        """Test the same timeseries."""
+
+        # coming from parametrized fixture
+        tsv, mpts, mpts_time_offsets = datasets
+
+        # same amount
+        tsv_time_series = [
+            ser for ser in tsv.series_list if ser.name == "Biologic time/s"
+        ]
+        assert len(tsv_time_series) == len(mpts_time_offsets)
+
+        # same data
+        for i, offset in enumerate(mpts_time_offsets):
+            tsv_times = tsv_time_series[i].data
+            mpt_times = mpts[i]["time/s"].data + offset
+
+            assert np.allclose(tsv_times, mpt_times)
+
+    @pytest.mark.external
+    def test_data_match(self, datasets):
+        """Test the same data."""
+
+        # coming from parametrized fixture
+        tsv, mpts, mpts_time_offsets = datasets
+
+        all_mpts = reduce(lambda x, y: x + y, mpts)
+
+        for name in all_mpts.series_names:
+            if name == "time/s":
+                continue
+
+            assert np.allclose(all_mpts[name].data, tsv[name].data)
