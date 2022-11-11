@@ -67,3 +67,9 @@ E.g. when you start a Zilien measurement and then trigger an EC-lab measurement
 after five seconds, the timestamps in the series of the Biologic dataset part
 will be higher by five, comparing to the timestamps in the MPT files.
 
+
+Debugging
+=========
+
+- xrdml reader can now import files where the data is labeled "counts" rather than
+  "intensities", as the text exports from the Royce Institute XRD
