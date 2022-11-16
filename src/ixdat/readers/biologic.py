@@ -34,6 +34,32 @@ BIOLOGIC_ALIASES = {
 }
 
 
+def fix_WE_potential(measurement):
+    """Fix column of zeros in "<Ewe>/V" sometimes exported by EC Lab for CP measurements.
+
+    Some Biologic potentiostats / EC-Lab versions sometimes export a column of zeros for
+    "<Ewe>/V" in the .mpt files in chronopotentiometry measurements. This function
+    replaces the series of zeros with the correct potential by adding the counter
+    electrode potential ("<Ece>/V") and cell potential ("Ewe-Ece/V").
+
+    Args:
+        measurement(ECMeasurement): The measurement with the column to be replaced
+    """
+    WE_series = measurement["<Ewe>/V"]
+    CE_data = measurement.grab_for_t("<Ece>/V", WE_series.t)
+    cell_potential_data = measurement.grab_for_t("Ewe-Ece/V", WE_series.t)
+
+    WE_potential = cell_potential_data + CE_data
+    WE_series = ValueSeries(
+        name="<Ewe>/V",
+        unit_name="V",
+        data=WE_potential,
+        tseries=WE_series.tseries,
+    )
+    measurement.replace_series("<Ewe>/V", WE_series)
+    measurement.clear_cache()
+
+
 class BiologicMPTReader:
     """A class to read .mpt files written by Biologic's EC-Lab.
 

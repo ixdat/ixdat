@@ -12,3 +12,13 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
+ixdat 0.2.6
+===========
+
+API changes
+-----------
+
+Readers
+^^^^^^^
+- A function ``fix_WE_potential`` has been added to the ``biologic`` module. This
+  corrects the mistake in some .mpt files that are exported with zeros for "<Ewe>/V".
