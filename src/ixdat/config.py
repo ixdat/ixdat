@@ -31,7 +31,7 @@ class _Config:
     def __init__(self):
         self.standard_metadata_suffix = ".ix"
         self.standard_data_suffix = ".ix.npy"
-        self.standard_data_directory = Path.home() / "ixdat"
+        self.standard_data_directory = Path.home() / ".ixdat"
         self.default_project_name = "test"
 
     @property
