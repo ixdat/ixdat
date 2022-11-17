@@ -104,7 +104,7 @@ def add_isotopes(calibration, isotope_spec):
 
 
 def scale_by_factor(calibration, factor):
-    """Return copy of `calibration` with all sensitivity factors multiplied by `factor`"""
+    """Return copy of `calibration` w all sensitivity factors multiplied by `factor`"""
     from spectro_inlets_quantification import CalPoint, Calibration
 
     new_calibration_as_dict = calibration.as_dict().copy()

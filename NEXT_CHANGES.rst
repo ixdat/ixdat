@@ -22,3 +22,9 @@ Readers
 ^^^^^^^
 - A function ``fix_WE_potential`` has been added to the ``biologic`` module. This
   corrects the mistake in some .mpt files that are exported with zeros for "<Ewe>/V".
+
+Techniques
+^^^^^^^^^^
+- Calibration methods in ``ECMSMeasurement`` now returns SI quant ``CalPoint`` objects
+  if ``ixdat.plugins.use_si_quant`` is True (i.e., ``ixdat.plugins.activate_is_quant()``
+  has been called.
