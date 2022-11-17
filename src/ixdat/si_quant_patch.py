@@ -38,11 +38,11 @@ def append_two_sensitivity_factors(sf_1, sf_2):
             sf_list = sf_1.sf_list + [sf_2]
             obj_as_dict = sf_1.as_dict()
             if isinstance(sf_1, Calibration):
-                sf_1.pop("cal_dicts")
+                obj_as_dict.pop("cal_dicts")
                 obj_as_dict["cal_list"] = sf_list
                 return Calibration(**obj_as_dict)
             else:
-                sf_1.pop("sf_dicts")
+                obj_as_dict.pop("sf_dicts")
                 obj_as_dict["sf_list"] = sf_list
                 return SensitivityList(**obj_as_dict)
         else:
