@@ -93,11 +93,11 @@ class MSMeasurement(Measurement):
                 Defaults to False, but in grab_flux it defaults to True.
             include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
         """
+        if plugins.use_si_quant and item.startswith("n_dot_"):
+            return self.grab_flux(item.lstrip("n_dot_"))
         time, value = super().grab(
             item, tspan=tspan, include_endpoints=include_endpoints
         )
-        if item.startswith("n_dot_"):
-            return self.grab_flux(item.lstrip("n_dot_"))
         if tspan_bg:
             _, bg = self.grab(item, tspan=tspan_bg)
             return time, value - np.average(bg)
