@@ -33,7 +33,9 @@ class XRDMLReader:
         x_min = float(start_position_element.childNodes[0].data)
         x_max = float(end_position_element.childNodes[0].data)
         intensity_parent_node = [
-            node for node in datapoint_node.childNodes if "intensities" in str(node)
+            node
+            for node in datapoint_node.childNodes
+            if "intensities" in str(node) or "counts" in str(node)
         ][0]
         intensity_node = intensity_parent_node.childNodes[0]
         intensity_string = intensity_node.data

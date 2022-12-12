@@ -9,7 +9,7 @@ FIXME: Saving and/or loading get quite slow when the number of rows in a table (
 import json
 import numpy as np
 from .backend_base import BackendBase
-from ..config import CFG, prompt_for_permission
+from ..config import config, prompt_for_permission
 
 
 char_substitutions = {  # substitutions needed to name .json file with data series name
@@ -56,10 +56,10 @@ class DirBackend(BackendBase):
 
     def __init__(
         self,
-        directory=CFG.standard_data_directory,
-        project_name=CFG.default_project_name,
-        metadata_suffix=CFG.standard_metadata_suffix,
-        data_suffix=CFG.standard_data_suffix,
+        directory=config.standard_data_directory,
+        project_name=config.default_project_name,
+        metadata_suffix=config.standard_metadata_suffix,
+        data_suffix=config.standard_data_suffix,
     ):
         """Initialize a directory database backend with the directory as Path
 

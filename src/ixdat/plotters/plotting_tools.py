@@ -1,5 +1,6 @@
 """This module contains loose functions and stuff useful for ixdat plotting."""
 
+import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
@@ -55,3 +56,41 @@ def add_colorbar(ax, cmap_name, vmin, vmax, label="intensity"):
         anchor=(0.75, 0),
     )
     cb.set_label(label)
+
+
+def smooth_vector(y, n_points):
+    """Return copy of the vector `y` smoothed by a running average of `n_points`"""
+    # extend the vector on each side to avoid edge effects. The total extension is
+    #   n_points long, split between start and finish.
+    start_pad = int(np.floor(n_points))
+    end_pad = n_points - start_pad
+    y_extended = np.append(
+        np.append(y[0] * np.ones((start_pad,)), y), y[-1] * np.ones((end_pad,))
+    )
+    # Note, the use of cumsum is faster than convolve, according to the answer here:
+    #   https://stackoverflow.com/a/34387987
+    cumsum_vec = np.cumsum(y_extended)  # put a 0 at the front of y
+    y_smooth = (cumsum_vec[n_points:] - cumsum_vec[:-n_points]) / n_points
+    return y_smooth
+
+
+def calc_linear_background(t, y, tspans):
+    """Return a copy of the vector `y` that interpolates linearly between tspans
+
+    The vector `y - calc_linear_background(t, y, tspans)` will go to zero at the times
+    on `t` specified by `tspan
+
+    Args:
+        t (numpy Array): time
+        y (numpy Array): the value to calculate a background to
+        tspans (list of timespans): The times to interpolate the background between
+    """
+    t_bg_list = []
+    y_bg_list = []
+    for tspan in tspans:
+        mask = np.logical_and(tspan[0] < t, t < tspan[-1])
+        if True not in mask:
+            continue
+        t_bg_list.append(t[mask].mean())
+        y_bg_list.append(y[mask].mean())
+    return np.interp(t, t_bg_list, y_bg_list)
