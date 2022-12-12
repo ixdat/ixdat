@@ -83,7 +83,8 @@ class MSMeasurement(Measurement):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
         Args:
-            item (str): Name of the signal.
+            item (str): Name of the signal. If `item` has the form f"n_dot_{mol}", then
+                grab_flux(mol) is returned.
             tspan (list): Timespan for which the signal is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
                 If not given, no background is subtracted.
@@ -95,7 +96,8 @@ class MSMeasurement(Measurement):
         time, value = super().grab(
             item, tspan=tspan, include_endpoints=include_endpoints
         )
-
+        if item.startswith("n_dot_"):
+            return self.grab_flux(item.lstrip("n_dot_"))
         if tspan_bg:
             _, bg = self.grab(item, tspan=tspan_bg)
             return time, value - np.average(bg)
