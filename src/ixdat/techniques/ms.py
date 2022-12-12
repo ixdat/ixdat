@@ -94,7 +94,12 @@ class MSMeasurement(Measurement):
             include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
         """
         if plugins.use_si_quant and item.startswith("n_dot_"):
-            return self.grab_flux(item.lstrip("n_dot_"))
+            return self.grab_flux(
+                item.lstrip("n_dot_"),
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                include_endpoints=include_endpoints
+            )
         time, value = super().grab(
             item, tspan=tspan, include_endpoints=include_endpoints
         )
