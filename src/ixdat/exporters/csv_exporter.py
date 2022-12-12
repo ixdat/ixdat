@@ -4,6 +4,7 @@ import json
 import numpy as np
 from .. import __version__
 from ..data_series import TimeSeries
+from ..exceptions import SeriesNotFoundError
 
 UNIFORM_TIME_COLUMN_NAME = "projected time / [s]"
 
@@ -113,14 +114,18 @@ class CSVExporter:
         timecols = {}  # Will be {time_name: value_names}, for the header.
         for v_name in self.columns:
             if time_step:
-                tseries = uniform_tseries
-                t = tseries.data
+                t_name = uniform_tseries.name
+                t = uniform_tseries.data
                 v = measurement.grab_for_t(v_name, t=t)
             else:
                 # Collect data and names for each ValueSeries and TimeSeries
-                tseries = measurement[v_name].tseries
+                try:
+                    tseries = measurement[v_name].tseries
+                    t_name = tseries.name
+                except SeriesNotFoundError:
+                    # can still be okay. Sometimes grab works even if getitem doesn't
+                    t_name = "t"
                 t, v = measurement.grab(v_name, tspan=tspan)
-            t_name = tseries.name
             if t_name in timecols:
                 # We've already collected the data for this time column
                 timecols[t_name].append(v_name)
