@@ -15,7 +15,3 @@ New Reader
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
-<<<<<<< HEAD
-
-=======
->>>>>>> parent of a8e3174 (resolve upstream conflict)
