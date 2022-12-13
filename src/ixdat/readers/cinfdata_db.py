@@ -2,7 +2,6 @@
 import time
 from pathlib import Path
 from cinfdata import Cinfdata
-from tqdm import tqdm
 import numpy as np
 from ..exceptions import ReadError
 from ..data_series import ValueSeries, TimeSeries
@@ -55,8 +54,8 @@ class CinfdataDBReader:
         self.measurement = None
         self.cinf_db = None
 
-    def read(self, setup_name, timestamp, name=None, cls=None, units=None, **kwargs):
-        """Return a MSMeasurement with the data and metadata recorded from 
+    def read(self, path_to_file, name=None, cls=None, units=None, **kwargs):
+        """Return a MSMeasurement with the data and metadata recorded from
         a setup at SurfCat at given timestamp
 
         MSMeasurement contains a reference to the reader.
@@ -65,20 +64,23 @@ class CinfdataDBReader:
         measurement as `measurement.reader.attribute_name`.
 
         Args:
-            setup (str): The setup name in the database
-            timestamp (str): Timestamp the measurement started (YYYY-MM-DD HH:MM:SS)
+            path_to_file (str): Named argument from Measurement Class.
+                                Can be used as the setup name in the cinfdatabase
             **kwargs (dict): Key-word arguments are passed to cinf Measurement.__init__
+                             setup_name (str): The setup name in the database
+                             timestamp (str): Timestamp the measurement started
+                                              given as (YYYY-MM-DD HH:MM:SS)
         """
-        if setup_name:
-            self.setup_name = setup_name
-        if timestamp:
-            self.timestamp = timestamp
 
-        self.cinf_db = Cinfdata(setup_name='microreactorNG', grouping_column = 'time')
+        self.setup_name = kwargs.pop('setup_name', path_to_file)
+        self.timestamp = kwargs.pop('timestamp', None)
 
-        self.group_data = self.cinf_db.get_data_group(timestamp,
+
+        self.cinf_db = Cinfdata(setup_name=self.setup_name, grouping_column="time")
+
+        self.group_data = self.cinf_db.get_data_group(self.timestamp,
                                                       scaling_factors=(1E-3, None))
-        self.group_meta = self.cinf_db.get_metadata_group(timestamp)
+        self.group_meta = self.cinf_db.get_metadata_group(self.timestamp)
         self.meta = self.group_meta[list(self.group_meta.keys())[0]]  #
 
         self.tstamp = float(self.meta['unixtime'])
@@ -92,17 +94,15 @@ class CinfdataDBReader:
                 self.sample_name = None
                 print('No comment to set as sample_name. ', e)
         print(self.sample_name)
-        #print(self.meta)
-        #print(self.group_meta)
+
         data_series_list = []
-        for key in tqdm(self.group_data.keys()):
+        for key in self.group_data.keys():
             column_name = self.group_meta[key]['mass_label']
             print(column_name)
             unixtime = self.group_meta[key]['unixtime']
             tstamp = float(unixtime)
 
             tcol  = self.group_data[key][:, 0]
-            #print(key)
             vcol = self.group_data[key][:, 1]
 
             tseries = TimeSeries(
@@ -111,6 +111,7 @@ class CinfdataDBReader:
                     data=tcol,
                     tstamp=tstamp,
             )
+
             vseries = ValueSeries(
                     name=column_name,
                     data=vcol,
@@ -164,7 +165,7 @@ class CinfdataDBReader:
         for i, key in enumerate(group_meta.keys()):
             if group_meta[key]['mass_label'] == 'Mass Scan' or \
                 group_meta[key]['type'] == 4:
-                pass  #create spectrum with unixtime to stich in in the measruement
+                pass  #create spectrum with unixtime to stich in in the measurement
             else:
                 pass
 
