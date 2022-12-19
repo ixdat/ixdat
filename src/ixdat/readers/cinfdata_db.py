@@ -1,12 +1,9 @@
 """Module defining direct DB reader connection to Surfcat's legendary cinfdata system"""
-import time
-from pathlib import Path
 from cinfdata import Cinfdata
-import numpy as np
-from ..exceptions import ReadError
-from ..data_series import ValueSeries, TimeSeries
+from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
 from ..techniques import MSMeasurement
-from .reading_tools import timestamp_string_to_tstamp
+from ..techniques.ms import MSSpectrum
+from ..spectra import Spectrum, SpectrumSeries, add_spectrum_series_to_measurement
 
 
 class CinfdataDBReader:
@@ -31,8 +28,8 @@ class CinfdataDBReader:
         column_data (dict of str: np.array): The data in the file as a dict.
             Note that the np arrays are the same ones as in the measurement's DataSeries,
             so this does not waste memory.
-        measurement (Measurement): The measurement returned by read() when the database is
-            read. self.measurement is None before read() is called.
+        measurement (Measurement): The measurement returned by read() when the database
+            is read. self.measurement is None before read() is called.
     """
 
     def __init__(self):
@@ -50,9 +47,10 @@ class CinfdataDBReader:
         self.data_has_been_fetch = False
         self.metadata = {}
         self.technique = "MS"  # TODO: MS? Figure out how to tell if it's something else
-        self.measurement_class = MSMeasurement
+        self.measurement_class = None  # MSMeasurement
         self.measurement = None
         self.cinf_db = None
+        self.mass_scans = False
 
     def read(self, path_to_file, name=None, cls=None, units=None, **kwargs):
         """Return a MSMeasurement with the data and metadata recorded from
@@ -72,51 +70,61 @@ class CinfdataDBReader:
                                               given as (YYYY-MM-DD HH:MM:SS)
         """
 
-        self.setup_name = kwargs.pop('setup_name', path_to_file)
-        self.timestamp = kwargs.pop('timestamp', None)
-
+        self.measurement_class = kwargs.pop("measurement_class", MSMeasurement)
+        self.setup_name = kwargs.pop("setup_name", path_to_file)
+        self.timestamp = kwargs.pop("timestamp", None)
+        self.mass_scans = kwargs.pop("include_mass_scans", False)
 
         self.cinf_db = Cinfdata(setup_name=self.setup_name, grouping_column="time")
 
-        self.group_data = self.cinf_db.get_data_group(self.timestamp,
-                                                      scaling_factors=(1E-3, None))
+        self.group_data = self.cinf_db.get_data_group(
+            self.timestamp, scaling_factors=(1e-3, None)
+        )
         self.group_meta = self.cinf_db.get_metadata_group(self.timestamp)
-        self.meta = self.group_meta[list(self.group_meta.keys())[0]]  #
+        self.meta = self.group_meta[list(self.group_meta.keys())[0]]
 
-        self.tstamp = float(self.meta['unixtime'])
-        self.name = self.meta['time'].strftime("%Y-%m-%d %H:%M:%S")
+        self.tstamp = float(self.meta["unixtime"])
+        self.name = self.meta["time"].strftime("%Y-%m-%d %H:%M:%S")
         try:
-            self.sample_name = self.meta['Comment']
+            self.sample_name = self.meta["Comment"]
+            self.comment = "Comment"
         except KeyError:
             try:
-                self.sample_name = self.meta['comment']
+                self.sample_name = self.meta["comment"]
+                self.comment = "comment"
             except KeyError as e:
                 self.sample_name = None
-                print('No comment to set as sample_name. ', e)
+                print("No comment to set as sample_name. ", e)
         print(self.sample_name)
+
+        if (
+            self.measurement_class == Spectrum
+            or self.measurement_class == SpectrumSeries
+        ):
+            return self.read_spectrums()
 
         data_series_list = []
         for key in self.group_data.keys():
-            column_name = self.group_meta[key]['mass_label']
+            column_name = self.group_meta[key]["mass_label"]
             print(column_name)
-            unixtime = self.group_meta[key]['unixtime']
+            unixtime = self.group_meta[key]["unixtime"]
             tstamp = float(unixtime)
 
-            tcol  = self.group_data[key][:, 0]
+            tcol = self.group_data[key][:, 0]
             vcol = self.group_data[key][:, 1]
 
             tseries = TimeSeries(
-                    name=column_name+"-x",
-                    unit_name=get_column_unit(column_name+"-x") or "s",
-                    data=tcol,
-                    tstamp=tstamp,
+                name=column_name + "-x",
+                unit_name=get_column_unit(column_name + "-x") or "s",
+                data=tcol,
+                tstamp=tstamp,
             )
 
             vseries = ValueSeries(
-                    name=column_name,
-                    data=vcol,
-                    tseries=tseries,
-                    unit_name=get_column_unit(column_name+"-y"),
+                name=column_name,
+                data=vcol,
+                tseries=tseries,
+                unit_name=get_column_unit(column_name + "-y"),
             )
             data_series_list.append(tseries)
             data_series_list.append(vseries)
@@ -129,45 +137,95 @@ class CinfdataDBReader:
             tstamp=self.tstamp,
         )
 
-
         obj_as_dict.update(kwargs)
 
         if issubclass(cls, self.measurement_class):
             self.measurement_class = cls
 
         self.measurement = self.measurement_class.from_dict(obj_as_dict)
+
+        if self.mass_scans:
+            spectrum_list = self.read_spectrums()
+            spectrum_series = SpectrumSeries.from_spectrum_list(spectrum_list)
+            self.measurement = add_spectrum_series_to_measurement(
+                self.measurement, spectrum_series
+            )
         self.data_has_been_fetch = True
         return self.measurement
 
     def set_sample_name(self):
         try:
-            self.sample_name = self.meta['Comment']
+            self.sample_name = self.meta["Comment"]
         except KeyError:
             try:
-                self.sample_name = self.meta['comment']
+                self.sample_name = self.meta["comment"]
             except KeyError as e:
                 self.sample_name = None
-                print('No comment to set as sample_name. ', e)
+                print("No comment to set as sample_name. ", e)
 
     def set_name(self):
-        self.name = self.meta['time'].strftime("%Y-%m-%d %H:%M:%S")
+        self.name = self.meta["time"].strftime("%Y-%m-%d %H:%M:%S")
 
     def set_tstamp(self):
-        self.tstamp = float(self.meta['unixtime'])
+        self.tstamp = float(self.meta["unixtime"])
 
+    def read_spectrums(self):
+        """Get XPS spectrums from 'comment'"""
+        cls = Spectrum
 
-    def add_mass_scans(self):
-        ''' Get corrosponding mass scans to mass_time from 'comment' '''
-        db = Cinfdata(setup=self.setup, grouping_column='comment')
+        db = Cinfdata(setup_name=self.setup_name, grouping_column=self.comment)
         group_meta = db.get_metadata_group(self.sample_name)
         group_data = db.get_data_group(self.sample_name)
 
+        spectrum_list = []
         for i, key in enumerate(group_meta.keys()):
-            if group_meta[key]['mass_label'] == 'Mass Scan' or \
-                group_meta[key]['type'] == 4:
-                pass  #create spectrum with unixtime to stich in in the measurement
+            if group_meta[key]["type"] == 2:
+                self.x_name = "Binding energy / eV"
+                self.x_unit_name = "eV"
+                self.field_name = "Counts per second"
+                self.field_unit = "n/s"
+                self.technique = "XPS"
+                obj_as_dict = self.create_spectrum(group_data, group_meta, key)
+                spectrum_list.append(cls.from_dict(obj_as_dict))
+
+            elif group_meta[key]["type"] == 4:
+                cls = MSSpectrum
+                self.x_name = "Mass [AMU]"
+                self.x_unit_name = "m/z"
+                self.field_name = "Current"
+                self.field_unit = "[A]"
+                self.technique = "MSSpectrum"
+                obj_as_dict = self.create_spectrum(group_data, group_meta, key)
+                spectrum_list.append(cls.from_dict(obj_as_dict))
+
             else:
                 pass
+
+        return spectrum_list
+
+    def create_spectrum(self, group_data, group_meta, key):
+        x_col = group_data[key][:, 0]
+        y_col = group_data[key][:, 1]
+        tstamp = group_meta[key]["unixtime"]
+
+        xseries = DataSeries(data=x_col, name=self.x_name, unit_name=self.x_unit_name)
+        field = Field(
+            data=y_col,
+            name=self.field_name,
+            unit_name=self.field_unit,
+            axes_series=[
+                xseries,
+            ],
+        )
+
+        obj_as_dict = {
+            "name": self.sample_name,
+            "technique": self.technique,
+            "field": field,
+            "tstamp": tstamp,
+        }
+
+        return obj_as_dict
 
 
 def get_column_unit(column_name):
@@ -191,3 +249,43 @@ def get_column_unit(column_name):
         #    https://github.com/CINF/cinfdata/blob/master/sym-files2/export_data.py#L125
         unit_name = None
     return unit_name
+
+
+def add_mass_scans(self):
+    """Get corrosponding mass scans to mass_time from 'comment'"""
+    cls = Spectrum
+
+    db = Cinfdata(setup_name=self.setup_name, grouping_column="comment")
+    group_meta = db.get_metadata_group(self.sample_name)
+    group_data = db.get_data_group(self.sample_name)
+
+    spectrum_list = []
+    for i, key in enumerate(group_meta.keys()):
+        if group_meta[key]["mass_label"] == "Mass Scan" or group_meta[key]["type"] == 4:
+
+            x_col = group_data[key][:, 0]
+            y_col = group_data[key][:, 1]
+            tstamp = group_meta[key]["unixtime"]
+
+            xseries = DataSeries(data=x_col, name="Mass [AMU]", unit_name="m/z")
+            field = Field(
+                data=y_col,
+                name="Current [A]",
+                unit_name="[A]",
+                axes_series=[
+                    xseries,
+                ],
+            )
+
+            obj_as_dict = {
+                "name": self.sample_name,
+                "technique": "MSSpectrum",
+                "field": field,
+                "tstamp": tstamp,
+            }
+            spectrum_list.append(cls.from_dict(obj_as_dict))
+
+        else:
+            pass
+
+    return SpectrumSeries.from_spectrum_list(spectrum_list)
