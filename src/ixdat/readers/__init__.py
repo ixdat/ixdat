@@ -20,6 +20,7 @@ from .chi import CHInstrumentsTXTReader
 from .pfeiffer import PVMassSpecReader
 from .rgasoft import StanfordRGASoftReader
 from .cinfdata import CinfdataTXTReader
+from .cinfdata_db import CinfdataDBReader
 
 # ec-ms
 from .zilien import ZilienTSVReader, ZilienTMPReader, ZilienSpectrumReader
@@ -47,6 +48,7 @@ READER_CLASSES = {
     "pfeiffer": PVMassSpecReader,
     "rgasoft": StanfordRGASoftReader,
     "cinfdata": CinfdataTXTReader,
+    "cinfdata_db": CinfdataDBReader,
     "zilien": ZilienTSVReader,
     "zilien_tmp": ZilienTMPReader,
     "zilien_spec": ZilienSpectrumReader,
