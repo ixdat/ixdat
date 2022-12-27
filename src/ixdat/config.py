@@ -75,6 +75,7 @@ class _PluginOptions:
     def __init__(self):
         self._use_si_quant = False
         self.si_quant = _SIQuantDeps()
+        self.cinfdata = _CinfData()
 
     @property
     def use_si_quant(self):
@@ -110,6 +111,9 @@ class _PluginOptions:
             self.activate_si_quant()
         else:
             self.deactivate_si_quant()
+
+    def activate_cinfdata(self):
+        self.cinfdata.activate()
 
 
 class _SIQuantDeps:
@@ -176,6 +180,21 @@ class _SIQuantDeps:
         self._QUANT_DIRECTORY = quant_directory
         if self._USE_QUANT:
             self._USE_QUANT = True  # gets the quant directory to be reset
+
+
+class _CinfData:
+    def __init__(
+        self,
+    ):
+        self.cinfdata = None
+
+    def activate(self):
+        from cinfdata import Cinfdata
+
+        self.DB = Cinfdata
+
+    def connect(self, setup_name=None, grouping_column=None):
+        return self.DB(setup_name=setup_name, grouping_column=grouping_column)
 
 
 plugins = _PluginOptions()

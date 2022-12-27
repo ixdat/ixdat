@@ -1,9 +1,9 @@
 """Module defining direct DB reader connection to Surfcat's legendary cinfdata system"""
-from cinfdata import Cinfdata
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
 from ..techniques import MSMeasurement
 from ..techniques.ms import MSSpectrum
 from ..spectra import Spectrum, SpectrumSeries, add_spectrum_series_to_measurement
+from ..config import plugins
 
 
 class CinfdataDBReader:
@@ -75,7 +75,10 @@ class CinfdataDBReader:
         self.timestamp = kwargs.pop("timestamp", None)
         self.mass_scans = kwargs.pop("include_mass_scans", False)
 
-        self.cinf_db = Cinfdata(setup_name=self.setup_name, grouping_column="time")
+        plugins.activate_cinfdata()
+        self.cinf_db = plugins.cinfdata.connect(
+            setup_name=self.setup_name, grouping_column="time"
+        )
 
         self.group_data = self.cinf_db.get_data_group(
             self.timestamp, scaling_factors=(1e-3, None)
@@ -173,7 +176,10 @@ class CinfdataDBReader:
         """Get XPS spectrums from 'comment'"""
         cls = Spectrum
 
-        db = Cinfdata(setup_name=self.setup_name, grouping_column=self.comment)
+        db = plugins.cinfdata.connect(
+            setup_name=self.setup_name, grouping_column=self.comment
+        )
+        # db = Cinfdata(setup_name=self.setup_name, grouping_column=self.comment)
         group_meta = db.get_metadata_group(self.sample_name)
         group_data = db.get_data_group(self.sample_name)
 
@@ -255,7 +261,10 @@ def add_mass_scans(self):
     """Get corrosponding mass scans to mass_time from 'comment'"""
     cls = Spectrum
 
-    db = Cinfdata(setup_name=self.setup_name, grouping_column="comment")
+    db = plugins.cinfdata.connect(
+        setup_name=self.setup_name, grouping_column=self.comment
+    )
+    # db = plugins.Cinfdata(setup_name=self.setup_name, grouping_column="comment")
     group_meta = db.get_metadata_group(self.sample_name)
     group_data = db.get_data_group(self.sample_name)
 
