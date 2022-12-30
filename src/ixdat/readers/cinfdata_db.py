@@ -200,7 +200,7 @@ class CinfdataDBReader:
                 self.x_unit_name = "m/z"
                 self.field_name = "Current"
                 self.field_unit = "[A]"
-                self.technique = "MSSpectrum"
+                self.technique = "MS_spectrum"
                 obj_as_dict = self.create_spectrum(group_data, group_meta, key)
                 spectrum_list.append(cls.from_dict(obj_as_dict))
 

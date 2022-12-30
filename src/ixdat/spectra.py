@@ -296,6 +296,10 @@ class Spectrum(Saveable):
             axes_series=[tseries, self.xseries],
         )
         spectrum_series_as_dict = self.as_dict()
+        technique = self.technique
+        if technique.endswith("spectrum"):
+            technique = technique.rstrip("spectrum") + "spectra"
+        spectrum_series_as_dict.update(technique=technique)
         spectrum_series_as_dict["field"] = new_field
         del spectrum_series_as_dict["field_id"]
 
@@ -418,6 +422,9 @@ class MultiSpectrum(Saveable):
         """Build a SpectrumSeries from a list of Spectrums"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
+        technique = spectrum_list[0].technique
+        if technique.endswith("spectrum"):
+            technique = technique.rstrip("spectrum") + "spectra"
         obj_as_dict = {
             "fields": fields,
             "technique": technique,
