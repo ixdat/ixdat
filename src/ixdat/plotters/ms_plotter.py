@@ -441,7 +441,7 @@ STANDARD_COLORS = {
     "He": "m",
     "H2O": "y",
     "CO": "0.5",
-    "N2": "8f8fffff",
+    "N2": "8f8fffff",  # light blue-ish-purple
     "O2": "k",
     "Ar": "c",
     "CO2": "brown",
