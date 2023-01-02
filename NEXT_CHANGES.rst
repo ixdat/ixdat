@@ -15,3 +15,10 @@ New Reader
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
+
+plotters
+^^^^^^^^
+
+- ``MSPlotter.plot_measurment`` now create a new axis if no initial axis is given
+  before initiating right axes in the case of dual plotting on left and right axes.
+  Fixes `Issue #97 <https://github.com/ixdat/ixdat/issues/97>`_
