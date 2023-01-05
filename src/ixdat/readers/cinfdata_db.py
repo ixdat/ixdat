@@ -74,6 +74,7 @@ class CinfdataDBReader:
         self.setup_name = kwargs.pop("setup_name", path_to_file)
         self.timestamp = kwargs.pop("timestamp", None)
         self.mass_scans = kwargs.pop("include_mass_scans", False)
+        self.verbose = kwargs.pop("verbose", False)
 
         plugins.activate_cinfdata()
         self.cinf_db = plugins.cinfdata.connect(
@@ -98,7 +99,9 @@ class CinfdataDBReader:
             except KeyError as e:
                 self.sample_name = None
                 print("No comment to set as sample_name. ", e)
-        print(self.sample_name)
+        if verbose:
+            print('Retriving data from measurement named: ', self.sample_name)
+            print('Measurement started recording on: ', self.timestamp)
 
         if (
             self.measurement_class == Spectrum
@@ -107,9 +110,12 @@ class CinfdataDBReader:
             return self.read_spectrums()
 
         data_series_list = []
+        if verbose:
+            print('Column names in measurement: ')
         for key in self.group_data.keys():
             column_name = self.group_meta[key]["mass_label"]
-            print(column_name)
+            if verbose:
+                print('Col name: ', column_name)
             unixtime = self.group_meta[key]["unixtime"]
             tstamp = float(unixtime)
 
@@ -200,7 +206,7 @@ class CinfdataDBReader:
                 self.x_unit_name = "m/z"
                 self.field_name = "Current"
                 self.field_unit = "[A]"
-                self.technique = "MS_spectrum"
+                self.technique = "MS_spectra"
                 obj_as_dict = self.create_spectrum(group_data, group_meta, key)
                 spectrum_list.append(cls.from_dict(obj_as_dict))
 
@@ -288,7 +294,7 @@ def add_mass_scans(self):
 
             obj_as_dict = {
                 "name": self.sample_name,
-                "technique": "MSSpectrum",
+                "technique": "MS_spectra",
                 "field": field,
                 "tstamp": tstamp,
             }
