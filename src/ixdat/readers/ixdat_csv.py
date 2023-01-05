@@ -12,8 +12,9 @@ from ..spectra import Spectrum, SpectrumSeries
 from ..techniques import TECHNIQUE_CLASSES
 
 regular_expressions = {
+    "name": r"^name = (\w+)",
     "tstamp": r"tstamp = ([0-9\.]+)",
-    "technique": r"technique = ([A-Za-z\-]+)\n",
+    "technique": r"technique = (\w+)\n",
     "N_header_lines": r"N_header_lines = ([0-9]+)",
     "backend_name": r"backend_name = (\w+)",
     "id": r"id = ([0-9]+)",
@@ -185,6 +186,10 @@ class IxdatCSVReader:
     def process_header_line(self, line):
         """Search line for important metadata and set the relevant attribute of self"""
         self.header_lines.append(line)
+        name_match = re.search(regular_expressions["name"], line)
+        if name_match:
+            self.name = name_match.group(1)
+            return
         N_head_match = re.search(regular_expressions["N_header_lines"], line)
         if N_head_match:
             self.N_header_lines = int(N_head_match.group(1))
@@ -289,20 +294,20 @@ class IxdatSpectrumReader(IxdatCSVReader):
 
         Returns cls: a Spectrum of type cls
         """
+        self.name = name or path_to_file.name
         with open(path_to_file, "r") as f:
             for line in f:
                 if self.place_in_file == "header":
                     self.process_line(line)
                 else:
                     break
-
         df = pd.read_csv(path_to_file, sep=",", header=self.N_header_lines - 2)
-        if self.technique == "spectrum":
+        if self.technique.endswith("spectrum"):
             # FIXME: in the future, this needs to cover all spectrum classes
             x_name, y_name = tuple(df.keys())
             x = df[x_name].to_numpy()
             y = df[y_name].to_numpy()
-            cls = cls or Spectrum
+            cls = cls if issubclass(cls, Spectrum) else Spectrum
             return cls.from_data(  # see Spectrum.from_data()
                 x,
                 y,
@@ -314,7 +319,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 reader=self,
             )
 
-        elif self.technique == "spectra":
+        elif self.technique.endswith("spectra"):
             # FIXME: in the future, this needs to cover all spectrum series classes
             names = {}
             units = {}
@@ -349,7 +354,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 data=y,
                 axes_series=[tseries, xseries],
             )
-            cls = cls or SpectrumSeries
+            cls = cls if issubclass(cls, SpectrumSeries) else SpectrumSeries
             return cls.from_field(  # see SpectrumSeries.from_field()
                 field, name=self.name, technique=self.technique, tstamp=self.tstamp
             )

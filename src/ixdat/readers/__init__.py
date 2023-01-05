@@ -8,7 +8,7 @@ Constants:
 from ..techniques import TECHNIQUE_CLASSES
 
 # ixdat
-from .ixdat_csv import IxdatCSVReader
+from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 
 # potentiostats
 from .biologic import BiologicMPTReader
@@ -40,6 +40,7 @@ from .qexafs import QexafsDATReader
 
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
+    "ixdat_spectrum": IxdatSpectrumReader,
     "biologic": BiologicMPTReader,
     "avantage": AvantageAVGReader,
     "autolab": NovaASCIIReader,
