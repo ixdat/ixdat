@@ -50,14 +50,13 @@ feedback or requests `here <https://github.com/ixdat/ixdat/issues>`_.
 
     introduction
     tutorials
-    extended-concept
-    developing
     measurement
     technique_docs/index
     data-series
     reader_docs/index
     exporter_docs/index
     plotter_docs/index
+    developing
     license
 
 Indices and tables
