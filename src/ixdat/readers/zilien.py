@@ -605,9 +605,14 @@ class ZilienSpectrumReader:
             header=9,
             delimiter="\t",
         )
-        x_name = "Mass [AMU]"
         y_name = "Current [A]"
-        x = df[x_name].to_numpy()
+
+        for x_name in ["Mass  [AMU]", "Mass [AMU]",]:
+            try:
+                x = df[x_name].to_numpy()
+            except KeyError:
+                continue
+            break
         y = df[y_name].to_numpy()
         with open(self.path_to_spectrum, "r") as f:
             for i in range(10):
