@@ -42,9 +42,6 @@ class MPLPlotter:
     def new_two_panel_axes(self, n_bottom=1, n_top=1, emphasis="top", interactive=True):
         """Return the axes handles for a bottom and top panel.
 
-        TODO: maybe fix order of axes returned.
-            see https://github.com/ixdat/ixdat/pull/30/files#r811198719
-
         Args:
             n_top (int): 1 for a single y-axis, 2 for left and right y-axes on top panel
             n_bottom (int): 1 for a single y-axis, 2 for left and right y-axes on bottom
@@ -88,6 +85,50 @@ class MPLPlotter:
             axes[2] = axes[0].twinx()
         if n_bottom == 2:
             axes[3] = axes[1].twinx()
+
+        return axes
+
+    def new_three_panel_axes(self, n_bottom=1, n_middle=1, n_top=1, interactive=True):
+        """Return the axes handles for a bottom, middle, and top panel.
+
+        Args:
+            n_top (int): 1 for a single y-axis, 2 for left and right y-axes on top panel
+            n_middle (int): 1 for a single y-axis, 2 for left and right y-axes on middle
+            n_bottom (int): 1 for a single y-axis, 2 for left and right y-axes on bottom
+            interactive (bool): Whether to activate interactive range selection (default
+                True)
+
+        Returns list of axes: top left, middle left, bottom left(, top right, middle
+            right, bottom right)
+        """
+        # Necessary to avoid deleting an open figure, I don't know why
+        self.new_ax(interactive=interactive)
+
+        gs = gridspec.GridSpec(12, 1)
+        # gs.update(hspace=0.025)
+        axes = [plt.subplot(gs[0:4, 0])]
+        axes += [plt.subplot(gs[4:8, 0])]
+        axes += [plt.subplot(gs[8:12, 0])]
+
+        if interactive:
+            self._axis_for_range_selection = set(axes)
+
+        axes[0].xaxis.set_label_position("top")
+        axes[0].tick_params(
+            axis="x", top=True, bottom=False, labeltop=True, labelbottom=False
+        )
+        axes[1].tick_params(
+            axis="x", top=True, bottom=True, labeltop=False, labelbottom=False
+        )
+
+        if n_bottom == 2 or n_middle == 2 or n_top == 2:
+            axes += [None, None, None]
+        if n_top == 2:
+            axes[3] = axes[0].twinx()
+        if n_middle == 2:
+            axes[4] = axes[1].twinx()
+        if n_bottom == 2:
+            axes[5] = axes[2].twinx()
 
         return axes
 

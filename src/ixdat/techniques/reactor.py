@@ -1,5 +1,5 @@
 from .ms import MSMeasurement, SpectroMSMeasurement
-from ..plotters.tpms_plotter import TPMSPlotter
+from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
 
 
 class ReactorMeasurement(MSMeasurement):
@@ -33,4 +33,4 @@ class ReactorMeasurement(MSMeasurement):
 
 
 class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
-    pass
+    default_plotter = SpectroTPMSPlotter

@@ -21,4 +21,6 @@ if True:
     # meas.plot()
 
     spec_meas = meas + spectra
-    spec_meas.plot()
+    axes = spec_meas.plot()
+
+    axes[0].get_figure().savefig("spectro_tpms_plot.png")
