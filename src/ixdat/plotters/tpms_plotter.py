@@ -141,6 +141,7 @@ class TPMSPlotter(MPLPlotter):
 
 
 class SpectroTPMSPlotter(MPLPlotter):
+<<<<<<< HEAD
     def __init__(self, measurement=None):
         """Initiate the Spectro-TPMSPlotter with its default Measurement to plot"""
         super().__init__()
@@ -184,7 +185,6 @@ class SpectroTPMSPlotter(MPLPlotter):
                 variable given by P_str (reactor pressure). By default four axes are made
                 with axes[0] a top panel, axes[1] a middle panel, axes[2] and axes[4]
                 the left and right yaxes of the bottom panel
-                are the left and right y-axes of the lower panel with 2/5 the area.
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
                 plot. Defaults to all of them (measurement.mass_list)
             mass_lists (list of list of str): Alternately, two lists can be given for
