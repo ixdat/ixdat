@@ -145,7 +145,6 @@ class ZilienTSVReader:
             )
             return self._measurement
 
-
         if "technique" in kwargs:
             if kwargs["technique"] == "EC-MS":
                 cls = ECMSMeasurement
@@ -608,7 +607,7 @@ class ZilienSpectrumReader:
         )
         y_name = "Current [A]"
 
-        for x_name in ["Mass  [AMU]", "Mass [AMU]",]:
+        for x_name in ["Mass  [AMU]", "Mass [AMU]"]:
             try:
                 x = df[x_name].to_numpy()
             except KeyError:
