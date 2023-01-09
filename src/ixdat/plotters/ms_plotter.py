@@ -326,11 +326,15 @@ class MSPlotter(MPLPlotter):
             quantified = False
             v_lists = mass_lists
 
+        if not ax:
+            ax = (
+                axes[0]
+                if axes
+                else self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+            )
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
         if v_lists:
-            if not axes and not ax:
-                ax = self.new_ax()
             axes = axes or [ax, ax.twinx()]  # prepare an axis unless we were given two.
             ax_right = axes[-1]
             ax = axes[0]
@@ -380,12 +384,6 @@ class MSPlotter(MPLPlotter):
         # TODO: Real units with a unit module! This should even be able to figure out the
         #  unit prefix to put stuff in a nice 1-to-1e3 range
 
-        if not ax:
-            ax = (
-                axes[0]
-                if axes
-                else self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
-            )
         specs_this_axis = {
             "ax": ax,
             "v_list": v_list,
@@ -443,7 +441,7 @@ STANDARD_COLORS = {
     "He": "m",
     "H2O": "y",
     "CO": "0.5",
-    "N2": "0.5",
+    "N2": "8f8fffff",
     "O2": "k",
     "Ar": "c",
     "CO2": "brown",
@@ -455,4 +453,22 @@ STANDARD_COLORS = {
     "CO2@M44": "brown",
     "CO2@M46": "purple",
     "CO2@M48": "darkslategray",
+# Inset of meta channels #
+    "TC temperature":'#808000',
+    "RTD temperature":'#808000',
+    "Reactor pressure":'#808000',
+    "Baratron pressure":'#808000',
+    "Containment pressure":'#808000',
+    "Flow1":'#808000',
+    "Flow2":'#808000',
+    "Flow3":'#808000',
+    "Flow4":'#808000',
+    "Flow5":'#808000',
+    "Flow6":'#808000',
+# Inset for anodic bonding #
+    "TC anodic bonding (top)":"#000075",#"#808000",
+    "TC anodic bonding (bottom)":"#4363d8",#"#9A6324",
+    "Total power":"#800000",
+    "Heater voltage 1":"#fabed4",
+    "Heater current 1":"#ffd8b1",
 }
