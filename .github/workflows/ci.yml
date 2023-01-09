@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
@@ -40,10 +40,10 @@ jobs:
       run: |
         # stop the build if there are Python syntax errors or undefined names
         invoke lint
-    - name: Test with pytest
-      run: |
-        invoke test
     - name: Check black formatting of code, tests and development scripts
       run: |
         invoke check-code-format
+    - name: Test with pytest
+      run: |
+        invoke test
 
