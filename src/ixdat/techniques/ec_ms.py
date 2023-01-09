@@ -149,8 +149,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 Defaults to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
                 ms_calibration on. Defaults to None. These axes are not returned.
-            return_ax (bool): Whether to return the axis on which the calibration is
-                plotted together with the MSCalResult. Defaults to False.
+            return_ax (bool): Whether to return the axis on which the calibration curve
+                is plotted together with the MSCalResult. Defaults to False.
 
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
             curve axis if requested) based on integration of selected time periods.
