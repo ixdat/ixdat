@@ -12,7 +12,12 @@ spectra.heat_plot()
 
 
 if True:
-    meas = Measurement.read(data_dir / "masstime.csv", reader="ixdat")
+    meas = Measurement.read(
+        data_dir / "masstime.csv",
+        reader="ixdat",
+        technique="reactor",
+        aliases={"pressure": ["Reactor pressure"], "temperature": ["TC temperature"]},
+    )
     # meas.plot()
 
     spec_meas = meas + spectra

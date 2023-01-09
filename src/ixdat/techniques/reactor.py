@@ -1,4 +1,4 @@
-from .ms import MSMeasurement
+from .ms import MSMeasurement, SpectroMSMeasurement
 from ..plotters.tpms_plotter import TPMSPlotter
 
 
@@ -30,3 +30,7 @@ class ReactorMeasurement(MSMeasurement):
     @property
     def t(self):
         return self["temperature"].t
+
+
+class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
+    pass
