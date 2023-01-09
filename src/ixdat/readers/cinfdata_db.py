@@ -100,8 +100,8 @@ class CinfdataDBReader:
                 self.sample_name = None
                 print("No comment to set as sample_name. ", e)
         if self.verbose:
-            print('Retriving data from measurement named: ', self.sample_name)
-            print('Measurement started recording on: ', self.timestamp)
+            print("Retriving data from measurement named: ", self.sample_name)
+            print("Measurement started recording on: ", self.timestamp)
 
         if (
             self.measurement_class == Spectrum
@@ -111,11 +111,11 @@ class CinfdataDBReader:
 
         data_series_list = []
         if self.verbose:
-            print('Column names in measurement: ')
+            print("Column names in measurement: ")
         for key in self.group_data.keys():
             column_name = self.group_meta[key]["mass_label"]
             if self.verbose:
-                print('Col name: ', column_name)
+                print("Col name: ", column_name)
             unixtime = self.group_meta[key]["unixtime"]
             tstamp = float(unixtime)
 
