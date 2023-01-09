@@ -141,7 +141,6 @@ class TPMSPlotter(MPLPlotter):
 
 
 class SpectroTPMSPlotter(MPLPlotter):
-<<<<<<< HEAD
     def __init__(self, measurement=None):
         """Initiate the Spectro-TPMSPlotter with its default Measurement to plot"""
         super().__init__()
