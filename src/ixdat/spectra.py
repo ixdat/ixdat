@@ -479,6 +479,8 @@ class SpectrumSeries(Spectrum):
         xseries = None
         tstamp_list = []
         ys = []
+        technique = spectrum_list[0].technique
+
         for spectrum in spectrum_list:
             tstamp_list.append(spectrum.tstamp)
             xseries = xseries or spectrum.xseries
@@ -496,8 +498,12 @@ class SpectrumSeries(Spectrum):
             axes_series=[tseries, xseries],
             data=np.stack(ys),
         )
+        if technique.endswith("spectrum"):
+            technique = technique.rstrip("spectrum") + "spectra"
+
         obj_as_dict = spectrum_list[0].as_dict()
         obj_as_dict["field"] = field
+        obj_as_dict["technique"] = technique
         del obj_as_dict["field_id"]
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)

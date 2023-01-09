@@ -99,7 +99,7 @@ class CinfdataDBReader:
             except KeyError as e:
                 self.sample_name = None
                 print("No comment to set as sample_name. ", e)
-        if verbose:
+        if self.verbose:
             print('Retriving data from measurement named: ', self.sample_name)
             print('Measurement started recording on: ', self.timestamp)
 
@@ -110,11 +110,11 @@ class CinfdataDBReader:
             return self.read_spectrums()
 
         data_series_list = []
-        if verbose:
+        if self.verbose:
             print('Column names in measurement: ')
         for key in self.group_data.keys():
             column_name = self.group_meta[key]["mass_label"]
-            if verbose:
+            if self.verbose:
                 print('Col name: ', column_name)
             unixtime = self.group_meta[key]["unixtime"]
             tstamp = float(unixtime)
@@ -206,7 +206,7 @@ class CinfdataDBReader:
                 self.x_unit_name = "m/z"
                 self.field_name = "Current"
                 self.field_unit = "[A]"
-                self.technique = "MS_spectra"
+                self.technique = "MS_spectrum"
                 obj_as_dict = self.create_spectrum(group_data, group_meta, key)
                 spectrum_list.append(cls.from_dict(obj_as_dict))
 
@@ -294,7 +294,7 @@ def add_mass_scans(self):
 
             obj_as_dict = {
                 "name": self.sample_name,
-                "technique": "MS_spectra",
+                "technique": "MS_spectrum",
                 "field": field,
                 "tstamp": tstamp,
             }
