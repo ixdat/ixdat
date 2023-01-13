@@ -465,6 +465,12 @@ STANDARD_COLORS = {
     "Flow4":'#808000',
     "Flow5":'#808000',
     "Flow6":'#808000',
+    "Flow1":'k',
+    "Flow2":'brown',
+    "Flow3":'c',
+    "Flow4":'b',
+    "Flow5":'r',
+    "Flow6":'0.5',
 # Inset for anodic bonding #
     "TC anodic bonding (top)":"#000075",#"#808000",
     "TC anodic bonding (bottom)":"#4363d8",#"#9A6324",
