@@ -19,7 +19,6 @@ from .spectroelectrochemistry import (
 from .reactor import ReactorMeasurement, SpectroReactorMeasurement
 
 from ..spectra import Spectrum
-from .reactor import ReactorMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
 
 # TODO: Is something like DecoMeasurement a Measurement or something else?
