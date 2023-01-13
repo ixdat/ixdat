@@ -34,9 +34,9 @@ class TPMSPlotter(MPLPlotter):
         emphasis="top",
         **kwargs,
     ):
-        """Make an EC-MS plot vs time and return the axis handles.
+        """Make a TP-MS plot vs time and return the axis handles.
 
-        Allocates tasks to ECPlotter.plot_measurement() and MSPlotter.plot_measurement()
+        Allocates some tasks to MSPlotter.plot_measurement()
 
         Args:
             measurement (ECMSMeasurement): Defaults to the measurement to which the
@@ -81,10 +81,10 @@ class TPMSPlotter(MPLPlotter):
         Returns:
             list of Axes: (top_left, bottom_left, top_right, bottom_right) where:
                 axes[0] is top_left is MS data;
-                axes[1] is bottom_left is potential;
+                axes[1] is bottom_left is temperature;
                 axes[2] is top_right is additional MS data if left and right mass_lists
                     or mol_lists were plotted (otherwise axes[2] is None); and
-                axes[3] is bottom_right is current.
+                axes[3] is bottom_right is pressure.
         """
 
         if logplot is None:
@@ -139,3 +139,60 @@ class TPMSPlotter(MPLPlotter):
         color_axis(axes[3], P_color)
 
         return axes
+
+
+class SpectroTPMSPlotter(MPLPlotter):
+    def plot_measurement(self):
+        """Make a spectro TP-MS plot vs time and return the axis handles.
+
+        Allocates some tasks to MSPlotter.plot_measurement()
+
+        Args:
+            measurement (ECMSMeasurement): Defaults to the measurement to which the
+                plotter is bound (self.measurement)
+            axes (list of three matplotlib axes): axes[0] plots the MID data,
+                axes[1] the variable given by V_str (potential), and axes[2] the
+                variable given by J_str (current). By default three axes are made with
+                axes[0] a top panel with 3/5 the area, and axes[1] and axes[2] are
+                the left and right y-axes of the lower panel with 2/5 the area.
+            mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mass_lists (list of list of str): Alternately, two lists can be given for
+                masses in which case one list is plotted on the left y-axis and the other
+                on the right y-axis of the top panel.
+            mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mol_lists (list of list of str): Alternately, two lists can be given for
+                molecules in which case one list is plotted on the left y-axis and the
+                other on the right y-axis of the top panel.
+            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan_bg (timespan): A timespan for which to assume the signal is at its
+                background. The average signals during this timespan are subtracted.
+                If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
+                must also be two timespans - one for each axis. Default is `None` for no
+                background subtraction.
+            remove_background (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
+            unit (str): the unit for the MS data. Defaults to "A" for Ampere
+            T_name (str): The name of the value to plot on the lower left y-axis.
+                Defaults to the name of the series `measurement.potential`
+            P_name (str): The name of the value to plot on the lower right y-axis.
+                Defaults to the name of the series `measurement.current`
+            T_color (str): The color to plot the variable given by 'V_str'
+            P_color (str): The color to plot the variable given by 'J_str'
+            logplot (bool): Whether to plot the MS data on a log scale (default True
+                unless mass_lists are given)
+            legend (bool): Whether to use a legend for the MS data (default True)
+            emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
+                bottom panel, None for equal-sized panels
+            kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
+
+        Returns:
+            list of Axes: (top, mid_left, bottom_left, mid_right, bottom_right) where:
+                axes[0] is top is MS spectral data
+                axes[1] is top_left is Mass ID data;
+                axes[2] is bottom_left is temperature;
+                axes[3] is top_right is additional MS data if left and right mass_lists
+                    or mol_lists were plotted (otherwise axes[2] is None); and
+                axes[4] is bottom_right is pressure.
+        """
