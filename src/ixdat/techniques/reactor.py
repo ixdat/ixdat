@@ -33,4 +33,4 @@ class ReactorMeasurement(MSMeasurement):
 
 
 class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
-    deafult_plotter = SpectroTPMSPlotter
+    default_plotter = SpectroTPMSPlotter

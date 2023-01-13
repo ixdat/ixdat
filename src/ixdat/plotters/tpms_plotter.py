@@ -109,8 +109,7 @@ class TPMSPlotter(MPLPlotter):
             # then we have MS data!
             self.ms_plotter.plot_measurement(
                 measurement=measurement,
-                ax=axes[0],
-                axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else axes[0],
+                axes=[axes[0], axes[2]] if (mass_lists or mol_lists) else [axes[0]],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -142,7 +141,37 @@ class TPMSPlotter(MPLPlotter):
 
 
 class SpectroTPMSPlotter(MPLPlotter):
-    def plot_measurement(self):
+    def __init__(self, measurement=None):
+        """Initiate the ECMSPlotter with its default Measurement to plot"""
+        super().__init__()
+        self.measurement = measurement
+        self.tpms_plotter = TPMSPlotter(measurement=measurement)
+
+    def plot_measurement(
+        self,
+        *,
+        measurement=None,
+        axes=None,
+        mass_list=None,
+        mass_lists=None,
+        mol_list=None,
+        mol_lists=None,
+        tspan=None,
+        tspan_bg=None,
+        remove_background=None,
+        unit=None,
+        T_name=None,
+        P_name=None,
+        T_color="k",
+        P_color="r",
+        logplot=None,
+        legend=True,
+        xspan=None,
+        cmap_name="inferno",
+        make_colorbar=False,
+        aspect=1.25,
+        **kwargs,
+    ):
         """Make a spectro TP-MS plot vs time and return the axis handles.
 
         Allocates some tasks to MSPlotter.plot_measurement()
@@ -182,9 +211,13 @@ class SpectroTPMSPlotter(MPLPlotter):
             P_color (str): The color to plot the variable given by 'J_str'
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
-            legend (bool): Whether to use a legend for the MS data (default True)
-            emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
-                bottom panel, None for equal-sized panels
+            legend (bool): Whether to use a legend for the MID data (default True)
+            xspan (iterable): The span of the spectral data to plot
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
+            make_colorbar (bool): Whether to make a colorbar.
+                FIXME: colorbar at present mis-alignes axes
+            aspect (float): aspect ratio. Defaults to 1.25 times taller than wide.
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -196,3 +229,44 @@ class SpectroTPMSPlotter(MPLPlotter):
                     or mol_lists were plotted (otherwise axes[2] is None); and
                 axes[4] is bottom_right is pressure.
         """
+        measurement = measurement or self.measurement
+
+        if not axes:
+            axes = self.new_three_panel_axes(
+                n_top=1, n_middle=(2 if (mass_lists or mol_lists) else 1), n_bottom=2
+            )
+
+        measurement.spectrum_series.heat_plot(
+            ax=axes[0],
+            tspan=tspan,
+            xspan=xspan,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+        )
+
+        self.tpms_plotter.plot_measurement(
+            measurement=measurement,
+            axes=[axes[1], axes[2], axes[4], axes[5]],
+            tspan=tspan,
+            tspan_bg=tspan_bg,
+            remove_background=remove_background,
+            mass_list=mass_list,
+            mass_lists=mass_lists,
+            mol_list=mol_list,
+            mol_lists=mol_lists,
+            unit=unit,
+            logplot=logplot,
+            legend=legend,
+            T_name=T_name,
+            P_name=P_name,
+            T_color=T_color,
+            P_color=P_color,
+            **kwargs,
+        )
+
+        axes[0].set_xlim(axes[1].get_xlim())
+
+        fig = axes[0].get_figure()
+        fig.set_figheight(fig.get_figwidth() * aspect)
+
+        return axes
