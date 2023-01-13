@@ -42,7 +42,7 @@ class TPMSPlotter(MPLPlotter):
             measurement (TPMSMeasurement): Defaults to the measurement to which the
                 plotter is bound (self.measurement)
             axes (list of three matplotlib axes): axes[0] plots the MID data,
-                axes[1] the variable given by T_str (temperature), and axes[2] the
+                axes[1] the variable given by T_str (temperature), and axes[3] the
                 variable given by P_str (reactor pressure). By default three axes are made with
                 axes[0] a top panel with 3/5 the area, and axes[1] and axes[3] are
                 the left and right y-axes of the lower panel with 2/5 the area.
