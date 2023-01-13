@@ -22,3 +22,10 @@ plotters
 - ``MSPlotter.plot_measurment`` now create a new axis if no initial axis is given
   before initiating right axes in the case of dual plotting on left and right axes.
   Fixes `Issue #97 <https://github.com/ixdat/ixdat/issues/97>`_
+=======
+For ixdat 0.2.2
+===============
+
+- ``ReactorMeasurement`` class, technique="reactor", with a ``TPMSPlotter``. This
+  technique is analogous to EC-MS with temperature replacing potential and
+  pressure replacing current.
