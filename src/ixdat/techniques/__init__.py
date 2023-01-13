@@ -17,6 +17,7 @@ from .spectroelectrochemistry import (
     ECOpticalMeasurement,
 )
 from ..spectra import Spectrum
+from .reactor import ReactorMeasurement
 from ..measurements import Measurement  # for importing in the technique modules
 
 # TODO: Is something like DecoMeasurement a Measurement or something else?
@@ -34,6 +35,8 @@ TECHNIQUE_CLASSES = {
     "SEC": SpectroECMeasurement,
     "EC-XAS": ECXASMeasurement,
     "MS-MS_spectra": SpectroMSMeasurement,
+    "S-EC": SpectroECMeasurement,
+    "reactor": ReactorMeasurement,
 }
 
 CALIBRATION_CLASSES = {
