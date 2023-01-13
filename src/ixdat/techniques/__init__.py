@@ -37,13 +37,9 @@ TECHNIQUE_CLASSES = {
     "EC-Optical": ECOpticalMeasurement,
     "EC-XAS": ECXASMeasurement,
     "MS-MS_spectra": SpectroMSMeasurement,
-<<<<<<< HEAD
     "reactor": ReactorMeasurement,
     "reactor-MS_spectra": SpectroReactorMeasurement,
-=======
     "S-EC": SpectroECMeasurement,
-    "reactor": ReactorMeasurement,
->>>>>>> 701a418 (test of TPMS, tpms_plotter, technique init and reactor technique)
 }
 
 CALIBRATION_CLASSES = {

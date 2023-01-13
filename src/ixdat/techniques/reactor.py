@@ -1,12 +1,5 @@
-<<<<<<< HEAD
 from .ms import MSMeasurement, SpectroMSMeasurement
 from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
-=======
-from abc import ABC
-
-from .ms import MSMeasurement
-from ..plotters.tpms_plotter import TPMSPlotter
->>>>>>> 701a418 (test of TPMS, tpms_plotter, technique init and reactor technique)
 
 
 class ReactorMeasurement(MSMeasurement):
@@ -37,10 +30,7 @@ class ReactorMeasurement(MSMeasurement):
     @property
     def t(self):
         return self["temperature"].t
-<<<<<<< HEAD
 
 
 class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
-    default_plotter = SpectroTPMSPlotter
-=======
->>>>>>> 701a418 (test of TPMS, tpms_plotter, technique init and reactor technique)
+    deafult_plotter = SpectroTPMSPlotter

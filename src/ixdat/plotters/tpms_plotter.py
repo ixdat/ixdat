@@ -177,7 +177,7 @@ class SpectroTPMSPlotter(MPLPlotter):
         Allocates some tasks to TPMSPlotter.plot_measurement()
 
         Args:
-            measurement (SpecroReactorMeasurement): Defaults to the measurement to which
+            measurement (SpectroReactorMeasurement): Defaults to the measurement to which
                 the plotter is bound (self.measurement)
             axes (list of four matplotlib axes): axes[0] plots the spectral, axes[1] MS,
                 axes[2] the variable given by T_str (temperature), and axes[4] the
