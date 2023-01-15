@@ -394,6 +394,96 @@ class MSPlotter(MPLPlotter):
 
         return quantified, specs_this_axis, specs_next_axis
 
+class SpectroMSPlotter(MPLPlotter):
+    """A matplotlib plotter specialized in mass spectrometry MID measurements."""
+
+    def __init__(self, measurement=None):
+        """Initiate the SpectroMSPlotter with its default Meausurement to plot"""
+        super().__init__()
+        self.measurement = measurement
+        self.ms_plotter = MSPlotter(measurement=measurement)
+
+    def plot_measurement(
+        self,
+        *,
+        measurement=None,
+        axes=None,
+        mass_list=None,
+        mass_lists=None,
+        mol_list=None,
+        mol_lists=None,
+        tspan=None,
+        tspan_bg=None,
+        remove_background=None,
+        unit=None,
+        logplot=True,
+        legend=True,
+        xspan=None,
+        cmap_name="inferno",
+        make_colorbar=False,
+        emphasis='top',
+        ms_data='top',
+        **kwargs,
+    ):
+
+        if logplot is None:
+            logplot = not mol_lists and not mass_lists
+
+        if not axes:
+            if ms_data == 'top':
+                n_bottom=1
+                n_top=(2 if (mass_lists or mol_lists) else 1)
+                ms_axes = 0
+                ms_spec_axes = 1
+            else:
+                n_top=1
+                n_bottom=(2 if (mass_lists or mol_lists) else 1)
+                ms_axes = 1
+                ms_spec_axes = 0
+
+
+            axes = self.new_two_panel_axes(
+                    n_bottom=n_bottom,
+                    n_top=n_top,
+                    emphasis=emphasis,
+            )
+
+
+        measurement = measurement or self.measurement
+
+        if (
+             mass_list
+             or mass_lists
+             or mol_list
+             or mol_lists
+             or hasattr(measurement, "mass_list")
+        ):
+            # then we have MS data!
+            self.ms_plotter.plot_measurement(
+                measurement=measurement,
+                axes=[axes[ms_axes], axes[2]] if (mass_lists or mol_lists) else [axes[ms_axes]],
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                mass_list=mass_list,
+                mass_lists=mass_lists,
+                mol_list=mol_list,
+                mol_lists=mol_lists,
+                unit=unit,
+                logplot=logplot,
+                legend=legend,
+                 **kwargs,
+                 )
+
+        measurement.spectrum_series.heat_plot(
+                ax=axes[ms_spec_axes],
+                tspan=tspan,
+                xspan=xspan,
+                cmap_name=cmap_name,
+                make_colorbar=make_colorbar,
+                )
+
+        return axes
 
 #  ----- These are the standard colors for EC-MS plots! ------- #
 

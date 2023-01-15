@@ -7,7 +7,7 @@ import warnings
 
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum, SpectroMeasurement
-from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
+from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADROS_CONSTANT,
@@ -1082,4 +1082,4 @@ class MSSpectrum(Spectrum):
 
 
 class SpectroMSMeasurement(MSMeasurement, SpectroMeasurement):
-    pass
+    default_plotter = SpectroMSPlotter
