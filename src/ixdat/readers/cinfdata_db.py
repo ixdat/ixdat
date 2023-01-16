@@ -248,7 +248,17 @@ class CinfdataDBReader:
         elif len(spectrum_list) == 1:
             return spectrum_list[0]
         else:
-            return SpectrumSeries.from_spectrum_list(spectrum_list)
+            try:
+                return SpectrumSeries.from_spectrum_list(spectrum_list)
+            except ValueError as e:
+                warnings.warn("Could not return SpectrumSeries from list of spectrums "
+                              f"using '{self.token}' and group column: "
+                              f"'{self.grouping_column}'. \n"
+                              " Return list of all spectrums.",
+                              stacklevel=2
+                              )
+
+                return spectrum_list
 
     def create_spectrum(self, key): # group_data, group_meta, key):
         x_col = self.group_data[key][:, 0]
