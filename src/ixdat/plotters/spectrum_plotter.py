@@ -65,6 +65,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
         make_colorbar=False,
         t=None,
         t_name=None,
+        max_threshold=None,
+        min_threshold=None,
+        scanning_mask=None,
     ):
         """
         Plot a spectrum series with `t` on the horizontal axis, `x` on the vertical axis,
@@ -85,6 +88,12 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 FIXME: colorbar at present mis-alignes axes
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
+            max_threshold (float): Maximum value to display.
+                Values above are set to threshold.
+            min_threshold (float): Minimum value to display.
+                Values below are set to 0.
+            scanning_mask (list):  List of booleans to exclude from scanning variable
+                before plotting data by setting y values to 0 (zero).
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
@@ -94,7 +103,15 @@ class SpectrumSeriesPlotter(MPLPlotter):
         t = t if t is not None else field.axes_series[0].t
         t_name = t_name or field.axes_series[0].name
 
-        data = field.data
+        data = field.data.copy()
+
+        if max_threshold:
+            data = np.minimum(max_threshold, data)
+        if min_threshold:
+            data[data < min_threshold] = 0
+
+        if np.any(scanning_mask):
+            data[:, scanning_mask] = 0
 
         if tspan:
             t_mask = np.logical_and(tspan[0] < t, t < tspan[-1])
@@ -104,6 +121,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 # Then we need to plot the data against U in the reverse direction:
                 t = np.flip(t, axis=0)
                 data = np.flip(data, axis=0)
+
         if xspan:
             x_mask = np.logical_and(xspan[0] < x, x < xspan[-1])
             x = x[x_mask]
