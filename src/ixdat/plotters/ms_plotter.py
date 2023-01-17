@@ -423,6 +423,9 @@ class SpectroMSPlotter(MPLPlotter):
         make_colorbar=False,
         emphasis='top',
         ms_data='top',
+        max_threshold=None,
+        min_threshold=None,
+        scanning_mask=None,
         **kwargs,
     ):
 
@@ -481,6 +484,9 @@ class SpectroMSPlotter(MPLPlotter):
                 xspan=xspan,
                 cmap_name=cmap_name,
                 make_colorbar=make_colorbar,
+                max_threshold=max_threshold,
+                min_threshold=min_threshold,
+                scanning_mask=scanning_mask,
                 )
 
         return axes
