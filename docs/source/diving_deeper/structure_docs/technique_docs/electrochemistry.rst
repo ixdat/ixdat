@@ -73,7 +73,7 @@ The ``ec`` module
 -----------------
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec.py
 
-.. figure:: ../figures/ec_subplots.svg
+.. figure:: ../../../figures/ec_subplots.svg
   :width: 600
   :alt: Example plots. left: ``ECMeasurement.plot_vs_potential()`` right: ``ECMeasurement.plot_measurement()``
 
@@ -88,7 +88,7 @@ The ``cv`` module
 -----------------
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/cv.py
 
-.. figure:: ../figures/cv_diff.svg
+.. figure:: ../../../figures/cv_diff.svg
   :width: 300
   :alt: Example ``CyclicVoltammagramDiff`` plot
 

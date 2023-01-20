@@ -49,14 +49,9 @@ feedback or requests `here <https://github.com/ixdat/ixdat/issues>`_.
     :maxdepth: 1
 
     introduction
-    tutorials
-    measurement
-    technique_docs/index
-    data-series
-    reader_docs/index
-    exporter_docs/index
-    plotter_docs/index
-    developing
+    getting_started/index
+    diving_deeper/index
+    developing/index
     license
 
 Indices and tables

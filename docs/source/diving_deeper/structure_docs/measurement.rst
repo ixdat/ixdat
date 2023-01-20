@@ -16,7 +16,7 @@ Each TechniqueMeasurement class will likely have its own default reader, plotter
 exporter, while an ``ixdat`` session will typically work with one backend handled by the
 ``db`` model.
 
-.. image:: figures/pluggable.svg
+.. image:: ../../figures/pluggable.svg
   :width: 400
   :alt: Design: pluggability
 
@@ -27,7 +27,7 @@ Inheritance in TechniqueMeasurement classes makes it so that related techniques
 can share functionality. Here is an illustration of the role of inheritence, using
 EC, MS, and EC-MS as an example:
 
-.. image:: figures/inheritance.svg
+.. image:: ../../figures/inheritance.svg
   :width: 400
   :alt: Design: inheritance
 

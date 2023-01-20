@@ -20,7 +20,7 @@ use as the reference for optical density calculation. If not provided, the
 object's ``reference_spectrum`` is used, which itself can be set by the
 ``set_reference_spectrum`` method.
 
-.. figure:: ../figures/sec_class.svg
+.. figure:: ../../../figures/sec_class.svg
     :width: 600
 
 The data structure is the same whether the experiment is done as a slow potential scan with
