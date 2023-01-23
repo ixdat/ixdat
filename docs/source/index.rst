@@ -5,8 +5,8 @@
 
 Documentation for ``ixdat``
 ###########################
-The in-situ experimental data tool
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Welcome to ``ixdat`` - The in-situ experimental data tool
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 With ``ixdat``, you can import, combine, and export complex experimental datasets
@@ -34,16 +34,10 @@ Or rather than exporting, you can take advantage of ``ixdat``'s powerful analysi
 tools and database backends to be a one-stop tool from messy raw data to public
 repository accompanying your breakthrough publication and advancing our field.
 
+This documentation page is structured as follows: The :ref:`Introduction` gives a brief intro to the concept and has a list of the techniques and file types supported so far. In :ref:`getting_started` you have the info on how to install ``ixdat`` on your computer, as well as several tutorials guiding you through ``ixdat``'s vast possibilities. If you want to know more about the concept, or check out the in-depth code documentation, check out :ref:`diving_deeper`. And finally, if you want to contribute to our open-source project, find out more at :ref:`developing`. 
 
-The documentation
------------------
-
-Welcome to the ``ixdat`` documentation. We hope that you can find what you are looking for here!
-
-The :ref:`Introduction` has a list of the techniques and file types supported so far.
-
-This documentation, like ``ixdat`` itself, is a work in progress and we appreciate any
-feedback or requests `here <https://github.com/ixdat/ixdat/issues>`_.
+If you have any feedback, comments or questions, find out how to contact the ixdat team here: :ref:`questions`. 
+This documentation, like ``ixdat`` itself, is a work in progress and we appreciate any feedback or requests.
 
 .. toctree::
     :maxdepth: 1
