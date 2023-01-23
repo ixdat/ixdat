@@ -5,18 +5,25 @@ Introduction
 ============
 
 ``ixdat`` provides a powerful **object-oriented** interface to experimental data,
-especially in-situ experimental data for which it is of interest to combine data obtained
-simultaneously from multiple techniques.
-In addition to a **pluggable** ``reader`` interface for importing your data format, it
-includes pluggable exporters and plotters, as well as a database interface.
+especially in-situ or online experimental data for which it is of interest to combine data obtained
+simultaneously from multiple techniques. Being centered around timestamps, ``ixdat`` allows you to smoothly connect data
+recorded with different techniques. 
 
-For the philosophy behind ixdat, see :ref:`concept`.
+The concept is illustrated in the figure below: A ``measurement`` object interfaces with the data from one or more techniques,
+which can be treated using **built-in methods**, or can be retrieved in the form of an array, for maximum flexibility. 
+Data in **various formats** is read in with the corresponding ``reader`` and can be plotted with a ``plotter``, exported with an ``exporter`` (e.g. for treatment using other tools), or simply stored for later use in a database connected to ``ixdat``.
+To allow for this broad functionality, ``ixdat`` comes with a **pluggable** ``reader`` interface for importing your data format, as well as **pluggable** ``exporter`` and ``plotter`` and database.
 
-``ixdat`` is free and open source software and we welcome input and new collaborators.
-See :ref:`developing`.
+.. image:: figures/pluggable.svg
+  :width: 620
+  :alt: Design: pluggability
+
+Get started today with one of the tutorials available under :ref:`tutorials`. If you're curious about the details of ``ixdat``'s structure and the available readers, plotters and exporters, check out the section :ref:`diving_deeper`. 
 
 Supported techniques
 --------------------
+
+Following techniques and asscociated file formats are currently supported:
 
 .. list-table:: Techniques and Readers
    :widths: 20 15 50
@@ -52,29 +59,14 @@ Supported techniques
      - Future
      -
 
+Missing something?
+------------------
 
-Installation
-------------
+Is the technique or reader for the file format you're looking for not available yet? Then you have two options:
 
-To use ``ixdat``, you need to have python installed. We recommend
-`Anaconda python <https://www.anaconda.com/products/individual>`_.
+a. Contribute with a new feature: ``ixdat`` is free and open source software and we welcome input and new collaborators.
+See :ref:`developing`
 
-To install ``ixdat``, just type in your terminal or Anaconda prompt::
+or
 
-    $ pip install ixdat
-
-And hit enter.
-
-``ixdat`` is under development, and to make use of the newest features,
-you may need to upgrade to the latest version. This is also easy. Just type::
-
-    $ pip install --upgrade ixdat
-
-
-
-ixdat workflow
---------------
-.. figure:: figures/ixdat_flow.png
-    :width: 500
-
-    The power of combining techniques
+b. Let the ixdat team know at https://github.com/ixdat/ixdat/issues

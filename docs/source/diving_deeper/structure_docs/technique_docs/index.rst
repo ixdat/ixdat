@@ -12,12 +12,17 @@ A full list of the techniques and there names is in the ``TECHNIQUE_CLASSES`` di
     >>> from ixdat.techniques import TECHNIQUE_CLASSES
     >>> TECHNIQUE_CLASSES  # note, more techniques may have been added since!
     {
-        'simple': <class 'ixdat.measurements.Measurement'>,
-        'EC': <class 'ixdat.techniques.ec.ECMeasurement'>,
-        'CV': <class 'ixdat.techniques.cv.CyclicVoltammagram'>,
-        'MS': <class 'ixdat.techniques.ms.MSMeasurement'>,
-        'EC-MS': <class 'ixdat.techniques.ec_ms.ECMSMeasurement'>
-        'S-EC': <class 'ixdat.techniques.ec_ms.SpectroECMeasurement'>
+	'simple': <ixdat.measurements.Measurement>,
+	'EC': <ixdat.techniques.ec.ECMeasurement>,
+	'CV': <ixdat.techniques.cv.CyclicVoltammogram>,
+	'MS': <ixdat.techniques.ms.MSMeasurement>,
+	'EC-MS': <ixdat.techniques.ec_ms.ECMSMeasurement>,
+	'XRD': <ixdat.spectra.Spectrum>,
+	'XPS': <ixdat.spectra.Spectrum>,
+	'XAS': <ixdat.spectra.Spectrum>,
+	'EC-Optical': <ixdat.techniques.spectroelectrochemistry.ECOpticalMeasurement>,
+	'SEC': <ixdat.techniques.spectroelectrochemistry.SpectroECMeasurement>,
+	'EC-XAS': <ixdat.techniques.spectroelectrochemistry.ECXASMeasurement>
     }
 
 .. toctree::

@@ -3,7 +3,7 @@ License
 
 MIT License
 
-Copyright (c) 2020 ixdat
+Copyright (c) 2020-2022 ixdat
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,3 +26,14 @@ SOFTWARE.
 Questions?
 ==========
 Contact the **ixdat** team at https://github.com/ixdat
+
+Report issues at https://github.com/ixdat/ixdat/issues
+
+FAQ
+===
+
+How do I install ixdat?
+How do I import data?
+How do I plot data?
+How do I get my data in an array form?
+How do I contribute to ixdat?
