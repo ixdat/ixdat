@@ -69,6 +69,8 @@ class SpectrumSeriesPlotter(MPLPlotter):
         min_threshold=None,
         scanning_mask=None,
         _sort_indicies=None,
+        vmin=None,
+        vmax=None,
     ):
         """
         Plot a spectrum series with `t` on the horizontal axis, `x` on the vertical axis,
@@ -90,14 +92,16 @@ class SpectrumSeriesPlotter(MPLPlotter):
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
             max_threshold (float): Maximum value to display.
-                Values above are set to threshold.
+                Values above are set to zero.
             min_threshold (float): Minimum value to display.
                 Values below are set to 0.
             scanning_mask (list): List of booleans to exclude from scanning variable
                 before plotting data by setting y values to 0 (zero).
             _sort_indicies (list): List of indices to sort data.
-                Helper varirable used for correct representation of data iwhen plotting
-                with ´´heat_plot_vs´´
+                Helper varirable used for correct representation of data when plotting
+                with ´´heat_plot_vs´´.
+            vmin (float): minimum value to represent in colours.
+            vmax (float): maximum value to represent in colours.
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
@@ -113,7 +117,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
             data = data[_sort_indicies, :]
 
         if max_threshold:
-            data = np.minimum(max_threshold, data)
+            #data = np.minimum(max_threshold, data)
             data[data > max_threshold] = 0
         if min_threshold:
             data[data < min_threshold] = 0
@@ -143,11 +147,19 @@ class SpectrumSeriesPlotter(MPLPlotter):
             cmap=cmap_name,
             aspect="auto",
             extent=(t[0], t[-1], x[0], x[-1]),
+            vmin=vmin,
+            vmax=vmax,
         )
         ax.set_xlabel(t_name)
         ax.set_ylabel(xseries.name)
+
+        if not vmin:
+            vmin = np.min(data)
+        if not vmax:
+            vmax = np.max(data)
+
         if make_colorbar:
-            add_colorbar(ax, cmap_name, vmin=np.min(data), vmax=np.max(data))
+            add_colorbar(ax, cmap_name, vmin=vmin, vmax=vmax)
         return ax
 
     def plot_waterfall(
