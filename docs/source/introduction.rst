@@ -50,11 +50,14 @@ Following techniques and asscociated file formats are currently supported:
      - Released
      - - msrh_sec: .csv file sets from Imperial College London's SEC system
    * - X-ray photoelectron spectroscopy (XPS)
-     - Future
-     -
+     - Development
+     - - avantage: .avg files from Thermo Scientific's Avantage software
    * - X-ray diffraction (XRD)
-     - Future
-     -
+     - Development
+     - xrdml: .xrdml files from e.g. PanAnalytical's Empyereon
+   * - In-situ Electrochemistry - X-ray adsorption spectroscopy (XAS)
+     - Development
+     - qexafs: .dat files from Diamond's B18 beamline
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -

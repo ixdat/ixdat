@@ -23,8 +23,6 @@ you may need to upgrade to the latest version. This is also easy. Just type::
 
     $ pip install --upgrade ixdat
 
-Tutorials
----------
 
 
 .. toctree::
