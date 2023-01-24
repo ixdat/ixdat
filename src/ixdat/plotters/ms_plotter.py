@@ -1,5 +1,5 @@
 """Plotter for Mass Spectrometry"""
-
+import warnings
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 
@@ -26,6 +26,7 @@ class MSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
+        x_unit=None,
         logplot=True,
         legend=True,
         **kwargs,
@@ -64,6 +65,7 @@ class MSPlotter(MPLPlotter):
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
             unit (str): defaults to "A" or "mol/s"
+            x_unit (str): defaults to "s"
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
             kwargs: extra key-word args are passed on to matplotlib's plot()
@@ -96,6 +98,7 @@ class MSPlotter(MPLPlotter):
                 v_name = v_or_v_name
                 color = STANDARD_COLORS.get(v_name, "k")
             else:
+                print("ender jeg nogensinde her")
                 v_name = v_or_v_name.name
                 color = v_or_v_name.color
             if quantified:
@@ -116,15 +119,18 @@ class MSPlotter(MPLPlotter):
                 )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
+
+            x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")  #
+
             ax.plot(
-                t,
+                t * x_unit_factor,
                 v * unit_factor,
                 color=color,
                 label=v_name,
                 **kwargs,
             )
         ax.set_ylabel(f"signal / [{unit}]")
-        ax.set_xlabel("time / [s]")
+        ax.set_xlabel(f"time / [{x_unit}]")
         if specs_next_axis:
             self.plot_measurement(
                 measurement=measurement,
@@ -132,6 +138,7 @@ class MSPlotter(MPLPlotter):
                 mass_list=specs_next_axis["mass_list"],
                 mol_list=specs_next_axis["mol_list"],
                 unit=specs_next_axis["unit"],
+                x_unit=x_unit,
                 tspan=tspan,
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
@@ -164,8 +171,10 @@ class MSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
+        x_unit=None,
         logplot=True,
         legend=True,
+        arrhenius=False,
         **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
@@ -254,13 +263,42 @@ class MSPlotter(MPLPlotter):
                 plot_kwargs_this_mass["color"] = STANDARD_COLORS.get(v_name, "k")
             if "label" not in plot_kwargs:
                 plot_kwargs_this_mass["label"] = v_name
+
+            if x_unit:
+                x_unit_factor, x_unit = self._get_x_unit_factor(
+                    x_unit, measurement[x_name].unit.name
+                )
+
+            if arrhenius:
+                x_unit_name = measurement[x_name].unit.name
+                if not x_unit:
+                    x_unit = "K"
+                x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, x_unit_name)
+                if x_unit_name != "kelvin" or x_unit_name != "K":
+                    x_mass += x_unit_factor
+
+                x_mass = 1 / x_mass
+                if not logplot:
+                    v = np.log(v * unit_factor) * 1 / unit_factor
+
             ax.plot(
                 x_mass,
                 v * unit_factor,
                 **plot_kwargs_this_mass,
             )
+
         ax.set_ylabel(f"signal / [{unit}]")
-        ax.set_xlabel(x_name)
+
+        if x_unit:
+            if arrhenius:
+                ax.set_xlabel(f"{x_name} / [1/{x_unit}]")
+                if not logplot:
+                    ax.set_ylabel(f"signal / [ln({unit})]")
+            else:
+                ax.set_xlabel(f"{x_name} / [{x_unit}]")
+        else:
+            ax.set_xlabel(f"{x_name}")
+
         if specs_next_axis:
             self.plot_vs(
                 x_name=x_name,
@@ -269,10 +307,12 @@ class MSPlotter(MPLPlotter):
                 mass_list=specs_next_axis["mass_list"],
                 mol_list=specs_next_axis["mol_list"],
                 unit=specs_next_axis["unit"],
+                x_unit=x_unit,
                 tspan=tspan,
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
                 legend=legend,
+                arrhenius=arrhenius,
                 **plot_kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
@@ -285,6 +325,75 @@ class MSPlotter(MPLPlotter):
             ax.legend()
 
         return axes if axes else ax
+
+    def _get_x_unit_factor(
+        self,
+        x_unit,
+        x_unit_name,
+    ):
+        try:
+            if x_unit_name == "celcius" or x_unit_name == "C":
+                x_unit_factor = {
+                    "C": 1,
+                    "celcius": 1,
+                    "K": 273.15,
+                    "kelvin": 273.15,
+                }[x_unit]
+
+            elif x_unit_name == "kelvin" or x_unit_name == "K":
+                x_unit_factor = {
+                    "K": 1,
+                    "kelvin": 1,
+                    "celcius": -273.15,
+                    "C": -273.15,
+                }[x_unit]
+
+            elif x_unit_name == "mbar":
+                x_unit_factor = {
+                    "mbar": 1,
+                    "bar": 1000,
+                    "hPa": 1,
+                    "kPa": 0.1,
+                }[x_unit]
+
+            elif x_unit_name == "bar":
+                x_unit_factor = {
+                    "mbar": 1e-3,
+                    "bar": 1,
+                    "hPa": 1e-3,
+                    "kPa": 0.1e-3,
+                }[x_unit]
+
+            else:
+                x_unit_factor = {
+                    # Time conversion
+                    "s": 1,
+                    "min": 1 / 60,
+                    "minutes": 1 / 60,
+                    "h": 1 / 3600,
+                    "hr": 1 / 3600,
+                    "hour": 1 / 3600,
+                    "hours": 1 / 3600,
+                    "d": 1 / (3600 * 24),
+                    "days": 1 / (3600 * 24),
+                    # Pressure conversion
+                    "mbar": 1,
+                    "bar": 1000,
+                    "hPa": 1,
+                    "kPa": 0.1,
+                    # Temperature conversion
+                    "K": 273.15,
+                    "kelvin": 273.15,
+                }[x_unit]
+        except KeyError:
+            warnings.warn(
+                f"Can't convert original unit '{x_unit_name}' to new unit"
+                f"'{x_unit}'. Using original unit!",
+                stacklevel=2,
+            )
+            x_unit_factor = 1
+            x_unit = x_unit_name
+        return x_unit_factor, x_unit
 
     def _parse_overloaded_inputs(
         self,
@@ -394,6 +503,7 @@ class MSPlotter(MPLPlotter):
 
         return quantified, specs_this_axis, specs_next_axis
 
+
 class SpectroMSPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
 
@@ -421,8 +531,8 @@ class SpectroMSPlotter(MPLPlotter):
         xspan=None,
         cmap_name="inferno",
         make_colorbar=False,
-        emphasis='top',
-        ms_data='top',
+        emphasis="top",
+        ms_data="top",
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
@@ -433,38 +543,38 @@ class SpectroMSPlotter(MPLPlotter):
             logplot = not mol_lists and not mass_lists
 
         if not axes:
-            if ms_data == 'top':
-                n_bottom=1
-                n_top=(2 if (mass_lists or mol_lists) else 1)
+            if ms_data == "top":
+                n_bottom = 1
+                n_top = 2 if (mass_lists or mol_lists) else 1
                 ms_axes = 0
                 ms_spec_axes = 1
             else:
-                n_top=1
-                n_bottom=(2 if (mass_lists or mol_lists) else 1)
+                n_top = 1
+                n_bottom = 2 if (mass_lists or mol_lists) else 1
                 ms_axes = 1
                 ms_spec_axes = 0
 
-
             axes = self.new_two_panel_axes(
-                    n_bottom=n_bottom,
-                    n_top=n_top,
-                    emphasis=emphasis,
+                n_bottom=n_bottom,
+                n_top=n_top,
+                emphasis=emphasis,
             )
-
 
         measurement = measurement or self.measurement
 
         if (
-             mass_list
-             or mass_lists
-             or mol_list
-             or mol_lists
-             or hasattr(measurement, "mass_list")
+            mass_list
+            or mass_lists
+            or mol_list
+            or mol_lists
+            or hasattr(measurement, "mass_list")
         ):
             # then we have MS data!
             self.ms_plotter.plot_measurement(
                 measurement=measurement,
-                axes=[axes[ms_axes], axes[2]] if (mass_lists or mol_lists) else [axes[ms_axes]],
+                axes=[axes[ms_axes], axes[2]]
+                if (mass_lists or mol_lists)
+                else [axes[ms_axes]],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -475,21 +585,121 @@ class SpectroMSPlotter(MPLPlotter):
                 unit=unit,
                 logplot=logplot,
                 legend=legend,
-                 **kwargs,
-                 )
+                **kwargs,
+            )
 
         measurement.spectrum_series.heat_plot(
-                ax=axes[ms_spec_axes],
-                tspan=tspan,
-                xspan=xspan,
-                cmap_name=cmap_name,
-                make_colorbar=make_colorbar,
-                max_threshold=max_threshold,
-                min_threshold=min_threshold,
-                scanning_mask=scanning_mask,
-                )
+            ax=axes[ms_spec_axes],
+            tspan=tspan,
+            xspan=xspan,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            max_threshold=max_threshold,
+            min_threshold=min_threshold,
+            scanning_mask=scanning_mask,
+        )
 
         return axes
+
+    def plot_measurement_vs(
+        self,
+        *,
+        x_name,
+        measurement=None,
+        axes=None,
+        mass_list=None,
+        mass_lists=None,
+        mol_list=None,
+        mol_lists=None,
+        tspan=None,
+        tspan_bg=None,
+        remove_background=None,
+        unit=None,
+        logplot=True,
+        legend=True,
+        xspan=None,
+        cmap_name="inferno",
+        make_colorbar=False,
+        emphasis="top",
+        ms_data="top",
+        max_threshold=None,
+        min_threshold=None,
+        scanning_mask=None,
+        _sort_indicies=None,
+        **kwargs,
+    ):
+
+        if logplot is None:
+            logplot = not mol_lists and not mass_lists
+
+        if not axes:
+            if ms_data == "top":
+                n_bottom = 1
+                n_top = 2 if (mass_lists or mol_lists) else 1
+                ms_axes = 0
+                ms_spec_axes = 1
+            else:
+                n_top = 1
+                n_bottom = 2 if (mass_lists or mol_lists) else 1
+                ms_axes = 1
+                ms_spec_axes = 0
+
+            axes = self.new_two_panel_axes(
+                n_bottom=n_bottom,
+                n_top=n_top,
+                emphasis=emphasis,
+            )
+
+        measurement = measurement or self.measurement
+
+        if (
+            mass_list
+            or mass_lists
+            or mol_list
+            or mol_lists
+            or hasattr(measurement, "mass_list")
+        ):
+            # then we have MS data!
+            self.ms_plotter.plot_vs(
+                x_name=x_name,
+                measurement=measurement,
+                axes=[axes[ms_axes], axes[2]]
+                if (mass_lists or mol_lists)
+                else [axes[ms_axes]],
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                mass_list=mass_list,
+                mass_lists=mass_lists,
+                mol_list=mol_list,
+                mol_lists=mol_lists,
+                unit=unit,
+                logplot=logplot,
+                legend=legend,
+                **kwargs,
+            )
+
+        _tseries = measurement.spectrum_series.field.axes_series[0]
+        _v = measurement.grab_for_t(item=x_name, t=_tseries.t)
+
+        if not _sort_indicies:
+            _sort_indicies = np.argsort(_v)
+
+        measurement.spectrum_series.heat_plot(
+            ax=axes[ms_spec_axes],
+            t=_v[_sort_indicies],
+            tspan=tspan,
+            xspan=xspan,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            max_threshold=max_threshold,
+            min_threshold=min_threshold,
+            scanning_mask=scanning_mask,
+            _sort_indicies=_sort_indicies,
+        )
+
+        return axes
+
 
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
