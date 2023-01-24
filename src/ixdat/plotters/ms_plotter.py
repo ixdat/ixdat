@@ -120,8 +120,8 @@ class MSPlotter(MPLPlotter):
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
 
-            x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")  #
-
+            # expect always to plot against time
+            x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")
             ax.plot(
                 t * x_unit_factor,
                 v * unit_factor,
@@ -174,7 +174,7 @@ class MSPlotter(MPLPlotter):
         x_unit=None,
         logplot=True,
         legend=True,
-        arrhenius=False,
+        x_inverse=False,
         **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
@@ -211,8 +211,11 @@ class MSPlotter(MPLPlotter):
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available
+            unit (str): defaults to "A" or "mol/s"
+            x_unit (str): defaults to x_name.unit.name
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             legend (bool): Whether to use a legend for the MS data (default True)
+            x_inverse (bool): Plot against inverse of x_name
             plot_kwargs: additional key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
@@ -264,19 +267,16 @@ class MSPlotter(MPLPlotter):
             if "label" not in plot_kwargs:
                 plot_kwargs_this_mass["label"] = v_name
 
-            if x_unit:
-                x_unit_factor, x_unit = self._get_x_unit_factor(
-                    x_unit, measurement[x_name].unit.name
-                )
 
-            if arrhenius:
-                x_unit_name = measurement[x_name].unit.name
-                if not x_unit:
-                    x_unit = "K"
-                x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, x_unit_name)
-                if x_unit_name != "kelvin" or x_unit_name != "K":
-                    x_mass += x_unit_factor
+            x_unit_factor, x_unit = self._get_x_unit_factor(
+                                         x_unit, measurement[x_name].unit.name
+                                         )
+            if 'emperatur' in x_name:
+                x_mass += x_unit_factor
+            else:
+                x_mass *= x_unit_factor
 
+            if x_inverse:
                 x_mass = 1 / x_mass
                 if not logplot:
                     v = np.log(v * unit_factor) * 1 / unit_factor
@@ -290,7 +290,7 @@ class MSPlotter(MPLPlotter):
         ax.set_ylabel(f"signal / [{unit}]")
 
         if x_unit:
-            if arrhenius:
+            if x_inverse:
                 ax.set_xlabel(f"{x_name} / [1/{x_unit}]")
                 if not logplot:
                     ax.set_ylabel(f"signal / [ln({unit})]")
@@ -312,7 +312,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
                 legend=legend,
-                arrhenius=arrhenius,
+                x_inverse=x_inverse,
                 **plot_kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
@@ -388,7 +388,7 @@ class MSPlotter(MPLPlotter):
         except KeyError:
             warnings.warn(
                 f"Can't convert original unit '{x_unit_name}' to new unit"
-                f"'{x_unit}'. Using original unit!",
+                f"'{x_unit}'. Plotting using original unit!",
                 stacklevel=2,
             )
             x_unit_factor = 1

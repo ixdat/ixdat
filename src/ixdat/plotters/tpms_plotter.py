@@ -221,7 +221,7 @@ class TPMSPlotter(MPLPlotter):
                 x_name=T_name,
                 logplot=logplot,
                 legend=legend,
-                arrhenius=True,
+                x_inverse=True,
                 **kwargs,
             )
 
@@ -266,7 +266,7 @@ class TPMSPlotter(MPLPlotter):
             T_color=T_color,
             logplot=logplot,
             legend=legend,
-            emphasis="emphasis",
+            emphasis=emphasis,
             **kwargs,
         )
 
