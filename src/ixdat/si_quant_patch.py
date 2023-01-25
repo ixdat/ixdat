@@ -95,7 +95,7 @@ def add_isotopes(calibration, isotope_spec):
             )
             calibration.append(new_cal_point)
             new_molecule_as_dict = molecule_as_dict.copy()
-            new_molecule_as_dict["mol"] = new_mol
+            new_molecule_as_dict["name"] = new_mol
             # To avoid si_quant incorrectly predicting sensitivity factors at other
             # masses we set a spectrum predicting intensity only at the specified mass.
             new_molecule_as_dict["spectrum"] = {new_mass: 1}
