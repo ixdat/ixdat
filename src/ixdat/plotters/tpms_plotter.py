@@ -1,3 +1,4 @@
+import warnings
 from .base_mpl_plotter import MPLPlotter
 from .ms_plotter import MSPlotter
 from .plotting_tools import color_axis
@@ -32,6 +33,7 @@ class TPMSPlotter(MPLPlotter):
         T_color=None,
         P_color=None,
         logplot=None,
+        logdata=None,
         legend=True,
         emphasis="top",
         **kwargs,
@@ -77,7 +79,8 @@ class TPMSPlotter(MPLPlotter):
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
-                bottom panel, None for equal-sized panels
+                bottom panel, None for equal-sized panels, "one figure" to plot all in
+                one figure
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -101,7 +104,7 @@ class TPMSPlotter(MPLPlotter):
             logplot = not mol_lists and not mass_lists
 
         if not axes:
-            if emphasis == "single plot":
+            if emphasis == "one figure":
                 ax = self.new_ax()
                 ax2 = ax.twinx()
                 axes = [ax, ax2]
@@ -138,6 +141,7 @@ class TPMSPlotter(MPLPlotter):
                 unit=unit,
                 x_unit=x_unit,
                 logplot=logplot,
+                logdata=logdata,
                 legend=legend,
                 **kwargs,
             )
@@ -154,7 +158,7 @@ class TPMSPlotter(MPLPlotter):
             logplot=False,
         )
 
-        # Overwrite colours if colours is manually set
+        # Set correct ylabel and overwrite colours if colours is manually set
         axes[1].set_ylabel(T_name)
         if not T_color:
             T_color = axes[1].get_lines()[0].get_color()
@@ -187,8 +191,10 @@ class TPMSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
+        x_unit=None,
         arrh_color="r",
         logplot=None,
+        logdata=None,
         legend=True,
         **kwargs,
     ):
@@ -206,7 +212,7 @@ class TPMSPlotter(MPLPlotter):
         ):
             # then we have MS data!
 
-            axs = self.ms_plotter.plot_vs(
+            axes = self.ms_plotter.plot_vs(
                 measurement=measurement,
                 ax=ax,
                 axes=axes,
@@ -218,16 +224,23 @@ class TPMSPlotter(MPLPlotter):
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
                 unit=unit,
+                x_unit=x_unit,
                 x_name=T_name,
                 logplot=logplot,
+                logdata=logdata,
                 legend=legend,
-                x_inverse=True,
                 **kwargs,
             )
+            for mass_label in [mass_list, mass_lists, mol_list, mol_lists]:
+                print(mass_label)
+                t, x = measurement.grab(T_name, tspan=tspan)
+            #t_v, v = measurement.grab(mass, tspan=tspan)
 
-        return axs
+            #axes.plot(t_v,v, label=mass)
 
-    def plot_single(
+        return axes
+
+    def plot_in_one_fig(
         self,
         *,
         measurement=None,
@@ -245,12 +258,13 @@ class TPMSPlotter(MPLPlotter):
         T_name=None,
         T_color=None,
         logplot=None,
+        logdata=None,
         legend=True,
-        emphasis="single plot",
+        emphasis="one figure",
         **kwargs,
     ):
 
-        axes = self.ms_plotter.plot_measurement(
+        axes = self.plot_measurement(
             measurement=measurement,
             axes=axes,
             mass_list=mass_list,
@@ -265,6 +279,7 @@ class TPMSPlotter(MPLPlotter):
             T_name=T_name,
             T_color=T_color,
             logplot=logplot,
+            logdata=logdata,
             legend=legend,
             emphasis=emphasis,
             **kwargs,
@@ -525,3 +540,73 @@ class SpectroTPMSPlotter(MPLPlotter):
         )
 
         return axes
+
+
+def _get_x_unit_factor(
+    self,
+    x_unit,
+    x_unit_name,
+    ):
+    try:
+        if x_unit_name == "celsius" or x_unit_name == "C":
+            x_unit_factor = {
+                "C": 1,
+                "celsius": 1,
+                "K": 273.15,
+                "kelvin": 273.15,
+            }[x_unit]
+
+        elif x_unit_name == "kelvin" or x_unit_name == "K":
+            x_unit_factor = {
+                "K": 1,
+                "kelvin": 1,
+                "celsius": -273.15,
+                "C": -273.15,
+            }[x_unit]
+
+        elif x_unit_name == "mbar":
+            x_unit_factor = {
+                "mbar": 1,
+                "bar": 1000,
+                "hPa": 1,
+                "kPa": 0.1,
+            }[x_unit]
+
+        elif x_unit_name == "bar":
+            x_unit_factor = {
+                "mbar": 1e-3,
+                "bar": 1,
+                "hPa": 1e-3,
+                "kPa": 0.1e-3,
+            }[x_unit]
+
+        else:
+            x_unit_factor = {
+                # Time conversion
+                "s": 1,
+                "min": 1 / 60,
+                "minutes": 1 / 60,
+                "h": 1 / 3600,
+                "hr": 1 / 3600,
+                "hour": 1 / 3600,
+                "hours": 1 / 3600,
+                "d": 1 / (3600 * 24),
+                "days": 1 / (3600 * 24),
+                # Pressure conversion
+                "mbar": 1,
+                "bar": 1000,
+                "hPa": 1,
+                "kPa": 0.1,
+                # Temperature conversion
+                "K": 273.15,
+                "kelvin": 273.15,
+            }[x_unit]
+    except KeyError:
+        warnings.warn(
+            f"Can't convert original unit '{x_unit_name}' to new unit"
+            f"'{x_unit}'. Plotting using original unit!",
+            stacklevel=2,
+        )
+        x_unit_factor = 1
+        x_unit = x_unit_name
+    return x_unit_factor, x_unit

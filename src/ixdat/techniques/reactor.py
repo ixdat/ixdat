@@ -39,36 +39,6 @@ class ReactorMeasurement(MSMeasurement):
     def t(self):
         return self["temperature"].t
 
-#    def ln_data(self, v_names):
-#        """np.ln dataseries using self.correct_data
-#
-#        Typical usage:
-#            measurement.ln_data(['CO2', 'CO'])
-#
-#        Args:
-#            v_names (list): List of names of DataSeries to manipulate data to ln(data)
-#        Return
-#            None
-#        """
-#        if isinstance(v_names, list):
-#            self.clear_cache()  # To achieve correct behavior with calibrated series
-#            for v_name in v_names:
-#                data = self[v_name].data
-#                new_data = np.log(data)
-#
-#                self.correct_data(v_name, new_data)
-#
-#                self[v_name].unit.name = f"ln({self[v_name].unit.name})"
-#
-#        else:
-#            warnings.warn(
-#                f"'{v_names}' expected to be of type list but recieved {type(v_names)}"
-#                f"Make '{v_names}' before using this function",
-#                stacklevel=2,
-#            )
-
-
-
     def unit_converter(self, v_name, new_unit):
         """Convert dataseries from one unit to another using self.correct_data from super
 

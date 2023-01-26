@@ -305,7 +305,8 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
                 legend=legend,
-                logdata=logdata**plot_kwargs,
+                logdata=logdata,
+                **plot_kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
         else:
