@@ -48,10 +48,8 @@ class CinfdataDBReader:
         self.column_data = {}
         self.data_has_been_fetch = False
         self.metadata = {}
-        self.technique = (
-            "reactor"  # TODO: MS? Figure out how to tell if it's something else
-        )
-        self.measurement_class = None  # MSMeasurement
+        self.technique = "reactor"
+        self.measurement_class = None
         self.measurement = None
         self.cinf_db = None
         self.mass_scans = False
