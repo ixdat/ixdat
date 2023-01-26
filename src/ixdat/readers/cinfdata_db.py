@@ -2,7 +2,7 @@
 import warnings
 from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
-from ..techniques import MSMeasurement
+from ..techniques import MSMeasurement, ReactorMeasurement
 from ..techniques.ms import MSSpectrum
 from ..techniques.reactor import ReactorMeasurement
 from ..spectra import Spectrum, SpectrumSeries, MultiSpectrum
@@ -49,17 +49,15 @@ class CinfdataDBReader:
         self.column_data = {}
         self.data_has_been_fetch = False
         self.metadata = {}
-        self.technique = "MS"  # TODO: MS? Figure out how to tell if it's something else
+        self.technique = "reactor"  # TODO: MS? Figure out how to tell if it's something else
         self.measurement_class = None  # MSMeasurement
         self.measurement = None
         self.cinf_db = None
         self.mass_scans = False
 
     def read(self, path_to_file, name=None, cls=None, units=None, **kwargs):
-        """Return a xx-Measurement with the data and metadata recorded from
+        """Return a xx-Measurement or Spectrum with the data and metadata recorded from
         a setup at SurfCat at given timestamp
-
-        MSMeasurement contains a reference to the reader.
 
         All attributes of this reader can be accessed from the
         measurement as `measurement.reader.attribute_name`.
@@ -68,7 +66,8 @@ class CinfdataDBReader:
             path_to_file (str): Named argument from Measurement Class.
                                 Can be used as the setup name in the cinfdatabase
             **kwargs (dict): Key-word arguments are passed to cinf Measurement.__init__
-                             setup_name (str): The setup name in the database
+                             setup_name (str): The setup name in the database default
+                                 to path_to_file
                              timestamp (str): Timestamp the measurement started
                                               given as (YYYY-MM-DD HH:MM:SS)
         """
@@ -81,6 +80,7 @@ class CinfdataDBReader:
         self.verbose = kwargs.pop("verbose", False)
         self.grouping_column = kwargs.pop("group", None)
 
+        # figure out whether to collect data group by 'comment' or 'timestamp'
         if not self.grouping_column:
             if self.timestamp and not self.comment:
                 self.grouping_column = "time"
@@ -154,30 +154,33 @@ class CinfdataDBReader:
         if self.verbose:
             print("Column names in measurement: ")
         for key in self.group_data.keys():
-            column_name = self.group_meta[key]["mass_label"]
-            if self.verbose:
-                print("Col name: ", column_name)
-            #unixtime = self.group_meta[key]["unixtime"]
-            #tstamp = float(unixtime)
+            if self.group_meta[key]["type"] == 5:
+                column_name = self.group_meta[key]["mass_label"]
+                if self.verbose:
+                    print("Col name: ", column_name)
+                #unixtime = self.group_meta[key]["unixtime"]
+                #tstamp = float(unixtime)
 
-            tcol = self.group_data[key][:, 0]
-            vcol = self.group_data[key][:, 1]
+                tcol = self.group_data[key][:, 0]
+                vcol = self.group_data[key][:, 1]
 
-            tseries = TimeSeries(
-                name=column_name + "-x",
-                unit_name=get_column_unit(column_name + "-x") or "s",
-                data=tcol,
-                tstamp=self.tstamp,
-            )
+                tseries = TimeSeries(
+                    name=column_name + "-x",
+                    unit_name=get_column_unit(column_name + "-x") or "s",
+                    data=tcol,
+                    tstamp=self.tstamp,
+                )
 
-            vseries = ValueSeries(
-                name=column_name,
-                data=vcol,
-                tseries=tseries,
-                unit_name=get_column_unit(column_name + "-y"),
-            )
-            data_series_list.append(tseries)
-            data_series_list.append(vseries)
+                vseries = ValueSeries(
+                    name=column_name,
+                    data=vcol,
+                    tseries=tseries,
+                    unit_name=get_column_unit(column_name + "-y"),
+                )
+                data_series_list.append(tseries)
+                data_series_list.append(vseries)
+            else:
+                pass
 
         obj_as_dict = dict(
             name=self.name,
@@ -230,7 +233,7 @@ class CinfdataDBReader:
                 self.field_name = "Current"
                 self.field_unit = "[A]"
                 self.technique = "MS_spectrum"
-                obj_as_dict = self.create_spectrum(key) # group_data, group_meta, key)
+                obj_as_dict = self.create_spectrum(key)
                 obj_as_dict["name"] = self.sample_name
                 spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
@@ -254,13 +257,13 @@ class CinfdataDBReader:
                 warnings.warn("Could not return SpectrumSeries from list of spectrums "
                               f"using '{self.token}' and group column: "
                               f"'{self.grouping_column}'. \n"
-                              " Return list of all spectrums.",
+                              " Return list of all Spectrums.",
                               stacklevel=2
                               )
 
                 return spectrum_list
 
-    def create_spectrum(self, key): # group_data, group_meta, key):
+    def create_spectrum(self, key):
         x_col = self.group_data[key][:, 0]
         y_col = self.group_data[key][:, 1]
         tstamp = self.group_meta[key]["unixtime"]
