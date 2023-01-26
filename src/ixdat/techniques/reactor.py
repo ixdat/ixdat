@@ -4,7 +4,7 @@ from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
 from ..db import Saveable
 from ..data_series import ValueSeries
 import warnings
-import numpy as np
+
 
 class ReactorMeasurement(MSMeasurement):
 
