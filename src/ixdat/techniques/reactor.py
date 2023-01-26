@@ -4,7 +4,7 @@ from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
 from ..db import Saveable
 from ..data_series import ValueSeries
 import warnings
-
+import numpy as np
 
 class ReactorMeasurement(MSMeasurement):
 
@@ -39,6 +39,36 @@ class ReactorMeasurement(MSMeasurement):
     def t(self):
         return self["temperature"].t
 
+#    def ln_data(self, v_names):
+#        """np.ln dataseries using self.correct_data
+#
+#        Typical usage:
+#            measurement.ln_data(['CO2', 'CO'])
+#
+#        Args:
+#            v_names (list): List of names of DataSeries to manipulate data to ln(data)
+#        Return
+#            None
+#        """
+#        if isinstance(v_names, list):
+#            self.clear_cache()  # To achieve correct behavior with calibrated series
+#            for v_name in v_names:
+#                data = self[v_name].data
+#                new_data = np.log(data)
+#
+#                self.correct_data(v_name, new_data)
+#
+#                self[v_name].unit.name = f"ln({self[v_name].unit.name})"
+#
+#        else:
+#            warnings.warn(
+#                f"'{v_names}' expected to be of type list but recieved {type(v_names)}"
+#                f"Make '{v_names}' before using this function",
+#                stacklevel=2,
+#            )
+
+
+
     def unit_converter(self, v_name, new_unit):
         """Convert dataseries from one unit to another using self.correct_data from super
 
@@ -69,7 +99,7 @@ class ReactorMeasurement(MSMeasurement):
             return
         data = self[v_name].data
 
-        if "emperatur" in v_name:  # converting from kelvin to celcius is addition
+        if "emperatur" in v_name:  # converting from kelvin to celsius is addition
             new_data = data + unit_factor
         else:
             new_data = data * unit_factor
@@ -94,18 +124,18 @@ class ReactorMeasurement(MSMeasurement):
         """
 
         try:
-            if original_unit == "celcius" or original_unit == "C":
+            if original_unit == "celsius" or original_unit == "C":
                 unit_factor = {
                     "C": 0,
-                    "celcius": 0,
+                    "celsius": 0,
                     "K": 273.15,
                     "kelvin": 273.15,
                 }[new_unit]
 
-            if original_unit == "1/celcius" or original_unit == "1/C":
+            if original_unit == "1/celsius" or original_unit == "1/C":
                 unit_factor = {
                     "1/C": 0,
-                    "1/celcius": 0,
+                    "1/celsius": 0,
                     "1/K": 273.15,
                     "1/kelvin": 273.15,
                 }[new_unit]
@@ -114,7 +144,7 @@ class ReactorMeasurement(MSMeasurement):
                 unit_factor = {
                     "K": 1,
                     "kelvin": 1,
-                    "celcius": -273.15,
+                    "celsius": -273.15,
                     "C": -273.15,
                 }[new_unit]
 
@@ -270,8 +300,20 @@ class ReactorCalibration(Calibration):
             y = signal_series.data
             y_inverse = 1 / y
             return ValueSeries(
-                name=meta,
+                name=key,
                 unit_name=f"1/{unit_name}",
+                data=y_inverse,
+                tseries=signal_series.tseries,
+            )
+        elif key.startswith("log_") or key.startswith("ln_"):
+            meta = key.split("_")[-1]
+            signal_series = measurement[meta]
+            unit_name = measurement[meta].unit.name
+            y = signal_series.data
+            y_inverse = 1 / y
+            return ValueSeries(
+                name=key,
+                unit_name=f"ln({unit_name})",
                 data=y_inverse,
                 tseries=signal_series.tseries,
             )
