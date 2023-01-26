@@ -15,11 +15,32 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 ixdat 0.2.6
 ===========
 
+reader
+^^^^^^
+
+- ``cinfdata_db`` is a new direct db reader for cinfdatabase at DTU SurfCat
+
 plotters
 ^^^^^^^^
+
 - ``MSPlotter.plot_measurment`` now create a new axis if no initial axis is given
   before initiating right axes in the case of dual plotting on left and right axes.
   Fixes `Issue #97 <https://github.com/ixdat/ixdat/issues/97>`_
+
+- ``SpectrumSeriesPlotter.heat_plot`` now accept max_threshold and min_threshold and 
+   scanning_mask to include or exclude specific values from scanning variable
+  
+- ``SpectroMSPlotter`` new plotter for ``SpectroMSMeasurment`` now create a new axis if no initial axis is given
+  before initiating right axes in the case of dual plotting on left and right axes.
+
+techniques
+^^^^^^^^^^
+
+- ``ReactorMeasurement`` class, technique="reactor", with a ``TPMSPlotter``. This
+  technique is analogous to EC-MS with temperature replacing potential and
+  pressure replacing current.
+
+- ``SpectroMSMeasurement`` class set ``SpectroMSPlotter`` as default plotter
 
 
 dev
