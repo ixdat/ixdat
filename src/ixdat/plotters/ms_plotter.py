@@ -28,6 +28,7 @@ class MSPlotter(MPLPlotter):
         unit=None,
         x_unit=None,
         logplot=True,
+        logdata=False,
         legend=True,
         **kwargs,
     ):
@@ -67,6 +68,8 @@ class MSPlotter(MPLPlotter):
             unit (str): defaults to "A" or "mol/s"
             x_unit (str): defaults to "s"
             logplot (bool): Whether to plot the MS data on a log scale (default True)
+            logdata (bool): Whether to plot the natural logarithm of MS data on a
+                linear scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
@@ -98,7 +101,6 @@ class MSPlotter(MPLPlotter):
                 v_name = v_or_v_name
                 color = STANDARD_COLORS.get(v_name, "k")
             else:
-                print("ender jeg nogensinde her")
                 v_name = v_or_v_name.name
                 color = v_or_v_name.color
             if quantified:
@@ -119,7 +121,10 @@ class MSPlotter(MPLPlotter):
                 )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
-
+            if logdata:
+                logplot = False
+                # to correctly plot data with corrosponding unit and unit_factor
+                v = np.log(v * unit_factor) * 1 / unit_factor
             # expect always to plot against time
             x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")
             ax.plot(
@@ -142,6 +147,7 @@ class MSPlotter(MPLPlotter):
                 tspan=tspan,
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
+                logdata=logdata,
                 legend=legend,
                 **kwargs,
             )
@@ -173,8 +179,8 @@ class MSPlotter(MPLPlotter):
         unit=None,
         x_unit=None,
         logplot=True,
+        logdata=False,
         legend=True,
-        x_inverse=False,
         **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
@@ -214,8 +220,9 @@ class MSPlotter(MPLPlotter):
             unit (str): defaults to "A" or "mol/s"
             x_unit (str): defaults to x_name.unit.name
             logplot (bool): Whether to plot the MS data on a log scale (default True)
+            logdata (bool): Whether to plot the natural logarithm of MS data on a
+                linear scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
-            x_inverse (bool): Plot against inverse of x_name
             plot_kwargs: additional key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
@@ -267,37 +274,23 @@ class MSPlotter(MPLPlotter):
             if "label" not in plot_kwargs:
                 plot_kwargs_this_mass["label"] = v_name
 
-
             x_unit_factor, x_unit = self._get_x_unit_factor(
-                                         x_unit, measurement[x_name].unit.name
-                                         )
-            if 'emperatur' in x_name:
-                x_mass += x_unit_factor
-            else:
-                x_mass *= x_unit_factor
-
-            if x_inverse:
-                x_mass = 1 / x_mass
-                if not logplot:
-                    v = np.log(v * unit_factor) * 1 / unit_factor
+                x_unit, measurement[x_name].unit.name
+            )
+            # Used to plot ln(mol) on a linear scale
+            if logdata:
+                logplot = False
+                v = np.log(v * unit_factor) * 1 / unit_factor
 
             ax.plot(
-                x_mass,
+                x_mass * x_unit_factor,
                 v * unit_factor,
                 **plot_kwargs_this_mass,
             )
 
         ax.set_ylabel(f"signal / [{unit}]")
 
-        if x_unit:
-            if x_inverse:
-                ax.set_xlabel(f"{x_name} / [1/{x_unit}]")
-                if not logplot:
-                    ax.set_ylabel(f"signal / [ln({unit})]")
-            else:
-                ax.set_xlabel(f"{x_name} / [{x_unit}]")
-        else:
-            ax.set_xlabel(f"{x_name}")
+        ax.set_xlabel(f"{x_name} / [{x_unit}]")
 
         if specs_next_axis:
             self.plot_vs(
@@ -312,8 +305,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg=specs_next_axis["tspan_bg"],
                 logplot=logplot,
                 legend=legend,
-                x_inverse=x_inverse,
-                **plot_kwargs,
+                logdata=logdata**plot_kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
         else:
@@ -328,72 +320,51 @@ class MSPlotter(MPLPlotter):
 
     def _get_x_unit_factor(
         self,
-        x_unit,
-        x_unit_name,
+        new_x_unit,
+        original_unit_name,
     ):
+        if (original_unit_name or new_x_unit) in ["kelvin", "K", "celsius", "C"]:
+            warnings.warn(
+                f"Converting '{original_unit_name}' to '{new_x_unit}' should be done in "
+                f"({self.measurement.__class__.__name__}) prior to plotting using "
+                f"({self.__class__.__name__}). "
+                f"Plotting using '{original_unit_name}'.",
+                stacklevel=2,
+            )
+            return 1, original_unit_name
         try:
-            if x_unit_name == "celcius" or x_unit_name == "C":
-                x_unit_factor = {
-                    "C": 1,
-                    "celcius": 1,
-                    "K": 273.15,
-                    "kelvin": 273.15,
-                }[x_unit]
-
-            elif x_unit_name == "kelvin" or x_unit_name == "K":
-                x_unit_factor = {
-                    "K": 1,
-                    "kelvin": 1,
-                    "celcius": -273.15,
-                    "C": -273.15,
-                }[x_unit]
-
-            elif x_unit_name == "mbar":
-                x_unit_factor = {
-                    "mbar": 1,
-                    "bar": 1000,
-                    "hPa": 1,
-                    "kPa": 0.1,
-                }[x_unit]
-
-            elif x_unit_name == "bar":
-                x_unit_factor = {
-                    "mbar": 1e-3,
-                    "bar": 1,
-                    "hPa": 1e-3,
-                    "kPa": 0.1e-3,
-                }[x_unit]
-
-            else:
-                x_unit_factor = {
-                    # Time conversion
-                    "s": 1,
-                    "min": 1 / 60,
-                    "minutes": 1 / 60,
-                    "h": 1 / 3600,
-                    "hr": 1 / 3600,
-                    "hour": 1 / 3600,
-                    "hours": 1 / 3600,
-                    "d": 1 / (3600 * 24),
-                    "days": 1 / (3600 * 24),
-                    # Pressure conversion
-                    "mbar": 1,
-                    "bar": 1000,
-                    "hPa": 1,
-                    "kPa": 0.1,
-                    # Temperature conversion
-                    "K": 273.15,
-                    "kelvin": 273.15,
-                }[x_unit]
+            x_unit_factor = {
+                # Time conversion
+                "s": 1,
+                "min": 1 / 60,
+                "minutes": 1 / 60,
+                "h": 1 / 3600,
+                "hr": 1 / 3600,
+                "hour": 1 / 3600,
+                "hours": 1 / 3600,
+                "d": 1 / (3600 * 24),
+                "days": 1 / (3600 * 24),
+                # Pressure conversion
+                "mbar": 1,
+                "bar": 1000,
+                "hPa": 1,
+                "kPa": 0.1,
+                # Temperature conversion
+                # "K": 273.15,
+                # "kelvin": 273.15,
+                # "C": -273.15,
+                # "celsius": -273.15,
+            }[new_x_unit]
         except KeyError:
             warnings.warn(
-                f"Can't convert original unit '{x_unit_name}' to new unit"
-                f"'{x_unit}'. Plotting using original unit!",
+                f"Can't convert original unit '{original_unit_name}' to new unit "
+                f"'{new_x_unit}'. Plotting using original unit '{new_x_unit}' with "
+                "unit_factor=1 (one).",
                 stacklevel=2,
             )
             x_unit_factor = 1
-            x_unit = x_unit_name
-        return x_unit_factor, x_unit
+            new_x_unit = original_unit_name
+        return x_unit_factor, new_x_unit
 
     def _parse_overloaded_inputs(
         self,
