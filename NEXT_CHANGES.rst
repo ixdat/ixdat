@@ -15,6 +15,22 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 ixdat 0.2.6
 ===========
 
+plotters
+^^^^^^^^
+- ``MSPlotter.plot_measurment`` now create a new axis if no initial axis is given
+  before initiating right axes in the case of dual plotting on left and right axes.
+  Fixes `Issue #97 <https://github.com/ixdat/ixdat/issues/97>`_
+
+
+dev
+^^^
+- Renamed development scripts which are not software tests "demo" instead of "test".
+
+- Skip py36 because github is having a problem building it. See, for example, here:
+https://github.com/ixdat/ixdat/actions/runs/3876991446/jobs/6611480640#step:3:7
+
+- Do black test before software tests in github CI to save time
+
 reader
 ^^^^^^
 
@@ -41,16 +57,3 @@ techniques
   pressure replacing current.
 
 - ``SpectroMSMeasurement`` class set ``SpectroMSPlotter`` as default plotter
-
-dev
-^^^
-- Renamed development scripts which are not software tests "demo" instead of "test".
-
-- Skip py36 because github is having a problem building it. See, for example, here:
-https://github.com/ixdat/ixdat/actions/runs/3876991446/jobs/6611480640#step:3:7
-
-- Do black test before software tests in github CI to save time
-
-
-
-
