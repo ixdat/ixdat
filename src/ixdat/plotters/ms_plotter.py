@@ -125,6 +125,7 @@ class MSPlotter(MPLPlotter):
                 logplot = False
                 # to correctly plot data with corrosponding unit and unit_factor
                 v = np.log(v * unit_factor) * 1 / unit_factor
+                unit = f"ln({unit})"
             # expect always to plot against time
             x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")
             ax.plot(
@@ -281,6 +282,7 @@ class MSPlotter(MPLPlotter):
             if logdata:
                 logplot = False
                 v = np.log(v * unit_factor) * 1 / unit_factor
+                unit = f"ln({unit})"
 
             ax.plot(
                 x_mass * x_unit_factor,
