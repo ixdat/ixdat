@@ -117,7 +117,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
             data = data[_sort_indicies, :]
 
         if max_threshold:
-            #data = np.minimum(max_threshold, data)
+            # data = np.minimum(max_threshold, data)
             data[data > max_threshold] = 0
         if min_threshold:
             data[data < min_threshold] = 0
