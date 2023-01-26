@@ -54,10 +54,10 @@ Following techniques and asscociated file formats are currently supported:
      - - avantage: .avg files from Thermo Scientific's Avantage software
    * - X-ray diffraction (XRD)
      - Development
-     - xrdml: .xrdml files from e.g. PanAnalytical's Empyereon
+     - - xrdml: .xrdml files from e.g. PanAnalytical's Empyereon
    * - In-situ Electrochemistry - X-ray adsorption spectroscopy (XAS)
      - Development
-     - qexafs: .dat files from Diamond's B18 beamline
+     - - qexafs: .dat files from Diamond's B18 beamline
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -
@@ -67,7 +67,7 @@ Missing something?
 
 Is the technique or reader for the file format you're looking for not available yet? Then you have two options:
 
-a. Contribute with a new feature: ``ixdat`` is free and open source software and we welcome input and new collaborators.
+a. Contribute with a new feature: ``ixdat`` is a free and open source software and we welcome input and new collaborators.
 See :ref:`developing`
 
 or

@@ -14,16 +14,33 @@ Getting data in and out
 -- Cutting and selecting
 -- Introduction to calibration	 
 
+:ref:`data_in_and_out`
+
 Techniques
 ----------
-+----------+----------+----------+----------+----------+
-|    EC    |    MS    |   EC-MS  |    SEC   |   XRD    |
-+==========+==========+==========+==========+==========+
+
+.. list-table:: 
+   :widths: 10 10 10 10 10 
+   :header-rows: 1
+
+   * - EC
+     - MS 
+     - EC-MS
+     - SEC
+     - XRD
+   * - :ref:`ec_tutorials`
+     - 
+     - 
+     - :ref:`sec-tutorial`    
+     - 
+
 
 Advanced data handling
 ----------------------
 - Introduction to ``grab()`` and ``[]``
 - Relational structure and backends
+
+:ref:`advanced_tutorials`
 
 
 Download Jupyter notebook tutorials
@@ -40,11 +57,3 @@ Development scripts
 The basics of importing and plotting from each reader are demonstrated in
 the **development_scripts/reader_testers** folder of the repository:
 https://github.com/ixdat/ixdat/tree/user_ready/development_scripts/reader_testers
-
-
-.. toctree::
-    :maxdepth: 1
-
-    data_in_and_out
-    ec_tutorials
-    sec_tutorials

@@ -6,7 +6,7 @@
 Documentation for ``ixdat``
 ###########################
 Welcome to ``ixdat`` - The in-situ experimental data tool
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 With ``ixdat``, you can import, combine, and export complex experimental datasets
@@ -40,7 +40,7 @@ If you have any feedback, comments or questions, find out how to contact the ixd
 This documentation, like ``ixdat`` itself, is a work in progress and we appreciate any feedback or requests.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 3
 
     introduction
     getting_started/index
