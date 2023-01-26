@@ -16,7 +16,7 @@ from .spectroelectrochemistry import (
     ECXASMeasurement,
     ECOpticalMeasurement,
 )
-from .reactor import ReactorMeasurement, SpectroReactorMeasurement
+from .reactor import ReactorMeasurement, SpectroReactorMeasurement, ReactorCalibration
 
 from ..spectra import Spectrum
 from ..measurements import Measurement  # for importing in the technique modules
@@ -45,4 +45,5 @@ CALIBRATION_CLASSES = {
     "EC": ECCalibration,
     "MS": MSCalibration,
     "EC-MS": ECMSCalibration,
+    "reactor": ReactorCalibration,
 }
