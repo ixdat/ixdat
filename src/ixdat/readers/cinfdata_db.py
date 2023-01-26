@@ -4,7 +4,6 @@ from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
 from ..techniques import MSMeasurement, ReactorMeasurement
 from ..techniques.ms import MSSpectrum
-from ..techniques.reactor import ReactorMeasurement
 from ..spectra import Spectrum, SpectrumSeries, MultiSpectrum
 from ..config import plugins
 
@@ -49,7 +48,9 @@ class CinfdataDBReader:
         self.column_data = {}
         self.data_has_been_fetch = False
         self.metadata = {}
-        self.technique = "reactor"  # TODO: MS? Figure out how to tell if it's something else
+        self.technique = (
+            "reactor"  # TODO: MS? Figure out how to tell if it's something else
+        )
         self.measurement_class = None  # MSMeasurement
         self.measurement = None
         self.cinf_db = None
@@ -89,15 +90,16 @@ class CinfdataDBReader:
                 self.grouping_column = "comment"
                 self.token = self.comment
             else:
-                warnings.warn("Both a comment and a timestamp is given "
-                              "but no explicit grouping column is set. \n"
-                              f"Defaults to 'time' using '{self.timestamp}'",
-                              stacklevel=2)
+                warnings.warn(
+                    "Both a comment and a timestamp is given "
+                    "but no explicit grouping column is set. \n"
+                    f"Defaults to 'time' using '{self.timestamp}'",
+                    stacklevel=2,
+                )
                 self.grouping_column = "time"
                 self.token = self.timestamp
 
         plugins.activate_cinfdata()
-
 
         if (
             self.measurement_class == Spectrum
@@ -119,20 +121,19 @@ class CinfdataDBReader:
 
             if self.mass_scans:
                 if self.verbose:
-                    print('adding mass scans to the measurement')
+                    print("adding mass scans to the measurement")
                 self.measurement = self.add_mass_scans()
 
-            #self.data_has_been_fetch = True
+            # self.data_has_been_fetch = True
 
             return self.measurement
 
     def read_ms(self):
-        """ Download MS data from cinfdata_database """
+        """Download MS data from cinfdata_database"""
 
         self.cinf_db = plugins.cinfdata.connect(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         )
-
 
         self.group_data = self.cinf_db.get_data_group(
             self.token, scaling_factors=(1e-3, None)
@@ -144,7 +145,6 @@ class CinfdataDBReader:
         self.set_sample_name()
         self.set_name()
         self.set_tstamp()
-
 
         if self.verbose:
             print("Retriving data from measurement named: ", self.sample_name)
@@ -158,8 +158,8 @@ class CinfdataDBReader:
                 column_name = self.group_meta[key]["mass_label"]
                 if self.verbose:
                     print("Col name: ", column_name)
-                #unixtime = self.group_meta[key]["unixtime"]
-                #tstamp = float(unixtime)
+                # unixtime = self.group_meta[key]["unixtime"]
+                # tstamp = float(unixtime)
 
                 tcol = self.group_data[key][:, 0]
                 vcol = self.group_data[key][:, 1]
@@ -192,17 +192,17 @@ class CinfdataDBReader:
         )
 
         if not obj_as_dict:
-            warnings.warn(f"No mass spec data was found using '{self.token}' "
-                          f" and group_column: '{self.grouping_column}'",
-                          stacklevel=2
-                          )
+            warnings.warn(
+                f"No mass spec data was found using '{self.token}' "
+                f" and group_column: '{self.grouping_column}'",
+                stacklevel=2,
+            )
             return None
 
         return obj_as_dict
 
-
     def read_spectrums(self, **kwargs):
-        """ Download spectrums from cinfdata_database """
+        """Download spectrums from cinfdata_database"""
         db = plugins.cinfdata.connect(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         )
@@ -223,7 +223,7 @@ class CinfdataDBReader:
                 self.field_name = "Counts per second"
                 self.field_unit = "n/s"
                 self.technique = "XPS"
-                obj_as_dict = self.create_spectrum(key) # group_data, group_meta, key)
+                obj_as_dict = self.create_spectrum(key)  # group_data, group_meta, key)
                 obj_as_dict["name"] = self.group_meta[key]["name"]
                 spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
@@ -241,10 +241,11 @@ class CinfdataDBReader:
                 pass
 
         if not spectrum_list:
-            warnings.warn(f"No spectrum was found using '{self.token}' "
-                          f" and group_column: '{self.grouping_column}'",
-                          stacklevel=2
-                          )
+            warnings.warn(
+                f"No spectrum was found using '{self.token}' "
+                f" and group_column: '{self.grouping_column}'",
+                stacklevel=2,
+            )
             return None
         elif self.mass_scans:
             return spectrum_list
@@ -253,13 +254,14 @@ class CinfdataDBReader:
         else:
             try:
                 return SpectrumSeries.from_spectrum_list(spectrum_list)
-            except ValueError as e:
-                warnings.warn("Could not return SpectrumSeries from list of spectrums "
-                              f"using '{self.token}' and group column: "
-                              f"'{self.grouping_column}'. \n"
-                              " Return list of all Spectrums.",
-                              stacklevel=2
-                              )
+            except ValueError:
+                warnings.warn(
+                    "Could not return SpectrumSeries from list of spectrums "
+                    f"using '{self.token}' and group column: "
+                    f"'{self.grouping_column}'. \n"
+                    " Return list of all Spectrums.",
+                    stacklevel=2,
+                )
 
                 return spectrum_list
 
@@ -289,26 +291,34 @@ class CinfdataDBReader:
 
     def add_mass_scans(self):
         """Get corrosponding mass scans to mass_time from 'comment'"""
-        self.measurement_class  = MSSpectrum
-        self.grouping_column = 'comment'
+        self.measurement_class = MSSpectrum
+        self.grouping_column = "comment"
         self.token = self.sample_name
         spectrum_list = self.read_spectrums()
 
         if self.verbose:
-            print('Using ',self.measurement.time_series[-1],' to find end of experiment')
-            print('Unixtime end of exp ', self.measurement.time_series[-1].data[-1] + self.tstamp)
+            print(
+                "Using ", self.measurement.time_series[-1], " to find end of experiment"
+            )
+            print(
+                "Unixtime end of exp ",
+                self.measurement.time_series[-1].data[-1] + self.tstamp,
+            )
 
         index = -1
 
-        if spectrum_list[-1].tstamp > self.measurement.time_series[-1].data[-1] + self.tstamp:
+        if (
+            spectrum_list[-1].tstamp
+            > self.measurement.time_series[-1].data[-1] + self.tstamp
+        ):
             time = spectrum_list[0].tstamp
             while time < self.measurement.time_series[-1].data[-1] + self.tstamp:
                 for i, spectrum in spectrum_list:
                     time = spectrum.tstamp
-                    index = i-1
+                    index = i - 1
         if self.verbose:
-            print('end index of spectrum list, ', index,'\n')
-            print('tstamp of last spectrum in list, ', spectrum_list[index].tstamp)
+            print("end index of spectrum list, ", index, "\n")
+            print("tstamp of last spectrum in list, ", spectrum_list[index].tstamp)
 
         MSSpectra = SpectrumSeries.from_spectrum_list(spectrum_list[:index])
 
@@ -333,8 +343,6 @@ class CinfdataDBReader:
         self.tstamp = float(self.meta["unixtime"])
 
 
-
-
 def get_column_unit(column_name):
     """Return the unit name of an ixdat column, i.e the part of the name after the '/'"""
     if column_name.startswith("M") and column_name.endswith("-y"):
@@ -356,5 +364,3 @@ def get_column_unit(column_name):
         #    https://github.com/CINF/cinfdata/blob/master/sym-files2/export_data.py#L125
         unit_name = None
     return unit_name
-
-
