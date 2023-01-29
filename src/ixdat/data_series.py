@@ -176,7 +176,7 @@ class Field(DataSeries):
                     f"{self} has {self.N_dimensions} axes but its data is "
                     f"{len(self._data.shape)}-dimensional."
                 )
-        return self._data
+        return self._data.copy()
 
     @property
     def tstamp(self):
