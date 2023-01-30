@@ -156,7 +156,7 @@ class TPMSPlotter(MPLPlotter):
 
         for i, meta_list in enumerate(meta_lists):
             ax = axs[i]
-            for meta_name in meta_list:
+            for n, meta_name in enumerate(meta_list):
                 color = STANDARD_COLORS.get(meta_name, "k")
 
                 t, v = measurement.grab_signal(
@@ -176,7 +176,7 @@ class TPMSPlotter(MPLPlotter):
                                                         from_unit_name="s"
                                                         )
 
-                axs[i].plot(
+                ax.plot(
                     t * x_unit_factor,
                     v * y_unit_factor,  # for now, no units
                     color=color,
@@ -184,14 +184,16 @@ class TPMSPlotter(MPLPlotter):
                     **kwargs,
                 )
             if logplot and y_unit == "mbar":
-                axs[i].set_yscale("log")
+                ax.set_yscale("log")
             if legend:
-                axs[i].legend()
+                ax.legend()
 
-            color_axis(axs[i], color, lr=left_right_spine_color[i])
+            if n == 1:
+                color_axis(ax, color=color, lr=left_right_spine_color[i])
 
-            axs[i].set_ylabel(f"{y_label} / [{y_unit}]")
-            axs[i].set_xlabel(f"time / [{x_unit}]")
+            ax.set_ylabel(f"{y_label} / [{y_unit}]")
+            ax.set_xlabel(f"time / [{x_unit}]")
+
 
         return axes
 
@@ -591,13 +593,14 @@ def _get_y_unit_and_label(data_series, meta_units):
         ylabel = ""
 
     if meta_units:
-        y_unit_factor, y_unit_name = _get_unit_factor_and_name(
-            meta_units[name],
-            name.unit.name,
-        )
+        new_unit_name = meta_units[name]
     else:
-        y_unit_factor = 1
-        y_unit_name = data_series.unit.name
+        new_unit_name = data_series.unit.name
+
+    y_unit_factor, y_unit_name = _get_unit_factor_and_name(
+            new_unit_name = new_unit_name,
+            from_unit_name = data_series.unit.name,
+        )
 
     return ylabel, y_unit_name, y_unit_factor
 
@@ -614,7 +617,7 @@ def _get_unit_factor_and_name(
                 stacklevel=2,
             )
             unit_factor = 1
-            new_unit_name = from_unit_name
+            new_unit_name = ' C' #from_unit_name
 
         elif from_unit_name == "kelvin" or from_unit_name == "K":
             warnings.warn(
@@ -623,7 +626,7 @@ def _get_unit_factor_and_name(
                 stacklevel=2,
             )
             unit_factor = 1
-            new_unit_name = from_unit_name
+            new_unit_name = ' K'#from_unit_name
 
         elif from_unit_name == "mbar":
             unit_factor = {
