@@ -28,6 +28,9 @@ class TPMSPlotter(MPLPlotter):
         remove_background=None,
         unit=None,
         x_unit=None,
+        meta_units=None,
+        meta_list=None,
+        meta_lists=None,
         T_name=None,
         P_name=None,
         T_color=None,
@@ -38,7 +41,8 @@ class TPMSPlotter(MPLPlotter):
         emphasis="top",
         **kwargs,
     ):
-        """Make a TP-MS plot vs time and return the axis handles.
+        """Make a two panel plot with mass spec data on top panel and meta data on bottom
+        panel. Default Temperature and Pressure. TP-MS plot return the axis handles.
 
         Allocates some tasks to MSPlotter.plot_measurement()
 
@@ -56,7 +60,7 @@ class TPMSPlotter(MPLPlotter):
                 masses in which case one list is plotted on the left y-axis and the other
                 on the right y-axis of the top panel.
             mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
-                plot. Defaults to all of them (measurement.mass_list)
+                plot. Defaults to all of them if quantified (measurement.mass_list)
             mol_lists (list of list of str): Alternately, two lists can be given for
                 molecules in which case one list is plotted on the left y-axis and the
                 other on the right y-axis of the top panel.
@@ -69,6 +73,9 @@ class TPMSPlotter(MPLPlotter):
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
+            x_unit (str): unit for x axis defaults to 's' for seconds
+            meta_units (dict): dictionary with new units for y axis on bottom panel.
+                Default to ValueSeries.unit.name for last plotted meta_name
             T_name (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.temperature`
             P_name (str): The name of the value to plot on the lower right y-axis.
@@ -76,6 +83,8 @@ class TPMSPlotter(MPLPlotter):
             T_color (str): The color to plot the variable given by 'T_str'
             P_color (str): The color to plot the variable given by 'P_str'
             logplot (bool): Whether to plot the MS data on a log scale (default True
+                unless mass_lists are given)
+            logdata (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
@@ -94,31 +103,14 @@ class TPMSPlotter(MPLPlotter):
 
         measurement = measurement or self.measurement
 
-        T_name = T_name or measurement.T_name
-        P_name = P_name or measurement.P_name
-
-        TP_lists = [[T_name], [P_name]]
-        TP_list = None
-
         if logplot is None:
             logplot = not mol_lists and not mass_lists
 
-        if not axes:
-            if emphasis == "one figure":
-                ax = self.new_ax()
-                ax2 = ax.twinx()
-                axes = [ax, ax2]
-                TP_list = [T_name]
-                TP_lists = None
-            else:
-                axes = self.new_two_panel_axes(
-                    n_bottom=2,
-                    n_top=(2 if (mass_lists or mol_lists) else 1),
-                    emphasis=emphasis,
-                )
-
-                TP_lists = [[T_name], [P_name]]
-                TP_list = None
+        axes = self.new_two_panel_axes(
+            n_bottom=2,
+            n_top=(2 if (mass_lists or mol_lists) else 1),
+            emphasis=emphasis,
+        )
 
         if (
             mass_list
@@ -146,35 +138,80 @@ class TPMSPlotter(MPLPlotter):
                 **kwargs,
             )
 
-        # Then we have meta data plottet using MSPlotter
-        self.ms_plotter.plot_measurement(
-            measurement=measurement,
-            axes=[axes[1], axes[3]] if TP_lists else [axes[1]],
-            tspan=tspan,
-            mass_list=TP_list,
-            mass_lists=TP_lists,
-            unit=None,
-            x_unit=x_unit,
-            logplot=False,
-        )
+        T_name = T_name or measurement.T_name
+        P_name = P_name or measurement.P_name
 
-        # Set correct ylabel and overwrite colours if colours is manually set
-        axes[1].set_ylabel(T_name)
-        if not T_color:
-            T_color = axes[1].get_lines()[0].get_color()
+        # figure out if one ot two axes is to be plotted in bottom panel
+        if meta_list:
+            meta_lists = [meta_list]
+            axs = [axes[1]]
+            left_right_spine_color = ["left"]
+        elif meta_lists:
+            axs = [axes[1], axes[3]]
+            left_right_spine_color = ["left", "right"]
         else:
-            axes[1].get_lines()[0].set_color(T_color)
-        color_axis(axes[1], T_color)
+            meta_lists = [[T_name], [P_name]]
+            axs = [axes[1], axes[3]]
+            left_right_spine_color = ["left", "right"]
 
-        if TP_lists:
-            axes[3].set_ylabel(P_name)
-            if not P_color:
-                P_color = axes[3].get_lines()[0].get_color()
-            else:
-                axes[3].get_lines()[0].set_color(P_color)
-            color_axis(axes[3], P_color)
+        for i, meta_list in enumerate(meta_lists):
+            ax = axs[i]
+            for meta_name in meta_list:
+                color = STANDARD_COLORS.get(meta_name, "k")
+
+                t, v = measurement.grab_signal(
+                    meta_name,
+                    tspan=tspan,
+                    include_endpoints=False,
+                )
+
+                y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
+                                                        measurement[meta_name],
+                                                        meta_units=meta_units
+                                                        )
+
+                # expect always to plot against time
+                x_unit_factor, x_unit = _get_unit_factor_and_name(
+                                                        new_unit_name=x_unit,
+                                                        from_unit_name="s"
+                                                        )
+
+                axs[i].plot(
+                    t * x_unit_factor,
+                    v * y_unit_factor,  # for now, no units
+                    color=color,
+                    label=meta_name,
+                    **kwargs,
+                )
+            if logplot and y_unit == "mbar":
+                axs[i].set_yscale("log")
+            if legend:
+                axs[i].legend()
+
+            color_axis(axs[i], color, lr=left_right_spine_color[i])
+
+            axs[i].set_ylabel(f"{y_label} / [{y_unit}]")
+            axs[i].set_xlabel(f"time / [{x_unit}]")
 
         return axes
+
+    #        # Set correct ylabel and overwrite colours if colours is manually set
+    #       axes[1].set_ylabel(T_name)
+    #      if not T_color:
+    #         T_color = axes[1].get_lines()[0].get_color()
+    #    else:
+    #       axes[1].get_lines()[0].set_color(T_color)
+    #  color_axis(axes[1], T_color)
+    #
+    #       if TP_lists:
+    #          axes[3].set_ylabel(P_name)
+    #         if not P_color:
+    #            P_color = axes[3].get_lines()[0].get_color()
+    #       else:
+    #          axes[3].get_lines()[0].set_color(P_color)
+    #     color_axis(axes[3], P_color)
+
+    # return axes
 
     def plot_arrhenius(
         self,
@@ -536,46 +573,76 @@ class SpectroTPMSPlotter(MPLPlotter):
         return axes
 
 
-def _get_x_unit_factor(
-    self,
-    x_unit,
-    x_unit_name,
+def _get_y_unit_and_label(data_series, meta_units):
+    name = data_series.name
+    if "temperatur" in name.lower():
+        ylabel = "Temperature"
+    elif "flow" in name:
+        ylabel = "Flows"
+    elif "pressure" in name.lower():
+        ylabel = "Pressure"
+    elif "current" in name.lower():
+        ylabel = "Current"
+    elif "voltage" in name.lower():
+        ylabel = "Voltage"
+    elif "power" in name.lower():
+        ylabel = "Power"
+    else:
+        ylabel = ""
+
+    if meta_units:
+        y_unit_factor, y_unit_name = _get_unit_factor_and_name(
+            meta_units[name],
+            name.unit.name,
+        )
+    else:
+        y_unit_factor = 1
+        y_unit_name = data_series.unit.name
+
+    return ylabel, y_unit_name, y_unit_factor
+
+
+def _get_unit_factor_and_name(
+    new_unit_name,
+    from_unit_name,
 ):
     try:
-        if x_unit_name == "celsius" or x_unit_name == "C":
-            x_unit_factor = {
-                "C": 1,
-                "celsius": 1,
-                "K": 273.15,
-                "kelvin": 273.15,
-            }[x_unit]
+        if from_unit_name == "celsius" or from_unit_name == "C":
+            warnings.warn(
+                "Temperature is not factorial converted and should be done in technique"
+                " method prior to plotting with this plotter. ",
+                stacklevel=2,
+            )
+            unit_factor = 1
+            new_unit_name = from_unit_name
 
-        elif x_unit_name == "kelvin" or x_unit_name == "K":
-            x_unit_factor = {
-                "K": 1,
-                "kelvin": 1,
-                "celsius": -273.15,
-                "C": -273.15,
-            }[x_unit]
+        elif from_unit_name == "kelvin" or from_unit_name == "K":
+            warnings.warn(
+                "Temperature is not factorial converted and should be done in technique"
+                " method prior to plotting with this plotter. ",
+                stacklevel=2,
+            )
+            unit_factor = 1
+            new_unit_name = from_unit_name
 
-        elif x_unit_name == "mbar":
-            x_unit_factor = {
+        elif from_unit_name == "mbar":
+            unit_factor = {
                 "mbar": 1,
                 "bar": 1000,
                 "hPa": 1,
                 "kPa": 0.1,
-            }[x_unit]
+            }[new_unit_name]
 
-        elif x_unit_name == "bar":
-            x_unit_factor = {
+        elif from_unit_name == "bar":
+            unit_factor = {
                 "mbar": 1e-3,
                 "bar": 1,
                 "hPa": 1e-3,
                 "kPa": 0.1e-3,
-            }[x_unit]
+            }[new_unit_name]
 
         else:
-            x_unit_factor = {
+            unit_factor = {
                 # Time conversion
                 "s": 1,
                 "min": 1 / 60,
@@ -591,16 +658,40 @@ def _get_x_unit_factor(
                 "bar": 1000,
                 "hPa": 1,
                 "kPa": 0.1,
-                # Temperature conversion
-                "K": 273.15,
-                "kelvin": 273.15,
-            }[x_unit]
+            }[new_unit_name]
     except KeyError:
         warnings.warn(
-            f"Can't convert original unit '{x_unit_name}' to new unit"
-            f"'{x_unit}'. Plotting using original unit!",
+            f"Can't convert original unit '{from_unit_name}' to new unit"
+            f"'{new_unit_name}'. Plotting using original unit!",
             stacklevel=2,
         )
-        x_unit_factor = 1
-        x_unit = x_unit_name
-    return x_unit_factor, x_unit
+        unit_factor = 1
+        new_unit_name = from_unit_name
+    return unit_factor, new_unit_name
+
+
+#  ----- These are the standard colors for TP-MS plots! ------- #
+
+MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
+# TODO: This should probably be customizeable from a settings file.
+
+STANDARD_COLORS = {
+    # Inset of meta channels #
+    "TC temperature": "r",#"#808000",
+    "RTD temperature": "#808000",
+    "Reactor pressure": "#808000",
+    "Baratron pressure": "#808000",
+    "Containment pressure": "#808000",
+    "Flow1": "k",
+    "Flow2": "brown",
+    "Flow3": "c",
+    "Flow4": "b",
+    "Flow5": "r",
+    "Flow6": "0.5",
+    # Inset for anodic bonding #
+    "TC anodic bonding (top)": "#000075",  # "#808000",
+    "TC anodic bonding (bottom)": "#4363d8",  # "#9A6324",
+    "Total power": "#800000",
+    "Heater voltage 1": "#fabed4",
+    "Heater current 1": "#ffd8b1",
+}
