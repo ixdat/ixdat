@@ -53,7 +53,7 @@ class MSPlotter(MPLPlotter):
                 masses in which case one list is plotted on the left y-axis and the other
                 on the right y-axis of the top panel.
             mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
-                plot. Defaults to all of them (measurement.mass_list)
+                plot. Defaults to all of them if quantified (measurement.mass_list)
             mol_lists (list of list of str): Alternately, two lists can be given for
                 molecules in which case one list is plotted on the left y-axis and the
                 other on the right y-axis of the top panel.
@@ -65,8 +65,8 @@ class MSPlotter(MPLPlotter):
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
-            unit (str): defaults to "A" or "mol/s"
-            x_unit (str): defaults to "s"
+            unit (str): unit of the y axis. defaults to "A" or "mol/s"
+            x_unit (str): unit of the x axis variable (usually time). defaults to "s"
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             logdata (bool): Whether to plot the natural logarithm of MS data on a
                 linear scale (default False)
