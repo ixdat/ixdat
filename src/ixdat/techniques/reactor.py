@@ -39,6 +39,11 @@ class ReactorMeasurement(MSMeasurement):
     def t(self):
         return self["temperature"].t
 
+    @property
+    def meta_list(self):
+        """List of the ValueSeries contained in the measurement that is not a mass """
+        return [col for col in self.series_names if col not in self.mass_list and col[-2:] != '-x']
+
     def unit_converter(self, v_name, new_unit):
         """Convert dataseries from one unit to another using self.correct_data from super
 
@@ -94,20 +99,18 @@ class ReactorMeasurement(MSMeasurement):
         """
 
         try:
+            if "1/" in (original_unit or new_unit):
+                warning.warn(
+                        f"Recieved an inverted serie with unit '{original_unit}'."
+                        f"Cannot convert units of inverted series'",
+                        stacklevel=2
+                        )
             if original_unit == "celsius" or original_unit == "C":
                 unit_factor = {
                     "C": 0,
                     "celsius": 0,
                     "K": 273.15,
                     "kelvin": 273.15,
-                }[new_unit]
-
-            if original_unit == "1/celsius" or original_unit == "1/C":
-                unit_factor = {
-                    "1/C": 0,
-                    "1/celsius": 0,
-                    "1/K": 273.15,
-                    "1/kelvin": 273.15,
                 }[new_unit]
 
             elif original_unit == "kelvin" or original_unit == "K":
