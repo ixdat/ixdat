@@ -197,23 +197,6 @@ class TPMSPlotter(MPLPlotter):
 
         return axes
 
-    #        # Set correct ylabel and overwrite colours if colours is manually set
-    #       axes[1].set_ylabel(T_name)
-    #      if not T_color:
-    #         T_color = axes[1].get_lines()[0].get_color()
-    #    else:
-    #       axes[1].get_lines()[0].set_color(T_color)
-    #  color_axis(axes[1], T_color)
-    #
-    #       if TP_lists:
-    #          axes[3].set_ylabel(P_name)
-    #         if not P_color:
-    #            P_color = axes[3].get_lines()[0].get_color()
-    #       else:
-    #          axes[3].get_lines()[0].set_color(P_color)
-    #     color_axis(axes[3], P_color)
-
-    # return axes
 
     def plot_arrhenius(
         self,
@@ -223,9 +206,7 @@ class TPMSPlotter(MPLPlotter):
         ax=None,
         axes=None,
         mass_list=None,
-        mass_lists=None,
         mol_list=None,
-        mol_lists=None,
         tspan=None,
         tspan_bg=None,
         remove_background=None,
@@ -237,28 +218,21 @@ class TPMSPlotter(MPLPlotter):
         legend=True,
         **kwargs,
     ):
-        if logplot is None:
-            logplot = not mol_lists and not mass_lists
 
         measurement = measurement or self.measurement
-
+        T_name = T_name or measurement.T_name
         if (
             mass_list
-            or mass_lists
             or mol_list
-            or mol_lists
             or hasattr(measurement, "mass_list")
         ):
             # then we have MS data!
 
-            axes = self.ms_plotter.plot_vs(
+            self.ms_plotter.plot_vs(
                 measurement=measurement,
                 ax=ax,
-                axes=axes,
                 mass_list=mass_list,
-                mass_lists=mass_lists,
                 mol_list=mol_list,
-                mol_lists=mol_lists,
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -273,50 +247,106 @@ class TPMSPlotter(MPLPlotter):
 
         return axes
 
-    def plot_in_one_fig(
+    def plot_measurement_in_same_figure(
         self,
         *,
         measurement=None,
         ax=None,
         axes=None,
         mass_list=None,
-        mass_lists=None,
         mol_list=None,
-        mol_lists=None,
+        meta_list=None,
         tspan=None,
         tspan_bg=None,
         remove_background=None,
         unit=None,
         x_unit=None,
+        meta_units=None,
         T_name=None,
         T_color=None,
+        P_name=None,
+        P_color=None,
         logplot=None,
         logdata=None,
         legend=True,
-        emphasis="one figure",
         **kwargs,
     ):
 
-        axes = self.plot_measurement(
-            measurement=measurement,
-            axes=axes,
-            mass_list=mass_list,
-            mass_lists=mass_lists,
-            mol_list=mol_list,
-            mol_lists=mol_lists,
-            tspan=tspan,
-            tspan_bg=tspan_bg,
-            remove_background=remove_background,
-            unit=unit,
-            x_unit=x_unit,
-            T_name=T_name,
-            T_color=T_color,
-            logplot=logplot,
-            logdata=logdata,
-            legend=legend,
-            emphasis=emphasis,
-            **kwargs,
+        measurement = measurement or self.measurement
+
+        if not ax:
+            ax = (
+                axes[0]
+                if axes
+                else self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+            )
+        axes = axes or [ax, ax.twinx()]  # prepare an axis unless we were given two.
+
+        # then we have MS data!
+        self.ms_plotter.plot_measurement(
+                measurement=measurement,
+                ax=axes[0],
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                mass_list=mass_list,
+                mol_list=mol_list,
+                unit=unit,
+                x_unit=x_unit,
+                logplot=logplot,
+                logdata=logdata,
+                legend=legend,
+                **kwargs,
         )
+
+        T_name = T_name or measurement.T_name
+        P_name = P_name or measurement.P_name
+
+        # figure out if one ot two axes is to be plotted in bottom panel
+        if not meta_list:
+            meta_list = [T_name, P_name]
+
+        for n, meta_name in enumerate(meta_list):
+            color = STANDARD_COLORS.get(meta_name, "k")
+
+            t, v = measurement.grab_signal(
+                meta_name,
+                tspan=tspan,
+                include_endpoints=False,
+            )
+
+            y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
+                                                    measurement[meta_name],
+                                                    meta_units=meta_units
+                                                    )
+
+            # expect always to plot against time
+            x_unit_factor, x_unit = _get_unit_factor_and_name(
+                                                    new_unit_name=x_unit,
+                                                    from_unit_name="s"
+                                                    )
+
+            axes[1].plot(
+                t * x_unit_factor,
+                v * y_unit_factor,  # for now, no units
+                color=color,
+                label=meta_name,
+                **kwargs,
+            )
+        if logplot and y_unit == "mbar":
+            axes[1].set_yscale("log")
+        if legend:
+            axes[1].legend()
+
+
+        if n > 1:
+            color = 'k'
+            y_label = "signal"
+            y_unit = ""
+
+        color_axis(axes[1], color=color, lr='right')
+        axes[1].set_ylabel(f"{y_label} / [{y_unit}]")
+#            ax.set_xlabel(f"time / [{x_unit}]")
 
         return axes
 
