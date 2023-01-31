@@ -50,8 +50,8 @@ class TPMSPlotter(MPLPlotter):
             measurement (TPMSMeasurement): Defaults to the measurement to which the
                 plotter is bound (self.measurement)
             axes (list of three matplotlib axes): axes[0] plots the MID data,
-                axes[1] the variable given by T_str (temperature), and axes[3] the
-                variable given by P_str (reactor pressure). By default three axes are
+                axes[1] the variable given by T_name (temperature), and axes[3] the
+                variable given by P_name (reactor pressure). By default three axes are
                 made with axes[0] a top panel with 3/5 the area, and axes[1] and axes[3]
                 are the left and right y-axes of the lower panel with 2/5 the area.
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
@@ -76,12 +76,16 @@ class TPMSPlotter(MPLPlotter):
             x_unit (str): unit for x axis defaults to 's' for seconds
             meta_units (dict): dictionary with new units for y axis on bottom panel.
                 Default to ValueSeries.unit.name for last plotted meta_name
+            meta_list (list of str): The names of the data_series plotted on axes[1].
+                Defulats None.
+            meta_lists (list of list of str): The names of the data series in two list to
+                be plotted on axes[1] and axes[3] respectively. Defaults None.
             T_name (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.temperature`
             P_name (str): The name of the value to plot on the lower right y-axis.
                 Defaults to the name of the series `measurement.pressure`
-            T_color (str): The color to plot the variable given by 'T_str'
-            P_color (str): The color to plot the variable given by 'P_str'
+            T_color (str): Overwrite standard color to plot the variable given by T_name
+            P_color (str): Overwrite standard color to plot the variable given by P_name
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             logdata (bool): Whether to plot the MS data on a log scale (default True
@@ -102,9 +106,6 @@ class TPMSPlotter(MPLPlotter):
         """
 
         measurement = measurement or self.measurement
-
-        if logplot is None:
-            logplot = not mol_lists and not mass_lists
 
         axes = self.new_two_panel_axes(
             n_bottom=2,
@@ -141,24 +142,18 @@ class TPMSPlotter(MPLPlotter):
         T_name = T_name or measurement.T_name
         P_name = P_name or measurement.P_name
 
-        # figure out if one ot two axes is to be plotted in bottom panel
-        if meta_list:
-            meta_lists = [meta_list]
-            axs = [axes[1]]
-            left_right_spine_color = ["left"]
-        elif meta_lists:
-            axs = [axes[1], axes[3]]
-            left_right_spine_color = ["left", "right"]
-        else:
-            meta_lists = [[T_name], [P_name]]
-            axs = [axes[1], axes[3]]
-            left_right_spine_color = ["left", "right"]
-
+        if not meta_lists:
+            meta_lists = [[T_name], [P_name]] if not meta_list else [meta_list]
         for i, meta_list in enumerate(meta_lists):
-            ax = axs[i]
+            # plot on dataseries on correct axis
+            ax = [axes[1], axes[3]][i]
             for n, meta_name in enumerate(meta_list):
-                color = STANDARD_COLORS.get(meta_name, "k")
-
+                if meta_name == T_name and T_color:
+                    color = T_color
+                elif meta_name == P_name and P_color:
+                    color = P_color
+                else:
+                    color = STANDARD_COLORS.get(meta_name, "k")
                 t, v = measurement.grab_signal(
                     meta_name,
                     tspan=tspan,
@@ -170,7 +165,7 @@ class TPMSPlotter(MPLPlotter):
                                                         meta_units=meta_units
                                                         )
 
-                # expect always to plot against time
+                # expect always to plot against time on x axis
                 x_unit_factor, x_unit = _get_unit_factor_and_name(
                                                         new_unit_name=x_unit,
                                                         from_unit_name="s"
@@ -178,22 +173,25 @@ class TPMSPlotter(MPLPlotter):
 
                 ax.plot(
                     t * x_unit_factor,
-                    v * y_unit_factor,  # for now, no units
+                    v * y_unit_factor,
                     color=color,
                     label=meta_name,
                     **kwargs,
                 )
+
             if logplot and y_unit == "mbar":
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
 
-            if n == 1:
-                color_axis(ax, color=color, lr=left_right_spine_color[i])
+            if not n:
+                color_axis(ax, color=color, lr=['left', 'right'][i])
 
             ax.set_ylabel(f"{y_label} / [{y_unit}]")
             ax.set_xlabel(f"time / [{x_unit}]")
 
+        if not i: # remove last axis if nothing is plotted on it
+            axes[3].remove()
 
         return axes
 
@@ -269,8 +267,63 @@ class TPMSPlotter(MPLPlotter):
         logplot=None,
         logdata=None,
         legend=True,
+        hightlighted=None,
         **kwargs,
     ):
+        """Make a one panel plot with mass spec data on left y-axis and meta data right
+        y-axis. Defaultis to all masses and Temperature and Pressure.
+        TP-MS plot return the axis handles.
+
+        Allocates some tasks to MSPlotter.plot_measurement()
+
+        Args:
+            measurement (TPMSMeasurement): Defaults to the measurement to which the
+                plotter is bound (self.measurement)
+            ax (matplotlib ax): If only ax is given, this is used to plot MID data on and
+                create a second twonx() ax to plot meta_list on.
+            axes (list of two matplotlib axes): axes[0] plots the MID data,
+                axes[1] the variable given by T_name (temperature) and the variable given
+                by P_name (reactor pressure). By default three axes are
+                made with axes[0] a top panel with 3/5 the area, and axes[1] and axes[3]
+                are the left and right y-axes of the lower panel with 2/5 the area.
+            mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
+                plot. Defaults to all of them if quantified (measurement.mass_list)
+            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan_bg (timespan): A timespan for which to assume the signal is at its
+                background. The average signals during this timespan are subtracted.
+                If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
+                must also be two timespans - one for each axis. Default is `None` for no
+                background subtraction.
+            remove_background (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
+            unit (str): the unit for the MS data. Defaults to "A" for Ampere
+            x_unit (str): unit for x axis defaults to 's' for seconds
+            meta_units (dict): Dictionary with new units meta series to be plotted.
+                Default to ValueSeries.unit.name for last plotted ValueSeries
+            meta_list (list of str): The names of the data_series plotted on axes[1].
+                Defulats None.
+            T_name (str): The name of the value to plot on the right y-axis.
+                Defaults to the name of the series `measurement.temperature`
+            P_name (str): The name of the value to plot on the right y-axis.
+                Defaults to the name of the series `measurement.pressure`
+            T_color (str): Overwrite standard color to plot the variable given by T_name
+            P_color (str): Overwrite standard color to plot the variable given by P_name
+            logplot (bool): Whether to plot the MS data on a log scale (default True
+                unless mass_lists are given)
+            logdata (bool): Whether to plot the MS data on a log scale (default True
+                unless mass_lists are given)
+            legend (bool): Whether to use a legend for the MS data (default True)
+            emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
+                bottom panel, None for equal-sized panels, "one figure" to plot all in
+                one figure
+            kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
+
+        Returns:
+                axes[0] is MS data;
+                axes[1] is meta data (default temperature and pressure);
+        """
 
         measurement = measurement or self.measurement
 
@@ -307,7 +360,12 @@ class TPMSPlotter(MPLPlotter):
             meta_list = [T_name, P_name]
 
         for n, meta_name in enumerate(meta_list):
-            color = STANDARD_COLORS.get(meta_name, "k")
+            if meta_name == T_name and T_color:
+                color = T_color
+            elif meta_name == P_name and P_color:
+                color = P_color
+            else:
+                color = STANDARD_COLORS.get(meta_name, "k")
 
             t, v = measurement.grab_signal(
                 meta_name,
@@ -328,9 +386,10 @@ class TPMSPlotter(MPLPlotter):
 
             axes[1].plot(
                 t * x_unit_factor,
-                v * y_unit_factor,  # for now, no units
+                v * y_unit_factor,
                 color=color,
                 label=meta_name,
+                alpha=1,
                 **kwargs,
             )
         if logplot and y_unit == "mbar":
@@ -342,14 +401,19 @@ class TPMSPlotter(MPLPlotter):
         if n > 1:
             color = 'k'
             y_label = "signal"
-            y_unit = ""
+            y_unit = "mixed"
 
         color_axis(axes[1], color=color, lr='right')
         axes[1].set_ylabel(f"{y_label} / [{y_unit}]")
-#            ax.set_xlabel(f"time / [{x_unit}]")
+        axes[1].set_xlabel(f"time / [{x_unit}]")
+        #if hightlighted:
+        #    for ax in axes:
+        #        for line in ax.get_lines:
+        #            line.set_alpha(0.3)
+        #            if line.get_label() in highlighted:
+        #                line.set_alpha(1)
 
         return axes
-
 
 class SpectroTPMSPlotter(MPLPlotter):
     def __init__(self, measurement=None):
@@ -371,6 +435,10 @@ class SpectroTPMSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
+        x_unit=None,
+        meta_units=None,
+        meta_lists=None,
+        meta_list=None,
         T_name=None,
         P_name=None,
         T_color="k",
@@ -398,8 +466,8 @@ class SpectroTPMSPlotter(MPLPlotter):
             measurement (SpectroReactorMeasurement): Defaults to the measurement to which
                 the plotter is bound (self.measurement)
             axes (list of four matplotlib axes): axes[0] plots the spectral, axes[1] MS,
-                axes[2] the variable given by T_str (temperature), and axes[4] the
-                variable given by P_str (reactor pressure). By default four axes are made
+                axes[2] the variable given by T_name (temperature), and axes[4] the
+                variable given by P_name (reactor pressure). By default four axes are made
                 with axes[0] a top panel, axes[1] a middle panel, axes[2] and axes[4]
                 the left and right yaxes of the bottom panel
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
@@ -425,8 +493,8 @@ class SpectroTPMSPlotter(MPLPlotter):
                 Defaults to the name of the series `measurement.temperature`
             P_name (str): The name of the value to plot on the lower right y-axis.
                 Defaults to the name of the series `measurement.pressure`
-            T_color (str): The color to plot the variable given by 'T_str'
-            P_color (str): The color to plot the variable given by 'P_str'
+            T_color (str): The color to plot the variable given by 'T_name'
+            P_color (str): The color to plot the variable given by 'P_name'
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MID data (default True)
@@ -608,24 +676,26 @@ class SpectroTPMSPlotter(MPLPlotter):
 def _get_y_unit_and_label(data_series, meta_units):
     name = data_series.name
     if "temperatur" in name.lower():
-        ylabel = "Temperature"
-    elif "flow" in name:
-        ylabel = "Flows"
+        ylabel = "temperature"
+    elif "flow" in name.lower():
+        ylabel = "flow rate"
     elif "pressure" in name.lower():
-        ylabel = "Pressure"
+        ylabel = "pressure"
     elif "current" in name.lower():
-        ylabel = "Current"
+        ylabel = "current"
     elif "voltage" in name.lower():
-        ylabel = "Voltage"
+        ylabel = "voltage"
     elif "power" in name.lower():
-        ylabel = "Power"
+        ylabel = "power"
     else:
-        ylabel = ""
+        ylabel = " "
 
+    new_unit_name = data_series.unit.name
     if meta_units:
-        new_unit_name = meta_units[name]
-    else:
-        new_unit_name = data_series.unit.name
+        try:
+            new_unit_name = meta_units[name]
+        except KeyError:
+            pass
 
     y_unit_factor, y_unit_name = _get_unit_factor_and_name(
             new_unit_name = new_unit_name,
@@ -661,17 +731,17 @@ def _get_unit_factor_and_name(
         elif from_unit_name == "mbar":
             unit_factor = {
                 "mbar": 1,
-                "bar": 1000,
+                "bar": 1e-3,
                 "hPa": 1,
-                "kPa": 0.1,
+                "kPa": 0.1e-3,
             }[new_unit_name]
 
         elif from_unit_name == "bar":
             unit_factor = {
-                "mbar": 1e-3,
+                "mbar": 1e3,
                 "bar": 1,
-                "hPa": 1e-3,
-                "kPa": 0.1e-3,
+                "hPa": 1e3,
+                "kPa": 0.1e3,
             }[new_unit_name]
 
         else:
@@ -710,8 +780,8 @@ MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(no
 
 STANDARD_COLORS = {
     # Inset of meta channels #
-    "TC temperature": "r",#"#808000",
-    "RTD temperature": "#808000",
+    "TC temperature": "#000075",#"#808000",
+    "RTD temperature": "#4363d8",
     "Reactor pressure": "#808000",
     "Baratron pressure": "#808000",
     "Containment pressure": "#808000",
