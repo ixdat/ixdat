@@ -119,7 +119,8 @@ class ReactorMeasurement(MSMeasurement):
         from scipy.optimize import curve_fit
 
         popt, pcov = curve_fit(self._func, inverse_T, k)
-        print(f"pre factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R} [J/K]"
+        print(f"pre factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R} [J/K mol]"
+              f"activity energy Ea/kB = {popt[1]} => Ea [eV K-1] = {-kB * popt[1]}\n"
                )# kB = 8.617e-5 eV
 
         return popt, pcov
