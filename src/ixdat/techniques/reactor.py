@@ -107,19 +107,19 @@ class ReactorMeasurement(MSMeasurement):
         R = 8.31446261815324
         Ea = -R * coef[0]
         A = np.exp(coef[1])
-        print(f"pre exponential factor A = {A},'\n', and activity energy Ea = {Ea}"
-              "universal gas constant R = 8.314.. J mol-1 K-1"
-              )
-        print(f"activity energy Ea/R = {coef[0]} => Ea[J K-1] = {-R * coef[0]}"
-              f"activity energy Ea/kB = {coef[0]} => Ea [eV K-1] = {-kB * coef[0]}"
-              )
 
         if logdata:
+            print(f"pre exponential factor A = {A},\n and activity energy Ea = {Ea}\n"
+                  "universal gas constant R = 8.314.. J mol-1 K-1\n"
+                  )
+            print(f"activity energy Ea/R = {coef[0]} => Ea[J K-1] = {-R * coef[0]}\n"
+                  f"activity energy Ea/kB = {coef[0]} => Ea [eV K-1] = {-kB * coef[0]}\n"
+                  )
             return coef#A, Ea
         from scipy.optimize import curve_fit
 
         popt, pcov = curve_fit(self._func, inverse_T, k)
-        print(f"pre exponential factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R}"
+        print(f"pre factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R} [J/K]"
                )# kB = 8.617e-5 eV
 
         return popt, pcov
