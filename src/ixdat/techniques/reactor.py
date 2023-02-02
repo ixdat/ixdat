@@ -4,7 +4,7 @@ from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
 from ..db import Saveable
 from ..data_series import ValueSeries
 import warnings
-
+import numpy as np
 
 class ReactorMeasurement(MSMeasurement):
 
@@ -74,7 +74,7 @@ class ReactorMeasurement(MSMeasurement):
             return
         data = self[v_name].data
 
-        if "emperatur" in v_name:  # converting from kelvin to celsius is addition
+        if "temperatur" in v_name.lower():  # converting from kelvin to celsius is addition
             new_data = data + unit_factor
         else:
             new_data = data * unit_factor
@@ -82,6 +82,50 @@ class ReactorMeasurement(MSMeasurement):
         self.correct_data(v_name, new_data)
 
         self[v_name].unit.name = new_unit
+
+    def fit_to_arrhenius_equation(self, inverse_T, k, logdata=False):
+        """Method to fit data to an arrhenius expression
+        k = A exp(Ea/R T) # per mole
+        k = A exp(Ea/kB T) # per molecule
+        kB_J = 1.380649e-23 J K-1, or kB_eV =  8.617333e10-5 eV K-1
+
+        args:
+            inverse_T (list): list of inverse temperatures
+            k (list): list of rates at T (often mol/s)
+            logdata (bool): Used if k is np.log(k). Default False.
+        return (either or):
+            A, Ea (if logdata)
+            popt, popv (if not logdata)
+        """
+        if len(inverse_T) != len(k):
+            warnings.warn("Length of T and k has to be equal")
+            return
+
+        # if data is ln(k) the regression is linear
+        coef = np.polyfit(inverse_T, k, 1)
+        R = 8.31446261815324
+        Ea = -R * coef[0]
+        A = np.exp(coef[1])
+        print(f"pre exponential factor A = {A},'\n', and activity energy Ea = {Ea}"
+              "universal gas constant R = 8.314.. J mol-1 K-1"
+              )
+        print(f"activity energy Ea/R = {coef[0]}"
+              )
+
+        if logdata:
+            return coef#A, Ea
+        from scipy.optimize import curve_fit
+
+        popt, pcov = curve_fit(self._func, inverse_T, k)
+        print(f"pre exponential factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R}"
+               )# kB = 8.617e-5 eV
+
+        return popt, pcov
+
+    def _func(self, x, a, b):
+        """helper function for fitting arrhenius equation to quantified mass data"""
+        return a * np.exp(-b * x)
+
 
     def _get_unit_factor(
         self,
