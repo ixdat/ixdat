@@ -249,7 +249,7 @@ class MSPlotter(MPLPlotter):
         unit_factor = specs_this_axis["unit_factor"]
 
         t, x = measurement.grab(x_name, tspan=tspan, include_endpoints=True)
-        for v_name in v_list:
+        for i, v_name in enumerate(v_list):
             if quantified:
                 t_v, v = measurement.grab_flux(
                     v_name,
@@ -282,7 +282,8 @@ class MSPlotter(MPLPlotter):
             if logdata:
                 logplot = False
                 v = np.log(v * unit_factor) * 1 / unit_factor
-                unit = f"ln({unit})"
+                if not i:  # To avoid looping ln()'s around unit for each mass plotted.
+                    unit = f"ln({unit})"
 
             ax.plot(
                 x_mass * x_unit_factor,
