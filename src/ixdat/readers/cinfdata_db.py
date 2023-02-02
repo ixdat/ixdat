@@ -53,6 +53,9 @@ class CinfdataDBReader:
         self.measurement = None
         self.cinf_db = None
         self.mass_scans = False
+        self.spectrum_list = []
+
+        plugins.activate_cinfdata()
 
     def read(self, path_to_file, name=None, cls=None, units=None, **kwargs):
         """Return a xx-Measurement or Spectrum with the data and metadata recorded from
@@ -63,12 +66,11 @@ class CinfdataDBReader:
 
         Args:
             path_to_file (str): Named argument from Measurement Class.
-                                Can be used as the setup name in the cinfdatabase
+                Can be used as the setup name in the cinfdatabase
             **kwargs (dict): Key-word arguments are passed to cinf Measurement.__init__
-                             setup_name (str): The setup name in the database default
-                                 to path_to_file
-                             timestamp (str): Timestamp the measurement started
-                                              given as (YYYY-MM-DD HH:MM:SS)
+                setup_name (str): The setup name in the database default to path_to_file
+                timestamp (str): Timestamp the measurement started given as
+                    (YYYY-MM-DD HH:MM:SS)
         """
 
         self.measurement_class = kwargs.pop("measurement_class", cls)
@@ -97,20 +99,11 @@ class CinfdataDBReader:
                 self.grouping_column = "time"
                 self.token = self.timestamp
 
-        plugins.activate_cinfdata()
 
-        if (
-            self.measurement_class == Spectrum
-            or self.measurement_class == SpectrumSeries
-            or self.measurement_class == MultiSpectrum
-        ):
+        if issubclass(self.measurement_class, Spectrum):
             return self.read_spectrums()
 
-        elif (
-            self.measurement_class == MSMeasurement
-            or self.measurement_class == ReactorMeasurement
-            or self.measurement_class == Measurement
-        ):
+        elif issubclass(self.measurement_class, Measurement):
             obj_as_dict = self.read_ms()
             if issubclass(cls, self.measurement_class):
                 self.measurement_class = cls
@@ -189,7 +182,7 @@ class CinfdataDBReader:
             tstamp=self.tstamp,
         )
 
-        if not obj_as_dict:
+        if not data_series_list: #obj_as_dict:
             warnings.warn(
                 f"No mass spec data was found using '{self.token}' "
                 f" and group_column: '{self.grouping_column}'",
@@ -200,7 +193,23 @@ class CinfdataDBReader:
         return obj_as_dict
 
     def read_spectrums(self, **kwargs):
-        """Download spectrums from cinfdata_database"""
+        """Download spectrums from cinfdata_database with either a timestamp or a comment
+        When all associated spectras have been downloaded and added to self.spectrum_list
+        this method will try to
+        1. figure out if any spectras was able to be downloaded if none
+            return None
+        2. figure out if this method was used to add mass_scans to another measurement
+            return list of Spectrum to be added to that measurement
+        3. figure out if one and only one spectrum was downloaded
+            return that single Spectrum as first spectrum in self.spectrum_list[0]
+        4. figure out is all spectras downloaded are associated enough to be a
+        SpectrumSeries (They have to be equal in dimensions like mass scans)
+        (multiple mass scans over time versus XPS spectra from different regions)
+            return SpectrumSeries
+        5. If not one and only Spectrum was read and the multiple of spectras read were
+        not possible to combine in a SepctrumSeries
+            return self.spectrum_list
+        """
         db = plugins.cinfdata.connect(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         )
@@ -213,32 +222,32 @@ class CinfdataDBReader:
         self.set_name()
         self.set_tstamp()
 
-        spectrum_list = []
+        self.spectrum_list = []
         for i, key in enumerate(self.group_meta.keys()):
-            if self.group_meta[key]["type"] == 2:
+            if self.group_meta[key]["type"] == 2:  # type 2 is unique decribing XPS data
                 self.x_name = "Binding energy / eV"
                 self.x_unit_name = "eV"
                 self.field_name = "Counts per second"
                 self.field_unit = "n/s"
                 self.technique = "XPS"
-                obj_as_dict = self.create_spectrum(key)  # group_data, group_meta, key)
+                obj_as_dict = self.get_spectrum(key)
                 obj_as_dict["name"] = self.group_meta[key]["name"]
-                spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
+                self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
-            elif self.group_meta[key]["type"] == 4:
+            elif self.group_meta[key]["type"] == 4:  # type 4 is unique describing msscan
                 self.x_name = "Mass [AMU]"
                 self.x_unit_name = "m/z"
                 self.field_name = "Current"
                 self.field_unit = "[A]"
                 self.technique = "MS_spectrum"
-                obj_as_dict = self.create_spectrum(key)
+                obj_as_dict = self.get_spectrum(key)
                 obj_as_dict["name"] = self.sample_name
-                spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
+                self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
             else:
                 pass
 
-        if not spectrum_list:
+        if not self.spectrum_list:
             warnings.warn(
                 f"No spectrum was found using '{self.token}' "
                 f" and group_column: '{self.grouping_column}'",
@@ -246,12 +255,12 @@ class CinfdataDBReader:
             )
             return None
         elif self.mass_scans:
-            return spectrum_list
-        elif len(spectrum_list) == 1:
-            return spectrum_list[0]
+            return self.spectrum_list
+        elif len(self.spectrum_list) == 1:
+            return self.spectrum_list[0]
         else:
             try:
-                return SpectrumSeries.from_spectrum_list(spectrum_list)
+                return SpectrumSeries.from_spectrum_list(self.spectrum_list)
             except ValueError:
                 warnings.warn(
                     "Could not return SpectrumSeries from list of spectrums "
@@ -261,9 +270,9 @@ class CinfdataDBReader:
                     stacklevel=2,
                 )
 
-                return spectrum_list
+                return self.spectrum_list
 
-    def create_spectrum(self, key):
+    def get_spectrum(self, key):
         x_col = self.group_data[key][:, 0]
         y_col = self.group_data[key][:, 1]
         tstamp = self.group_meta[key]["unixtime"]
@@ -292,7 +301,7 @@ class CinfdataDBReader:
         self.measurement_class = MSSpectrum
         self.grouping_column = "comment"
         self.token = self.sample_name
-        spectrum_list = self.read_spectrums()
+        self.spectrum_list = self.read_spectrums()
 
         if self.verbose:
             print(
@@ -302,23 +311,29 @@ class CinfdataDBReader:
                 "Unixtime end of exp ",
                 self.measurement.time_series[-1].data[-1] + self.tstamp,
             )
-
+        
+        # index is used to figure out if more mass scans than are associated with the 
+        # measurement was downloaded. This is done by comparing tstamp of the last
+        # spectrum downloaded with tstamp of measurement + measurement.tseries.data[-1]
+        # If tstamp of spectrum if out of range of the measurement we will loop through
+        # all spectras backwards to find correct index in the self.spectrum list to
+        # include as mass scans
         index = -1
 
         if (
-            spectrum_list[-1].tstamp
+            self.spectrum_list[-1].tstamp
             > self.measurement.time_series[-1].data[-1] + self.tstamp
         ):
-            time = spectrum_list[0].tstamp
+            time = self.spectrum_list[0].tstamp
             while time < self.measurement.time_series[-1].data[-1] + self.tstamp:
-                for i, spectrum in spectrum_list:
+                for i, spectrum in self.spectrum_list:
                     time = spectrum.tstamp
                     index = i - 1
         if self.verbose:
             print("end index of spectrum list, ", index, "\n")
-            print("tstamp of last spectrum in list, ", spectrum_list[index].tstamp)
+            print("tstamp of last spectrum in list, ", self.spectrum_list[index].tstamp)
 
-        MSSpectra = SpectrumSeries.from_spectrum_list(spectrum_list[:index])
+        MSSpectra = SpectrumSeries.from_spectrum_list(self.spectrum_list[:index])
 
         SpectroMSMeasurement = MSSpectra.__add__(self.measurement)
 
