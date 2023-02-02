@@ -87,7 +87,7 @@ class ReactorMeasurement(MSMeasurement):
         """Method to fit data to an arrhenius expression
         k = A exp(Ea/R T) # per mole
         k = A exp(Ea/kB T) # per molecule
-        kB_J = 1.380649e-23 J K-1, or kB_eV =  8.617333e10-5 eV K-1
+        kB_J = 1.380649e-23 J K-1, or kB_eV =  8.617333e-5 eV K-1
 
         args:
             inverse_T (list): list of inverse temperatures
@@ -103,13 +103,15 @@ class ReactorMeasurement(MSMeasurement):
 
         # if data is ln(k) the regression is linear
         coef = np.polyfit(inverse_T, k, 1)
+        kB = 8.617333e-5
         R = 8.31446261815324
         Ea = -R * coef[0]
         A = np.exp(coef[1])
         print(f"pre exponential factor A = {A},'\n', and activity energy Ea = {Ea}"
               "universal gas constant R = 8.314.. J mol-1 K-1"
               )
-        print(f"activity energy Ea/R = {coef[0]}"
+        print(f"activity energy Ea/R = {coef[0]} => Ea[J K-1] = {-R * coef[0]}"
+              f"activity energy Ea/kB = {coef[0]} => Ea [eV K-1] = {-kB * coef[0]}"
               )
 
         if logdata:
