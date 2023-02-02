@@ -107,11 +107,12 @@ class TPMSPlotter(MPLPlotter):
 
         measurement = measurement or self.measurement
 
-        axes = self.new_two_panel_axes(
-            n_bottom=2,
-            n_top=(2 if (mass_lists or mol_lists) else 1),
-            emphasis=emphasis,
-        )
+        if not axes:
+            axes = self.new_two_panel_axes(
+                n_bottom=2,
+                n_top=(2 if (mass_lists or mol_lists) else 1),
+                emphasis=emphasis,
+            )
 
         if (
             mass_list
@@ -209,7 +210,7 @@ class TPMSPlotter(MPLPlotter):
         unit=None,
         x_unit=None,
         fit_arrh=True,
-        fit_arrh_color="r",
+        fit_arrh_color="#1f77b4",
         logplot=True,
         logdata=None,
         legend=True,
@@ -280,7 +281,11 @@ class TPMSPlotter(MPLPlotter):
             ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="1 / T [K]")
 
         if T_tspans:
-            t, T = measurement.grab(inverse_T_name, tspan=tspan, include_endpoints=True)
+            t, T = measurement.grab(
+                inverse_T_name,
+                tspan=[T_tspans[0][0], T_tspans[-1][-1]],
+                include_endpoints=True
+            )
             for mol in mol_list:
                 v_avg_list = []
                 T_avg_list = []
@@ -315,7 +320,7 @@ class TPMSPlotter(MPLPlotter):
                                                    )
                     k_fitted = coef[1] + coef[0] * np.array(T_avg_list)
                     if not logdata:
-                        # values for lotting arrheniuos
+                        print('inside logdata')           # values for lotting arrheniuos
                         popt, pcov = measurement.fit_to_arrhenius_equation(
                                                    inverse_T=np.array(T_avg_list),
                                                    k=np.array(v_avg_list),
@@ -328,6 +333,7 @@ class TPMSPlotter(MPLPlotter):
                         k_fitted,
                         color=fit_arrh_color,
                         label='arrhenius',
+                        linestyle='--',
                         )
             if logplot:
                 ax.set_yscale("log")
@@ -371,11 +377,13 @@ class TPMSPlotter(MPLPlotter):
                 #v_avg_list = np.log(np.array(v_avg_list))
                 coef = measurement.fit_to_arrhenius_equation(
                     inverse_T=T_mol,
-                    k=V,
-                    logdata=True, #logdata
+                    k=np.log(V),
+                    logdata=True,
                 )
                 k_fitted = coef[1] + coef[0] * T_mol
+                logplot=logplot
                 if not logdata:
+                    logplot=True
                     # values for lotting arrheniuos
                     popt, pcov = measurement.fit_to_arrhenius_equation(
                         inverse_T=T_mol,
@@ -390,11 +398,12 @@ class TPMSPlotter(MPLPlotter):
                         k_fitted,
                         color=fit_arrh_color,
                         label='arrhenius',
+                        linestyle='--',
                         )
-            #if logplot:
-            #    ax.set_yscale("log")
-            #if legend:
-            #    ax.legend
+            if logplot:
+                ax.set_yscale("log")
+            if legend:
+                ax.legend
 
         return ax
 
@@ -596,21 +605,22 @@ class SpectroTPMSPlotter(MPLPlotter):
         P_color="r",
         logplot=None,
         legend=True,
-        xspan=None,
+        scan_span=None,
         cmap_name="inferno",
         make_colorbar=False,
         aspect=1.25,
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
-        _sort_indicies=None,
         vmin=None,
         vmax=None,
         emphasis="middle",
         **kwargs,
     ):
-        """Make a spectro TP-MS plot vs time and return the axis handles.
-
+        """Make a three panel spectro TP-MS plot vs time and return the axis handles.
+        Top panel plot shows spectrum data in a heat plot
+        middel panel plot shows mass spec data
+        bottom panel plot shows Temperature and Pressure
         Allocates some tasks to TPMSPlotter.plot_measurement()
 
         Args:
@@ -649,11 +659,13 @@ class SpectroTPMSPlotter(MPLPlotter):
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MID data (default True)
-            xspan (iterable): The span of the spectral data to plot
+            scan_span (iterable): The span of the spectral data to plot
             cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present mis-alignes axes
+            vmin (float): minimum value of colorbar. Default np.min(data)
+            vmax (float): maximum value of colorbar. Default np.max(data)
             aspect (float): aspect ratio. Defaults to 1.25 times taller than wide.
             max_threshold (float): Set maximum value in scanning data and set to zero if
                 data is above.
@@ -661,7 +673,35 @@ class SpectroTPMSPlotter(MPLPlotter):
                 data is below.
             scanning_mask (boolean list): List of booleans to include/ exclude specfic
                 data in scanning plot (specific masses that are monitored otherwise)
-            _sort_indicies (list): list of floats to sort data. Defaults low to high.
+            sort_spectra (list or str): Whether or not to sort the spectra data prior to
+                plotting.
+                There is three specifers:
+                    'none':
+                        This gives no new sorting. Effectively the spectras are sorted
+                        by time. (tstamp for each of the spectrum).
+                    'linear' (default):
+                        the spectras are sorted linear to v_name from low to high.
+                    a list of same shape as field.data to be sorted:
+                        This list is passed directly as the indices to sort the spectras.
+                        Defaults to sort lowest to highest value. Example
+                Note: If tspan spans a time span of a measurement with up and down
+                cycles in v_name, this might yield funny looking heat_plots.
+
+                    Example:
+                    Scanning up and down in temperature from T_low to T_high the spectras
+                    obtained wil be plotted from [T_low_start ..  T_high .. T_low_end].
+
+                    - If 'none' sorting is specified leads to heat_plot xaxis linearly from
+                    T_low_start to T_low_end missing representation of the high values in
+                    the middle of the axis.
+
+                    - If 'linear' sorting is specified all spectras obtained
+                        are sorted linearly from lowest v_name_value to highest v_name.
+                        When data is assymetric from scanning up or down in v_name this
+                        leads to abrupt looking figures since two non similair spectras
+                        are obtained at similair v_name value and hence plotted next to
+                        eachother.
+
             vmin (float): Value used to shift colours in the colorbar to lower values
             vmax (float): Value to shift colours in the colorbar to higher values
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
@@ -685,13 +725,13 @@ class SpectroTPMSPlotter(MPLPlotter):
         measurement.spectrum_series.heat_plot(
             ax=axes[0],
             tspan=tspan,
-            xspan=xspan,
+            xspan=scan_span,
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             max_threshold=max_threshold,
             min_threshold=min_threshold,
             scanning_mask=scanning_mask,
-            _sort_indicies=_sort_indicies,
+          #  _sort_indicies=sort_spectra,
             vmin=vmin,
             vmax=vmax,
         )
@@ -726,7 +766,7 @@ class SpectroTPMSPlotter(MPLPlotter):
     def plot_measurement_vs(
         self,
         *,
-        x_name,
+        v_name,
         measurement=None,
         axes=None,
         mass_list=None,
@@ -737,19 +777,115 @@ class SpectroTPMSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
+        x_unit=None,
         logplot=True,
+        logdata=True,
         legend=True,
-        xspan=None,
+        scan_span=None,
+        vspan=None,
         cmap_name="inferno",
         make_colorbar=False,
+        vmin=None,
+        vmax=None,
         emphasis="top",
         ms_data="top",
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
-        _sort_indicies=None,
+        sort_spectra=None,
         **kwargs,
     ):
+        """Make a two panel spectro MS plot vs v_name (often temperature).
+        and return the axis handles.
+        Top panel plot shows mass spec data
+        bottom panel plot shows spectrum data in a heat plot
+
+        Allocates some tasks to MSPlotter.plot_measurement() via tpms_plotter.
+
+        Args:
+            measurement (SpectroReactorMeasurement): Defaults to the measurement to which
+                the plotter is bound (self.measurement)
+            axes (list of three matplotlib axes): axes[0] plots MS data versus v_name on
+                left axis of the top panel.
+                axes[1] plots the spectral spectras versus v_name on the left axes of the
+                bottom panel and axes[2] plots addition MS data vs v_name on right axis
+                on top panel
+            mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mass_lists (list of list of str): Alternately, two lists can be given for
+                masses in which case one list is plotted on the left y-axis and the other
+                on the right y-axis of the top panel.
+            mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
+                plot. Defaults to all of them (measurement.mass_list)
+            mol_lists (list of list of str): Alternately, two lists can be given for
+                molecules in which case one list is plotted on the left y-axis and the
+                other on the right y-axis of the top panel.
+            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan_bg (timespan): A timespan for which to assume the signal is at its
+                background. The average signals during this timespan are subtracted.
+                If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
+                must also be two timespans - one for each axis. Default is `None` for no
+                background subtraction.
+            remove_background (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
+            unit (str): the unit for the MS data. Defaults to "A" for Ampere
+            x_unit (str): the unit for the x axis to plot.
+            logplot (bool): Whether to plot the MS data on a log scale (default True
+                unless mass_lists are given)
+            logdata (bool): Whether to plot take the natural logarithm of MS data prior
+                to plotting. Sets logplot to False if True (default False)
+            legend (bool): Whether to use a legend for the MID data (default True)
+            scan_span (iterable): The span of the spectral data to plot
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
+            make_colorbar (bool): Whether to make a colorbar.
+                FIXME: colorbar at present mis-alignes axes
+            vmin (float): minimum value of colorbar. Default np.min(data)
+            vmax (float): maximum value of colorbar. Default np.max(data)
+            aspect (float): aspect ratio. Defaults to 1.25 times taller than wide.
+            max_threshold (float): Set maximum value in scanning data and set to zero if
+                data is above.
+            min_threshold (float): Set minimum value in scanning data and set to zero if
+                data is below.
+            scanning_mask (boolean list): List of booleans to include/ exclude specfic
+                data in scanning plot (specific masses that are monitored otherwise)
+            sort_spectra (list or str): Whether or not to sort the spectra data prior to
+                plotting.
+                There is three specifers:
+                    'none':
+                        This gives no new sorting. Effectively the spectras are sorted
+                        by time. (tstamp for each of the spectrum).
+                    'linear' (default):
+                        the spectras are sorted linear to v_name from low to high.
+                    a list of same shape as field.data to be sorted:
+                        This list is passed directly as the indices to sort the spectras.
+                        Defaults to sort lowest to highest value. Example
+                Note: If tspan spans a time span of a measurement with up and down
+                cycles in v_name, this might yield funny looking heat_plots.
+
+                    Example:
+                    Scanning up and down in temperature from T_low to T_high the spectras
+                    obtained wil be plotted from [T_low_start ..  T_high .. T_low_end].
+
+                    - If 'none' sorting is specified leads to heat_plot xaxis linearly from
+                    T_low_start to T_low_end missing representation of the high values in
+                    the middle of the axis.
+
+                    - If 'linear' sorting is specified all spectras obtained
+                        are sorted linearly from lowest v_name_value to highest v_name.
+                        When data is assymetric from scanning up or down in v_name this
+                        leads to abrupt looking figures since two non similair spectras
+                        are obtained at similair v_name value and hence plotted next to
+                        eachother.
+
+            kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
+
+        Returns:
+            list of Axes: (top, mid_left, bottom_left, mid_right, bottom_right) where:
+                axes[0] is top left MS data
+                axes[1] is bottom left display MS Spectas;
+                axes[2] is top right displaying additional MS data;
+        """
 
         if logplot is None:
             logplot = not mol_lists and not mass_lists
@@ -783,7 +919,7 @@ class SpectroTPMSPlotter(MPLPlotter):
         ):
             # then we have MS data!
             self.tpms_plotter.ms_plotter.plot_vs(
-                x_name=x_name,
+                x_name=v_name,
                 measurement=measurement,
                 axes=[axes[ms_axes], axes[2]]
                 if (mass_lists or mol_lists)
@@ -796,30 +932,113 @@ class SpectroTPMSPlotter(MPLPlotter):
                 mol_list=mol_list,
                 mol_lists=mol_lists,
                 unit=unit,
+                x_unit=x_unit
                 logplot=logplot,
+                logdata=logdata,
                 legend=legend,
                 **kwargs,
             )
 
-        _tseries = measurement.spectrum_series.field.axes_series[0]
-        _v = measurement.grab_for_t(item=x_name, t=_tseries.t)
-        if not _sort_indicies:
-            _sort_indicies = np.argsort(_v)
+        # To plot heat plot.
+        # First get all values for v_name at all spectrum times
+        _t = measurement.spectrum_series.field.axes_series[0].t
+        _v = measurement.grab_for_t(item=v_name, t=_t)
 
+        # find all t_indicies in original data set for later sorting
+        t_indicies = (np.array([i for i, v in enumerate(_v)]), )
+
+        if tspan:
+            # FIXME find a more elegant numpy way of extracting indicies directly from
+            # data in 
+            t_mask = np.logical_and(tspan[0] < _t, _t < tspan[-1])
+            ## t_indicies is the indicies of the total data set recorded within tspan
+            t_indicies = np.where(t_mask == True)
+            # _v is the values of v_name recorded at t within tspan (t_mask)
+            _v = _v[t_mask]
+
+        if isinstance(sort_spectra, str):
+            # t_sorted_indicies are the indicies of the sliced spectras data-set recorded
+            # wihtin tspan and sorted vs v_name according to sort_spectra
+            if sort_spectra == 'linear':
+                t_sorted_indicies = np.argsort(_v)
+
+            elif sort_spectra == 'none':
+                t_sorted_indicies = [i for i, v in enumerate(_v)]
+
+            else:
+                warnings.warn(
+                        f"Recieved {sort_spectra} for sort_spectra."
+                        "sort_spectra has to be 'linear',  'none' or "
+                        "of type list with same length as spectrum_series.",
+                        stacklevel = 2
+                        )
+            # Indicies of the total field.data where tstamp of spectra is within tspan and
+            # indicies are sorted versus v_name
+            _sorted_indicies = t_indicies[0][t_sorted_indicies]
+
+        elif isinstance(sort_spectra, list):
+            if len(_t) == len(sort_spectra):
+                _sorted_indicies = sort_spectra
+            else:
+                warnings.warn(
+                        f"length [{len(sort_spectra)}] of 'sort_spectra' has to be equal"
+                        f"to [{len(_t)}]."
+                        "sort_spectra can be 'linear', 'none' or "
+                        "of type list with same length as spectrum_series.",
+                        stacklevel = 2
+                        )
+        else:
+            warnings.warn(
+                        "sort_spectra has to be 'linear', 'none' or "
+                        "of type list with same length as spectrum_series.",
+                        stacklevel = 2
+                        )
+
+        # Now we can plot the heat plot
         measurement.spectrum_series.heat_plot(
             ax=axes[ms_spec_axes],
-            t=_v[_sort_indicies],
-            tspan=tspan,
-            xspan=xspan,
-            t_name=x_name,
+            t=_v[t_sorted_indicies],  # So x_axis is sorted eqaul to the data
+            tspan=vspan,
+            xspan=scan_span,
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
+            vmin=vmin,
+            vmax=vmax,
             max_threshold=max_threshold,
             min_threshold=min_threshold,
             scanning_mask=scanning_mask,
-            _sort_indicies=_sort_indicies,
-            **kwargs,
+            _sort_indicies=_sorted_indicies,
         )
+
+        axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
+
+        if vspan:
+
+            axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
+            axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
+        axes[ms_spec_axes].set_xlabel(v_name)
+
+        return axes
+
+        #_tseries = measurement.spectrum_series.field.axes_series[0]
+        #_v = measurement.grab_for_t(item=x_name, t=_tseries.t)
+        #if not sort_spectra:
+            #sort_spectra = np.argsort(_v)
+
+        #measurement.spectrum_series.heat_plot(
+            #ax=axes[ms_spec_axes],
+            #t=_v[sort_spectra],
+            #tspan=tspan,
+            #xspan=xspan,
+            #t_name=x_name,
+            #cmap_name=cmap_name,
+            #make_colorbar=make_colorbar,
+            #max_threshold=max_threshold,
+            #min_threshold=min_threshold,
+            #scanning_mask=scanning_mask,
+            #_sort_indicies=sort_spectra,
+            #**kwargs,
+        #)
 
         return axes
 
