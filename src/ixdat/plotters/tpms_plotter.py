@@ -68,7 +68,7 @@ class TPMSPlotter(MPLPlotter):
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
-                must also be two timespans - one for each axis. Default is `None` for no
+                can also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
@@ -161,15 +161,13 @@ class TPMSPlotter(MPLPlotter):
                 )
 
                 y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                                                        measurement[meta_name],
-                                                        meta_units=meta_units
-                                                        )
+                    measurement[meta_name], meta_units=meta_units
+                )
 
                 # expect always to plot against time on x axis
                 x_unit_factor, x_unit = _get_unit_factor_and_name(
-                                                        new_unit_name=x_unit,
-                                                        from_unit_name="s"
-                                                        )
+                    new_unit_name=x_unit, from_unit_name="s"
+                )
 
                 ax.plot(
                     t * x_unit_factor,
@@ -185,21 +183,21 @@ class TPMSPlotter(MPLPlotter):
                 ax.legend()
 
             if not n:
-                color_axis(ax, color=color, lr=['left', 'right'][i])
+                color_axis(ax, color=color, lr=["left", "right"][i])
 
             ax.set_ylabel(f"{y_label} / [{y_unit}]")
             ax.set_xlabel(f"time / [{x_unit}]")
 
-        if not i: # remove last axis if nothing is plotted on it
+        if not i:  # remove last axis if nothing is plotted on it
             axes[3].remove()
 
         return axes
 
-
     def plot_arrhenius(
         self,
         *,
-        T_name,
+        inverse_T_name,
+        T_tspans=None,
         measurement=None,
         ax=None,
         axes=None,
@@ -210,22 +208,135 @@ class TPMSPlotter(MPLPlotter):
         remove_background=None,
         unit=None,
         x_unit=None,
-        arrh_color="r",
-        logplot=None,
+        fit_arrh=True,
+        fit_arrh_color="r",
+        logplot=True,
         logdata=None,
         legend=True,
         **kwargs,
     ):
+        """Make an arrhenius like plot with quantified mass spec data on left y-axis.
+        Defaultis to all masses and Temperature and Pressure.
+        TP-MS plot return the axis handles.
+
+        Allocates some tasks to MSPlotter.plot_measurement()
+
+        Args:
+            inverse_T_name (str): Name of the series to plot on x_axis. Expects an
+                inverted series and temperature unit in 'K' / 'kelvin'.
+            T_tspans (list of list of two int): List of list containing tspans to average
+                mass spec signals / mol if quantified and average temperature in that
+                time range. Used to fit data from a measurement with steday-state
+                temperature platues to an arrhenius like equation k = A * exp(-Ea / (RT))
+                Example:
+                    [
+                        [T1t0, T1t1], [T2t0,T2t1], ... , [Tnt0,TnT1]
+                    ]
+            measurement (TPMSMeasurement): Defaults to the measurement to which the
+                plotter is bound (self.measurement)
+            ax (matplotlib ax): ax to plot data on an return.
+                create a second twonx() ax to plot meta_list on.
+            mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
+                plot. Defaults to 'None'
+            mol_list (list of str): The names of the molecules, eg. ["H2", ...] to
+                plot. Defaults to 'None'.
+            tspan (iter of float): The time interval to plot, wrt measurement.tstamp
+            tspan_bg (timespan): A timespan for which to assume the signal is at its
+                background. The average signals during this timespan are subtracted.
+                If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
+                must also be two timespans - one for each axis. Default is `None` for no
+                background subtraction.
+            remove_background (bool): Whether otherwise to subtract pre-determined
+                background signals if available. Defaults to (not logplot)
+            unit (str): the unit for the MS data. Defaults to "A" for Ampere
+            x_unit (str): unit for x axis defaults to 's' for seconds
+            fit_arrh (bool): Whether to fit data to an arrhenius like equation and plot.
+                Default to True.
+            fit_arrh_color (str): Color to plot the arrhenius equation. Default to 'r'.
+            logplot (bool): Whether to plot the MS data on a log scale. Default True.
+            logdata (bool): Whether to take the natural logarithm of MS data prior to
+                plotting and find arrhenius fit. Sets logplot to False. Default to True
+            legend (bool): Whether to use a legend for the MS data (default True)
+            kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
+
+        Returns:
+                ax
+        """
+
 
         measurement = measurement or self.measurement
-        T_name = T_name or measurement.T_name
-        if (
-            mass_list
-            or mol_list
-            or hasattr(measurement, "mass_list")
-        ):
-            # then we have MS data!
+        inverse_T_name = inverse_T_name or measurement.inverse_T_name
+        if 'inverse' not in inverse_T_name:
+            warnings.warn("Arrhenius plots are usually plotted against 1/T"
+                          f"{inverse_T_name} is not the recognized as an inversed seres",
+                          stacklevel=2)
+        if ('K' or 'kelvin')  not in measurement[inverse_T_name].unit.name:
+            warnings.warn("Arrhenius plots are usually plotted against 1/T in kelvin / K"
+                          f". [{measurement[inverse_T_name].unit.name}] is not the "
+                          "recognized as unit kelvin",
+                          stacklevel=2)
+        # then we have MS data!
+        if not ax:
+            ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="1 / T [K]")
 
+        if T_tspans:
+            t, T = measurement.grab(inverse_T_name, tspan=tspan, include_endpoints=True)
+            for mol in mol_list:
+                v_avg_list = []
+                T_avg_list = []
+                for T_tspan in T_tspans:
+                    t_v, v =  measurement.grab_flux(
+                            mol=mol,
+                            tspan=T_tspan,
+                            include_endpoints=False,
+                            tspan_bg=tspan_bg,
+                            )
+                    v_avg_list.append(np.mean(v))
+                    T_mol = np.interp(t_v, t, T)
+                    T_avg_list.append(np.mean(T_mol))
+
+                if logdata:
+                    v_avg_list=np.log(np.array(v_avg_list))
+                    logplot=False
+
+                ax.plot(
+                        T_avg_list,
+                        v_avg_list,# * unit_factor,
+                        label=mol,
+                        **kwargs
+                        )
+
+                if fit_arrh:
+                    #v_avg_list = np.log(np.array(v_avg_list))
+                    coef = measurement.fit_to_arrhenius_equation(
+                                                   inverse_T=np.array(T_avg_list),
+                                                   k=v_avg_list,
+                                                   logdata=True, #logdata
+                                                   )
+                    k_fitted = coef[1] + coef[0] * np.array(T_avg_list)
+                    if not logdata:
+                        # values for lotting arrheniuos
+                        popt, pcov = measurement.fit_to_arrhenius_equation(
+                                                   inverse_T=np.array(T_avg_list),
+                                                   k=np.array(v_avg_list),
+                                                   logdata=logdata)
+                        k_fitted = measurement._func(np.array(T_avg_list), *popt)
+                    # log arrhen np.log(v_avg_list) = - Ea / R * 1/ T_avg_list + np.log(A)
+
+                    ax.plot(
+                        T_avg_list,
+                        k_fitted,
+                        color=fit_arrh_color,
+                        label='arrhenius',
+                        )
+            if logplot:
+                ax.set_yscale("log")
+            if legend:
+                ax.legend
+
+            return axes if axes else ax
+
+        else:
             self.ms_plotter.plot_vs(
                 measurement=measurement,
                 ax=ax,
@@ -236,14 +347,56 @@ class TPMSPlotter(MPLPlotter):
                 remove_background=remove_background,
                 unit=unit,
                 x_unit=x_unit,
-                x_name=T_name,
+                x_name=inverse_T_name,
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
                 **kwargs,
             )
+            if fit_arrh:
+                t, T = measurement.grab(
+                    inverse_T_name,
+                    tspan=tspan,
+                    include_endpoints=True
+                )
 
-        return axes
+                t_v, V = measurement.grab_flux(
+                    mol_list[0],
+                    tspan=tspan,
+                    include_endpoints=False,
+                )
+
+
+                T_mol = np.interp(t_v, t, T)
+                #v_avg_list = np.log(np.array(v_avg_list))
+                coef = measurement.fit_to_arrhenius_equation(
+                    inverse_T=T_mol,
+                    k=V,
+                    logdata=True, #logdata
+                )
+                k_fitted = coef[1] + coef[0] * T_mol
+                if not logdata:
+                    # values for lotting arrheniuos
+                    popt, pcov = measurement.fit_to_arrhenius_equation(
+                        inverse_T=T_mol,
+                        k=V,
+                        logdata=logdata
+                    )
+                    k_fitted = measurement._func(T_mol, *popt)
+                    # log arrhen np.log(v_avg_list) = - Ea / R * 1/ T_avg_list + np.log(A)
+
+                ax.plot(
+                        T_mol,
+                        k_fitted,
+                        color=fit_arrh_color,
+                        label='arrhenius',
+                        )
+            #if logplot:
+            #    ax.set_yscale("log")
+            #if legend:
+            #    ax.legend
+
+        return ax
 
     def plot_measurement_in_same_figure(
         self,
@@ -337,19 +490,19 @@ class TPMSPlotter(MPLPlotter):
 
         # then we have MS data!
         self.ms_plotter.plot_measurement(
-                measurement=measurement,
-                ax=axes[0],
-                tspan=tspan,
-                tspan_bg=tspan_bg,
-                remove_background=remove_background,
-                mass_list=mass_list,
-                mol_list=mol_list,
-                unit=unit,
-                x_unit=x_unit,
-                logplot=logplot,
-                logdata=logdata,
-                legend=legend,
-                **kwargs,
+            measurement=measurement,
+            ax=axes[0],
+            tspan=tspan,
+            tspan_bg=tspan_bg,
+            remove_background=remove_background,
+            mass_list=mass_list,
+            mol_list=mol_list,
+            unit=unit,
+            x_unit=x_unit,
+            logplot=logplot,
+            logdata=logdata,
+            legend=legend,
+            **kwargs,
         )
 
         T_name = T_name or measurement.T_name
@@ -374,15 +527,13 @@ class TPMSPlotter(MPLPlotter):
             )
 
             y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                                                    measurement[meta_name],
-                                                    meta_units=meta_units
-                                                    )
+                measurement[meta_name], meta_units=meta_units
+            )
 
             # expect always to plot against time
             x_unit_factor, x_unit = _get_unit_factor_and_name(
-                                                    new_unit_name=x_unit,
-                                                    from_unit_name="s"
-                                                    )
+                new_unit_name=x_unit, from_unit_name="s"
+            )
 
             axes[1].plot(
                 t * x_unit_factor,
@@ -397,16 +548,15 @@ class TPMSPlotter(MPLPlotter):
         if legend:
             axes[1].legend()
 
-
         if n > 1:
-            color = 'k'
+            color = "k"
             y_label = "signal"
             y_unit = "mixed"
 
-        color_axis(axes[1], color=color, lr='right')
+        color_axis(axes[1], color=color, lr="right")
         axes[1].set_ylabel(f"{y_label} / [{y_unit}]")
         axes[1].set_xlabel(f"time / [{x_unit}]")
-        #if hightlighted:
+        # if hightlighted:
         #    for ax in axes:
         #        for line in ax.get_lines:
         #            line.set_alpha(0.3)
@@ -414,6 +564,7 @@ class TPMSPlotter(MPLPlotter):
         #                line.set_alpha(1)
 
         return axes
+
 
 class SpectroTPMSPlotter(MPLPlotter):
     def __init__(self, measurement=None):
@@ -467,9 +618,9 @@ class SpectroTPMSPlotter(MPLPlotter):
                 the plotter is bound (self.measurement)
             axes (list of four matplotlib axes): axes[0] plots the spectral, axes[1] MS,
                 axes[2] the variable given by T_name (temperature), and axes[4] the
-                variable given by P_name (reactor pressure). By default four axes are made
-                with axes[0] a top panel, axes[1] a middle panel, axes[2] and axes[4]
-                the left and right yaxes of the bottom panel
+                variable given by P_name (reactor pressure). By default four axes are
+                made with axes[0] a top panel, axes[1] a middle panel, axes[2] and
+                axes[4] the left and right yaxes of the bottom panel
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
                 plot. Defaults to all of them (measurement.mass_list)
             mass_lists (list of list of str): Alternately, two lists can be given for
@@ -698,9 +849,9 @@ def _get_y_unit_and_label(data_series, meta_units):
             pass
 
     y_unit_factor, y_unit_name = _get_unit_factor_and_name(
-            new_unit_name = new_unit_name,
-            from_unit_name = data_series.unit.name,
-        )
+        new_unit_name=new_unit_name,
+        from_unit_name=data_series.unit.name,
+    )
 
     return ylabel, y_unit_name, y_unit_factor
 
@@ -717,7 +868,7 @@ def _get_unit_factor_and_name(
                 stacklevel=2,
             )
             unit_factor = 1
-            new_unit_name = ' C' #from_unit_name
+            new_unit_name = " C"  # from_unit_name
 
         elif from_unit_name == "kelvin" or from_unit_name == "K":
             warnings.warn(
@@ -726,7 +877,7 @@ def _get_unit_factor_and_name(
                 stacklevel=2,
             )
             unit_factor = 1
-            new_unit_name = ' K'#from_unit_name
+            new_unit_name = " K"  # from_unit_name
 
         elif from_unit_name == "mbar":
             unit_factor = {
@@ -780,7 +931,7 @@ MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(no
 
 STANDARD_COLORS = {
     # Inset of meta channels #
-    "TC temperature": "#000075",#"#808000",
+    "TC temperature": "#000075",  # "#808000",
     "RTD temperature": "#4363d8",
     "Reactor pressure": "#808000",
     "Baratron pressure": "#808000",
