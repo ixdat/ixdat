@@ -779,7 +779,7 @@ class SpectroTPMSPlotter(MPLPlotter):
         unit=None,
         x_unit=None,
         logplot=True,
-        logdata=True,
+        logdata=False,
         legend=True,
         scan_span=None,
         vspan=None,
@@ -792,7 +792,7 @@ class SpectroTPMSPlotter(MPLPlotter):
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
-        sort_spectra=None,
+        sort_spectra='linear',
         **kwargs,
     ):
         """Make a two panel spectro MS plot vs v_name (often temperature).
@@ -932,7 +932,7 @@ class SpectroTPMSPlotter(MPLPlotter):
                 mol_list=mol_list,
                 mol_lists=mol_lists,
                 unit=unit,
-                x_unit=x_unit
+                x_unit=x_unit,
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
