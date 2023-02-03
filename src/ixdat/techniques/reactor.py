@@ -1,19 +1,58 @@
 from .ms import MSMeasurement, SpectroMSMeasurement
 from ..measurements import Calibration
 from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
-from ..db import Saveable
 from ..data_series import ValueSeries
 import warnings
 import numpy as np
 
+
 class ReactorMeasurement(MSMeasurement):
+    """Class implementing thermal catalysis measurement.
+
+    Now the class has implemented temperature and pressure, and mass spectrometry through
+    the MSMeasurement. Future updates should include GC measurements.
+
+    The main job of this class is making sure that the ValueSeries most essential for
+    visualizing thermal catalysis measurements are always available in the
+    correct form as the measurement is added with others, reduced to a selection,
+    calibrated and normalized, etc. These most important ValueSeries are:
+
+    - `temperature`: The temperature inside the reactor typically in [K].
+
+    - `pressurevy`: The pressure inside the reactor typically in [bar].
+
+    These ValueSeries are directly accesable as properties of the class
+
+    - `measurement.T` yields the data series for temperature
+    - `measurement.P` yields the data series for pressure
+    - `measurement.t` yield the TimeSeries for the measurement
+
+    The inverse of the temperature series is often used in themal catalysis when fitting
+    an arrhenius equation to the data.
+    The inverse of a `ValueSeries` is accesable by adding "inverse_" in front of the
+    ValueSeries.name (i.e measurement["inverse_temperature"]).
+
+    For temperature this has can be accessed directly as a property
+
+    - `measurement.inverse_T`
+
+    `ReactorMeasurement` inherits from `MSMeasurement` to acces and calibrate MS data
+
+    `ReactorMeasurement` has a default plotter `TPMSPlotter` which can plot a two panel
+    plot with MS data in one panel and temperature and pressure in the other panel
+    against time (`measurement.plot_measurement()`) or
+    plot in one panel with MS data on left y-axis and temperature on right y-axis against
+    time (`measurement.plotter.plot_measurement_in_one_panel()`) or
+    plot arrhenius like plot with MS data plotted against inverse of temperature and fit
+    arrhenius equation in specific T_tspans (`measurement.plotter.plot_arrhenius()`)
+
+    """
 
     default_plotter = TPMSPlotter
     essential_series_names = ("temperature", "pressure")
 
     def __init__(self, name, **kwargs):
         self.add_calibration(ReactorCalibration)
-
 
     @property
     def T_name(self):
@@ -32,7 +71,7 @@ class ReactorMeasurement(MSMeasurement):
         return self["temperature"].data
 
     @property
-    def T_inverse(self):
+    def inverse_T(self):
         return self["inverse_temperature"].data
 
     @property
@@ -45,8 +84,12 @@ class ReactorMeasurement(MSMeasurement):
 
     @property
     def meta_list(self):
-        """List of the ValueSeries contained in the measurement that is not a mass """
-        return [col for col in self.series_names if col not in self.mass_list and col[-2:] != '-x']
+        """List of the ValueSeries contained in the measurement that is not a mass"""
+        return [
+            col
+            for col in self.series_names
+            if col not in self.mass_list and col[-2:] != "-x"
+        ]
 
     def unit_converter(self, v_name, new_unit):
         """Convert dataseries from one unit to another using self.correct_data from super
@@ -78,7 +121,9 @@ class ReactorMeasurement(MSMeasurement):
             return
         data = self[v_name].data
 
-        if "temperatur" in v_name.lower():  # converting from kelvin to celsius is addition
+        if (
+            "temperatur" in v_name.lower()
+        ):  # converting from kelvin to celsius is addition
             new_data = data + unit_factor
         else:
             new_data = data * unit_factor
@@ -113,26 +158,28 @@ class ReactorMeasurement(MSMeasurement):
         A = np.exp(coef[1])
 
         if logdata:
-            print(f"pre exponential factor A = {A},\n and activity energy Ea = {Ea}\n"
-                  "universal gas constant R = 8.314.. J mol-1 K-1\n"
-                  )
-            print(f"activity energy Ea/R = {coef[0]} => Ea[J K-1] = {-R * coef[0]}\n"
-                  f"activity energy Ea/kB = {coef[0]} => Ea [eV K-1] = {-kB * coef[0]}\n"
-                  )
-            return coef#A, Ea
+            print(
+                f"pre exponential factor A = {A},\n and activity energy Ea = {Ea}\n"
+                "universal gas constant R = 8.314.. J mol-1 K-1\n"
+            )
+            print(
+                f"activity energy Ea/R = {coef[0]} => Ea[J K-1] = {-R * coef[0]}\n"
+                f"activity energy Ea/kB = {coef[0]} => Ea [eV K-1] = {-kB * coef[0]}\n"
+            )
+            return coef  # A, Ea
         from scipy.optimize import curve_fit
 
         popt, pcov = curve_fit(self._func, inverse_T, k)
-        print(f"pre factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R} [J/K mol]"
-              f"activity energy Ea/kB = {popt[1]} => Ea [eV K-1] = {-kB * popt[1]}\n"
-               )# kB = 8.617e-5 eV
+        print(
+            f"pre factor A = {popt[0]}, Ea/R = {popt[1]}, Ea = {popt[1]*R} [J/K mol]"
+            f"activity energy Ea/kB = {popt[1]} => Ea [eV K-1] = {-kB * popt[1]}\n"
+        )  # kB = 8.617e-5 eV
 
         return popt, pcov
 
     def _func(self, x, a, b):
         """helper function for fitting arrhenius equation to quantified mass data"""
         return a * np.exp(-b * x)
-
 
     def _get_unit_factor(
         self,
@@ -151,11 +198,11 @@ class ReactorMeasurement(MSMeasurement):
 
         try:
             if "1/" in (original_unit or new_unit):
-                warning.warn(
-                        f"Recieved an inverted serie with unit '{original_unit}'."
-                        f"Cannot convert units of inverted series'",
-                        stacklevel=2
-                        )
+                warnings.warn(
+                    f"Recieved an inverted serie with unit '{original_unit}'."
+                    f"Cannot convert units of inverted series'",
+                    stacklevel=2,
+                )
             if original_unit == "celsius" or original_unit == "C":
                 unit_factor = {
                     "C": 0,
@@ -223,6 +270,7 @@ class ReactorMeasurement(MSMeasurement):
 
 class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
     default_plotter = SpectroTPMSPlotter
+
 
 class ReactorCalibration(Calibration):
     """A reactor calibration to calibrate inverse of meta_series"""
