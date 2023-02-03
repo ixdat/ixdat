@@ -11,6 +11,10 @@ class ReactorMeasurement(MSMeasurement):
     default_plotter = TPMSPlotter
     essential_series_names = ("temperature", "pressure")
 
+    def __init__(self, name, **kwargs):
+        self.add_calibration(ReactorCalibration)
+
+
     @property
     def T_name(self):
         return self["temperature"].name
@@ -219,39 +223,6 @@ class ReactorMeasurement(MSMeasurement):
 
 class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
     default_plotter = SpectroTPMSPlotter
-
-
-class ReactorUnitConverterResult(Saveable):
-    """A class for a reactor reactor_calibration result.
-
-    FIXME: I think that something inheriting directly from Saveable does not belong in
-        a technique module.
-    """
-
-    table_name = "reactor_cal_results"
-    column_attrs = {"name", "mass", "new_unit"}
-
-    def __init__(
-        self,
-        name=None,
-        mass=None,
-        new_unit=None,
-    ):
-        super().__init__()
-        self.name = name or f"{mass}@{new_unit}"
-        self.mass = mass
-        self.new_unit = new_unit
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(name={self.name}, mol={self.mass}, "
-            f"calibration type={self.cal_type})"
-        )
-
-    # @property
-    # def color(self):
-    #    return STANDARD_COLORS[self.mass]
-
 
 class ReactorCalibration(Calibration):
     """A reactor calibration to calibrate inverse of meta_series"""
