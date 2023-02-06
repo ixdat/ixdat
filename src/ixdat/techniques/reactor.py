@@ -19,7 +19,7 @@ class ReactorMeasurement(MSMeasurement):
 
     - `temperature`: The temperature inside the reactor typically in [K].
 
-    - `pressurevy`: The pressure inside the reactor typically in [bar].
+    - `pressure`: The pressure inside the reactor typically in [bar].
 
     These ValueSeries are directly accesable as properties of the class
 
@@ -44,7 +44,7 @@ class ReactorMeasurement(MSMeasurement):
     plot in one panel with MS data on left y-axis and temperature on right y-axis against
     time (`measurement.plotter.plot_measurement_in_one_panel()`) or
     plot arrhenius like plot with MS data plotted against inverse of temperature and fit
-    arrhenius equation in specific T_tspans (`measurement.plotter.plot_arrhenius()`)
+    arrhenius equation in specific tspan_list (`measurement.plotter.plot_arrhenius()`)
 
     """
 
@@ -52,7 +52,9 @@ class ReactorMeasurement(MSMeasurement):
     essential_series_names = ("temperature", "pressure")
 
     def __init__(self, name, **kwargs):
-        self.add_calibration(ReactorCalibration)
+        super().__init__(name, **kwargs)
+        self.add_calibration(ReactorCalibration())
+        self.activation_energy = {}
 
     @property
     def T_name(self):
