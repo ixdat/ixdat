@@ -68,7 +68,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
-        _sort_indicies=None,
         vmin=None,
         vmax=None,
     ):
@@ -97,9 +96,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 Values below are set to 0.
             scanning_mask (list): List of booleans to exclude from scanning variable
                 before plotting data by setting y values to 0 (zero).
-            _sort_indicies (list): List of indices to sort data.
-                Helper varirable used for correct representation of data when plotting
-                with ´´heat_plot_vs´´.
             vmin (float): minimum value to represent in colours.
             vmax (float): maximum value to represent in colours.
         """
@@ -112,9 +108,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         t_name = t_name or field.axes_series[0].name
 
         data = field.data.copy()  # avoid manipulating original data from measurement
-
-        if np.any(_sort_indicies):
-            data = data[_sort_indicies, :]
 
         if max_threshold:
             # data = np.minimum(max_threshold, data)
