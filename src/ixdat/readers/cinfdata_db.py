@@ -225,22 +225,22 @@ class CinfdataDBReader:
         self.spectrum_list = []
         for i, key in enumerate(self.group_meta.keys()):
             if self.group_meta[key]["type"] == 2:  # type 2 is unique decribing XPS data
-                self.x_name = "Binding energy / eV"
-                self.x_unit_name = "eV"
-                self.field_name = "Counts per second"
-                self.field_unit = "n/s"
-                self.technique = "XPS"
-                obj_as_dict = self.get_spectrum(key)
+                #self.x_name = "Binding energy / eV"
+                #self.x_unit_name = "eV"
+                #self.field_name = "Counts per second"
+                #self.field_unit = "n/s"
+                #self.technique = "XPS"
+                obj_as_dict = self.get_spectrum_as_obj(key=key, group_type=2)
                 obj_as_dict["name"] = self.group_meta[key]["name"]
                 self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
             elif self.group_meta[key]["type"] == 4:  # type 4 is unique describing msscan
-                self.x_name = "Mass [AMU]"
-                self.x_unit_name = "m/z"
-                self.field_name = "Current"
-                self.field_unit = "[A]"
-                self.technique = "MS_spectrum"
-                obj_as_dict = self.get_spectrum(key)
+                #self.x_name = "Mass [AMU]"
+                #self.x_unit_name = "m/z"
+                #self.field_name = "Current"
+                #self.field_unit = "[A]"
+                #self.technique = "MS_spectrum"
+                obj_as_dict = self.get_spectrum_as_obj(key=key, group_type=4)
                 obj_as_dict["name"] = self.sample_name
                 self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
@@ -272,24 +272,39 @@ class CinfdataDBReader:
 
                 return self.spectrum_list
 
-    def get_spectrum(self, key):
+    def get_spectrum_as_obj(self, key, group_type):
         x_col = self.group_data[key][:, 0]
         y_col = self.group_data[key][:, 1]
         tstamp = self.group_meta[key]["unixtime"]
 
-        xseries = DataSeries(data=x_col, name=self.x_name, unit_name=self.x_unit_name)
+        xseries = DataSeries(
+                    data=x_col,
+                    name=SPECTRUM_METADATA[group_type]["x_name"],
+                    unit_name=SPECTRUM_METADATA[group_type]["x_unit_name"]
+                    )
         field = Field(
             data=y_col,
-            name=self.field_name,
-            unit_name=self.field_unit,
+            name=SPECTRUM_METADATA[group_type]["field_name"],
+            unit_name=SPECTRUM_METADATA[group_type]["field_unit"],
             axes_series=[
                 xseries,
             ],
         )
 
+        #xseries = DataSeries(data=x_col, name=self.x_name, unit_name=self.x_unit_name)
+
+        #field = Field(
+            #data=y_col,
+            #name=self.field_name,
+            #unit_name=self.field_unit,
+            #axes_series=[
+                #xseries,
+            #],
+        #)
+
         obj_as_dict = {
             "sample_name": self.sample_name,
-            "technique": self.technique,
+            "technique": SPECTRUM_METADATA[group_type]["technique"],
             "field": field,
             "tstamp": tstamp,
         }
@@ -311,7 +326,7 @@ class CinfdataDBReader:
                 "Unixtime end of exp ",
                 self.measurement.time_series[-1].data[-1] + self.tstamp,
             )
-        
+
         # index is used to figure out if more mass scans than are associated with the 
         # measurement was downloaded. This is done by comparing tstamp of the last
         # spectrum downloaded with tstamp of measurement + measurement.tseries.data[-1]
@@ -377,3 +392,20 @@ def get_column_unit(column_name):
         #    https://github.com/CINF/cinfdata/blob/master/sym-files2/export_data.py#L125
         unit_name = None
     return unit_name
+
+SPECTRUM_METADATA = {
+    2:{
+       "x_name": "Binding energy / eV",
+       "x_unit_name": "eV",
+       "field_name": "Counts per second",
+       "field_unit": "n/s",
+       "technique": "XPS",
+    },
+    4:{  # type 4 is unique describing msscan
+       "x_name": "Mass [AMU]",
+       "x_unit_name": "m/z",
+       "field_name": "Current",
+       "field_unit": "[A]",
+       "technique": "MS_spectrum",
+    }
+}
