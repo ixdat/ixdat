@@ -1,5 +1,6 @@
 """Plotter for Mass Spectrometry"""
 import warnings
+from ..data_series import Field
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
 
@@ -651,7 +652,7 @@ class SpectroMSPlotter(MPLPlotter):
     def plot_measurement_vs(
         self,
         *,
-        v_name,
+        vs_name,
         measurement=None,
         axes=None,
         mass_list=None,
@@ -663,11 +664,11 @@ class SpectroMSPlotter(MPLPlotter):
         tspan_bg=None,
         remove_background=None,
         unit=None,
-        x_unit=None,
+        vs_unit=None,
         logplot=True,
         logdata=False,
         legend=True,
-        scan_span=None,
+        xspan=None,
         cmap_name="inferno",
         make_colorbar=False,
         vmin=None,
@@ -697,7 +698,7 @@ class SpectroMSPlotter(MPLPlotter):
         Args:
             measurement (SpectroMSMeasurement): Defaults to the one that initiated the
                 plotter
-            v_name (str): Name of the series to plot versus.
+            vs_name (str): Name of the series to plot versus.
             axes (list of matplotlib axis): Defaults to axes[0], axes[2] for left and
                 right axis for plotting masses and axes[1] for MSSpectra data.
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
@@ -720,12 +721,12 @@ class SpectroMSPlotter(MPLPlotter):
             remove_background (bool): Whether otherwise to subtract pre-determined
                 background signals if available. Defaults to (not logplot)
             unit (str): defaults to "A" or "mol/s"
-            x_unit (str): defaults to v_name.unit.name
+            vs_unit (str): defaults to v_name.unit.name
             logplot (bool): Whether to plot the MS data on a log scale (default True)
             logdata (bool): Whether to plot the natural logarithm of MS data on a
                 linear scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
-            scan_span (iter of float): The physical span for spectra to plot
+            xspan (iter of float): The physical span for spectra to plot
             cmap_name (str): Colour map to pass to heat_plot method
             make_colorbar (bool): Include a colour bar. Misalignes time axis with other
                 panels in same figure
@@ -808,7 +809,7 @@ class SpectroMSPlotter(MPLPlotter):
         ):
             # then we have MS data!
             self.ms_plotter.plot_vs(
-                x_name=v_name,
+                x_name=vs_name,
                 measurement=measurement,
                 axes=[axes[ms_axes], axes[2]]
                 if (mass_lists or mol_lists)
@@ -821,7 +822,7 @@ class SpectroMSPlotter(MPLPlotter):
                 mol_list=mol_list,
                 mol_lists=mol_lists,
                 unit=unit,
-                x_unit=unit,
+                x_unit=vs_unit,
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
@@ -830,29 +831,25 @@ class SpectroMSPlotter(MPLPlotter):
 
         # To plot heat plot.
         # First get all values for v_name at all spectrum times
-        _t = measurement.spectrum_series.field.axes_series[0].t
-        _v = measurement.grab_for_t(item=v_name, t=_t)
+        field = measurement.spectrum_series.field
+        _data = field.data.copy()
 
-        # find all t_indicies in original data set for later sorting
-        t_indicies = (np.array([i for i, v in enumerate(_v)]), )
+        _t = field.axes_series[0].t
+        _v = measurement.grab_for_t(item=vs_name, t=_t)
 
         if tspan:
-            # FIXME find a more elegant numpy way of extracting indicies directly from
-            # data in 
+            # create t_mask from tspan
             t_mask = np.logical_and(tspan[0] < _t, _t < tspan[-1])
-            ## t_indicies is the indicies of the total data set recorded within tspan
-            t_indicies = np.where(t_mask == True)
-            # _v is the values of v_name recorded at t within tspan (t_mask)
+            #apply t_mask to field.data and vs_name.data
+            _data = _data[t_mask]
             _v = _v[t_mask]
 
         if isinstance(sort_spectra, str):
-            # t_sorted_indicies are the indicies of the sliced spectras data-set recorded
-            # wihtin tspan and sorted vs v_name according to sort_spectra
             if sort_spectra == 'linear':
-                t_sorted_indicies = np.argsort(_v)
+                sorted_indicies = np.argsort(_v)
 
             elif sort_spectra == 'none':
-                t_sorted_indicies = [i for i, v in enumerate(_v)]
+                sorted_indicies = [i for i, v in enumerate(_v)]
 
             else:
                 warnings.warn(
@@ -861,13 +858,10 @@ class SpectroMSPlotter(MPLPlotter):
                         "of type list with same length as spectrum_series.",
                         stacklevel = 2
                         )
-            # Indicies of the total field.data where tstamp of spectra is within tspan and
-            # indicies are sorted versus v_name
-            _sorted_indicies = t_indicies[0][t_sorted_indicies]
 
         elif isinstance(sort_spectra, list):
             if len(_t) == len(sort_spectra):
-                _sorted_indicies = sort_spectra
+                sorted_indicies = sort_spectra
             else:
                 warnings.warn(
                         f"length [{len(sort_spectra)}] of 'sort_spectra' has to be equal"
@@ -879,16 +873,27 @@ class SpectroMSPlotter(MPLPlotter):
         else:
             warnings.warn(
                         "sort_spectra has to be 'linear', 'none' or "
-                        "of type list with same length as spectrum_series.",
+                        "of type list with same length as spectrum_series."
+                        "Recived {sort_spectra}.",
                         stacklevel = 2
                         )
 
+        new_field_data = _data[sorted_indicies,:]
+
+        new_field = Field(
+                name=field.name + f"_sorted_vs_{vs_name}_for_{tspan}",
+                unit_name=field.unit_name,
+                axes_series=field.axes_series,
+                data=new_field_data,
+        )
         # Now we can plot the heat plot
         measurement.spectrum_series.heat_plot(
             ax=axes[ms_spec_axes],
-            t=_v[t_sorted_indicies],  # So x_axis is sorted eqaul to the data
+            t=_v[sorted_indicies],  # So x_axis is sorted eqaul to the data
+            field=new_field,
+            t_name=vs_name,
             tspan=vspan,
-            xspan=scan_span,
+            xspan=xspan,
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             vmin=vmin,
@@ -896,7 +901,6 @@ class SpectroMSPlotter(MPLPlotter):
             max_threshold=max_threshold,
             min_threshold=min_threshold,
             scanning_mask=scanning_mask,
-            _sort_indicies=_sorted_indicies,
         )
 
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
@@ -905,7 +909,6 @@ class SpectroMSPlotter(MPLPlotter):
 
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
-        axes[ms_spec_axes].set_xlabel(v_name)
 
         return axes
 
