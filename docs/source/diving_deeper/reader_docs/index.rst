@@ -4,6 +4,34 @@ Readers: getting data into ``ixdat``
 ====================================
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/readers
 
+Initiating a measurement
+------------------------
+
+A typical workflow is to start by reading a file. For convenience, most readers are
+accessible directly from ``Measurement``. So, for example, to read a .mpt file exported
+by Biologic's EC-Lab, one can type:
+
+>>> from ixdat import Measurement
+>>> ec_meas = Measurement.read("my_file.mpt", reader="biologic")
+
+See :ref:`readers <readers>` for a description of the available readers.
+
+The biologic reader (``ixdat.readers.biologic.BiologicMPTReader``) ensures that the
+object returned, ``ec_meas``, is of type ``ECMeasurement``.
+
+Another workflow starts with loading a measurement from the active ``ixdat`` backend.
+This can also be done straight from ``Measurement``, as follows:
+
+>>> from ixdat import Measurement
+>>> ec_meas = Measurement.get(3)
+
+Where the row with id=3 of the measurements table represents an electrochemistry
+measurement. Here the column "technique" in the measurements table specifies which
+TechniqueMeasurement class is returned. For row three of the measurements
+table, the entry "technique" is "EC", ensuring ``ec_meas`` is an object of type
+``ECMeasurement``.
+
+
 A full list of the readers thus accessible and their names can be viewed by typing:
 
 >>> from ixdat.readers import READER_CLASSES

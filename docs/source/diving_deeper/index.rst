@@ -2,7 +2,12 @@
 
 Diving deeper
 ==============================================
-General (i.e. applicable for all the subpoints): put ALL the in-line documentation at the end, and make a specific subpoint. Make sure that it’s clear that this is there only if you really want to know more.
+
+In this section you will find in depth information on the general structure of ``ixdat``, as well as detailed documentation of the different sections of the  package. 
+
+This section is recommended for the experienced ``ixdat`` user interested in understanding how the package is built up, to help with advanced data treatment and for contributions to the package. 
+
+The first section discusses the overall package structure, introducing the ``Measurement`` class, and how readers, plotters, exporters and the backend interact to enable advanced and efficient data treatment. The following sections then go into depth with the different parts of the package, including the full documentation of classes and methods.
 
 .. toctree::
     :maxdepth: 1

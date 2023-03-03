@@ -1,8 +1,10 @@
 .. _structure:
 
-Structure of ixdat: The Measurement class in the center
+Structure of ixdat
 ==============================================
-Explain everything around this concept of having the measurement class in the centre with different ways of getting data in and out. Link to the relevant sections below
+
+Explore the sections below to find in-depth information on how ``ixdat`` is structured as a package and how the different parts play together.
+
 
 .. toctree::
     :maxdepth: 1
