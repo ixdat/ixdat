@@ -2,7 +2,6 @@
 
 Mass Spectrometry
 =================
-Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ms
 
 Mass spectrometry is commonly used in catalysis and electrocatalysis for two different
 types of data - spectra, where intensity is taken while scanning over m/z, and
@@ -11,7 +10,8 @@ tracked in time.
 
 The main TechniqueMeasurement class for MID data is the ``MSMeasurement``.
 
-Classes dealing with spectra are under development.
+The position of spectra in ixdat is not completely set yet. Currently, they exist as ``Spectrum`` base
+class alongside ``Measurement``. For more details see :ref:`spectra`
 
 The ``ms`` module
 .................

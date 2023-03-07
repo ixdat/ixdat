@@ -3,7 +3,7 @@
 Electrochemistry
 ================
 
-The main TechniqueMeasurement class for electrochemistry is the ``ECMeasurement``.
+The main TechniqueMeasurement class for electrochemistry is the ``ECMeasurement`` class.
 Subclasses of ``ECMeasurement`` include ``CyclicVoltammogram`` and ``CyclicVoltammogramDiff``.
 
 Direct-current electrochemistry measurements (``ixdat`` does not yet offer specific
@@ -18,22 +18,23 @@ convenient, and powerful access to these three variables for data selection, ana
 and visualization, regardless of which hardware the data was acquired with.
 
 The default plotter, :ref:`ECPlotter <ec-plotter>`, plots these variables.
-The default exporter, :ref:`ECPlotter <ec-exporter>`, exports these variables as well as an incrementer for
+The default exporter, :ref:`ECExporter <ec-exporter>`, exports these variables as well as an incrementer for
 selecting data, ``selector``.
 
 Electrochemistry is the most thoroughly developed technique in ``ixdat``. For in-depth
 examples of the functionality in the ``ECMeasurement`` class and its subclasses, see
 the following Tutorials:
 
-- `Loading appending and saving <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_
+- :ref:`data_in_and_out`
 
-- `Analyzing cyclic voltammagrams <https://github.com/ixdat/tutorials/blob/main/simple_ec_analysis/difference_between_two_cvs.ipynb>`_
+- :ref:`ec_tutorials`
 
+The full module documentation is available below: :ref:`ec_module`. 
 
 ``CyclicVoltammogram`` inherits from ``ECMeasurement`` and adds useful functionality for
 cyclic voltammetry analysis. This includes:
 
-- Current vs potential as the default ``plot()`` (same as ``plot_vs_potential()`` for an ``ECMeasurment``).
+- Current vs potential as the default ``plot()`` (same as ``plot_vs_potential()`` for an ``ECMeasurement``).
 - A new counter, ``cycle``, which counts cycles. At first this counter will point to
   a counter in the raw data, if available (Biologic, for example, exports a "cycle number"
   column). However, it is recommended to control this counter yourself using the
@@ -67,7 +68,10 @@ For example, to coplot two cycles (the sedond and the 50th) which both start and
 
 Note that ``as_cv()`` is available for any hyphenated technique which inherits from ``ECMeasurement``,
 such as ``ECMSMeasurement``, and that all the data from the second technique (here MS)
-comes along for the ride when using the cycle counter to select data.
+comes along for the ride when using the cycle counter to select data. For full documentation of the cyclic voltammetry
+module see below: :ref:`cv_module`
+
+.. _ec_module:
 
 The ``ec`` module
 -----------------

@@ -4,7 +4,7 @@
 Electrochemistry tutorial
 =========================
 
-Tutorial 2: Comparing cycles of a cyclic voltammagram
+Tutorial 2: Comparing cycles of a cyclic voltammogram
 =====================================================
 
 This tutorial, together with the previous one, shows ``ixdat``'s API for electrochemistry data.

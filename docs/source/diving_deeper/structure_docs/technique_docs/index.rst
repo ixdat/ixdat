@@ -2,12 +2,24 @@
 
 Techniques: ``ixdat``'s measurement subclasses
 ==============================================
-Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques
 
 TechniqueMeasurement classes (interchangeable with Techniques or Measurement subclasses)
-inherit from the ``Measurement`` class (see :ref:`measurement`)
+inherit from the ``Measurement`` class (see :ref:`measurement`). Techniques allow for methods
+and properties that are specific to the analysis of a certain type of data, providing maximum 
+functionality for each of the supported techniques or combinations of techniques. 
 
-A full list of the techniques and there names is in the ``TECHNIQUE_CLASSES`` dictionary::
+Check out the following pages for documentation of the different technique modules published so far:
+
+.. toctree::
+    :maxdepth: 2
+
+    electrochemistry
+    mass_spec
+    ec_ms
+    sec
+    spectra
+
+An up-to-date, full list of the techniques and their names is given in the ``TECHNIQUE_CLASSES`` dictionary::
 
     >>> from ixdat.techniques import TECHNIQUE_CLASSES
     >>> TECHNIQUE_CLASSES  # note, more techniques may have been added since!
@@ -24,12 +36,3 @@ A full list of the techniques and there names is in the ``TECHNIQUE_CLASSES`` di
 	'SEC': <ixdat.techniques.spectroelectrochemistry.SpectroECMeasurement>,
 	'EC-XAS': <ixdat.techniques.spectroelectrochemistry.ECXASMeasurement>
     }
-
-.. toctree::
-    :maxdepth: 2
-
-    electrochemistry
-    mass_spec
-    ec_ms
-    sec
-    spectra

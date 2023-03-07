@@ -3,24 +3,25 @@
 Electrochemistry - Mass Spectrometry (EC-MS)
 ============================================
 
-The main class for EC-MS data is the ECMSMeasurement.
-
-It comes with the :ref:`EC-MS plotter <ecms-plotter>` which makes EC-MS plots like this one:
-
-.. figure:: ../figures/ec_ms_annotated.svg
-   :width: 600
-   ``ECMSMeasurement.plot_measurement()``. Data from Trimarco, 2018.
-
-Other than that, it doesn't have much, but inherits from both ``ECMeasurement`` and ``MSMeasurement``.
+The main class for EC-MS data is the ECMSMeasurement. It inherits from both ``ECMeasurement`` and ``MSMeasurement``.
 An ``ECMSMeasurement`` can be created either by adding an ``ECMeasurement`` and an ``MSMeasurement``
 using the ``+`` operator, or by directly importing data using an EC-MS :ref:`reader <readers>`
 such as "zilien".
+
+It comes with the :ref:`EC-MS plotter <ecms-plotter>` which makes EC-MS plots like this one:
+
+.. figure:: ec_ms_annotated.svg
+   :width: 400
+
+   ``ECMSMeasurement.plot_measurement()``. Data from Trimarco, 2018.
+
+Besides the plotter, an ``ECMSMeasurement`` has a class for calibration of the MS signal using electrochemically generated species: ``ECMSCalibration``.
 
 ``ECMSCyclicVoltammogram`` adds to ``ECMSMeasurement`` the tools for selecting and analyzing data
 based on an electrochemical cyclic voltammatry program that are implemented in ``CyclicVoltammogram``
 (see :ref:`cyclic_voltammetry`).
 
-.. Deconvolution, described in a `recent publication <https://doi.org/10.1021/acs.analchem.1c00110>`_,
+Finally, :ref:`deconvolution <deconvolution>` of mass spectrometry data from the diffusion broadening in the EC cell, described in a `recent publication <https://doi.org/10.1021/acs.analchem.1c00110>`_,
 is implemented in the deconvolution module, in a class inheriting from ``ECMSMeasurement``.
 
 ``ixdat`` has all the functionality and more for EC-MS data and analysis as the
@@ -62,6 +63,8 @@ Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec_m
 
 .. automodule:: ixdat.techniques.ec_ms
     :members:
+
+.. _deconvolution:
 
 The ``deconvolution`` module
 ----------------------------
