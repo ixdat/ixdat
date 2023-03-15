@@ -3,10 +3,8 @@
 Exporters: getting data out of ``ixdat``
 ========================================
 
+Using the exporters, you can export data collected e.g.: from different files using ``ixdat`` in a standardized way, saving the data most relevant for each technique. Note that some raw data may not be saved using the exporters (see :ref:`ixdatcsvreader`). Use the menu on the right for easier navigation between the different sections.
 
-Here is an example of an ixdat csv file (exported from a ``CyclicVoltammagram``
-measurement using its default ``ECExporter``.):
-https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/co_strip.csv
 
 The ``csv_exporter`` module
 ...........................

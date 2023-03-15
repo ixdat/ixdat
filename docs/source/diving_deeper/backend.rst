@@ -3,4 +3,4 @@
 Backend
 ==============================================
 
-some description of the backend
+In the future, ``ixdat`` will support different backends such as an SQL database.

@@ -7,7 +7,9 @@ In this section you will find in depth information on the general structure of `
 
 This section is recommended for the experienced ``ixdat`` user interested in understanding how the package is built up, to help with advanced data treatment and for contributions to the package. 
 
-The first section discusses the overall package structure, introducing the ``Measurement`` class, and how readers, plotters, exporters and the backend interact to enable advanced and efficient data treatment. The following sections then go into depth with the different parts of the package, including the full documentation of classes and methods.
+The first section discusses the overall package structure, introducing the ``Measurement`` class, and how readers, plotters, exporters and the backend interact to enable advanced and efficient data treatment. 
+
+The following sections contain the full documentation of readers, plotters and exporters, thereby providing a thorough overview of the capabilities of the different parts of the package for different applications.
 
 .. toctree::
     :maxdepth: 1

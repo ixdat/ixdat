@@ -4,6 +4,9 @@ Readers: getting data into ``ixdat``
 ====================================
 Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/readers
 
+On this page, you can find the documentation for the different readers for importing data obtained using different techniques. For easier navigation between the different sections, use the menu on the left. 
+
+
 Initiating a measurement
 ------------------------
 
@@ -36,6 +39,8 @@ A full list of the readers thus accessible and their names can be viewed by typi
 
 >>> from ixdat.readers import READER_CLASSES
 >>> READER_CLASSES
+
+.. _ixdatcsvreader:
 
 Reading .csv files exported by ixdat: The ``IxdatCSVReader``
 ------------------------------------------------------------
@@ -73,7 +78,7 @@ These are readers which by default return an ``ECMeasurement``.
 (See :ref:`electrochemistry`)
 
 The ``biologic`` module
-........................
+.......................
 
 .. automodule:: ixdat.readers.biologic
     :members:
@@ -90,15 +95,27 @@ The ``ivium`` module
 .. automodule:: ixdat.readers.ivium
     :members:
 
+The ``chi`` module
+..................
+
+.. automodule:: ixdat.readers.chi
+    :members:
+
 Mass Spectrometry and sub-techniques
 ------------------------------------
 These are readers which by default return an ``MSMeasurement``.
 (See :ref:`mass-spec`)
 
 The ``pfeiffer`` module
-........................
+.......................
 
 .. automodule:: ixdat.readers.pfeiffer
+    :members:
+
+The ``rgasoft`` module
+......................
+
+.. automodule:: ixdat.readers.rgasoft
     :members:
 
 EC-MS and sub-techniques
@@ -112,6 +129,7 @@ The ``zilien`` module
 .. automodule:: ixdat.readers.zilien
     :members:
 
+
 The ``ec_ms_pkl`` module
 ........................
 
@@ -119,8 +137,8 @@ The ``ec_ms_pkl`` module
     :members:
 
 
-EC-MS and sub-techniques
-------------------------
+SEC and sub-techniques
+----------------------
 These are readers which by default return a ``SpectroECMeasurement``.
 (See :ref:`sec`)
 
@@ -128,4 +146,21 @@ The ``msrh_sec`` module
 .......................
 
 .. automodule:: ixdat.readers.msrh_sec
+    :members:
+
+
+Other techniques
+----------------
+
+The ``xrdml`` module
+....................
+
+.. automodule:: ixdat.readers.xrdml
+    :members:
+
+
+The ``qexafs`` module
+.....................
+
+.. automodule:: ixdat.readers.qexafs
     :members:
