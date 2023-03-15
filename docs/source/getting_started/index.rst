@@ -25,7 +25,7 @@ you may need to upgrade to the latest version. This is also easy. Just type::
 
 
 Resources
-----------
+---------
 
 On the following pages you can find several resources to help you quickly get started with your data analysis: 
 

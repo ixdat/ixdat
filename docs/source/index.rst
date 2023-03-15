@@ -46,6 +46,7 @@ This documentation, like ``ixdat`` itself, is a work in progress and we apprecia
     getting_started/index
     diving_deeper/index
     developing/index
+    questions
     license
 
 Indices and tables
