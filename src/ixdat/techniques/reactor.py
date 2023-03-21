@@ -53,7 +53,7 @@ class ReactorMeasurement(MSMeasurement):
 
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
-        self.add_calibration(ReactorCalibration())
+        self.add_calibration(ReactorCalibration(name='inverse_calibration'))
         self.activation_energy = {}
 
     @property
@@ -95,14 +95,15 @@ class ReactorMeasurement(MSMeasurement):
 
     def unit_converter(self, v_name, new_unit):
         """Convert dataseries from one unit to another using self.correct_data from super
-
+        in the case of temperature the unit_factor should be added not subtracted.
         Typical usage:
             measurement.unit_converter('temperature', 'K')
 
         Args:
             v_name (str): name of a DataSeries to convert unit from
-            new_unit (str): Name of the nw unit to convert to
-        Return
+            new_unit (str): Name of the new unit to convert to
+        Return:
+           DataSeries
 
         """
         self.clear_cache()  # To achieve correct behavior with calibrated series
@@ -215,8 +216,8 @@ class ReactorMeasurement(MSMeasurement):
 
             elif original_unit == "kelvin" or original_unit == "K":
                 unit_factor = {
-                    "K": 1,
-                    "kelvin": 1,
+                    "K": 0,
+                    "kelvin": 0,
                     "celsius": -273.15,
                     "C": -273.15,
                 }[new_unit]
@@ -277,46 +278,6 @@ class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
 class ReactorCalibration(Calibration):
     """A reactor calibration to calibrate inverse of meta_series"""
 
-    extra_column_attrs = {
-        "reactor_calibration_results": ("reactor_cal_results", "reactor_cal_result_id")
-    }
-    # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
-
-    def __init__(
-        self,
-        name=None,
-        date=None,
-        tstamp=None,
-        setup=None,
-        reactor_cal_results=None,
-        technique="reactor",
-        new_unit=None,
-        measurement=None,
-    ):
-        """Initiate a Calibration
-
-        Args:
-            name (str): The name of the reactor_calibration
-            date (str): Date of the reactor_calibration
-            setup (str): Setup where the measurmenet was done
-            technique (str): The technique of the calibration
-            tstamp (float): The time at which the calibration took place or is valid
-            measurement (TPMSMeasurement): Optional.A measurement to calibrate by default
-        """
-        super().__init__(
-            name=name or f"TPMS reactor_calibration for {setup} on {date}",
-            technique=technique,
-            tstamp=tstamp,
-            measurement=measurement,
-        )
-
-        self.name = name
-        self.date = date
-        self.setup = setup
-        self.new_unit = new_unit
-
-        # self.reactor_unit_convert = reactor_unit_results or []
-
     def __repr__(self):
         # TODO: make __repr__'s consistent throught ixdat
         return (
@@ -351,10 +312,10 @@ class ReactorCalibration(Calibration):
             signal_series = measurement[meta]
             unit_name = measurement[meta].unit.name
             y = signal_series.data
-            y_inverse = 1 / y
+            log_y =  np.log(y)
             return ValueSeries(
                 name=key,
                 unit_name=f"ln({unit_name})",
-                data=y_inverse,
+                data=log_y,
                 tseries=signal_series.tseries,
             )
