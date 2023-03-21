@@ -29,11 +29,11 @@ class TPMSPlotter(MPLPlotter):
         remove_background=None,
         unit=None,
         x_unit=None,
-        meta_units=None,
-        meta_list=None,
-        meta_lists=None,
+        TP_units=None,
         T_name=None,
+        T_names=None,
         P_name=None,
+        P_names=None,
         T_color=None,
         P_color=None,
         logplot=None,
@@ -75,16 +75,16 @@ class TPMSPlotter(MPLPlotter):
                 background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             x_unit (str): unit for x axis defaults to 's' for seconds
-            meta_units (dict): dictionary with new units for y axis on bottom panel.
+            TP_units (dict): dictionary with new units for y axis on bottom panel.
                 Default to ValueSeries.unit.name for last plotted meta_name
-            meta_list (list of str): The names of the data_series plotted on axes[1].
-                Defulats None.
-            meta_lists (list of list of str): The names of the data series in two list to
-                be plotted on axes[1] and axes[3] respectively. Defaults None.
             T_name (str): The name of the value to plot on the lower left y-axis.
                 Defaults to the name of the series `measurement.temperature`
+            T_names (list): A list of names of the values to plot on the lower left
+                y-axis. Defaults to None
             P_name (str): The name of the value to plot on the lower right y-axis.
                 Defaults to the name of the series `measurement.pressure`
+            P_names (list): A list of names of the values to plot on the lower right
+                y-axis. Defaults to None
             T_color (str): Overwrite standard color to plot the variable given by T_name
             P_color (str): Overwrite standard color to plot the variable given by P_name
             logplot (bool): Whether to plot the MS data on a log scale (default True
@@ -144,26 +144,30 @@ class TPMSPlotter(MPLPlotter):
         T_name = T_name or measurement.T_name
         P_name = P_name or measurement.P_name
 
-        if not meta_lists:
-            meta_lists = [[T_name], [P_name]] if not meta_list else [meta_list]
-        for i, meta_list in enumerate(meta_lists):
-            # plot on dataseries on correct axis
+        if not T_names:
+            T_names = [T_name] #, [P_name]] if not meta_list else [meta_list]
+        if not P_names:
+            P_names = [P_name]
+
+        for i, TP_list in enumerate([T_names, P_names]):
+            # plot dataseries on correct axis
             ax = [axes[1], axes[3]][i]
-            for n, meta_name in enumerate(meta_list):
-                if meta_name == T_name and T_color:
+            for n, TP_name in enumerate(TP_list):
+                if TP_name == T_name and T_color:
                     color = T_color
-                elif meta_name == P_name and P_color:
+                elif TP_name == P_name and P_color:
                     color = P_color
                 else:
-                    color = STANDARD_COLORS.get(meta_name, "k")
+                    color = STANDARD_COLORS.get(TP_name, "k")
+
                 t, v = measurement.grab(
-                    meta_name,
+                    TP_name,
                     tspan=tspan,
                     include_endpoints=False,
                 )
 
                 y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                    measurement[meta_name], meta_units=meta_units
+                    measurement[TP_name], meta_units=TP_units
                 )
 
                 # expect always to plot against time on x axis
@@ -175,7 +179,7 @@ class TPMSPlotter(MPLPlotter):
                     t * x_unit_factor,
                     v * y_unit_factor,
                     color=color,
-                    label=meta_name,
+                    label=TP_name,
                     **kwargs,
                 )
 
@@ -184,7 +188,7 @@ class TPMSPlotter(MPLPlotter):
             if legend:
                 ax.legend()
 
-            if not n:
+            if not n:  # Only color the spine is one variable is plotted
                 color_axis(ax, color=color, lr=["left", "right"][i])
 
             ax.set_ylabel(f"{y_label} / [{y_unit}]")
@@ -428,7 +432,6 @@ class TPMSPlotter(MPLPlotter):
         measurement=None,
         ax=None,
         axes=None,
-        mass_list=None,
         mol_list=None,
         meta_list=None,
         tspan=None,
@@ -436,7 +439,6 @@ class TPMSPlotter(MPLPlotter):
         remove_background=None,
         unit=None,
         x_unit=None,
-        meta_units=None,
         T_name=None,
         T_color=None,
         P_name=None,
@@ -477,14 +479,12 @@ class TPMSPlotter(MPLPlotter):
                 background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             x_unit (str): unit for x axis defaults to 's' for seconds
-            meta_units (dict): Dictionary with new units meta series to be plotted.
+            TP_units (dict): Dictionary with new units for series to be plotted.
                 Default to ValueSeries.unit.name for last plotted ValueSeries
-            meta_list (list of str): The names of the data_series plotted on axes[1].
-                Defulats None.
             T_name (str): The name of the value to plot on the right y-axis.
                 Defaults to the name of the series `measurement.temperature`
-            P_name (str): The name of the value to plot on the right y-axis.
-                Defaults to the name of the series `measurement.pressure`
+            P_name (str): The name of the series to co-plot on the right y-axis.
+                Defaults to None
             T_color (str): Overwrite standard color to plot the variable given by T_name
             P_color (str): Overwrite standard color to plot the variable given by P_name
             logplot (bool): Whether to plot the MS data on a log scale (default True
@@ -529,29 +529,29 @@ class TPMSPlotter(MPLPlotter):
             **kwargs,
         )
 
+
         T_name = T_name or measurement.T_name
-        P_name = P_name or measurement.P_name
+        P_name = P_name
 
-        # figure out if one ot two axes is to be plotted in bottom panel
-        if not meta_list:
-            meta_list = [T_name, P_name]
+        # figure out if one or two axes is to be plotted in bottom panel
+        TP_list = [T_name, P_name] if P_name else [T_name]
 
-        for n, meta_name in enumerate(meta_list):
-            if meta_name == T_name and T_color:
+        for n, TP_name in enumerate(TP_list):
+            if TP_name == T_name and T_color:
                 color = T_color
-            elif meta_name == P_name and P_color:
+            elif TP_name == P_name and P_color:
                 color = P_color
             else:
-                color = STANDARD_COLORS.get(meta_name, "k")
+                color = STANDARD_COLORS.get(TP_name, "k")
 
             t, v = measurement.grab(
-                meta_name,
+                TP_name,
                 tspan=tspan,
                 include_endpoints=False,
             )
 
             y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                measurement[meta_name], meta_units=meta_units
+                measurement[TP_name], meta_units=TP_units
             )
 
             # expect always to plot against time
@@ -563,16 +563,17 @@ class TPMSPlotter(MPLPlotter):
                 t * x_unit_factor,
                 v * y_unit_factor,
                 color=color,
-                label=meta_name,
+                label=TP_name,
                 alpha=1,
                 **kwargs,
             )
+
         if logplot and y_unit == "mbar":
             axes[1].set_yscale("log")
         if legend:
             axes[1].legend()
 
-        if n > 1:
+        if n > 1:  # if multiple variables are plotted overwrite color and labels 
             color = "k"
             y_label = "signal"
             y_unit = "mixed"
@@ -580,12 +581,6 @@ class TPMSPlotter(MPLPlotter):
         color_axis(axes[1], color=color, lr="right")
         axes[1].set_ylabel(f"{y_label} / [{y_unit}]")
         axes[1].set_xlabel(f"time / [{x_unit}]")
-        # if hightlighted:
-        #    for ax in axes:
-        #        for line in ax.get_lines:
-        #            line.set_alpha(0.3)
-        #            if line.get_label() in highlighted:
-        #                line.set_alpha(1)
 
         return axes
 
@@ -895,6 +890,9 @@ class SpectroTPMSPlotter(MPLPlotter):
             )
 
         measurement = measurement or self.measurement
+        mass_spec_axes = [axes[ms_axes], axes[2]]
+                         if (mass_lists or mol_lists)
+                         else [axes[ms_axes]]
 
         if (
             mass_list
@@ -907,9 +905,7 @@ class SpectroTPMSPlotter(MPLPlotter):
             self.tpms_plotter.ms_plotter.plot_vs(
                 x_name=vs_name,
                 measurement=measurement,
-                axes=[axes[ms_axes], axes[2]]
-                if (mass_lists or mol_lists)
-                else [axes[ms_axes]],
+                axes=mass_spec_axes, #[axes[ms_axes], axes[2]] if (mass_lists or mol_lists) else [axes[ms_axes]],
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -1008,6 +1004,9 @@ class SpectroTPMSPlotter(MPLPlotter):
         return axes
 
 def _get_y_unit_and_label(data_series, meta_units):
+    """ Figure out correct y-labels, unit name and correct unit factor
+    Will be obsolete when pint is implemented
+    """
     name = data_series.name
     if "temperatur" in name.lower():
         ylabel = "temperature"
@@ -1040,6 +1039,8 @@ def _get_y_unit_and_label(data_series, meta_units):
 
 
 def _get_unit_factor_and_name(
+    """ Figure out correct unit factor. This will be obsolete when pint is implemented
+    """
     new_unit_name,
     from_unit_name,
 ):
