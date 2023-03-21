@@ -312,14 +312,14 @@ class CinfdataDBReader:
         return SpectroMSMeasurement
 
     def set_sample_name(self):
-        try:
-            self.sample_name = self.meta["Comment"]
-        except KeyError:
-            try:
-                self.sample_name = self.meta["comment"]
-            except KeyError as e:
-                self.sample_name = None
-                print("No comment to set as sample_name. ", e)
+        """ Set the sample name from meta data retrived from cinfdata connection """
+        self.sample_name = None
+        for key_name in ("Comment", "comment"):
+            if key_name in self.meta:
+                self.sample_name = self.meta[key_name]
+
+        if self.sample_name is None:
+            print("No comment to set as sample_name. ", e)
 
     def set_name(self):
         self.name = self.meta["time"].strftime("%Y-%m-%d %H:%M:%S")
