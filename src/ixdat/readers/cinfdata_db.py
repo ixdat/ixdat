@@ -206,7 +206,7 @@ class CinfdataDBReader:
                possible to combine in a SpectrumSeries, return self.spectrum_list
         """
         db = plugins.cinfdata.connect(setup_name=self.setup_name, grouping_column=self.grouping_column)
-        self.group_data = db.get_data_group(self.token)  # return dict with uniqe measurement as the key containing x,y values in a np.array
+        self.group_data = db.get_data_group(self.token)  # return dict with unique measurement as the key containing x,y values in a np.array
         self.group_meta = db.get_metadata_group(self.token)  # return dict of meta data associated with the measurement
         self.meta = self.group_meta[list(self.group_meta.keys())[0]]
 
@@ -218,11 +218,11 @@ class CinfdataDBReader:
         for key in self.group_meta:  # key is unique to each measurement
             group_type = self.group_meta[key]["type"]
             if group_type == 2:  # type 2 is unique describing XPS data
-                obj_as_dict = self.get_spectrum_as_obj(key, group_type)
+                obj_as_dict = self.get_spectrum_as_dict(key, group_type)
                 obj_as_dict["name"] = self.group_meta[key]["name"]
                 self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
             elif group_type == 4:  # type 4 is unique describing mass scan
-                obj_as_dict = self.get_spectrum_as_obj(key, group_type)
+                obj_as_dict = self.get_spectrum_as_dict(key, group_type)
                 obj_as_dict["name"] = self.sample_name
                 self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
@@ -244,7 +244,11 @@ class CinfdataDBReader:
                               "\nReturn list of all Spectrums.", stacklevel=2)
                 return self.spectrum_list
 
-    def get_spectrum_as_obj(self, key, group_type):
+    def get_spectrum_as_dict(self, key, group_type):
+        """ Convert spectrum data from cinfdatabase to ixdat dict format with xseries and
+        fields.
+        Return spectrum_as_dict (dict of xseries and Fields)
+        """
         # Extract x and y data columns and timestamp from group data and metadata
         x_col = self.group_data[key][:, 0]
         y_col = self.group_data[key][:, 1]
