@@ -849,7 +849,7 @@ class SpectroMSPlotter(MPLPlotter):
                 sorted_indicies = np.argsort(_v)
 
             elif sort_spectra == 'none':
-                sorted_indicies = [i for i, v in enumerate(_v)]
+                sorted_indicies = np.array([]) #False # [i for i, v in enumerate(_v)]
 
             else:
                 warnings.warn(
@@ -877,8 +877,9 @@ class SpectroMSPlotter(MPLPlotter):
                         "Recived {sort_spectra}.",
                         stacklevel = 2
                         )
-
-        new_field_data = _data[sorted_indicies,:]
+        # sort field data and x_axis equal
+        new_field_data = _data[sorted_indicies,:] if len(sorted_indicies) > 0 else _data
+        new_x_axis = _v[sorted_indicies] if len(sorted_indicies) > 0 else _v
 
         new_field = Field(
                 name=field.name + f"_sorted_vs_{vs_name}_for_{tspan}",
@@ -889,7 +890,7 @@ class SpectroMSPlotter(MPLPlotter):
         # Now we can plot the heat plot
         measurement.spectrum_series.heat_plot(
             ax=axes[ms_spec_axes],
-            t=_v[sorted_indicies],  # So x_axis is sorted eqaul to the data
+            t=new_x_axis, #_v[sorted_indicies] if len(sorted_indicies) > 0 else _v,  # x_axis sorted
             field=new_field,
             t_name=vs_name,
             tspan=vspan,
