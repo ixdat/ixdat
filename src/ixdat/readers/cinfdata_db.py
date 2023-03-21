@@ -1,4 +1,4 @@
-"""Module defining direct DB reader connection to Surfcat's legendary cinfdata system"""
+"""Module defining direct DB reader connection to Surfcat's cinfdata system"""
 import warnings
 from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
@@ -15,21 +15,9 @@ class CinfdataDBReader:
     Attributes:
         setup_name (str): The setup name in the DB
         timestamp (str): Timestamp when the experiment started in YYYY-MM-DD HH:MM:SS
-        units (dict): Dictionary of columns names with corrosponding units
+        units (dict): Dictionary of columns names with corresponding units
         tstamp (str): The unix time corresponding to t=0 for the measurement
-
-        tstamp_list (list of float): list of epoch tstamps in the file's timestamp line
-
-        column_tstamps (dict): The unix time corresponding to t=0 for each time column
         technique (str): The name of the technique
-        column_names (list of str): The names of the data columns in the database
-        t_and_v_cols (dict): {name: (tcol, vcol)} where name is the name of the
-            ValueSeries (e.g. "M2"), tcol is the name of the corresponding time column
-            in the file (e.g. "M2-x"), and vcol is the the name of the value column in
-            the file (e.g. "M2-y).
-        column_data (dict of str: np.array): The data in the file as a dict.
-            Note that the np arrays are the same ones as in the measurement's DataSeries,
-            so this does not waste memory.
         measurement (Measurement): The measurement returned by read() when the database
             is read. self.measurement is None before read() is called.
     """
@@ -41,12 +29,7 @@ class CinfdataDBReader:
         self.setup_name = None
         self.timestamp = None
         self.tstamp = None
-        self.tstamp_list = []
-        self.column_tstamps = {}
-        self.column_names = []
-        self.t_and_v_cols = {}
-        self.column_data = {}
-        self.data_has_been_fetch = False
+        self.data_has_been_fetched = False# {}
         self.metadata = {}
         self.technique = "reactor"
         self.measurement_class = None
@@ -54,7 +37,6 @@ class CinfdataDBReader:
         self.cinf_db = None
         self.mass_scans = False
         self.spectrum_list = []
-
         plugins.activate_cinfdata()
 
     def read(self, path_to_file, name=None, cls=None, units=None, **kwargs):
@@ -73,6 +55,16 @@ class CinfdataDBReader:
                 (YYYY-MM-DD HH:MM:SS)
         """
 
+        if self.data_has_been_fetched: #[self.grouping_column] == self.token:
+            print(
+                f"This {self.__class__.__name__} has already fetched data from "
+                f" {self.token} grouped by {self.grouping_column}"
+                " Returning the measurement resulting from the original read. "
+                "Use a new Reader if you want to read another file."
+            )
+
+            return self.measurement
+
         self.measurement_class = kwargs.pop("measurement_class", cls)
         self.setup_name = kwargs.pop("setup_name", path_to_file)
         self.timestamp = kwargs.pop("timestamp", None)
@@ -82,6 +74,7 @@ class CinfdataDBReader:
         self.grouping_column = kwargs.pop("group", None)
 
         # figure out whether to collect data group by 'comment' or 'timestamp'
+
         if not self.grouping_column:
             if self.timestamp and not self.comment:
                 self.grouping_column = "time"
@@ -98,6 +91,8 @@ class CinfdataDBReader:
                 )
                 self.grouping_column = "time"
                 self.token = self.timestamp
+
+        self.data_has_been_fetched = True
 
         if issubclass(self.measurement_class, Spectrum):
             return self.read_spectrums()
