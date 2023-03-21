@@ -7,6 +7,7 @@ from ..techniques.ms import MSSpectrum
 from ..spectra import Spectrum, SpectrumSeries, MultiSpectrum
 from ..config import plugins
 
+SCALE_TIME_TO_SECONDS = 1e-3
 
 class CinfdataDBReader:
     """A class that connects to cinf_database or read from cache
@@ -119,7 +120,7 @@ class CinfdataDBReader:
         )
 
         self.group_data = self.cinf_db.get_data_group(
-            self.token, scaling_factors=(1e-3, None)
+            self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
         )
 
         self.group_meta = self.cinf_db.get_metadata_group(self.token)
