@@ -147,10 +147,12 @@ class SpectrumSeriesPlotter(MPLPlotter):
         ax.set_ylabel(xseries.name)
 
         if make_colorbar:
-            add_colorbar(ax, cmap_name,
-                         vmin=(vmin if vmin else np.min(data)),
-                         vmax=(vmax if vmax else np.max(data)),
-                         )
+            add_colorbar(
+                ax,
+                cmap_name,
+                vmin=(vmin if vmin else np.min(data)),
+                vmax=(vmax if vmax else np.max(data)),
+            )
         return ax
 
     def plot_waterfall(

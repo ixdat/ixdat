@@ -53,7 +53,7 @@ class ReactorMeasurement(MSMeasurement):
 
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
-        self.add_calibration(ReactorCalibration(name='inverse_calibration'))
+        self.add_calibration(ReactorCalibration(name="inverse_calibration"))
         self.activation_energy = {}
 
     @property
@@ -312,7 +312,7 @@ class ReactorCalibration(Calibration):
             signal_series = measurement[meta]
             unit_name = measurement[meta].unit.name
             y = signal_series.data
-            log_y =  np.log(y)
+            log_y = np.log(y)
             return ValueSeries(
                 name=key,
                 unit_name=f"ln({unit_name})",

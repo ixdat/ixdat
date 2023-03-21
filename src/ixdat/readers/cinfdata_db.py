@@ -2,12 +2,12 @@
 import warnings
 from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
-from ..techniques import MSMeasurement, ReactorMeasurement
 from ..techniques.ms import MSSpectrum
-from ..spectra import Spectrum, SpectrumSeries, MultiSpectrum
+from ..spectra import Spectrum, SpectrumSeries
 from ..config import plugins
 
 SCALE_TIME_TO_SECONDS = 1e-3
+
 
 class CinfdataDBReader:
     """A class that connects to cinf_database or read from cache
@@ -30,7 +30,7 @@ class CinfdataDBReader:
         self.setup_name = None
         self.timestamp = None
         self.tstamp = None
-        self.data_has_been_fetched = False# {}
+        self.data_has_been_fetched = False
         self.metadata = {}
         self.technique = "reactor"
         self.measurement_class = None
@@ -56,7 +56,7 @@ class CinfdataDBReader:
                 (YYYY-MM-DD HH:MM:SS)
         """
 
-        if self.data_has_been_fetched: #[self.grouping_column] == self.token:
+        if self.data_has_been_fetched:
             print(
                 f"This {self.__class__.__name__} has already fetched data from "
                 f" {self.token} grouped by {self.grouping_column}"
@@ -192,23 +192,31 @@ class CinfdataDBReader:
     def read_spectrums(self, **kwargs):
         """
         Download spectrums from cinfdata_database with either a timestamp or a comment.
-        When all associated spectras have been downloaded and added to self.spectrum_list,
-        this method will try to:
-            1. figure out if any spectras were able to be downloaded; if none, return None
-            2. figure out if this method was used to add mass_scans to another measurement;
-               return list of Spectrum to be added to that measurement
-            3. figure out if one and only one spectrum was downloaded; return that single Spectrum
-               as the first spectrum in self.spectrum_list[0]
-            4. figure out if all spectras downloaded are associated enough to be a SpectrumSeries
-               (They have to be equal in dimensions like mass scans) (multiple mass scans over time
-               versus XPS spectra from different regions); return SpectrumSeries
-            5. If not one and only one Spectrum was read and the multiple of spectras read were not
-               possible to combine in a SpectrumSeries, return self.spectrum_list
+        When all associated spectras have been downloaded and added to
+        self.spectrum_list, this method will try to:
+            1. figure out if any spectras were able to be downloaded; if none,return None
+            2. figure out if this method was used to add mass_scans to another
+               measurement; return list of Spectrum to be added to that measurement
+            3. figure out if one and only one spectrum was downloaded; return that single
+               Spectrum as the first spectrum in self.spectrum_list[0]
+            4. figure out if all spectras downloaded are associated enough to be a
+               SpectrumSeries (They have to be equal in dimensions like mass scans)
+               (multiple mass scans over time versus XPS spectra from different regions);
+               return SpectrumSeries
+            5. If not one and only one Spectrum was read and the multiple of spectras
+               read were not possible to combine in a SpectrumSeries,
+               return self.spectrum_list
         """
-        db = plugins.cinfdata.connect(setup_name=self.setup_name, grouping_column=self.grouping_column)
-        self.group_data = db.get_data_group(self.token)  # return dict with unique measurement as the key containing x,y values in a np.array
-        self.group_meta = db.get_metadata_group(self.token)  # return dict of meta data associated with the measurement
-        self.meta = self.group_meta[list(self.group_meta.keys())[0]]
+        db = plugins.cinfdata.connect(
+            setup_name=self.setup_name, grouping_column=self.grouping_column
+        )
+
+        # return dict with measurements as key containing x,y values in a np.array
+        self.group_data = db.get_data_group(self.token)
+
+        # return dict of meta data associated with the key (measurement)
+        self.group_meta = db.get_metadata_group(self.token)
+        self.meta = self.group_meta[list(self.group_meta.keys())[0]]  # all the metadata
 
         self.set_sample_name()
         self.set_name()
@@ -227,8 +235,11 @@ class CinfdataDBReader:
                 self.spectrum_list.append(self.measurement_class.from_dict(obj_as_dict))
 
         if not self.spectrum_list:
-            warnings.warn(f"No spectrum was found using '{self.token}' and group_column:"
-                          f"'{self.grouping_column}'", stacklevel=2)
+            warnings.warn(
+                f"No spectrum was found using '{self.token}' and group_column:"
+                f"'{self.grouping_column}'",
+                stacklevel=2,
+            )
             return None
         elif self.mass_scans:
             return self.spectrum_list
@@ -238,14 +249,17 @@ class CinfdataDBReader:
             try:
                 return SpectrumSeries.from_spectrum_list(self.spectrum_list)
             except ValueError:
-                warnings.warn("Could not return SpectrumSeries from list of spectrums "
-                              f"using '{self.token}' and group column: "
-                              f"'{self.grouping_column}'."
-                              "\nReturn list of all Spectrums.", stacklevel=2)
+                warnings.warn(
+                    "Could not return SpectrumSeries from list of spectrums "
+                    f"using '{self.token}' and group column: "
+                    f"'{self.grouping_column}'."
+                    "\nReturn list of all Spectrums.",
+                    stacklevel=2,
+                )
                 return self.spectrum_list
 
     def get_spectrum_as_dict(self, key, group_type):
-        """ Convert spectrum data from cinfdatabase to ixdat dict format with xseries and
+        """Convert spectrum data from cinfdatabase to ixdat dict format with xseries and
         fields.
         Return spectrum_as_dict (dict of xseries and Fields)
         """
@@ -258,15 +272,15 @@ class CinfdataDBReader:
         x_series = DataSeries(
             data=x_col,
             name=SPECTRUM_METADATA[group_type]["x_name"],
-            unit_name=SPECTRUM_METADATA[group_type]["x_unit_name"]
+            unit_name=SPECTRUM_METADATA[group_type]["x_unit_name"],
         )
 
-        # Create y Field object with appropriate metadata and x DataSeries as its only axis
+        # Create y Field obj with appropriate metadata and x DataSeries as its only axis
         y_field = Field(
             data=y_col,
             name=SPECTRUM_METADATA[group_type]["field_name"],
             unit_name=SPECTRUM_METADATA[group_type]["field_unit"],
-            axes_series=[x_series]
+            axes_series=[x_series],
         )
 
         # Create dictionary with spectrum object metadata and x-y Field object
@@ -274,7 +288,7 @@ class CinfdataDBReader:
             "sample_name": self.sample_name,
             "technique": SPECTRUM_METADATA[group_type]["technique"],
             "field": y_field,
-            "tstamp": tstamp
+            "tstamp": tstamp,
         }
 
         return spectrum_as_dict
@@ -288,38 +302,54 @@ class CinfdataDBReader:
 
         if self.verbose:
             print(f"Using {self.measurement.time_series[-1]} to find end of experiment")
-            print("Unixtime end of exp "
-                  f"{self.measurement.time_series[-1].data[-1] + self.tstamp}")
+            print(
+                "Unixtime end of exp "
+                f"{self.measurement.time_series[-1].data[-1] + self.tstamp}"
+            )
 
+        # Find index of the first spectrum to include as mass scans of this measurement
+        first_index = 0
+        if self.spectrum_list[-1].tstamp < self.tstamp:
+            for i, spectrum in enumerate(self.spectrum_list):
+                if spectrum.tstamp < self.tstamp:
+                    first_index = i
+                else:
+                    break
         # Find index of the last spectrum to include as mass scans
-        index = -1
-        if self.spectrum_list[-1].tstamp > self.measurement.time_series[-1].data[-1] + self.tstamp:
-            time = self.spectrum_list[0].tstamp
+        last_index = -1
+        measurement_end_time = self.measurement.time_series[-1].data[-1] + self.tstamp
+
+        if self.spectrum_list[-1].tstamp > measurement_end_time:
             for i, spectrum in reversed(list(enumerate(self.spectrum_list))):
-                if spectrum.tstamp >= self.measurement.time_series[-1].data[-1] + self.tstamp:
-                    index = i
+                if spectrum.tstamp >= measurement_end_time:
+                    last_index = i
                 else:
                     break
 
         if self.verbose:
-            print(f"End index of spectrum list: {index}\n")
-            print(f"Tstamp of last spectrum in list: {self.spectrum_list[index].tstamp}")
+            print(f"Start and End index of spectrum list: {first_index}, {last_index}\n")
+            print(
+                "Tstamp of first and last spectrum in list: "
+                f"{self.spectrum_list[first_index].tstamp}, "
+                f"{self.spectrum_list[last_index].tstamp}"
+            )
 
         # Create spectrum series and add it to the measurement
-        MSSpectra = SpectrumSeries.from_spectrum_list(self.spectrum_list[:index])
+        spectrums_to_add = self.spectrum_list[first_index:last_index]
+        MSSpectra = SpectrumSeries.from_spectrum_list(spectrums_to_add)
         SpectroMSMeasurement = MSSpectra.__add__(self.measurement)
 
         return SpectroMSMeasurement
 
     def set_sample_name(self):
-        """ Set the sample name from meta data retrived from cinfdata connection """
+        """Set the sample name from meta data retrived from cinfdata connection"""
         self.sample_name = None
         for key_name in ("Comment", "comment"):
             if key_name in self.meta:
                 self.sample_name = self.meta[key_name]
 
         if self.sample_name is None:
-            print("No comment to set as sample_name. ", e)
+            print("No comment to set as sample_name.")
 
     def set_name(self):
         self.name = self.meta["time"].strftime("%Y-%m-%d %H:%M:%S")
@@ -348,21 +378,23 @@ def get_column_unit(column_name):
         #    see https://github.com/ixdat/ixdat/pull/30/files#r811432543, and
         #    https://github.com/CINF/cinfdata/blob/master/sym-files2/export_data.py#L125
         unit_name = None
+
     return unit_name
 
+
 SPECTRUM_METADATA = {
-    2:{
-       "x_name": "Binding energy / eV",
-       "x_unit_name": "eV",
-       "field_name": "Counts per second",
-       "field_unit": "n/s",
-       "technique": "XPS",
+    2: {
+        "x_name": "Binding energy / eV",
+        "x_unit_name": "eV",
+        "field_name": "Counts per second",
+        "field_unit": "n/s",
+        "technique": "XPS",
     },
-    4:{  # type 4 is unique describing msscan
-       "x_name": "Mass [AMU]",
-       "x_unit_name": "m/z",
-       "field_name": "Current",
-       "field_unit": "[A]",
-       "technique": "MS_spectrum",
-    }
+    4: {  # type 4 is unique describing msscan
+        "x_name": "Mass [AMU]",
+        "x_unit_name": "m/z",
+        "field_name": "Current",
+        "field_unit": "[A]",
+        "technique": "MS_spectrum",
+    },
 }

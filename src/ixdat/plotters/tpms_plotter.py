@@ -145,7 +145,7 @@ class TPMSPlotter(MPLPlotter):
         P_name = P_name or measurement.P_name
 
         if not T_names:
-            T_names = [T_name] #, [P_name]] if not meta_list else [meta_list]
+            T_names = [T_name]
         if not P_names:
             P_names = [P_name]
 
@@ -230,9 +230,9 @@ class TPMSPlotter(MPLPlotter):
         Args:
             inverse_T_name (str): Name of the series to plot on x_axis. Expects an
                 inverted series and temperature unit in 'K' / 'kelvin'.
-            tspan_list (list of list of two int): List of list containing tspans to average
-                mass spec signals / mol if quantified and average temperature in that
-                time range. Used to fit data from a measurement with steday-state
+            tspan_list (list of list of two int): List of list containing tspans to
+                average mass spec signals / mol if quantified and average temperature in
+                that time range. Used to fit data from a measurement with steday-state
                 temperature platues to an arrhenius like equation k = A * exp(-Ea / (RT))
                 Example:
                     [
@@ -256,9 +256,10 @@ class TPMSPlotter(MPLPlotter):
                 background signals if available. Defaults to (not logplot)
             unit (str): the unit for the MS data. Defaults to "A" for Ampere
             x_unit (str): unit for x axis defaults to '1/K' for inverse temperature
-            fit_arrhhenius (bool): Whether to fit data to an arrhenius like equation and plot.
-                Default to True.
-            fit_arrhenius_color (str): Color to plot the arrhenius equation. Default to 'r'.
+            fit_arrhhenius (bool): Whether to fit data to an arrhenius like equation and
+                plot. Default to True.
+            fit_arrhenius_color (str): Color to plot the arrhenius equation.
+                Default to 'r'.
             logplot (bool): Whether to plot the MS data on a log scale. Default True.
             logdata (bool): Whether to take the natural logarithm of MS data prior to
                 plotting and find arrhenius fit. Sets logplot to False. Default to True
@@ -269,18 +270,21 @@ class TPMSPlotter(MPLPlotter):
                 ax
         """
 
-
         measurement = measurement or self.measurement
         inverse_T_name = inverse_T_name or measurement.inverse_T_name
-        if 'inverse' not in inverse_T_name:
-            warnings.warn("Arrhenius plots are usually plotted against 1/T"
-                          f"{inverse_T_name} is not the recognized as an inversed seres",
-                          stacklevel=2)
-        if ('K' or 'kelvin')  not in measurement[inverse_T_name].unit.name:
-            warnings.warn("Arrhenius plots are usually plotted against 1/T in kelvin / K"
-                          f". [{measurement[inverse_T_name].unit.name}] is not the "
-                          "recognized as unit kelvin",
-                          stacklevel=2)
+        if "inverse" not in inverse_T_name:
+            warnings.warn(
+                "Arrhenius plots are usually plotted against 1/T"
+                f"{inverse_T_name} is not the recognized as an inversed seres",
+                stacklevel=2,
+            )
+        if ("K" or "kelvin") not in measurement[inverse_T_name].unit.name:
+            warnings.warn(
+                "Arrhenius plots are usually plotted against 1/T in kelvin / K"
+                f". [{measurement[inverse_T_name].unit.name}] is not the "
+                "recognized as unit kelvin",
+                stacklevel=2,
+            )
         # then we have MS data!
         if not ax:
             ax = self.new_ax(ylabel=f"signal / [{unit}]", xlabel="1 / T [K]")
@@ -289,7 +293,7 @@ class TPMSPlotter(MPLPlotter):
             t, T = measurement.grab(
                 inverse_T_name,
                 tspan=[tspan_list[0][0], tspan_list[-1][-1]],
-                include_endpoints=True
+                include_endpoints=True,
             )
             _vname_list = mol_list if mol_list else mass_list
             for _vname in _vname_list:
@@ -297,14 +301,14 @@ class TPMSPlotter(MPLPlotter):
                 T_avg_list = []
                 for _tspan in tspan_list:
                     if mol_list:
-                        t_v, v =  measurement.grab_flux(
+                        t_v, v = measurement.grab_flux(
                             mol=_vname,
                             tspan=_tspan,
                             include_endpoints=False,
                             tspan_bg=tspan_bg,
                         )
                     elif mass_list:
-                        t_v, v =  measurement.grab(
+                        t_v, v = measurement.grab(
                             mass=_vname,
                             tspan=_tspan,
                             include_endpoints=False,
@@ -315,40 +319,35 @@ class TPMSPlotter(MPLPlotter):
                     T_avg_list.append(np.mean(T_mol))
 
                 if logdata:
-                    v_avg_list=np.log(np.array(v_avg_list))
-                    logplot=False
+                    v_avg_list = np.log(np.array(v_avg_list))
+                    logplot = False
 
-                ax.plot(
-                        T_avg_list,
-                        v_avg_list,# * unit_factor,
-                        label=mol,
-                        **kwargs
-                        )
+                ax.plot(T_avg_list, v_avg_list, label=_vname, **kwargs)
 
                 if fit_arrhenius:
-                    #v_avg_list = np.log(np.array(v_avg_list))
                     coef = measurement.fit_to_arrhenius_equation(
-                                                   inverse_T=np.array(T_avg_list),
-                                                   k=v_avg_list,
-                                                   logdata=True, #logdata
-                                                   )
+                        inverse_T=np.array(T_avg_list),
+                        k=v_avg_list,
+                        logdata=True,
+                    )
                     k_fitted = coef[1] + coef[0] * np.array(T_avg_list)
                     if not logdata:
-                        print('inside logdata')           # values for lotting arrheniuos
                         popt, pcov = measurement.fit_to_arrhenius_equation(
-                                                   inverse_T=np.array(T_avg_list),
-                                                   k=np.array(v_avg_list),
-                                                   logdata=logdata)
+                            inverse_T=np.array(T_avg_list),
+                            k=np.array(v_avg_list),
+                            logdata=logdata,
+                        )
                         k_fitted = measurement._func(np.array(T_avg_list), *popt)
-                    # log arrhen np.log(v_avg_list) = - Ea / R * 1/ T_avg_list + np.log(A)
+                    # log arrhen
+                    # np.log(v_avg_list) = - Ea / R * 1/ T_avg_list + np.log(A)
 
                     ax.plot(
                         T_avg_list,
                         k_fitted,
                         color=fit_arrhenius_color,
-                        label='arrhenius',
-                        linestyle='--',
-                        )
+                        label="arrhenius",
+                        linestyle="--",
+                    )
             if logplot:
                 ax.set_yscale("log")
             if legend:
@@ -375,50 +374,47 @@ class TPMSPlotter(MPLPlotter):
             )
             if fit_arrhenius:
                 t, T = measurement.grab(
-                    inverse_T_name,
-                    tspan=tspan,
-                    include_endpoints=True
+                    inverse_T_name, tspan=tspan, include_endpoints=True
                 )
                 if mol_list:
                     t_v, V = measurement.grab_flux(
-                    mol_list[0],
-                    tspan=tspan,
-                    include_endpoints=False,
+                        mol_list[0],
+                        tspan=tspan,
+                        include_endpoints=False,
                     )
                 elif mass_list:
                     t_v, V = measurement.grab(
-                    mass_list[0],
-                    tspan=tspan,
-                    include_endpoints=False,
+                        mass_list[0],
+                        tspan=tspan,
+                        include_endpoints=False,
                     )
 
                 T_mol = np.interp(t_v, t, T)
-                #v_avg_list = np.log(np.array(v_avg_list))
+                # v_avg_list = np.log(np.array(v_avg_list))
                 coef = measurement.fit_to_arrhenius_equation(
                     inverse_T=T_mol,
                     k=np.log(V),
                     logdata=True,
                 )
                 k_fitted = coef[1] + coef[0] * T_mol
-                logplot=logplot
+                logplot = logplot
                 if not logdata:
-                    logplot=True
-                    # values for lotting arrheniuos
+                    logplot = True
+                    # values for plotting arrheniuos
                     popt, pcov = measurement.fit_to_arrhenius_equation(
-                        inverse_T=T_mol,
-                        k=V,
-                        logdata=logdata
+                        inverse_T=T_mol, k=V, logdata=logdata
                     )
                     k_fitted = measurement._func(T_mol, *popt)
-                    # log arrhen np.log(v_avg_list) = - Ea / R * 1/ T_avg_list + np.log(A)
+                    # log arrhen
+                    # np.log(v_avg_list) = - Ea / R * 1/ T_avg_list + np.log(A)
 
                 ax.plot(
-                        T_mol,
-                        k_fitted,
-                        color=fit_arrhenius_color,
-                        label='arrhenius',
-                        linestyle='--',
-                        )
+                    T_mol,
+                    k_fitted,
+                    color=fit_arrhenius_color,
+                    label="arrhenius",
+                    linestyle="--",
+                )
             if logplot:
                 ax.set_yscale("log")
             if legend:
@@ -432,13 +428,14 @@ class TPMSPlotter(MPLPlotter):
         measurement=None,
         ax=None,
         axes=None,
+        mass_list=None,
         mol_list=None,
-        meta_list=None,
         tspan=None,
         tspan_bg=None,
         remove_background=None,
         unit=None,
         x_unit=None,
+        TP_units=None,
         T_name=None,
         T_color=None,
         P_name=None,
@@ -529,7 +526,6 @@ class TPMSPlotter(MPLPlotter):
             **kwargs,
         )
 
-
         T_name = T_name or measurement.T_name
         P_name = P_name
 
@@ -573,7 +569,7 @@ class TPMSPlotter(MPLPlotter):
         if legend:
             axes[1].legend()
 
-        if n > 1:  # if multiple variables are plotted overwrite color and labels 
+        if n > 1:  # if multiple variables are plotted overwrite color and labels
             color = "k"
             y_label = "signal"
             y_unit = "mixed"
@@ -773,7 +769,7 @@ class SpectroTPMSPlotter(MPLPlotter):
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
-        sort_spectra='linear',
+        sort_spectra="linear",
         **kwargs,
     ):
         """Make a two panel spectro MS plot vs v_name (often temperature).
@@ -848,9 +844,9 @@ class SpectroTPMSPlotter(MPLPlotter):
                     Scanning up and down in temperature from T_low to T_high the spectras
                     obtained wil be plotted from [T_low_start ..  T_high .. T_low_end].
 
-                    - If 'none' sorting is specified leads to heat_plot xaxis linearly from
-                    T_low_start to T_low_end missing representation of the high values in
-                    the middle of the axis.
+                    - If 'none' sorting is specified leads to heat_plot xaxis linearly
+                        from T_low_start to T_low_end missing representation of the high
+                        values in the middle of the axis.
 
                     - If 'linear' sorting is specified all spectras obtained
                         are sorted linearly from lowest v_name_value to highest v_name.
@@ -890,9 +886,7 @@ class SpectroTPMSPlotter(MPLPlotter):
             )
 
         measurement = measurement or self.measurement
-        mass_spec_axes = [axes[ms_axes], axes[2]]
-                         if (mass_lists or mol_lists)
-                         else [axes[ms_axes]]
+        axs = [axes[ms_axes], axes[2]] if (mass_lists or mol_lists) else [axes[ms_axes]]
 
         if (
             mass_list
@@ -905,7 +899,7 @@ class SpectroTPMSPlotter(MPLPlotter):
             self.tpms_plotter.ms_plotter.plot_vs(
                 x_name=vs_name,
                 measurement=measurement,
-                axes=mass_spec_axes, #[axes[ms_axes], axes[2]] if (mass_lists or mol_lists) else [axes[ms_axes]],
+                axes=axs,
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -931,51 +925,51 @@ class SpectroTPMSPlotter(MPLPlotter):
         if tspan:
             # create t_mask from tspan
             t_mask = np.logical_and(tspan[0] < _t, _t < tspan[-1])
-            #apply t_mask to field.data and vs_name.data
+            # apply t_mask to field.data and vs_name.data
             _data = _data[t_mask]
             _v = _v[t_mask]
 
         if isinstance(sort_spectra, str):
-            if sort_spectra == 'linear':
+            if sort_spectra == "linear":
                 sorted_indicies = np.argsort(_v)
 
-            elif sort_spectra == 'none':
+            elif sort_spectra == "none":
                 sorted_indicies = [i for i, v in enumerate(_v)]
 
             else:
                 warnings.warn(
-                        f"Recieved {sort_spectra} for sort_spectra."
-                        "sort_spectra has to be 'linear',  'none' or "
-                        "of type list with same length as spectrum_series.",
-                        stacklevel = 2
-                        )
+                    f"Recieved {sort_spectra} for sort_spectra."
+                    "sort_spectra has to be 'linear',  'none' or "
+                    "of type list with same length as spectrum_series.",
+                    stacklevel=2,
+                )
 
         elif isinstance(sort_spectra, list):
             if len(_t) == len(sort_spectra):
                 sorted_indicies = sort_spectra
             else:
                 warnings.warn(
-                        f"length [{len(sort_spectra)}] of 'sort_spectra' has to be equal"
-                        f"to [{len(_t)}]."
-                        "sort_spectra can be 'linear', 'none' or "
-                        "of type list with same length as spectrum_series.",
-                        stacklevel = 2
-                        )
+                    f"length [{len(sort_spectra)}] of 'sort_spectra' has to be equal"
+                    f"to [{len(_t)}]."
+                    "sort_spectra can be 'linear', 'none' or "
+                    "of type list with same length as spectrum_series.",
+                    stacklevel=2,
+                )
         else:
             warnings.warn(
-                        "sort_spectra has to be 'linear', 'none' or "
-                        "of type list with same length as spectrum_series."
-                        "Recived {sort_spectra}.",
-                        stacklevel = 2
-                        )
+                "sort_spectra has to be 'linear', 'none' or "
+                "of type list with same length as spectrum_series."
+                "Recived {sort_spectra}.",
+                stacklevel=2,
+            )
 
-        new_field_data = _data[sorted_indicies,:]
+        new_field_data = _data[sorted_indicies, :]
 
         new_field = Field(
-                name=field.name + f"_sorted_vs_{vs_name}_for_{tspan}",
-                unit_name=field.unit_name,
-                axes_series=field.axes_series,
-                data=new_field_data,
+            name=field.name + f"_sorted_vs_{vs_name}_for_{tspan}",
+            unit_name=field.unit_name,
+            axes_series=field.axes_series,
+            data=new_field_data,
         )
         # Now we can plot the heat plot
         measurement.spectrum_series.heat_plot(
@@ -1003,10 +997,11 @@ class SpectroTPMSPlotter(MPLPlotter):
 
         return axes
 
+
 def _get_y_unit_and_label(data_series, meta_units):
-    """ Figure out correct y-labels, unit name and correct unit factor
-    Will be obsolete when pint is implemented
-    """
+    """Figure out correct y-labels, unit name and correct unit factor
+    Will be obsolete when pint is implemented"""
+
     name = data_series.name
     if "temperatur" in name.lower():
         ylabel = "temperature"
@@ -1038,12 +1033,8 @@ def _get_y_unit_and_label(data_series, meta_units):
     return ylabel, y_unit_name, y_unit_factor
 
 
-def _get_unit_factor_and_name(
-    """ Figure out correct unit factor. This will be obsolete when pint is implemented
-    """
-    new_unit_name,
-    from_unit_name,
-):
+def _get_unit_factor_and_name(new_unit_name, from_unit_name):
+    """Find correct unit factor. This will be obsolete when pint is implemented"""
     try:
         if from_unit_name == "celsius" or from_unit_name == "C":
             warnings.warn(

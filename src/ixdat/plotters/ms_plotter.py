@@ -537,7 +537,7 @@ class SpectroMSPlotter(MPLPlotter):
                 plotter
             axes (list of matplotlib axis): Left and right y-axes if mass_lists are given
                 default to axes[0] as left and axes[2] as right axis for plotting masses
-                and axes[1] for plotting MSSpectra 
+                and axes[1] for plotting MSSpectra
             mass_list (list of str): The names of the m/z values, eg. ["M2", ...] to
                 plot. Defaults to all of them (measurement.mass_list)
             mass_lists (list of list of str): Alternately, two lists can be given for
@@ -566,7 +566,7 @@ class SpectroMSPlotter(MPLPlotter):
             cmap_name (str): Colour map to pass to heat_plot method
             make_colorbar (bool): Include a colour bar. Misalignes time axis with other
                 panels in same figure
-            emphasis (str): Whether to emphasise top or bottom panel 3/5 fig size or equal
+            emphasis (str): Whether to emphasise top or bottom panel 3/5 fig size or eq.
             ms_data (str): Whether to plot ms_data on "top" or "bottom" panel
             max_threshold (int or float): Only applies to spectra plotted with heat_plot.
                 All values above max threshold is set to 0 (zero).
@@ -678,7 +678,7 @@ class SpectroMSPlotter(MPLPlotter):
         max_threshold=None,
         min_threshold=None,
         scanning_mask=None,
-        sort_spectra='linear',
+        sort_spectra="linear",
         **kwargs,
     ):
         """Plot m/z signal and MSSpectra data in a two panel subfigure vs a specified
@@ -734,7 +734,7 @@ class SpectroMSPlotter(MPLPlotter):
                 in measurement.spectrum_series.
             vmax (int or float): Shift maximum value in color bar. Default highest value
                 in measurement.spectrum_series.
-            emphasis (str): Whether to emphasise top or bottom panel 3/5 fig size or equal
+            emphasis (str): Whether to emphasise top or bottom panel 3/5 fig size or eq.
                 Default 'top'
             ms_data (str): Whether to plot ms_data on "top" or "bottom" panel.
                 Default 'top'
@@ -763,9 +763,9 @@ class SpectroMSPlotter(MPLPlotter):
                     Scanning up and down in temperature from T_low to T_high the spectras
                     obtained wil be plotted from [T_low_start ..  T_high .. T_low_end].
 
-                    - If 'none' sorting is specified leads to heat_plot xaxis linearly from
-                    T_low_start to T_low_end missing representation of the high values in
-                    the middle of the axis.
+                    - If 'none' sorting is specified leads to heat_plot xaxis linearly
+                    from T_low_start to T_low_end missing representation of the high
+                    values in the middle of the axis.
 
                     - If 'linear' sorting is specified all spectras obtained
                         are sorted linearly from lowest v_name_value to highest v_name.
@@ -840,57 +840,57 @@ class SpectroMSPlotter(MPLPlotter):
         if tspan:
             # create t_mask from tspan
             t_mask = np.logical_and(tspan[0] < _t, _t < tspan[-1])
-            #apply t_mask to field.data and vs_name.data
+            # apply t_mask to field.data and vs_name.data
             _data = _data[t_mask]
             _v = _v[t_mask]
 
         if isinstance(sort_spectra, str):
-            if sort_spectra == 'linear':
+            if sort_spectra == "linear":
                 sorted_indicies = np.argsort(_v)
 
-            elif sort_spectra == 'none':
-                sorted_indicies = np.array([]) #False # [i for i, v in enumerate(_v)]
+            elif sort_spectra == "none":
+                sorted_indicies = np.array([])
 
             else:
                 warnings.warn(
-                        f"Recieved {sort_spectra} for sort_spectra."
-                        "sort_spectra has to be 'linear',  'none' or "
-                        "of type list with same length as spectrum_series.",
-                        stacklevel = 2
-                        )
+                    f"Recieved {sort_spectra} for sort_spectra."
+                    "sort_spectra has to be 'linear',  'none' or "
+                    "of type list with same length as spectrum_series.",
+                    stacklevel=2,
+                )
 
         elif isinstance(sort_spectra, list):
             if len(_t) == len(sort_spectra):
                 sorted_indicies = sort_spectra
             else:
                 warnings.warn(
-                        f"length [{len(sort_spectra)}] of 'sort_spectra' has to be equal"
-                        f"to [{len(_t)}]."
-                        "sort_spectra can be 'linear', 'none' or "
-                        "of type list with same length as spectrum_series.",
-                        stacklevel = 2
-                        )
+                    f"length [{len(sort_spectra)}] of 'sort_spectra' has to be equal"
+                    f"to [{len(_t)}]."
+                    "sort_spectra can be 'linear', 'none' or "
+                    "of type list with same length as spectrum_series.",
+                    stacklevel=2,
+                )
         else:
             warnings.warn(
-                        "sort_spectra has to be 'linear', 'none' or "
-                        "of type list with same length as spectrum_series."
-                        "Recived {sort_spectra}.",
-                        stacklevel = 2
-                        )
+                "sort_spectra has to be 'linear', 'none' or "
+                "of type list with same length as spectrum_series."
+                "Recived {sort_spectra}.",
+                stacklevel=2,
+            )
         # sort field data and x_axis equal
-        new_field_data = _data[sorted_indicies,:] if len(sorted_indicies) > 0 else _data
+        new_field_data = _data[sorted_indicies, :] if len(sorted_indicies) > 0 else _data
         new_x_axis = _v[sorted_indicies] if len(sorted_indicies) > 0 else _v
 
         new_field = Field(
-                name=field.name + f"_sorted_vs_{vs_name}_for_{tspan}",
-                unit_name=field.unit_name,
-                axes_series=field.axes_series,
-                data=new_field_data,
+            name=field.name + f"_sorted_vs_{vs_name}_for_{tspan}",
+            unit_name=field.unit_name,
+            axes_series=field.axes_series,
+            data=new_field_data,
         )
         # Now we can plot the heat plot
         measurement.spectrum_series.heat_plot(
             ax=axes[ms_spec_axes],
-            t=new_x_axis, #_v[sorted_indicies] if len(sorted_indicies) > 0 else _v,  # x_axis sorted
+            t=new_x_axis,
             field=new_field,
             t_name=vs_name,
             tspan=vspan,
