@@ -103,11 +103,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
         field = field or spectrum_series.field
 
         xseries = field.axes_series[1]
-        x = xseries.data.copy()  # avoid manipulating original data from measurement
+        x = xseries.data
         t = t if t is not None else field.axes_series[0].t
         t_name = t_name or field.axes_series[0].name
 
-        data = field.data.copy()  # avoid manipulating original data from measurement
+        data = field.data
 
         if max_threshold:
             # data = np.minimum(max_threshold, data)
