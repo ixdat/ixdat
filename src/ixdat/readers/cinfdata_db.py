@@ -113,7 +113,10 @@ class CinfdataDBReader:
             return self.measurement
 
     def read_ms(self):
-        """Download MS data from cinfdata_database"""
+        """Download MS data from cinfdata_database and make corresponding tseries and
+        vseries to place in a dictionary to return.
+        return obj_as_dict (dict)
+        """
 
         self.cinf_db = plugins.cinfdata.connect(
             setup_name=self.setup_name, grouping_column=self.grouping_column
@@ -141,7 +144,7 @@ class CinfdataDBReader:
 
         for key in self.group_data.keys():
             meta = self.group_meta[key]
-            if meta["type"] != 5:
+            if meta["type"] != 5:  # 5 is specific mass_time measurements
                 continue
 
             column_name = meta["mass_label"]
@@ -177,79 +180,6 @@ class CinfdataDBReader:
         )
 
         if not data_series_list:
-            warnings.warn(
-                f"No mass spec data was found using '{self.token}' "
-                f" and group_column: '{self.grouping_column}'",
-                stacklevel=2,
-            )
-            return None
-
-        return obj_as_dict
-
-    def read_ms(self):
-        """Download MS data from cinfdata_database"""
-
-        self.cinf_db = plugins.cinfdata.connect(
-            setup_name=self.setup_name, grouping_column=self.grouping_column
-        )
-
-        self.group_data = self.cinf_db.get_data_group(
-            self.token, scaling_factors=(1e-3, None)
-        )
-
-        self.group_meta = self.cinf_db.get_metadata_group(self.token)
-        self.meta = self.group_meta[list(self.group_meta.keys())[0]]
-
-        self.set_sample_name()
-        self.set_name()
-        self.set_tstamp()
-
-        if self.verbose:
-            print("Retriving data from measurement named: ", self.sample_name)
-            print("Measurement started recording on: ", self.timestamp)
-
-        data_series_list = []
-        if self.verbose:
-            print("Column names in measurement: ")
-        for key in self.group_data.keys():
-            if self.group_meta[key]["type"] == 5:
-                column_name = self.group_meta[key]["mass_label"]
-                if self.verbose:
-                    print("Col name: ", column_name)
-                # unixtime = self.group_meta[key]["unixtime"]
-                # tstamp = float(unixtime)
-
-                tcol = self.group_data[key][:, 0]
-                vcol = self.group_data[key][:, 1]
-
-                tseries = TimeSeries(
-                    name=column_name + "-x",
-                    unit_name=get_column_unit(column_name + "-x") or "s",
-                    data=tcol,
-                    tstamp=self.tstamp,
-                )
-
-                vseries = ValueSeries(
-                    name=column_name,
-                    data=vcol,
-                    tseries=tseries,
-                    unit_name=get_column_unit(column_name + "-y"),
-                )
-                data_series_list.append(tseries)
-                data_series_list.append(vseries)
-            else:
-                pass
-
-        obj_as_dict = dict(
-            name=self.name,
-            sample_name=self.sample_name,
-            technique=self.technique,
-            reader=self,
-            series_list=data_series_list,
-            tstamp=self.tstamp,
-        )
-
-        if not data_series_list: #obj_as_dict:
             warnings.warn(
                 f"No mass spec data was found using '{self.token}' "
                 f" and group_column: '{self.grouping_column}'",
