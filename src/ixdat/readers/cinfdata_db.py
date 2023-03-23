@@ -108,7 +108,7 @@ class CinfdataDBReader:
             if self.mass_scans:
                 if self.verbose:
                     print("adding mass scans to the measurement")
-                self.measurement = self.add_mass_scans()
+                self.add_mass_scans()
 
             return self.measurement
 
@@ -295,6 +295,7 @@ class CinfdataDBReader:
 
     def add_mass_scans(self):
         """Add corresponding mass scans to mass_time from 'comment'"""
+        self.mass_scans = True
         self.measurement_class = MSSpectrum
         self.grouping_column = "comment"
         self.token = self.sample_name
@@ -309,7 +310,7 @@ class CinfdataDBReader:
 
         # Find index of the first spectrum to include as mass scans of this measurement
         first_index = 0
-        if self.spectrum_list[-1].tstamp < self.tstamp:
+        if self.spectrum_list[0].tstamp < self.tstamp:
             for i, spectrum in enumerate(self.spectrum_list):
                 if spectrum.tstamp < self.tstamp:
                     first_index = i
@@ -339,7 +340,8 @@ class CinfdataDBReader:
         MSSpectra = SpectrumSeries.from_spectrum_list(spectrums_to_add)
         SpectroMSMeasurement = MSSpectra.__add__(self.measurement)
 
-        return SpectroMSMeasurement
+        self.measurement = SpectroMSMeasurement
+
 
     def set_sample_name(self):
         """Set the sample name from meta data retrived from cinfdata connection"""
