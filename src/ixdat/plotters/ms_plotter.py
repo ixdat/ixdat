@@ -807,13 +807,18 @@ class SpectroMSPlotter(MPLPlotter):
             or mol_lists
             or hasattr(measurement, "mass_list")
         ):
+            # define where one or two axes is plotted for MS data!
+            ms_plot_axes = (
+                    [axes[ms_axes], axes[2]]
+                    if (mass_lists or mol_lists)
+                    else [axes[ms_axes]]
+                    )
+
             # then we have MS data!
             self.ms_plotter.plot_vs(
                 x_name=vs_name,
                 measurement=measurement,
-                axes=[axes[ms_axes], axes[2]]
-                if (mass_lists or mol_lists)
-                else [axes[ms_axes]],
+                axes=ms_plot_axes,
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -972,6 +977,8 @@ STANDARD_COLORS = {
     "CO2@M44": "brown",
     "CO2@M46": "purple",
     "CO2@M48": "darkslategray",
+    # FIXME: Upgrade to include user defined colours from file or other module
+    # https://github.com/ixdat/ixdat/pull/101/files#r1088739480 
     # Inset of meta channels #
     "TC temperature": "#808000",
     "RTD temperature": "#808000",
