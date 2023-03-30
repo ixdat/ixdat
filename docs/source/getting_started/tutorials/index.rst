@@ -37,7 +37,7 @@ The tutorials for the technique-specific methods are still work in progress - pl
    * - MS
      - 
    * - EC-MS
-     -
+     - :ref:`ecms_tutorial`
    * - SEC
      - :ref:`sec-tutorial`  
    * - XRD
