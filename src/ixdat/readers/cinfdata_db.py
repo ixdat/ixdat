@@ -127,11 +127,8 @@ class CinfdataDBReader:
         )
 
         self.group_meta = self.cinf_db.get_metadata_group(self.token)
-        self.meta = self.group_meta[list(self.group_meta.keys())[0]]
 
-        self.set_sample_name()
-        self.set_name()
-        self.set_tstamp()
+        self.set_sample_name_tstamp_and_name()
 
         if self.verbose:
             print("Retriving data from measurement named: ", self.sample_name)
@@ -177,6 +174,7 @@ class CinfdataDBReader:
             reader=self,
             series_list=data_series_list,
             tstamp=self.tstamp,
+            metadata=self.group_meta,
         )
 
         if not data_series_list:
@@ -214,13 +212,11 @@ class CinfdataDBReader:
         # return dict with measurements as key containing x,y values in a np.array
         self.group_data = db.get_data_group(self.token)
 
-        # return dict of meta data associated with the key (measurement)
+        # return dict of meta data associated with the key associated (measurement)
         self.group_meta = db.get_metadata_group(self.token)
-        self.meta = self.group_meta[list(self.group_meta.keys())[0]]  # all the metadata
 
-        self.set_sample_name()
-        self.set_name()
-        self.set_tstamp()
+        # set sample_name, tstamp and measurement name from meta data from cinfdatabase
+        self.set_sample_name_tstamp_and_name()
 
         self.spectrum_list = []
         for key in self.group_meta:  # key is unique to each measurement
@@ -266,6 +262,7 @@ class CinfdataDBReader:
         # Extract x and y data columns and timestamp from group data and metadata
         x_col = self.group_data[key][:, 0]
         y_col = self.group_data[key][:, 1]
+        metadata = self.group_meta[key]
         tstamp = self.group_meta[key]["unixtime"]
 
         # Create x DataSeries object with appropriate metadata
@@ -289,6 +286,8 @@ class CinfdataDBReader:
             "technique": SPECTRUM_METADATA[group_type]["technique"],
             "field": y_field,
             "tstamp": tstamp,
+            "reader": self,
+            "metadata": metadata,
         }
 
         return spectrum_as_dict
@@ -337,27 +336,25 @@ class CinfdataDBReader:
 
         # Create spectrum series and add it to the measurement
         spectrums_to_add = self.spectrum_list[first_index:last_index]
-        MSSpectra = SpectrumSeries.from_spectrum_list(spectrums_to_add)
-        SpectroMSMeasurement = MSSpectra.__add__(self.measurement)
+        ms_spectra = SpectrumSeries.from_spectrum_list(spectrums_to_add)
+        self.measurement = self.measurement + ms_spectra
 
-        self.measurement = SpectroMSMeasurement
+    def set_sample_name_tstamp_and_name(self):
+        """Set the sample name and measurement name and tstamp from meta data retrieved
+        from cinfdata"""
 
+        metadata = list(self.group_meta.items())[0][1]
 
-    def set_sample_name(self):
-        """Set the sample name from meta data retrived from cinfdata connection"""
         self.sample_name = None
         for key_name in ("Comment", "comment"):
-            if key_name in self.meta:
-                self.sample_name = self.meta[key_name]
+            if key_name in metadata:
+                self.sample_name = metadata[key_name]
 
         if self.sample_name is None:
             print("No comment to set as sample_name.")
 
-    def set_name(self):
-        self.name = self.meta["time"].strftime("%Y-%m-%d %H:%M:%S")
-
-    def set_tstamp(self):
-        self.tstamp = float(self.meta["unixtime"])
+        self.name = metadata["time"].strftime("%Y-%m-%d %H:%M:%S")
+        self.tstamp = float(metadata["unixtime"])
 
 
 def get_column_unit(column_name):
