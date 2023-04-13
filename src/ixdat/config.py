@@ -181,20 +181,58 @@ class _SIQuantDeps:
         if self._USE_QUANT:
             self._USE_QUANT = True  # gets the quant directory to be reset
 
-
 class _CinfData:
-    def __init__(
-        self,
-    ):
+
+    def __init__(self,):
         self.cinfdata = None
+        self._managed_cinfdata_object = None
+        self._context_manager_kwargs = None
+        print('initialised cinfdatabase connection')
 
     def activate(self):
+        print('activated cinfdatabase connection')
         from cinfdata import Cinfdata
 
         self.DB = Cinfdata
 
     def connect(self, setup_name=None, grouping_column=None):
+        print('connected cinfdatabase connection')
         return self.DB(setup_name=setup_name, grouping_column=grouping_column)
+
+    def __call__(self, **kwargs):
+        """... arguments here same as `connect`"""
+        self._context_manager_kwargs = kwargs
+        print('called initialised cinfdatabase connection')
+        return self
+
+    def __enter__(self):
+        print('entered initialised cinfdatabase connection')
+        if self._managed_cinfdata_object:
+            self._context_manager_kwargs = None
+            raise RuntimeError("Using the cinfdata plugin as a context manager more than once at the same time is not supported")
+
+        self._managed_cinfdata_object = self.connect(**self._context_manager_kwargs)
+        return self._managed_cinfdata_object
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print('exited initialised cinfdatabase connection')
+        self._managed_cinfdata_object.connection.close()
+        self._managed_cinfdata_object = None
+        self._context_manager_kwargs = None
+
+#class _CinfData:
+    #def __init__(
+        #self,
+    #):
+        #self.cinfdata = None
+
+    #def activate(self):
+        #from cinfdata import Cinfdata
+
+        #self.DB = Cinfdata
+
+    #def connect(self, setup_name=None, grouping_column=None):
+        #return self.DB(setup_name=setup_name, grouping_column=grouping_column)
 
 
 plugins = _PluginOptions()

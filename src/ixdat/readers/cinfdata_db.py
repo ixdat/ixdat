@@ -118,15 +118,23 @@ class CinfdataDBReader:
         return obj_as_dict (dict)
         """
 
-        self.cinf_db = plugins.cinfdata.connect(
-            setup_name=self.setup_name, grouping_column=self.grouping_column
-        )
+#        self.cinf_db = plugins.cinfdata.connect(
+#            setup_name=self.setup_name, grouping_column=self.grouping_column
+#        )
+#
+#        self.group_data = self.cinf_db.get_data_group(
+#            self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
+#        )
+#
+#        self.group_meta = self.cinf_db.get_metadata_group(self.token)
 
-        self.group_data = self.cinf_db.get_data_group(
-            self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
-        )
+        with plugins.cinfdata(setup_name=self.setup_name, grouping_column=self.grouping_column) as cinf_db:
 
-        self.group_meta = self.cinf_db.get_metadata_group(self.token)
+            self.group_data = cinf_db.get_data_group(
+                self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
+            )
+
+            self.group_meta = cinf_db.get_metadata_group(self.token)
 
         self.set_sample_name_tstamp_and_name()
 
@@ -205,15 +213,23 @@ class CinfdataDBReader:
                read were not possible to combine in a SpectrumSeries,
                return self.spectrum_list
         """
-        db = plugins.cinfdata.connect(
-            setup_name=self.setup_name, grouping_column=self.grouping_column
-        )
+        #db = plugins.cinfdata.connect(
+            #setup_name=self.setup_name, grouping_column=self.grouping_column
+        #)
 
         # return dict with measurements as key containing x,y values in a np.array
-        self.group_data = db.get_data_group(self.token)
+        #self.group_data = db.get_data_group(self.token)
 
         # return dict of meta data associated with the key associated (measurement)
-        self.group_meta = db.get_metadata_group(self.token)
+        #self.group_meta = db.get_metadata_group(self.token)
+
+        with plugins.cinfdata(setup_name=self.setup_name, grouping_column=self.grouping_column) as cinf_db:
+
+            # return dict with measurements as key containing x,y values in a np.array
+            self.group_data = cinf_db.get_data_group(self.token)
+
+            # return dict of meta data associated with the key associated (measurement)
+            self.group_meta = cinf_db.get_metadata_group(self.token)
 
         # set sample_name, tstamp and measurement name from meta data from cinfdatabase
         self.set_sample_name_tstamp_and_name()
