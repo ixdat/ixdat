@@ -29,6 +29,8 @@ class CinfdataDBReader:
         self.sample_name = None
         self.setup_name = None
         self.timestamp = None
+        self.comment = None
+        self.grouping_column = None
         self.tstamp = None
         self.data_has_been_fetched = False
         self.metadata = {}
@@ -36,8 +38,10 @@ class CinfdataDBReader:
         self.measurement_class = None
         self.measurement = None
         self.cinf_db = None
-        self.mass_scans = False
+        self.include_mass_scans = False
         self.spectrum_list = []
+        self.verbose = False
+
         plugins.activate_cinfdata()
 
     def read(self, path_to_file, name=None, cls=None, units=None, **kwargs):
@@ -70,7 +74,7 @@ class CinfdataDBReader:
         self.setup_name = kwargs.pop("setup_name", path_to_file)
         self.timestamp = kwargs.pop("timestamp", None)
         self.comment = kwargs.pop("comment", None)
-        self.mass_scans = kwargs.pop("include_mass_scans", False)
+        self.include_mass_scans = kwargs.pop("include_mass_scans", False)
         self.verbose = kwargs.pop("verbose", False)
         self.grouping_column = kwargs.pop("group", None)
 
@@ -105,7 +109,7 @@ class CinfdataDBReader:
             obj_as_dict.update(kwargs)
             self.measurement = self.measurement_class.from_dict(obj_as_dict)
 
-            if self.mass_scans:
+            if self.include_mass_scans:
                 if self.verbose:
                     print("adding mass scans to the measurement")
                 self.add_mass_scans()
@@ -118,17 +122,9 @@ class CinfdataDBReader:
         return obj_as_dict (dict)
         """
 
-#        self.cinf_db = plugins.cinfdata.connect(
-#            setup_name=self.setup_name, grouping_column=self.grouping_column
-#        )
-#
-#        self.group_data = self.cinf_db.get_data_group(
-#            self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
-#        )
-#
-#        self.group_meta = self.cinf_db.get_metadata_group(self.token)
-
-        with plugins.cinfdata(setup_name=self.setup_name, grouping_column=self.grouping_column) as cinf_db:
+        with plugins.cinfdata(
+            setup_name=self.setup_name, grouping_column=self.grouping_column
+        ) as cinf_db:
 
             self.group_data = cinf_db.get_data_group(
                 self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
@@ -213,17 +209,10 @@ class CinfdataDBReader:
                read were not possible to combine in a SpectrumSeries,
                return self.spectrum_list
         """
-        #db = plugins.cinfdata.connect(
-            #setup_name=self.setup_name, grouping_column=self.grouping_column
-        #)
 
-        # return dict with measurements as key containing x,y values in a np.array
-        #self.group_data = db.get_data_group(self.token)
-
-        # return dict of meta data associated with the key associated (measurement)
-        #self.group_meta = db.get_metadata_group(self.token)
-
-        with plugins.cinfdata(setup_name=self.setup_name, grouping_column=self.grouping_column) as cinf_db:
+        with plugins.cinfdata(
+            setup_name=self.setup_name, grouping_column=self.grouping_column
+        ) as cinf_db:
 
             # return dict with measurements as key containing x,y values in a np.array
             self.group_data = cinf_db.get_data_group(self.token)
@@ -253,7 +242,7 @@ class CinfdataDBReader:
                 stacklevel=2,
             )
             return None
-        elif self.mass_scans:
+        elif self.include_mass_scans:
             return self.spectrum_list
         elif len(self.spectrum_list) == 1:
             return self.spectrum_list[0]
@@ -310,7 +299,7 @@ class CinfdataDBReader:
 
     def add_mass_scans(self):
         """Add corresponding mass scans to mass_time from 'comment'"""
-        self.mass_scans = True
+        self.include_mass_scans = True
         self.measurement_class = MSSpectrum
         self.grouping_column = "comment"
         self.token = self.sample_name
