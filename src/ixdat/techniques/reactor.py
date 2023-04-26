@@ -1,4 +1,4 @@
-"""Module for representation and analysis of thermal catalysis (TP) with MS measurements"""
+"""Representation and analysis of thermal catalysis (TP) with MS measurements"""
 from .ms import MSMeasurement, SpectroMSMeasurement
 from ..measurements import Calibration
 from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
@@ -10,8 +10,8 @@ import numpy as np
 class ReactorMeasurement(MSMeasurement):
     """Class implementing thermal catalysis measurement.
 
-    Now the class has implemented temperature and pressure, and mass spectrometry through
-    the MSMeasurement. Future updates should include GC measurements.
+    Now the class has implemented temperature and pressure, and mass spectrometry
+    through the MSMeasurement. Future updates should include GC measurements.
 
     The main job of this class is making sure that the ValueSeries most essential for
     visualizing thermal catalysis measurements are always available in the
