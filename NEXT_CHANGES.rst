@@ -15,8 +15,8 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 ixdat 0.2.6
 ===========
 
-reader
-^^^^^^
+readers
+^^^^^^^
 
 - ``cinfdata_db`` is a new direct db reader for cinfdatabase at DTU SurfCat
 
@@ -26,6 +26,7 @@ plotters
 - ``MSPlotter.plot_measurment`` now create a new axis if no initial axis is given
   before initiating right axes in the case of dual plotting on left and right axes.
   Fixes `Issue #97 <https://github.com/ixdat/ixdat/issues/97>`_
+
 
 - ``SpectrumSeriesPlotter.heat_plot`` now accept max_threshold and min_threshold and 
    scanning_mask to include or exclude specific values from scanning variable
@@ -50,4 +51,3 @@ dev
 https://github.com/ixdat/ixdat/actions/runs/3876991446/jobs/6611480640#step:3:7
 
 - Do black test before software tests in github CI to save time
-
