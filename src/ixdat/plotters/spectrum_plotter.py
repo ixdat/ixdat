@@ -65,6 +65,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
         make_colorbar=False,
         t=None,
         t_name=None,
+        max_threshold=None,
+        min_threshold=None,
+        scanning_mask=None,
+        vmin=None,
+        vmax=None,
     ):
         """
         Plot a spectrum series with `t` on the horizontal axis, `x` on the vertical axis,
@@ -85,6 +90,14 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 FIXME: colorbar at present mis-alignes axes
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
+            max_threshold (float): Maximum value to display.
+                Values above are set to zero.
+            min_threshold (float): Minimum value to display.
+                Values below are set to 0.
+            scanning_mask (list): List of booleans to exclude from scanning variable
+                before plotting data by setting y values to 0 (zero).
+            vmin (float): minimum value to represent in colours.
+            vmax (float): maximum value to represent in colours.
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
@@ -96,6 +109,15 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
         data = field.data
 
+        if max_threshold:
+            # data = np.minimum(max_threshold, data)
+            data[data > max_threshold] = 0
+        if min_threshold:
+            data[data < min_threshold] = 0
+
+        if np.any(scanning_mask):
+            data[:, scanning_mask] = 0
+
         if tspan:
             t_mask = np.logical_and(tspan[0] < t, t < tspan[-1])
             t = t[t_mask]
@@ -104,6 +126,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 # Then we need to plot the data against U in the reverse direction:
                 t = np.flip(t, axis=0)
                 data = np.flip(data, axis=0)
+
         if xspan:
             x_mask = np.logical_and(xspan[0] < x, x < xspan[-1])
             x = x[x_mask]
@@ -117,11 +140,19 @@ class SpectrumSeriesPlotter(MPLPlotter):
             cmap=cmap_name,
             aspect="auto",
             extent=(t[0], t[-1], x[0], x[-1]),
+            vmin=vmin,
+            vmax=vmax,
         )
         ax.set_xlabel(t_name)
         ax.set_ylabel(xseries.name)
+
         if make_colorbar:
-            add_colorbar(ax, cmap_name, vmin=np.min(data), vmax=np.max(data))
+            add_colorbar(
+                ax,
+                cmap_name,
+                vmin=(vmin if vmin else np.min(data)),
+                vmax=(vmax if vmax else np.max(data)),
+            )
         return ax
 
     def plot_waterfall(

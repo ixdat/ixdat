@@ -75,6 +75,7 @@ class _PluginOptions:
     def __init__(self):
         self._use_si_quant = False
         self.si_quant = _SIQuantDeps()
+        self.cinfdata = _CinfData()
 
     @property
     def use_si_quant(self):
@@ -110,6 +111,9 @@ class _PluginOptions:
             self.activate_si_quant()
         else:
             self.deactivate_si_quant()
+
+    def activate_cinfdata(self):
+        self.cinfdata.activate()
 
 
 class _SIQuantDeps:
@@ -176,6 +180,48 @@ class _SIQuantDeps:
         self._QUANT_DIRECTORY = quant_directory
         if self._USE_QUANT:
             self._USE_QUANT = True  # gets the quant directory to be reset
+
+
+class _CinfData:
+    """Class implement direct database read access using external module Cinfdata"""
+
+    def __init__(
+        self,
+    ):
+        self.cinfdata = None
+        self._managed_cinfdata_object = None
+        self._context_manager_kwargs = None
+
+    def activate(self):
+        from cinfdata import Cinfdata
+
+        self.DB = Cinfdata
+
+    def connect(self, setup_name=None, grouping_column=None):
+        """setup_name (str): The name of the table inside the database
+        grouping_column (str): Either the 'timestamp'/'comment' or 'Comment' column"""
+        return self.DB(setup_name=setup_name, grouping_column=grouping_column)
+
+    def __call__(self, **kwargs):
+        """**kwargs: setup_name (str) and grouping_column (str) (see connect())"""
+        self._context_manager_kwargs = kwargs
+        return self
+
+    def __enter__(self):
+        if self._managed_cinfdata_object:
+            self._context_manager_kwargs = None
+            raise RuntimeError(
+                "Using the cinfdata plugin as a context manager more "
+                "than once at the same time is not supported"
+            )
+
+        self._managed_cinfdata_object = self.connect(**self._context_manager_kwargs)
+        return self._managed_cinfdata_object
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._managed_cinfdata_object.connection.close()
+        self._managed_cinfdata_object = None
+        self._context_manager_kwargs = None
 
 
 plugins = _PluginOptions()
