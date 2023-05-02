@@ -3,19 +3,21 @@
 Electrochemistry
 ================
 
+``ECMeasurement``
+.................
+
 The main TechniqueMeasurement class for electrochemistry is the ``ECMeasurement`` class.
 Subclasses of ``ECMeasurement`` include ``CyclicVoltammogram`` and ``CyclicVoltammogramDiff``.
 
-Direct-current electrochemistry measurements (``ixdat`` does not yet offer specific
-functionality for impedance data) are characterized by the essential quantities being
-working-electrode current (in loop with the counter electrode) and potential (vs the
-reference electrode) as a function of time. Either current or potential can be controlled
-as the input variable, so the other acts as the response, and it is common to plot
-current vs potential, but in all cases both are tracked or controlled as a function of
-time. This results in the essential variables ``t`` (time), ``U`` (potential), and ``J``
+Direct-current electrochemistry measurements are characterized by the essential quantities being
+working-electrode current and potential (vs the reference electrode) as a function of time. Either 
+current or potential can be controlled as the input variable, so the other acts as the response, 
+and it is common to plot current vs potential, but in all cases both are tracked or controlled as 
+a function of time. This results in the essential variables ``t`` (time), ``U`` (potential), and ``J``
 (current). The main job of ``ECMeasurement`` and subclasses is to give standardized,
 convenient, and powerful access to these three variables for data selection, analysis,
 and visualization, regardless of which hardware the data was acquired with.
+At the present, ``ixdat`` does not yet offer specific functionality for electrochemical impedance spectroscopy (EIS) data.
 
 The default plotter, :ref:`ECPlotter <ec-plotter>`, plots these variables.
 The default exporter, :ref:`ECExporter <ec-exporter>`, exports these variables as well as an incrementer for
@@ -30,6 +32,9 @@ the following Tutorials:
 - :ref:`ec_tutorials`
 
 The full module documentation is available below: :ref:`ec_module`. 
+
+``CyclicVoltammogram``
+......................
 
 ``CyclicVoltammogram`` inherits from ``ECMeasurement`` and adds useful functionality for
 cyclic voltammetry analysis. This includes:

@@ -74,4 +74,4 @@ For developers:
 
 The basics of importing and plotting from each reader are demonstrated in
 the **development_scripts/reader_testers** folder of the repository:
-https://github.com/ixdat/ixdat/tree/user_ready/development_scripts/reader_testers
+hhttps://github.com/ixdat/ixdat/tree/main/development_scripts/reader_demonstrators

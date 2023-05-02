@@ -152,6 +152,13 @@ The ``msrh_sec`` module
 Other techniques
 ----------------
 
+The ``avantage`` module
+.......................
+
+.. automodule:: ixdat.readers.avantage
+    :members:
+
+
 The ``xrdml`` module
 ....................
 
@@ -164,3 +171,4 @@ The ``qexafs`` module
 
 .. automodule:: ixdat.readers.qexafs
     :members:
+

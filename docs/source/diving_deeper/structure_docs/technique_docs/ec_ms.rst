@@ -21,7 +21,7 @@ Besides the plotter, an ``ECMSMeasurement`` has a class for calibration of the M
 based on an electrochemical cyclic voltammatry program that are implemented in ``CyclicVoltammogram``
 (see :ref:`cyclic_voltammetry`).
 
-Finally, :ref:`deconvolution <deconvolution>` of mass spectrometry data from the diffusion broadening in the EC cell, described in a `recent publication <https://doi.org/10.1021/acs.analchem.1c00110>`_,
+Finally, :ref:`deconvolution <deconvolution>` of mass spectrometry data from the diffusion broadening in the EC cell, described in `this publication <https://doi.org/10.1021/acs.analchem.1c00110>`_,
 is implemented in the deconvolution module, in a class inheriting from ``ECMSMeasurement``.
 
 ``ixdat`` has all the functionality and more for EC-MS data and analysis as the

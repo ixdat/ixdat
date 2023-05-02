@@ -44,7 +44,7 @@ While still being work-in-progress for the more recently released techniques, th
 
 **Cheat sheet**
 
-Get an overview of the most commonly used classes and class methods in the :ref:`cheat_sheet`. 
+Get an overview of the most commonly used classes and methods in the :ref:`cheat_sheet`. 
 Reach out to the ixdat team if you are missing some particular section here! 
 
 
