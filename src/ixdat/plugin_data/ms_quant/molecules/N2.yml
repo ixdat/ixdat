@@ -1,0 +1,18 @@
+D: 1.88e-09
+D_gas_RTP: 6.98e-05
+H_0: 0.0006445454545454545
+M: 28.014
+T_c: 1330.0
+density_RTP: 1.251
+dynamic_viscosity: 1.79e-05
+kH: 67.0
+molecule_diameter: 3.7e-10
+name: N2
+primary: M28
+real_name: N2
+sigma:
+  '100': 2.615
+spectrum:
+  M14: 13.7913791379
+  M28: 100.0
+  M29: 0.740074007401

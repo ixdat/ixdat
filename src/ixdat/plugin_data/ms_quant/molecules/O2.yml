@@ -1,0 +1,22 @@
+D: 2.1e-09
+D_gas_RTP: 7.23e-05
+H_0: 0.0012857142857142856
+M: 31.998
+T_c: 1507.6923076923076
+density_RTP: 1.429
+dynamic_viscosity: 2.0700000000000002e-05
+formula: null
+molecule_diameter: 3.55e-10
+name: O2
+primary: M32
+sigma:
+  '100': 2.621
+  '70': 2.441
+spectrum:
+  M16: 21.802180218
+  M32: 100.0
+thermo:
+  S0:
+    gas: 205.15
+  dfH0:
+    gas: 0

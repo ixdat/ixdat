@@ -1,0 +1,26 @@
+D: 1.49e-09
+D_gas_RTP: 6.500000000000001e-05
+H_0: 0.0014
+M: 16.043
+T_c: 1700
+density_RTP: 0.668
+dynamic_viscosity: 1.11e-05
+formula: CH4
+molecule_diameter: 3.8e-10
+name: CH4
+primary: M15
+sigma:
+  '100': 3.419
+  '70': 3.524
+spectrum:
+  M12: 3.800380038
+  M13: 10.6910691069
+  M14: 20.4220422042
+  M15: 88.798879888
+  M16: 100.0
+  M17: 1.6401640164
+thermo:
+  S0:
+    gas: 186.7
+  dfH0:
+    gas: -74.9

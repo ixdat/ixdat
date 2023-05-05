@@ -1,0 +1,16 @@
+D: 6.28e-09
+D_gas_RTP: 6.97e-05
+H_0: 0.0003877777777777778
+M: 4.002
+T_c: 157.75
+density_RTP: 0.1786
+dynamic_viscosity: 1.9900000000000003e-05
+kH: 110
+molecule_diameter: 2.15e-10
+name: He
+primary: M4
+real_name: He
+sigma:
+  '100': 0.37
+spectrum:
+  M4: 100.0

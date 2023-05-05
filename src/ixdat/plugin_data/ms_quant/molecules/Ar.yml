@@ -1,0 +1,20 @@
+D: 2.0e-09
+D_gas_RTP: 7.26e-05
+H_0: 0.0014066666666666667
+M: 39.948
+T_c: 1476.923076923077
+density_RTP: 1.784
+dynamic_viscosity: 2.2700000000000003e-05
+kH: 29.4
+molecule_diameter: 3.58e-10
+name: Ar
+primary: M40
+real_name: Ar
+sigma:
+  '100': 2.78
+  '70': 2.6
+spectrum:
+  M20: 14.6214621462
+  M36: 0.300030003
+  M38: 0.0500050005001
+  M40: 100.0

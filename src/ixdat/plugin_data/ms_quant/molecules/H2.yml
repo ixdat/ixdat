@@ -1,0 +1,21 @@
+D: 4.5e-09
+D_gas_RTP: 0.00014900000000000002
+H_0: 0.0007842857142857143
+M: 2.016
+T_c: 525.0
+density_RTP: 0.08988
+dynamic_viscosity: 8.900000000000001e-06
+formula: null
+molecule_diameter: 2.71e-10
+name: H2
+primary: M2
+sigma:
+  '100': 0.969
+spectrum:
+  M1: 2.100210021
+  M2: 100.0
+thermo:
+  S0:
+    gas: 130.68
+  dfH0:
+    gas: 0
