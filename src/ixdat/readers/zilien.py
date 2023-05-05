@@ -607,7 +607,14 @@ class ZilienSpectrumReader:
         )
         y_name = "Current [A]"
 
+<<<<<<< HEAD
         for x_name in ["Mass  [AMU]", "Mass [AMU]"]:
+=======
+        for x_name in [
+            "Mass  [AMU]",
+            "Mass [AMU]",
+        ]:
+>>>>>>> ad77924aa890bc26e61c0c7cea5cf6a2919c8e35
             try:
                 x = df[x_name].to_numpy()
             except KeyError:

@@ -2,23 +2,23 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="189.61482mm"
+   width="194.68587mm"
    height="80.738319mm"
-   viewBox="0 0 189.61482 80.738319"
+   viewBox="0 0 194.68586 80.738319"
    version="1.1"
    id="svg24796"
-   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
    sodipodi:docname="logo.svg"
    inkscape:export-filename="C:\Users\scott\Dropbox\ixdat_resources\presentations_and_workshops\21G02_ICL_relational_model_of_data\logo.png"
    inkscape:export-xdpi="300"
-   inkscape:export-ydpi="300">
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
      id="defs24790" />
   <sodipodi:namedview
@@ -28,9 +28,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.979899"
-     inkscape:cx="176.81456"
-     inkscape:cy="12.748712"
+     inkscape:zoom="1.4"
+     inkscape:cx="359.64285"
+     inkscape:cy="150.35714"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -38,11 +38,12 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:window-width="3840"
-     inkscape:window-height="2004"
-     inkscape:window-x="-16"
-     inkscape:window-y="-16"
-     inkscape:window-maximized="1" />
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:pagecheckerboard="0" />
   <metadata
      id="metadata24793">
     <rdf:RDF>
@@ -51,7 +52,6 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -62,40 +62,52 @@
      transform="translate(-7.3926911,-57.47963)">
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:77.35234833px;line-height:1;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.93380857"
-       x="10.349655"
+       style="font-style:normal;font-weight:normal;font-size:77.3523px;line-height:0;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.93381"
+       x="31.894299"
        y="122.02215"
-       id="text25351"><tspan
+       id="text25351"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300"><tspan
          sodipodi:role="line"
          id="tspan25349"
-         x="10.349655"
+         x="31.894299"
          y="122.02215"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Comic Sans MS';-inkscape-font-specification:'Comic Sans MS';stroke-width:1.93380857"><tspan
-   style="fill:#ffffff"
-   id="tspan25429">i</tspan>xd<tspan
-   style="fill:#ffffff"
-   id="tspan25427">a</tspan>t</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1;font-family:'Comic Sans MS';-inkscape-font-specification:'Comic Sans MS';stroke-width:1.93381"><tspan
+           style="font-size:77.6111px"
+           id="tspan23403">xd</tspan><tspan
+           style="font-size:67.0278px"
+           id="tspan7469"> </tspan></tspan></text>
     <rect
        y="105.22001"
        x="156.3851"
        height="7.8844509"
        width="7.6839986"
        id="rect25421"
-       style="opacity:1;fill:#0000ff;fill-opacity:0.50196078;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+       style="opacity:1;fill:#0000ff;fill-opacity:0.501961;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300" />
     <rect
-       style="opacity:1;fill:#0000ff;fill-opacity:0.50196078;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="opacity:1;fill:#0000ff;fill-opacity:0.501961;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect25425"
        width="7.6839986"
        height="7.8844509"
        x="123.50117"
-       y="105.22001" />
+       y="105.22001"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300" />
     <rect
-       style="opacity:1;fill:#0000ff;fill-opacity:0.50196078;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       style="opacity:1;fill:#0000ff;fill-opacity:0.501961;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect25419"
        width="7.6839986"
        height="7.8844509"
        x="155.81813"
-       y="90.667923" />
+       y="90.667923"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300" />
     <flowRoot
        xml:space="preserve"
        id="flowRoot25341"
@@ -109,18 +121,22 @@
            x="68.571426"
            y="202.51968"
            style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Comic Sans MS';-inkscape-font-specification:'Comic Sans MS'" /></flowRegion><flowPara
-         id="flowPara25347"></flowPara></flowRoot>    <g
+         id="flowPara25347" /></flowRoot>
+    <g
        id="g16731"
-       style="fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.51748335;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       transform="matrix(2.0357494,0,0,0.92991424,-394.06989,-180.87991)">
+       style="fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.517483;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       transform="matrix(2.0357494,0,0,0.92991424,-394.06989,-180.87991)"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
       <path
          id="rect16711"
          transform="scale(0.75)"
          d="m 339.05078,419.55273 v 15.7793 h 0.0606 a 13.107376,3.1556787 0 0 0 13.08594,3.01563 13.107376,3.1556787 0 0 0 13.07812,-3.01563 h 0.0957 v -15.7793 z"
-         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.68997782;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.689978;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          inkscape:connector-curvature="0" />
       <ellipse
-         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.72680247;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.726802;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          id="ellipse16726"
          cx="264.14807"
          cy="314.53665"
@@ -129,11 +145,14 @@
     </g>
     <g
        transform="matrix(2.0357494,0,0,0.92991424,-394.06989,-196.59714)"
-       style="fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.51748335;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       id="g16737">
+       style="fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.517483;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="g16737"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
       <path
          inkscape:connector-curvature="0"
-         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.68997782;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.689978;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          d="m 339.05078,419.55273 v 15.7793 h 0.0606 a 13.107376,3.1556787 0 0 0 13.08594,3.01563 13.107376,3.1556787 0 0 0 13.07812,-3.01563 h 0.0957 v -15.7793 z"
          transform="scale(0.75)"
          id="path16733" />
@@ -143,20 +162,23 @@
          cy="314.53665"
          cx="264.14807"
          id="ellipse16735"
-         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.72680247;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.726802;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
     </g>
     <g
        id="g16743"
-       style="fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.51748335;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       transform="matrix(2.0357494,0,0,0.92991424,-394.06989,-212.31435)">
+       style="fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.517483;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       transform="matrix(2.0357494,0,0,0.92991424,-394.06989,-212.31435)"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300">
       <path
          id="path16739"
          transform="scale(0.75)"
          d="m 339.05078,419.55273 v 15.7793 h 0.0606 a 13.107376,3.1556787 0 0 0 13.08594,3.01563 13.107376,3.1556787 0 0 0 13.07812,-3.01563 h 0.0957 v -15.7793 z"
-         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.68997782;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.689978;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          inkscape:connector-curvature="0" />
       <ellipse
-         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.72680247;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         style="opacity:1;fill:#4343ff;fill-opacity:1;stroke:#000000;stroke-width:0.726802;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
          id="ellipse16741"
          cx="264.14807"
          cy="314.53665"
@@ -167,6 +189,27 @@
        style="opacity:1;fill:#ffdc58;fill-opacity:1;stroke:#000000;stroke-width:1.5;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        d="m 12.805505,58.399557 -4.6075591,17.019417 10.2636561,17.835507 -3.921752,7.885849 5.588571,12.48341 -3.324575,24.30709 11.49861,-27.74811 -2.005177,-4.47895 8.241407,-16.570384 -5.458152,-9.485012 4.248371,-15.692647 z"
        id="rect25395"
-       inkscape:connector-curvature="0" />
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:77.3523px;line-height:0;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.93381"
+       x="165.50888"
+       y="122.02215"
+       id="text16889"
+       inkscape:export-filename="C:\Users\oersted\Desktop\ixdat_logo.png"
+       inkscape:export-xdpi="300"
+       inkscape:export-ydpi="300"><tspan
+         sodipodi:role="line"
+         id="tspan16887"
+         x="165.50888"
+         y="122.02215"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1;font-family:'Comic Sans MS';-inkscape-font-specification:'Comic Sans MS';stroke-width:1.93381"><tspan
+           style="font-size:67.0278px"
+           id="tspan16885"><tspan
+   style="font-size:77.6111px"
+   id="tspan22271">t</tspan> </tspan></tspan></text>
   </g>
 </svg>
