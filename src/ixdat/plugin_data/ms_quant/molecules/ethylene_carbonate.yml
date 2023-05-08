@@ -1,10 +1,24 @@
-M: 88.062
-density_RTP: 1321
-formula: C3H4O3
 name: ethylene carbonate
+formula: C3H4O3
+M: 88
+
+# ---- Thermochemistry ------ #
+# from https://webbook.nist.gov/cgi/cbook.cgi?ID=C96491&Units=SI&Mask=2#Thermo-Condensed
+thermo:
+  S0:  # [J/(mol*K)]
+    solid: 132.5
+  dfH0:  # [kJ/mol]
+    gas: -503.0  # https://webbook.nist.gov/cgi/cbook.cgi?ID=C96491&Units=SI&Mask=1#Thermo-Gas
+    liquid: -682.8
+    solid: -590.9
+
+# ---- Mass spectrometry ------ #
 primary: M30
+
 sigma:
-  '100': 8.7
+  '100': 8.7  # estimated as the sum of CO2 and C2H4
+
+# from https://webbook.nist.gov/cgi/cbook.cgi?ID=C96491&Units=SI&Mask=200#Mass-Spec
 spectrum:
   M12: 40
   M13: 99
@@ -36,10 +50,3 @@ spectrum:
   M88: 2549
   M89: 119
   M90: 20
-thermo:
-  S0:
-    solid: 132.5
-  dfH0:
-    gas: -503.0
-    liquid: -682.8
-    solid: -590.9

@@ -1,17 +1,41 @@
-D: 1.9e-09
-D_gas_RTP: null
-H_0: 0.004788235294117647
-M: 28.054
-T_c: 2087.5
-density_RTP: null
-dynamic_viscosity: 1.05e-05
-formula: null
-molecule_diameter: 4.163e-10
 name: C2H4
-primary: M28
-sigma:
+formula: C2H4
+M: 28
+
+# ---- Thermochemistry ------ #
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+thermo:
+  S0:
+    gas: 219.3  # [J/(mol*K)]
+  dfH0:
+    gas: 52.4  # [kJ/mol]
+
+# from https://henrys-law.org/henry/browse/
+H_0: 0.0048  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 2087.5 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 2.0e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: 4.163e-10  # [m]
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: 1.05e-05  # [Pa*s]
+
+
+# ---- Mass spectrometry ------ #
+primary: M28  # default mass to measure at
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+sigma:  # [Ang^2]
   '100': 4.974
   '70': 5.115
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 spectrum:
   M12: 0.500050005001
   M13: 0.900090009001
@@ -25,8 +49,3 @@ spectrum:
   M28: 100.0
   M29: 2.300230023
   M30: 0.100010001
-thermo:
-  S0:
-    gas: 219.3
-  dfH0:
-    gas: 52.4

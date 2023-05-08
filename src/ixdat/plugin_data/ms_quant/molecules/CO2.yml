@@ -1,16 +1,40 @@
-D: 1.92e-09
-D_gas_RTP: 5.8e-05
-H_0: 0.035272727272727275
-M: 44.009
-T_c: 2378.9473684210525
-density_RTP: 1.977
-dynamic_viscosity: 1.5000000000000002e-05
-formula: null
-molecule_diameter: 4.53e-10
 name: CO2
-primary: M44
-sigma:
+formula: CO2
+M: 44
+
+# ---- Thermochemistry ------ #
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+thermo:
+  S0:  # [J/(mol*K)]
+    gas: 213.8  
+  dfH0:  # [kJ/mol]
+    gas: -393.5  
+
+# from https://henrys-law.org/henry/browse/
+H_0: 0.0353  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 2380 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 1.92e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: 4.53e-10  # [m]
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: 1.5e-05  # [Pa*s]
+
+
+# ---- Mass spectrometry ------ #
+primary: M44  # default mass to measure at
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+sigma:  # [Ang^2]
   '100': 3.735
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 spectrum:
   M12: 8.71087108711
   M16: 9.61096109611
@@ -20,8 +44,3 @@ spectrum:
   M44: 100.0
   M45: 1.200120012
   M46: 0.400040004
-thermo:
-  S0:
-    gas: 213.8
-  dfH0:
-    gas: -393.5

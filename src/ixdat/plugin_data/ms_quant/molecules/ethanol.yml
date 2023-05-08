@@ -1,16 +1,41 @@
-D: 1.2e-09
-D_gas_RTP: null
-H_0: 167.31071428571428
-M: 46.069
-T_c: 6211.111111111111
-density_RTP: null
-dynamic_viscosity: null
-formula: null
-molecule_diameter: null
 name: ethanol
-primary: M31
-sigma:
+formula: C2H6O
+M: 46
+
+# ---- Thermochemistry ------ #
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+thermo:
+  S0: # [J/(mol*K)]
+    gas: 283   # https://en.wikipedia.org/wiki/Ethanol_(data_page)
+    liquid: 161
+  dfH0:  # [kJ/mol]
+    gas: -234.8 
+    liquid: -277
+
+# from https://henrys-law.org/henry/browse/
+H_0: 167.3  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 6210 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 1.2e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: null
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: null
+
+# ---- Mass spectrometry ------ #
+primary: M31  # default mass to measure at
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+sigma:  # [Ang^2]
   '100': 7.8
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 spectrum:
   M12: 0.200020002
   M13: 1.3901390139
@@ -35,10 +60,3 @@ spectrum:
   M45: 51.495149515
   M46: 21.6321632163
   M47: 0.730073007301
-thermo:
-  S0:
-    gas: 281.6
-    liquid: 161
-  dfH0:
-    gas: -234.8
-    liquid: -277

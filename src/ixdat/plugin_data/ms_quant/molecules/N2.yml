@@ -1,17 +1,33 @@
-D: 1.88e-09
-D_gas_RTP: 6.98e-05
-H_0: 0.0006445454545454545
-M: 28.014
-T_c: 1330.0
-density_RTP: 1.251
-dynamic_viscosity: 1.79e-05
-kH: 67.0
-molecule_diameter: 3.7e-10
 name: N2
-primary: M28
-real_name: N2
-sigma:
+formula: N2
+M: 28
+
+# ---- Thermochemistry ------ #
+
+# from https://henrys-law.org/henry/browse/
+H_0: 0.00064  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 1330 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 1.88e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: 3.7e-10  # [m]
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: 1.79e-05  # [Pa*s]
+
+
+# ---- Mass spectrometry ------ #
+primary: M28  # default mass to measure at
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+sigma:  # [Ang^2]
   '100': 2.615
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 spectrum:
   M14: 13.7913791379
   M28: 100.0

@@ -1,17 +1,41 @@
-D: 1.49e-09
-D_gas_RTP: 6.500000000000001e-05
-H_0: 0.0014
-M: 16.043
-T_c: 1700
-density_RTP: 0.668
-dynamic_viscosity: 1.11e-05
-formula: CH4
-molecule_diameter: 3.8e-10
 name: CH4
-primary: M15
-sigma:
+formula: CH4
+M: 16
+
+# ---- Thermochemistry ------ #
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+thermo:
+  S0:
+    gas: 186.7  # [J/(mol*K)]
+  dfH0:
+    gas: -74.9  # [kJ/mol]
+
+# from https://henrys-law.org/henry/browse/
+H_0: 0.0014  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 1700 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 1.49e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: 3.8e-10  # [m]
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: 1.11e-05  # [Pa*s]
+
+
+# ---- Mass spectrometry ------ #
+primary: M15  # default mass to measure at
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+sigma:  # [Ang^2]
   '100': 3.419
   '70': 3.524
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 spectrum:
   M12: 3.800380038
   M13: 10.6910691069
@@ -19,8 +43,3 @@ spectrum:
   M15: 88.798879888
   M16: 100.0
   M17: 1.6401640164
-thermo:
-  S0:
-    gas: 186.7
-  dfH0:
-    gas: -74.9

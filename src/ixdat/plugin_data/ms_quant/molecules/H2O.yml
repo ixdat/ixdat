@@ -1,26 +1,44 @@
-D: 2.27e-09
-D_gas_RTP: 2.4200000000000002e-05
-H_0: null
-M: 18.015
-T_c: null
-density_RTP: 0.804
-dynamic_viscosity: 9.800000000000001e-06
-formula: null
-molecule_diameter: 2.7799999999999997e-10
-name: H2O
-primary: M18
-sigma:
+name: water
+formula: H2O
+M: 18
+
+# ---- Thermochemistry ------ #
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+thermo:
+  S0: # [J/(mol*K)]
+    gas: 188.72
+    liquid: 69.94
+  dfH0:  # [kJ/mol]
+    gas: -241.82
+    liquid: -285.8
+
+# from https://henrys-law.org/henry/browse/
+H_0: 167.3  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 6210 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 2.27e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: 2.65e-10
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: 9.8e-06
+
+# ---- Mass spectrometry ------ #
+primary: M18  # default mass to measure at
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+sigma:  # [Ang^2]
   '100': 2.348
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 spectrum:
   M16: 0.900090009001
   M17: 21.2221222122
   M18: 100.0
   M19: 0.500050005001
   M20: 0.300030003
-thermo:
-  S0:
-    gas: 188.72
-    liquid: 69.94
-  dfH0:
-    gas: -241.82
-    liquid: -285.8

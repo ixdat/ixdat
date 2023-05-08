@@ -1,13 +1,16 @@
-M: 104.1
+name: ethyl methyl carbonate
 formula: C4H8O3
-name: ethylene carbonate
+M: 104
+
+# ---- Mass spectrometry ------ #
 primary: M45
+
+# from https://webbook.nist.gov/chemistry/form-ser/
 sigma:
-  '100': 12.1
+  '100': 12.1  # estimated as the sum of CO2, C2H4, and CH4
+
+# from https://webbook.nist.gov/cgi/cbook.cgi?ID=C623530&Units=SI&Mask=200#Mass-Spec
 spectrum:
-  M103: 10
-  M104: 30
-  M105: 10
   M13: 10
   M14: 99
   M15: 1929
@@ -51,3 +54,6 @@ spectrum:
   M78: 90
   M79: 30
   M89: 50
+  M103: 10
+  M104: 30
+  M105: 10

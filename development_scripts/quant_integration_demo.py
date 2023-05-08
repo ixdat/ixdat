@@ -3,8 +3,8 @@ import ixdat
 from ixdat import Measurement
 from ixdat.techniques.ms import MSInlet
 
+PATH_TO_DATA_FOLDER = Path(__file__).parent.parent / "submodules/ixdat-large-test-files/zilien_version_1"
 
-PATH_TO_DATA_FOLDER = Path(__file__).parent.parent / "test_data/Zilien version 1"
 ms = Measurement.read(
     PATH_TO_DATA_FOLDER / "2022-04-06 16_17_23 full set.tsv", technique="MS"
 )  # an MSMeasurement
@@ -24,7 +24,7 @@ native_cal = MSInlet().gas_flux_calibration(
 print(native_cal)  # An ixdat MSCalResult object
 
 # ---- Spectro Inlets calibration ----- #
-ixdat.config.plugins.use_si_quant = True
+ixdat.config.plugins.activate_si_quant()
 
 quant_cal = ms.gas_flux_calibration(mol="He", mass="M4", tspan=[100, 200])
 print(quant_cal)  # A CalPoint object of the external package
