@@ -6,8 +6,8 @@ import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be
 import warnings
 
 from ..measurements import Measurement, Calibration
-from ..spectra import Spectrum
-from ..plotters.ms_plotter import MSPlotter, STANDARD_COLORS
+from ..spectra import Spectrum, SpectroMeasurement
+from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADROS_CONSTANT,
@@ -1086,3 +1086,7 @@ class MSSpectrum(Spectrum):
     """
 
     pass
+
+
+class SpectroMSMeasurement(MSMeasurement, SpectroMeasurement):
+    default_plotter = SpectroMSPlotter

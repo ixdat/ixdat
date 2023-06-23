@@ -176,7 +176,8 @@ class Field(DataSeries):
                     f"{self} has {self.N_dimensions} axes but its data is "
                     f"{len(self._data.shape)}-dimensional."
                 )
-        return self._data
+        return self._data.copy()  # TODO: make data series data immutable with numpy flag
+        # see: https://github.com/ixdat/ixdat/pull/101/files#r1126172936
 
     @property
     def tstamp(self):

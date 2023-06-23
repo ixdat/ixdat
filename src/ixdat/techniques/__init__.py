@@ -9,13 +9,15 @@ Constants:
 
 from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammogram, CyclicVoltammagram  # The latter is deprecated.
-from .ms import MSMeasurement, MSCalibration
+from .ms import MSMeasurement, MSCalibration, SpectroMSMeasurement
 from .ec_ms import ECMSMeasurement, ECMSCalibration
 from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,
 )
+from .reactor import ReactorMeasurement, SpectroReactorMeasurement, ReactorCalibration
+
 from ..spectra import Spectrum
 from ..measurements import Measurement  # for importing in the technique modules
 
@@ -30,13 +32,18 @@ TECHNIQUE_CLASSES = {
     "XRD": Spectrum,
     "XPS": Spectrum,
     "XAS": Spectrum,
-    "EC-Optical": ECOpticalMeasurement,
     "SEC": SpectroECMeasurement,
+    "EC-Optical": ECOpticalMeasurement,
     "EC-XAS": ECXASMeasurement,
+    "MS-MS_spectra": SpectroMSMeasurement,
+    "reactor": ReactorMeasurement,
+    "reactor-MS_spectra": SpectroReactorMeasurement,
+    "S-EC": SpectroECMeasurement,
 }
 
 CALIBRATION_CLASSES = {
     "EC": ECCalibration,
     "MS": MSCalibration,
     "EC-MS": ECMSCalibration,
+    "reactor": ReactorCalibration,
 }

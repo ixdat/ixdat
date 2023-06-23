@@ -8,7 +8,7 @@ Constants:
 from ..techniques import TECHNIQUE_CLASSES
 
 # ixdat
-from .ixdat_csv import IxdatCSVReader
+from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 
 # potentiostats
 from .biologic import BiologicMPTReader
@@ -20,6 +20,7 @@ from .chi import CHInstrumentsTXTReader
 from .pfeiffer import PVMassSpecReader
 from .rgasoft import StanfordRGASoftReader
 from .cinfdata import CinfdataTXTReader
+from .cinfdata_db import CinfdataDBReader
 
 # ec-ms
 from .zilien import ZilienTSVReader, ZilienTMPReader, ZilienSpectrumReader
@@ -39,6 +40,7 @@ from .qexafs import QexafsDATReader
 
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
+    "ixdat_spectrum": IxdatSpectrumReader,
     "biologic": BiologicMPTReader,
     "avantage": AvantageAVGReader,
     "autolab": NovaASCIIReader,
@@ -47,6 +49,7 @@ READER_CLASSES = {
     "pfeiffer": PVMassSpecReader,
     "rgasoft": StanfordRGASoftReader,
     "cinfdata": CinfdataTXTReader,
+    "cinfdata_db": CinfdataDBReader,
     "zilien": ZilienTSVReader,
     "zilien_tmp": ZilienTMPReader,
     "zilien_spec": ZilienSpectrumReader,

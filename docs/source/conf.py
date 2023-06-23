@@ -19,7 +19,7 @@ sys.path.insert(0, str(src_dir))
 # -- Project information -----------------------------------------------------
 
 project = "ixdat"
-copyright = "2020, the ixdat team"
+copyright = "2020-2023, the ixdat team"
 author = "ixdat team"
 
 master_doc = "index"
