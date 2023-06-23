@@ -168,8 +168,9 @@ class _SIQuantDeps:
     @property
     def QUANT_DIRECTORY(self):
         if not self._QUANT_DIRECTORY:
-            self._QUANT_DIRECTORY = \
+            self._QUANT_DIRECTORY = (
                 config.standard_ixdat_directory / "plugin_data/ms_quant"
+            )
             if not self._QUANT_DIRECTORY.exists():
                 self._QUANT_DIRECTORY.mkdir(parents=True)
         return self._QUANT_DIRECTORY

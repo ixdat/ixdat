@@ -9,4 +9,3 @@ for folder_name in ["molecules", "chips"]:
             data = json.load(f)
         with open(file.with_suffix(".yml"), "w") as g:
             yaml.dump(data, g)
-

@@ -98,7 +98,7 @@ class MSMeasurement(Measurement):
                 item.lstrip("n_dot_"),
                 tspan=tspan,
                 tspan_bg=tspan_bg,
-                include_endpoints=include_endpoints
+                include_endpoints=include_endpoints,
             )
         time, value = super().grab(
             item, tspan=tspan, include_endpoints=include_endpoints

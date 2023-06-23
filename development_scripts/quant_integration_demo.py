@@ -3,7 +3,9 @@ import ixdat
 from ixdat import Measurement
 from ixdat.techniques.ms import MSInlet
 
-PATH_TO_DATA_FOLDER = Path(__file__).parent.parent / "submodules/ixdat-large-test-files/zilien_version_1"
+PATH_TO_DATA_FOLDER = (
+    Path(__file__).parent.parent / "submodules/ixdat-large-test-files/zilien_version_1"
+)
 
 ms = Measurement.read(
     PATH_TO_DATA_FOLDER / "2022-04-06 16_17_23 full set.tsv", technique="MS"
