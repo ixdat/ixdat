@@ -155,19 +155,21 @@ class _SIQuantDeps:
         self._QUANT_DIRECTORY = None
 
     def populate(self):
-        from spectro_inlets_quantification.chip import Chip
-        from spectro_inlets_quantification.molecule import Molecule
-        from spectro_inlets_quantification.calibration import Calibration, CalPoint
-        from spectro_inlets_quantification.quantifier import Quantifier
         from spectro_inlets_quantification.config import Config
-
-        self.Chip = Chip
-        self.Molecule = Molecule
-        self.Calibration = Calibration
-        self.CalPoint = CalPoint
-        self.Quantifier = Quantifier
+        from spectro_inlets_quantification.medium import Medium
+        from spectro_inlets_quantification.molecule import Molecule
+        from spectro_inlets_quantification.chip import Chip
+        from spectro_inlets_quantification.calibration import CalPoint, Calibration
+        from spectro_inlets_quantification.quantifier import Quantifier
 
         self.quant_config = Config()
+        self.medium = Medium()
+        self.Molecule = Molecule
+        self.Chip = Chip
+        self.CalPoint = CalPoint
+        self.Calibration = Calibration
+        self.Quantifier = Quantifier
+
 
     @property
     def QUANT_DIRECTORY(self):
