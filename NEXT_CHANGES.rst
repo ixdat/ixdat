@@ -26,7 +26,7 @@ Readers
 Techniques
 ^^^^^^^^^^
 - MS measurements now have access to the powerful ``spectro_inlets_quantification`` (siq)
-  package as a plugin. See `siq's documentation <https://github.com/SpectroInlets/spectro_inlets_quantification/blob/main/docs/source/theory/quant_ms.md>`_
+  package as a plugin. See `siq's documentation <https://spectroinlets-spectro-inlets-quantification.readthedocs-hosted.com/en/v1.1/theory/quant_ms.html>`_
   for details.
 
   To activate the plugin, use::
@@ -51,8 +51,9 @@ Techniques
   - ``MSMeasurement.grab_flux`` will, when siq is activated, run ``MSMeasurement.grab_fluxes``
     and return the requested flux vector.
 
-  SIQ comes with data for a small batch of molecules. To supplement this of yaml-formatted
-  molecule data, use (change to the folder where you have your data)::
+  SIQ comes with data for a small batch of molecules. To supplement this collection of
+  yaml-formatted molecule data, place new files in the QUANT_DIRECTORY. This can be set
+  as follows (change to the folder where you have your data)::
 
     ixdat.plugins.si_quant.QUANT_DIRECTORY = "~/projects/batteries/quantification_data"
 

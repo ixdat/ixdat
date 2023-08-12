@@ -116,7 +116,7 @@ class MSMeasurement(Measurement):
         """
         if plugins.use_si_quant and item.startswith("n_dot_"):
             return self.grab_flux(
-                item.lstrip("n_dot_"),
+                item.removeprefix("n_dot_"),
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 include_endpoints=include_endpoints,
