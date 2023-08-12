@@ -1,4 +1,5 @@
-import json, yaml
+import json
+import yaml
 from pathlib import Path
 
 data_dir = Path(__file__).parent.parent / "src/ixdat/plugin_data/ms_quant"
