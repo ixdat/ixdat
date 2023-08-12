@@ -193,10 +193,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         if plugins.use_si_quant:
             cal = plugins.si_quant.CalPoint(
-                mol=mol,
-                mass=mass,
-                F_type="internal",
-                F=F,
+                mol=mol, mass=mass, F_type="internal", F=F, date=self.yyMdd
             )
         else:
             cal = MSCalResult(

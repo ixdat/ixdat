@@ -376,7 +376,7 @@ class MSMeasurement(Measurement):
         n_dot = chip.calc_n_dot_0(gas=mol)
         S = self.grab_signal(mass, tspan=tspan)[1].mean()
         F = S / n_dot
-        return CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
+        return CalPoint(mol=mol, mass=mass, F=F, F_type="capillary", date=self.yyMdd)
 
     def gas_flux_calibration_curve(
         self,
@@ -496,12 +496,7 @@ class MSMeasurement(Measurement):
             n_dot_fit = np.array([0, max(n_dot_vec)])
             S_fit = n_dot_fit * pfit[0] + pfit[1]
             ax.plot(n_dot_fit * 1e9, S_fit * 1e9, "--", color=color)
-        cal = CalPoint(
-            mol=mol,
-            mass=mass,
-            F_type=cal_type,
-            F=F,
-        )
+        cal = CalPoint(mol=mol, mass=mass, F_type=cal_type, F=F, date=self.yyMdd)
         if return_ax:
             return cal, ax
         return cal
@@ -603,7 +598,9 @@ class MSMeasurement(Measurement):
             for M, mass in enumerate(mass_list):
                 F = F_weight_vec[i] * spectrum_mat[M, i]  # eq. 3
                 if F:
-                    cal = CalPoint(mol=mol, mass=mass, F=F, F_type="capillary")
+                    cal = CalPoint(
+                        mol=mol, mass=mass, F=F, F_type="capillary", date=self.yyMdd
+                    )
                     cal_list.append(cal)
 
         return Calibration(cal_list=cal_list)
