@@ -66,7 +66,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    data_files=[("plugin_data", ["plugin_data/*.json"])],
     install_requires=read("requirements.txt").split("\n"),
     python_requires=">=3.6",
 )

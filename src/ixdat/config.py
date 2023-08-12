@@ -170,7 +170,6 @@ class _SIQuantDeps:
         self.Calibration = Calibration
         self.Quantifier = Quantifier
 
-
     @property
     def QUANT_DIRECTORY(self):
         if not self._QUANT_DIRECTORY:

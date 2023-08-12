@@ -88,7 +88,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         del self_as_dict["s_ids"]
         self_as_dict["series_list"] = self.series_list
 
-        return ECMSCyclicVoltammogram.from_dict(self_as_dict)
+        ecms_cv = ECMSCyclicVoltammogram.from_dict(self_as_dict)
+        if self.quantifier:
+            ecms_cv.set_quantifier(self.quantifier)
+
+        return ecms_cv
 
     def ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
         """Calibrate for mol and mass based on one period of steady electrolysis
