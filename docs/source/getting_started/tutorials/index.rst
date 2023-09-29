@@ -12,51 +12,32 @@ Getting data in and out
 In ``ixdat`` your data is imported with a ``reader`` (specific to your data format) into a ``Measurement`` object and can then be plotted and/or 
 exported into a format of your choice. You can figure out how in this tutorial: 
 
-.. toctree::
-    :maxdepth: 1
-
-    data_in_and_out
-
-In the future there will also be a tutorial on data manipulation and treatment including how to cut and select different sections of your data, as well as 
-an introduction to calibration.
 
 Techniques
 ----------
 
-Each technique comes with its own methods developed specifically for the types of data handling that are of interest. For example, the electrochemistry technique subclass comes with a subclass ``CyclicVoltammogram`` which allows you to select your data according to cycles, the mass spectrometry technique subclass comes with a method to calibrate the MS signals, and the spectroelectrochemistry technique subclass with a method to set a reference spectrum. 
+Each technique comes with its own methods developed specifically for the types of data handling that are of interest. For example, the electrochemistry technique subclass comes with a subclass ``CyclicVoltammogram`` which allows you to select your data according to cycles, the mass spectrometry technique subclass comes with a method to calibrate the MS signals, and the spectroelectrochemistry technique subclass with a method to set a reference spectrum.
 The tutorials for the technique-specific methods are still work in progress - please, bear with us - you can find all the ones already available below.
 
-.. list-table:: 
-   :widths: 30 30
-   :header-rows: 1
-
-   * - Technique
-     - Tutorials
-   * - EC
-     - :ref:`ec_tutorials`
-   * - MS
-     - 
-   * - EC-MS
-     - :ref:`ecms_tutorial`
-   * - SEC
-     - :ref:`sec-tutorial`  
-   * - XRD
-     -
-
+As an open source project, ``ixdat`` is always happy to get contributions from the users, e.g. in form of new techniques.
 
 Advanced data handling
 ----------------------
 
-While the existing technique subclasses allow for a wide range of general and technique specific data treatment, sometimes this is not enough for your 
+While the existing technique subclasses allow for a wide range of general and technique specific data treatment, sometimes this is not enough for your
 individual needs. Luckily, ``ixdat`` also allows for direct data handling in array-type form. How to access data in this way is demonstrated in the tutorials on advanced data handling.
-
-As an open source project, ``ixdat`` is always happy to get contributions from the users, e.g. in form of new techniques.
 
 
 .. toctree::
     :maxdepth: 1
 
-    advanced_tutorials
+    L1_basic_concepts/01_readers.ipynb
+    L2_techniques/electrochemistry/02_comparing_cycles
+    L2_techniques/spectroelectrochemistry/spectroelectrochemistry_demo
+    L3_data_structure/01_reading_and_using_data
+
+In the future there will also be a tutorial on data manipulation and treatment including how to cut and select different sections of your data, as well as 
+an introduction to calibration.
 
 
 Download Jupyter notebook tutorials

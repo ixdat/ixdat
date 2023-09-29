@@ -46,7 +46,7 @@ class SpectrumExporter:
         with open(path_to_file, "w") as f:
             f.writelines(header_lines)
         with open(path_to_file, "a") as f:
-            df.to_csv(f, index=False, sep=self.delim, line_terminator="\n")
+            df.to_csv(f, index=False, sep=self.delim)
 
         print(f"wrote {path_to_file}!")
 
@@ -134,6 +134,6 @@ class SpectrumSeriesExporter:
         with open(path_to_file, "w") as f:
             f.writelines(header_lines)
         with open(path_to_file, "a") as f:
-            df.to_csv(f, index=False, sep=self.delim, line_terminator="\n")
+            df.to_csv(f, index=False, sep=self.delim)
 
         print(f"wrote {path_to_file}!")

@@ -14,7 +14,7 @@ from ..techniques import TECHNIQUE_CLASSES
 regular_expressions = {
     "name": r"^name = (\w+)",
     "tstamp": r"tstamp = ([0-9\.]+)",
-    "technique": r"technique = (\w+)\n",
+    "technique": r"technique = (.+)\n",
     "N_header_lines": r"N_header_lines = ([0-9]+)",
     "backend_name": r"backend_name = (\w+)",
     "id": r"id = ([0-9]+)",
@@ -307,7 +307,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
             x_name, y_name = tuple(df.keys())
             x = df[x_name].to_numpy()
             y = df[y_name].to_numpy()
-            cls = cls if issubclass(cls, Spectrum) else Spectrum
+            cls = cls if (cls and issubclass(cls, Spectrum)) else Spectrum
             return cls.from_data(  # see Spectrum.from_data()
                 x,
                 y,
@@ -354,7 +354,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 data=y,
                 axes_series=[tseries, xseries],
             )
-            cls = cls if issubclass(cls, SpectrumSeries) else SpectrumSeries
+            cls = cls if (cls and issubclass(cls, SpectrumSeries)) else SpectrumSeries
             return cls.from_field(  # see SpectrumSeries.from_field()
                 field, name=self.name, technique=self.technique, tstamp=self.tstamp
             )
