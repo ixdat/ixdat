@@ -25,7 +25,7 @@ from ..config import plugins
 
 
 def _with_quantifier(method):
-    """Decorate a Measurement-copying measurement to copy the quantifier to the new one.
+    """Decorate a Measurement-copying method to copy the quantifier to the new one.
 
     This means that the quantifier doesn't need to be re-applied when getting a
     subset of the measurement.
@@ -242,7 +242,7 @@ class MSMeasurement(Measurement):
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
                 "external MS quantification package "
-                "(`ixdat.options.use_si_quant = True`). "
+                "(`ixdat.plugins.activate_si_quant()`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
@@ -552,7 +552,7 @@ class MSMeasurement(Measurement):
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
                 "external MS quantification package "
-                "(`ixdat.options.use_si_quant = True`). "
+                "(`ixdat.plugins.activate_si_quant()`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )

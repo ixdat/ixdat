@@ -11,7 +11,7 @@ import numpy as np
 from . import TECHNIQUE_CLASSES
 from .reading_tools import timestamp_string_to_tstamp
 from ..data_series import TimeSeries, ValueSeries, ConstantValue
-from ..exceptions import ReadError
+from ..exceptions import ReadError, SeriesNotFoundError
 
 ECMeasurement = TECHNIQUE_CLASSES["EC"]
 delim = "\t"
@@ -42,11 +42,21 @@ def fix_WE_potential(measurement):
     replaces the series of zeros with the correct potential by adding the counter
     electrode potential ("<Ece>/V") and cell potential ("Ewe-Ece/V").
 
+    This function is not called automatically - it needs to be called manually on the
+    measurements loaded from the aflicted files. It requires that the counter electrode
+    potential was recorded.
+
     Args:
         measurement(ECMeasurement): The measurement with the column to be replaced
     """
     WE_series = measurement["<Ewe>/V"]
-    CE_data = measurement.grab_for_t("<Ece>/V", WE_series.t)
+    try:
+        CE_data = measurement.grab_for_t("<Ece>/V", WE_series.t)
+    except SeriesNotFoundError:
+        print("The function `fix_WE_potential` requires that the counter electrode "
+              "potential was recorded, and is in the file as '<Ece>/V.")
+        raise
+
     cell_potential_data = measurement.grab_for_t("Ewe-Ece/V", WE_series.t)
 
     WE_potential = cell_potential_data + CE_data
