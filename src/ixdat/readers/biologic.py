@@ -53,8 +53,10 @@ def fix_WE_potential(measurement):
     try:
         CE_data = measurement.grab_for_t("<Ece>/V", WE_series.t)
     except SeriesNotFoundError:
-        print("The function `fix_WE_potential` requires that the counter electrode "
-              "potential was recorded, and is in the file as '<Ece>/V.")
+        print(
+            "The function `fix_WE_potential` requires that the counter electrode "
+            "potential was recorded, and is in the file as '<Ece>/V."
+        )
         raise
 
     cell_potential_data = measurement.grab_for_t("Ewe-Ece/V", WE_series.t)
