@@ -12,11 +12,11 @@ from ..spectra import Spectrum, SpectrumSeries
 from ..techniques import TECHNIQUE_CLASSES
 
 regular_expressions = {
-    "name": r"^name = (\w+)",
-    "tstamp": r"tstamp = ([0-9\.]+)",
-    "technique": r"technique = (\w+)\n",
-    "N_header_lines": r"N_header_lines = ([0-9]+)",
-    "backend_name": r"backend_name = (\w+)",
+    "name": r"^name = (.+)\n",
+    "tstamp": r"tstamp = ([0-9\.]+)\n",
+    "technique": r"technique = (.+)\n",
+    "N_header_lines": r"N_header_lines = ([0-9]+)\n",
+    "backend_name": r"backend_name = (.+)\n",
     "id": r"id = ([0-9]+)",
     "timecol": r"timecol '(.+)' for: (?:'(.+)')$",
     "unit": r"/ \[(.+)\]",

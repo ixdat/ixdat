@@ -31,7 +31,8 @@ class _Config:
     def __init__(self):
         self.standard_metadata_suffix = ".ix"
         self.standard_data_suffix = ".ix.npy"
-        self.standard_data_directory = Path.home() / ".ixdat"
+        self.standard_ixdat_directory = Path.home() / ".ixdat"
+        self.standard_data_directory = self.standard_ixdat_directory / "projects"
         self.default_project_name = "test"
 
     @property
@@ -154,32 +155,35 @@ class _SIQuantDeps:
         self._QUANT_DIRECTORY = None
 
     def populate(self):
-        from spectro_inlets_quantification.chip import Chip
-        from spectro_inlets_quantification.molecule import Molecule
-        from spectro_inlets_quantification.calibration import Calibration, CalPoint
-        from spectro_inlets_quantification.quantifier import Quantifier
         from spectro_inlets_quantification.config import Config
-
-        self.Chip = Chip
-        self.Molecule = Molecule
-        self.Calibration = Calibration
-        self.CalPoint = CalPoint
-        self.Quantifier = Quantifier
+        from spectro_inlets_quantification.medium import Medium
+        from spectro_inlets_quantification.molecule import Molecule
+        from spectro_inlets_quantification.chip import Chip
+        from spectro_inlets_quantification.calibration import CalPoint, Calibration
+        from spectro_inlets_quantification.quantifier import Quantifier
 
         self.quant_config = Config()
-        self.quant_config.data_directory = self.QUANT_DIRECTORY
+        self.medium = Medium()
+        self.Molecule = Molecule
+        self.Chip = Chip
+        self.CalPoint = CalPoint
+        self.Calibration = Calibration
+        self.Quantifier = Quantifier
 
     @property
     def QUANT_DIRECTORY(self):
         if not self._QUANT_DIRECTORY:
-            self._QUANT_DIRECTORY = Path(__file__).parent / "plugin_data/ms_quant"
+            self._QUANT_DIRECTORY = (
+                config.standard_ixdat_directory / "plugin_data/ms_quant"
+            )
+            if not self._QUANT_DIRECTORY.exists():
+                self._QUANT_DIRECTORY.mkdir(parents=True)
         return self._QUANT_DIRECTORY
 
     @QUANT_DIRECTORY.setter
     def QUANT_DIRECTORY(self, quant_directory):
         self._QUANT_DIRECTORY = quant_directory
-        if self._USE_QUANT:
-            self._USE_QUANT = True  # gets the quant directory to be reset
+        self.quant_config.aux_data_directory = self.QUANT_DIRECTORY
 
 
 class _CinfData:

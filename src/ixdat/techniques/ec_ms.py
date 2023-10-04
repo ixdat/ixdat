@@ -7,6 +7,7 @@ from .cv import CyclicVoltammogram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
+from ..config import plugins
 
 
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
@@ -87,7 +88,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         del self_as_dict["s_ids"]
         self_as_dict["series_list"] = self.series_list
 
-        return ECMSCyclicVoltammogram.from_dict(self_as_dict)
+        ecms_cv = ECMSCyclicVoltammogram.from_dict(self_as_dict)
+        if self.quantifier:
+            ecms_cv.set_quantifier(self.quantifier)
+
+        return ecms_cv
 
     def ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
         """Calibrate for mol and mass based on one period of steady electrolysis
@@ -185,13 +190,20 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             n_fit = np.array([0, max(n_vec)])
             Y_fit = n_fit * pfit[0] + pfit[1]
             ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
-        cal = MSCalResult(
-            name=f"{mol}@{mass}",
-            mol=mol,
-            mass=mass,
-            cal_type="ecms_calibration_curve",
-            F=F,
-        )
+
+        if plugins.use_si_quant:
+            cal = plugins.si_quant.CalPoint(
+                mol=mol, mass=mass, F_type="internal", F=F, date=self.yyMdd
+            )
+        else:
+            cal = MSCalResult(
+                name=f"{mol}@{mass}",
+                mol=mol,
+                mass=mass,
+                cal_type="ecms_calibration_curve",
+                F=F,
+            )
+
         if return_ax:
             return cal, ax
         return cal
@@ -218,6 +230,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         Returns tspan_list(list of tspan)
         """
+        selector_name = selector_name or "selector"
         t_idx = -1
         if not t_steady_pulse:
             t_idx = 0
