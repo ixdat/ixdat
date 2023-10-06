@@ -1120,6 +1120,7 @@ class MSInlet:
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
+        axes_measurement_raw=False,
         return_ax=False,
     ):
         """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
@@ -1145,8 +1146,12 @@ class MSInlet:
             tspan_bg (tspan): The time to use as a background
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
-            axis_measurement (Axis): The MS plot axes to highlight the
-                ms_calibration on. Defaults to None. These axes are not returned.
+            axes_measurement (Axis): The MS plot axes to highlight the
+                ms_calibration on. Defaults to None.
+            axes_measurement_raw (bool): Whether the MS plot to highlight the
+            tspans for ms_calibration is showing raw data or bg subtracted data
+            Defaults to False, i.e. plotting data with the same bg subtraction as
+            used for the calibration.
             return_ax (bool): Whether to return the axis on which the calibration is
                 plotted together with the MSCalResult. Defaults to False.
 
@@ -1189,12 +1194,16 @@ class MSInlet:
             )
         else:
             cal_type = "gas_flux_calibration_curve"
+            mol_conc_ppm = 10**6
+            carrier_mol = mol
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axes_measurement:
-                axes_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
-                mol_conc_ppm = 10**6
-                carrier_mol = mol
+                if axes_measurement_raw == True:
+                    t_plot, S_plot = measurement.grab_signal(mass, tspan=tspan)
+                else: 
+                    t_plot, S_plot = t, S
+                axes_measurement.plot(t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5)
             n_dot = (
                 self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )
