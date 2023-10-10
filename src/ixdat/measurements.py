@@ -26,7 +26,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
-from .tools import deprecate
+from .tools import deprecate, tstamp_to_yyMdd
 
 
 class Measurement(Saveable):
@@ -411,6 +411,10 @@ class Measurement(Saveable):
         # new timestamp.
         self.clear_cache()
         self._tstamp = tstamp
+
+    @property
+    def yyMdd(self):
+        return tstamp_to_yyMdd(self.tstamp)
 
     @property
     def metadata_json_string(self):
