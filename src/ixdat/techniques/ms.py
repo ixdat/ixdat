@@ -1199,11 +1199,13 @@ class MSInlet:
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axes_measurement:
-                if axes_measurement_raw == True:
+                if axes_measurement_raw:
                     t_plot, S_plot = measurement.grab_signal(mass, tspan=tspan)
-                else: 
+                else:
                     t_plot, S_plot = t, S
-                axes_measurement.plot(t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5)
+                axes_measurement.plot(
+                    t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5
+                )
             n_dot = (
                 self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )

@@ -155,7 +155,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 Defaults to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
                 ms_calibration on. Defaults to None. These axes are not returned.
-            axes_measurement_J_name (str): The J_name used in the axis passed 
+            axes_measurement_J_name (str): The J_name used in the axis passed
             to axes_measurement. Must be passed manually as the axis does not "know"
             its J_name. Defaults to "raw_current". IMPORTANT: the method still uses
             "raw_current" to calculate the sensitivity factor, this J_name is only
@@ -177,7 +177,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         for tspan in tspan_list:
             Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
-            if axes_measurement: # FIXME: need to run twice, once to plot, once to calculate Q
+            if (
+                axes_measurement
+            ):  # FIXME: need to run twice, once to plot, once to calculate Q
                 self.integrate(axes_measurement_J_name, tspan=tspan, ax=axis_current)
             Q = self.integrate("raw_current", tspan=tspan)
             Q *= 1e-3  # mC --> [C]
