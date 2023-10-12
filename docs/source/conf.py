@@ -27,7 +27,7 @@ master_doc = "index"
 #   but it seems to still require an index.rst to show the page.
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.1"
+release = "0.2.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -48,6 +48,8 @@ extensions = [
     "sphinx.ext.viewcode",
     "nbsphinx",
 ]
+
+nbsphinx_execute = 'never'
 
 source_suffix = {".rst": "restructuredtext", ".txt": "restructuredtext"}
 # Add any paths that contain templates here, relative to this directory.
