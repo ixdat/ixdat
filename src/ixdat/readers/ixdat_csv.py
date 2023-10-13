@@ -278,7 +278,7 @@ def get_column_unit(column_name):
 class IxdatSpectrumReader(IxdatCSVReader):
     """A reader for ixdat spectra."""
 
-    def read(self, path_to_file, name=None, cls=None, **kwargs):
+    def read(self, path_to_file, name=None, cls=SpectrumSeries, **kwargs):
         """Read an ixdat spectrum.
 
         This reads the header with the process_line() function inherited from

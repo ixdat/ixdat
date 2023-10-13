@@ -1,6 +1,5 @@
 numpy>=1.16
 matplotlib>=3.2
-EC_MS>=0.7.4  # Temporary! For Zilien reading.
-scipy>=1.5  # for deconvolution (should be plugin?)
-mpmath>=1  # for deconvolution (should be plugin?
+scipy>=1.5
+mpmath>=1  # for deconvolution
 pandas>=1  # for some readers and an exporter.
