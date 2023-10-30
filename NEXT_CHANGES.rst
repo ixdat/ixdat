@@ -15,4 +15,25 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 ixdat 0.2.7
 ===========
 
+API Changes
+-----------
 
+
+
+Debugging
+---------
+
+general
+^^^^^^^
+- ``EC_MS`` is no longer a dependency
+  Resolves `Issue #128 <https://github.com/ixdat/ixdat/issues/124>`_
+
+exporters
+^^^^^^^^^
+- Fixed exporting and re-importing of ``ECOpticalMeasurment``s for new pandas version
+  Resolves `Issue #124 <https://github.com/ixdat/ixdat/issues/124>`_
+
+constants
+^^^^^^^^^
+- ``BOLTZMAN_CONSTANT`` renamed ``BOLTZMANN_CONSTANT``
+  Resolves `Issue #125 <https://github.com/ixdat/ixdat/issues/125>`_
