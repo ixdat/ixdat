@@ -471,12 +471,16 @@ class MSMeasurement(Measurement):
             )
         else:
             cal_type = "gas_flux_calibration_curve"
+            # redefine mol_conc_ppm_list to compensate for unit correction done
+            # in the calculation of n_dot below
+            mol_conc_ppm = 10**6
+            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
+            # specify that the gas given as mol is now the carrier_mol
+            carrier_mol = mol
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axis_measurement:
                 axis_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
-                mol_conc_ppm = 10**6
-                carrier_mol = mol
             n_dot = (
                 chip.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )
