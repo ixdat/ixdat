@@ -18,9 +18,9 @@ ixdat 0.2.7
 
 API changes
 -----------
+
 techniques
 ^^^^^^^^^^^
-
 
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
  a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
@@ -42,12 +42,17 @@ general
 - ``EC_MS`` is no longer a dependency
   Resolves `Issue #128 <https://github.com/ixdat/ixdat/issues/124>`_
 
+measurement
+^^^^^^^^^^^
+- ``cut`` no longer crashes when one of the component measurements is empty.
+  Resolves `Issue #93 <https://github.com/ixdat/ixdat/issues/93>`_
+
 techniques
 ^^^^^^^^^^^
 
 - ``MSInlet.gas_flux_calibration_curve()`` now works also when passing an
   axes_measurement 
-  Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
+  Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
 exporters
 ^^^^^^^^^
