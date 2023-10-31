@@ -19,8 +19,8 @@ Far = NA * qe  # Faraday's constant, C/mol
 
 # long-form aliases
 FARADAY_CONSTANT = Far
-AVOGADROS_CONSTANT = NA
-BOLTZMAN_CONSTANT = kB
+AVOGADRO_CONSTANT = NA
+BOLTZMANN_CONSTANT = kB
 
 # standard conditions
 STANDARD_TEMPERATURE = 298.15  # Standard temperature of 25 C in [K]
@@ -28,6 +28,8 @@ STANDARD_PRESSURE = 1e5  # Standard pressure of 1 bar in [Pa]
 
 # molecule properties (should probably come from elsewhere).
 # TODO: Move these viscosities to external MS quantification package
+#    They are only used by MSInlet, which is deprecated.
+#    See https://github.com/ixdat/ixdat/issues/122
 
 DYNAMIC_VISCOSITIES = {  # Values is found on engineeringtoolbox.com [22C30]
     "O2": np.array(

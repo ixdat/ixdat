@@ -10,8 +10,8 @@ from ..spectra import Spectrum, SpectroMeasurement
 from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
 from ..constants import (
-    AVOGADROS_CONSTANT,
-    BOLTZMAN_CONSTANT,
+    AVOGADRO_CONSTANT,
+    BOLTZMANN_CONSTANT,
     STANDARD_TEMPERATURE,
     STANDARD_PRESSURE,
     DYNAMIC_VISCOSITIES,
@@ -1016,7 +1016,7 @@ class MSInlet:
         eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
 
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
-        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
+        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADRO_CONSTANT  # molecule mass in [kg]
 
         d = ((w_cap * h_cap) / pi) ** 0.5 * 2
         # d = 4.4e-6  #used in Henriksen2009
@@ -1024,19 +1024,19 @@ class MSInlet:
         p_1 = p
         lambda_ = d  # defining the transitional pressure
         # ...from setting mean free path equal to capillary d
-        p_t = BOLTZMAN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
+        p_t = BOLTZMANN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
         p_2 = 0
         p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
-        v_m = (8 * BOLTZMAN_CONSTANT * T / (pi * m)) ** 0.5
+        v_m = (8 * BOLTZMANN_CONSTANT * T / (pi * m)) ** 0.5
         # a reciprocal velocity used for short-hand:
-        nu = (m / (BOLTZMAN_CONSTANT * T)) ** 0.5
+        nu = (m / (BOLTZMANN_CONSTANT * T)) ** 0.5
 
         # ... and now, we're ready for the capillary equation.
         #   (need to turn of black and flake8 for tolerable format)
         # fmt: off
         #   Equation 4.10 of Daniel Trimarco's PhD Thesis:
         N_dot = (                                                               # noqa
-            1 / (BOLTZMAN_CONSTANT * T) * 1 / l_cap * (                         # noqa
+                1 / (BOLTZMANN_CONSTANT * T) * 1 / l_cap * (                         # noqa
                 (p_t - p_2) * a**3 * 2 * pi / 3 * v_m + (p_1 - p_t) * (         # noqa
                     a**4 * pi / (8 * eta) * p_m  + a**3 * 2 * pi / 3 * v_m * (  # noqa
                         (1 + 2 * a * nu * p_m / eta) / (                        # noqa
@@ -1047,7 +1047,7 @@ class MSInlet:
             )                                                                   # noqa
         )                                                                       # noqa
         # fmt: on
-        n_dot = N_dot / AVOGADROS_CONSTANT
+        n_dot = N_dot / AVOGADRO_CONSTANT
         return n_dot
 
     def gas_flux_calibration(

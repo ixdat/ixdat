@@ -12,12 +12,15 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
+
 ixdat 0.2.7
 ===========
+
 API changes
 -----------
 techniques
 ^^^^^^^^^^^
+
 
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
  a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
@@ -30,11 +33,28 @@ passing a J_name to be used for highlighting the integrated current passed to
 only plotting.
     Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
 
+
 Debugging
 ---------
+
+general
+^^^^^^^
+- ``EC_MS`` is no longer a dependency
+  Resolves `Issue #128 <https://github.com/ixdat/ixdat/issues/124>`_
+
 techniques
 ^^^^^^^^^^^
 
 - ``MSInlet.gas_flux_calibration_curve()`` now works also when passing an
   axes_measurement 
   Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
+
+exporters
+^^^^^^^^^
+- Fixed exporting and re-importing of ``ECOpticalMeasurment``s for new pandas version
+  Resolves `Issue #124 <https://github.com/ixdat/ixdat/issues/124>`_
+
+constants
+^^^^^^^^^
+- ``BOLTZMAN_CONSTANT`` renamed ``BOLTZMANN_CONSTANT``
+  Resolves `Issue #125 <https://github.com/ixdat/ixdat/issues/125>`_
