@@ -1003,6 +1003,8 @@ class Measurement(Saveable):
             return None
         for t_name in self.time_names:
             t = self[t_name].data
+            if len(t) == 0:
+                return None
             t_start = t[0] if t_start is None else min(t_start, t[0])
             t_finish = t[-1] if t_finish is None else max(t_finish, t[-1])
         return [t_start, t_finish]
