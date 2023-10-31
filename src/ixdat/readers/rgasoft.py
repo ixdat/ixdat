@@ -1,6 +1,5 @@
 """A reader for text exports from the potentiostat software of CH Instruments"""
 
-from EC_MS import Dataset
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
 from ..techniques import MSMeasurement
 
@@ -17,6 +16,14 @@ class StanfordRGASoftReader:
             path_to_file (Path or str): The file to read
             cls (Measurement subclass): The class to return. Defaults to ECMeasuremnt
         """
+        try:
+            from EC_MS import Dataset
+        except ImportError:
+            print(
+                "The ixdat StanfordRGASoftReader relies on the EC_MS package.\n"
+                "Use `pip install EC_MS`. \n"
+                "Alternatively considering writing a new Reader for ixdat!"
+            )
 
         # with open(path_to_file, "r") as f:
         #     timestamp_string = f.readline().strip()

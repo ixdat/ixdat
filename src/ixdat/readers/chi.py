@@ -1,6 +1,5 @@
 """A reader for text exports from the RGA Software of Stanford Instruments"""
 
-from EC_MS import Dataset
 from .ec_ms_pkl import measurement_from_ec_ms_dataset
 from ..techniques import ECMeasurement
 
@@ -27,6 +26,15 @@ class CHInstrumentsTXTReader:
             path_to_file (Path or str): The file to read
             cls (Measurement subclass): The class to return. Defaults to ECMeasuremnt
         """
+        try:
+            from EC_MS import Dataset
+        except ImportError:
+            print(
+                "The ixdat CHInstrumentsTXTReader relies on the EC_MS package.\n"
+                "Use `pip install EC_MS`. \n"
+                "Alternatively considering writing a new Reader for ixdat!"
+            )
+
         self.path_to_file = path_to_file
         cls = cls if (cls and not issubclass(ECMeasurement, cls)) else ECMeasurement
         ec_ms_dataset = Dataset(path_to_file, data_type="CHI")

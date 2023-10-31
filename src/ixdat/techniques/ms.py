@@ -10,8 +10,8 @@ from ..spectra import Spectrum, SpectroMeasurement
 from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
 from ..constants import (
-    AVOGADROS_CONSTANT,
-    BOLTZMAN_CONSTANT,
+    AVOGADRO_CONSTANT,
+    BOLTZMANN_CONSTANT,
     STANDARD_TEMPERATURE,
     STANDARD_PRESSURE,
     DYNAMIC_VISCOSITIES,
@@ -471,12 +471,16 @@ class MSMeasurement(Measurement):
             )
         else:
             cal_type = "gas_flux_calibration_curve"
+            # redefine mol_conc_ppm_list to compensate for unit correction done
+            # in the calculation of n_dot below
+            mol_conc_ppm = 10**6
+            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
+            # specify that the gas given as mol is now the carrier_mol
+            carrier_mol = mol
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axis_measurement:
                 axis_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
-                mol_conc_ppm = 10**6
-                carrier_mol = mol
             n_dot = (
                 chip.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )
@@ -1012,7 +1016,7 @@ class MSInlet:
         eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
 
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
-        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADROS_CONSTANT  # molecule mass in [kg]
+        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADRO_CONSTANT  # molecule mass in [kg]
 
         d = ((w_cap * h_cap) / pi) ** 0.5 * 2
         # d = 4.4e-6  #used in Henriksen2009
@@ -1020,19 +1024,19 @@ class MSInlet:
         p_1 = p
         lambda_ = d  # defining the transitional pressure
         # ...from setting mean free path equal to capillary d
-        p_t = BOLTZMAN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
+        p_t = BOLTZMANN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
         p_2 = 0
         p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
-        v_m = (8 * BOLTZMAN_CONSTANT * T / (pi * m)) ** 0.5
+        v_m = (8 * BOLTZMANN_CONSTANT * T / (pi * m)) ** 0.5
         # a reciprocal velocity used for short-hand:
-        nu = (m / (BOLTZMAN_CONSTANT * T)) ** 0.5
+        nu = (m / (BOLTZMANN_CONSTANT * T)) ** 0.5
 
         # ... and now, we're ready for the capillary equation.
         #   (need to turn of black and flake8 for tolerable format)
         # fmt: off
         #   Equation 4.10 of Daniel Trimarco's PhD Thesis:
         N_dot = (                                                               # noqa
-            1 / (BOLTZMAN_CONSTANT * T) * 1 / l_cap * (                         # noqa
+                1 / (BOLTZMANN_CONSTANT * T) * 1 / l_cap * (                         # noqa
                 (p_t - p_2) * a**3 * 2 * pi / 3 * v_m + (p_1 - p_t) * (         # noqa
                     a**4 * pi / (8 * eta) * p_m  + a**3 * 2 * pi / 3 * v_m * (  # noqa
                         (1 + 2 * a * nu * p_m / eta) / (                        # noqa
@@ -1043,7 +1047,7 @@ class MSInlet:
             )                                                                   # noqa
         )                                                                       # noqa
         # fmt: on
-        n_dot = N_dot / AVOGADROS_CONSTANT
+        n_dot = N_dot / AVOGADRO_CONSTANT
         return n_dot
 
     def gas_flux_calibration(
@@ -1120,6 +1124,7 @@ class MSInlet:
         tspan_bg=None,
         ax="new",
         axes_measurement=None,
+        axes_measurement_raw=False,
         return_ax=False,
     ):
         """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
@@ -1145,8 +1150,12 @@ class MSInlet:
             tspan_bg (tspan): The time to use as a background
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
-            axis_measurement (Axis): The MS plot axes to highlight the
-                ms_calibration on. Defaults to None. These axes are not returned.
+            axes_measurement (Axis): The MS plot axes to highlight the
+                ms_calibration on. Defaults to None.
+            axes_measurement_raw (bool): Whether the MS plot to highlight the
+            tspans for ms_calibration is showing raw data or bg subtracted data
+            Defaults to False, i.e. plotting data with the same bg subtraction as
+            used for the calibration.
             return_ax (bool): Whether to return the axis on which the calibration is
                 plotted together with the MSCalResult. Defaults to False.
 
@@ -1189,12 +1198,18 @@ class MSInlet:
             )
         else:
             cal_type = "gas_flux_calibration_curve"
+            mol_conc_ppm = 10**6
+            carrier_mol = mol
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axes_measurement:
-                axes_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
-                mol_conc_ppm = 10**6
-                carrier_mol = mol
+                if axes_measurement_raw:
+                    t_plot, S_plot = measurement.grab_signal(mass, tspan=tspan)
+                else:
+                    t_plot, S_plot = t, S
+                axes_measurement.plot(
+                    t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5
+                )
             n_dot = (
                 self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )
