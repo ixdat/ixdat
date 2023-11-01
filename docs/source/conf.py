@@ -49,7 +49,7 @@ extensions = [
     "nbsphinx",
 ]
 
-nbsphinx_execute = 'never'
+nbsphinx_execute = "never"
 
 source_suffix = {".rst": "restructuredtext", ".txt": "restructuredtext"}
 # Add any paths that contain templates here, relative to this directory.

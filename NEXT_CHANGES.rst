@@ -16,6 +16,12 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 ixdat 0.2.7
 ===========
 
+Documentation
+-------------
+Jupyter notebook tutorials are now compiled to .rst with nbsphinx.
+This solves ``Issue #115 <https://github.com/ixdat/ixdat/issues/115>`_
+
+
 API changes
 -----------
 techniques
@@ -25,13 +31,13 @@ techniques
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
  a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
  ``axes_measurement`` are raw signal data (i.e. not background subtracted)
-    Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
+    Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
 - ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of 
 passing a J_name to be used for highlighting the integrated current passed to
 ``axes_measurement``. This does not affect the calculation of sensitivity factors, 
 only plotting.
-    Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
+    Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118>`_
 
 
 Debugging
@@ -47,7 +53,7 @@ techniques
 
 - ``MSInlet.gas_flux_calibration_curve()`` now works also when passing an
   axes_measurement 
-  Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
+  Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
 exporters
 ^^^^^^^^^
