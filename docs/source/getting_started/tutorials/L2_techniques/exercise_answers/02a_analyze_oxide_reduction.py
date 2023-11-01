@@ -14,7 +14,7 @@ from ixdat.techniques import CyclicVoltammogram as CV
 plt.close("all")
 
 meas = CV.read_url(
-    "https://raw.githubusercontent.com/ixdat/tutorials/main/electrochemistry/data/oxide_reduction.csv",
+    "https://raw.githubusercontent.com/ixdat/tutorials/main/L3_data_structure/exports/oxide_reduction.csv",
     reader="ixdat",
 )
 
