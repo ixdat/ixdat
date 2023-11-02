@@ -133,6 +133,17 @@ And then run command for testing with ``--external`` option::
     pytest tests --external
 
 
+Maintaining a copy of the tutorials with ``git subtree``
+******************************************************
+
+The tutorials for ixdat is developed in a
+`separate repository <https://github.com/ixdat/tutorials>`_. But these tutorials are copied into
+the ixdat repository in order to be able to generate docs from the Jupyter notebooks. This copy
+is maintained via a git feature called ``git subtree``. The copy of the tutorials in ixdat can
+be updated with new changes with the following command::
+
+    git subtree pull --prefix docs/source/getting_started/tutorials/tutorials_repo https://github.com/ixdat/tutorials.git main --squash
+
 Write to us
 ***********
 We'd love to know what you're working on and help with any issues developing, even
