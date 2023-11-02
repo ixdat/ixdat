@@ -5,6 +5,7 @@ Sphinx
 sphinx-rtd-theme
 sphinx_automodapi
 nbsphinx
+ipython
 EC_MS
 flake8==4.0.1
 twine
