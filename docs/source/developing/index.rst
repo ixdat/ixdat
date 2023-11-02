@@ -134,7 +134,7 @@ And then run command for testing with ``--external`` option::
 
 
 Maintaining a copy of the tutorials with ``git subtree``
-******************************************************
+********************************************************
 
 The tutorials for ixdat is developed in a
 `separate repository <https://github.com/ixdat/tutorials>`_. But these tutorials are copied into
