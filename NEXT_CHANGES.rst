@@ -54,6 +54,11 @@ techniques
   axes_measurement 
   Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
+readers
+^^^^^^^
+- Zilien MS spectrum reader fixed.
+  Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
+
 exporters
 ^^^^^^^^^
 - Fixed exporting and re-importing of ``ECOpticalMeasurment``s for new pandas version
