@@ -67,7 +67,7 @@ https://github.com/ixdat/tutorials/blob/main/L1_basic_concepts/01_Readers.ipynb
 .. toctree::
     :maxdepth: 1
 
-    L1_basic_concepts/01_readers.ipynb
+    tutorials_repo/L1_basic_concepts/01_Readers.ipynb
 
 
 .. _ec_tutorials:
@@ -79,7 +79,7 @@ https://github.com/ixdat/tutorials/blob/main/L2_techniques/electrochemistry/02_c
 .. toctree::
     :maxdepth: 1
 
-    L2_techniques/electrochemistry/02_comparing_cycles
+    tutorials_repo/L2_techniques/electrochemistry/02_comparing_cycles
 
 
 .. _ecms_tutorial:
@@ -91,7 +91,7 @@ https://github.com/ixdat/tutorials/blob/main/L2_techniques/ec_ms_quantification/
 .. toctree::
     :maxdepth: 1
 
-    L2_techniques/ec_ms_quantification/EC-MS_ixdat_tutorial
+    tutorials_repo/ec_ms_quantification/EC-MS_ixdat_tutorial
 
 .. _sec_tutorial:
 
@@ -102,7 +102,7 @@ https://github.com/ixdat/tutorials/blob/main/L2_techniques/spectroelectrochemist
 .. toctree::
     :maxdepth: 1
 
-    L2_techniques/spectroelectrochemistry/spectroelectrochemistry_demo
+    tutorials_repo/L2_techniques/spectroelectrochemistry/spectroelectrochemistry_demo
 
 
 .. _data_tutorial:
@@ -114,7 +114,7 @@ https://github.com/ixdat/tutorials/blob/main/L3_data_structure/01_reading_and_us
 .. toctree::
     :maxdepth: 1
 
-    L3_data_structure/01_reading_and_using_data
+    tutorials_repo/L3_data_structure/01_reading_and_using_data
 
 
 This repository is a bit of a mess at the moment, apologies, but the tutorials themselves are
