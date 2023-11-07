@@ -20,7 +20,7 @@ API changes
 -----------
 
 techniques
-^^^^^^^^^^^
+^^^^^^^^^^
 
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
  a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
@@ -32,6 +32,11 @@ passing a J_name to be used for highlighting the integrated current passed to
 ``axes_measurement``. This does not affect the calculation of sensitivity factors, 
 only plotting.
     Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
+
+readers
+^^^^^^^
+- biologic readers now recognize both "Ece/V" and "<Ece>/V" as "raw_CE_potential".
+  Resolves `Issue #110 <https://github.com/ixdat/ixdat/issues/110`_
 
 
 Debugging
