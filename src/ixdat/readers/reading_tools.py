@@ -13,6 +13,7 @@ USA_TIMESTAMP_FORM = "%m/%d/%Y %H:%M:%S"  # like '12/31/2020 23:59:59'
 FLOAT_MATCH = "[-]?\\d+[\\.]?\\d*(?:e[-]?\\d+)?"  # matches floats like '5' or '-2.3e5'
 DEFAULT_READER_NAMES = {
     ".mpt": "biologic",
+    ".mpr": "biologic",
     ".tsv": "zilien",
     ".xrdml": "xrdml",
     ".avg": "avantage",
@@ -98,6 +99,8 @@ def series_list_from_dataframe(
     dataframe, time_name, tstamp, unit_finding_function, **kwargs
 ):
     """Return a list of DataSeries with the data in a pandas dataframe.
+
+    The first series in the returned list is the one shared TimeSeries.
 
     Args:
         dataframe (pandas dataframe): The dataframe. Column names are used as series

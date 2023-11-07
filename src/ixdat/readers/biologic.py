@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from . import TECHNIQUE_CLASSES
-from .reading_tools import timestamp_string_to_tstamp
+from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
 from ..data_series import TimeSeries, ValueSeries, ConstantValue
 from ..exceptions import ReadError, SeriesNotFoundError
 
@@ -116,7 +116,7 @@ class BiologicReader:
         if path_to_file.suffix == ".mpr":
             return BiologicMPRReader().read(path_to_file, name=name, cls=cls, **kwargs)
 
-    def update_aliases_and_ensure_essential_series(self):
+    def _update_aliases_and_ensure_essential_series(self):
         """A helper function completing the data_series_list for biologic readers."""
         series_names = [s.name for s in self.data_series_list]
         # First, check if any of the biologic aliases are
@@ -274,7 +274,7 @@ class BiologicMPTReader(BiologicReader):
             )
             self.data_series_list.append(vseries)
 
-        self.update_aliases_and_ensure_essential_series()
+        self._update_aliases_and_ensure_essential_series()
 
         obj_as_dict = dict(
             name=self.measurement_name,
@@ -452,36 +452,20 @@ class BiologicMPRReader(BiologicReader):
         tstamp = self.df.attrs["log"]["posix_timestamp"]
         ec_technique = self.df.attrs["settings"]["technique"]
 
-        t_str_base = t_str.split("/")[0]
-        # ^ the unit-free name of the time column, i.e. "time"
-
-        # Build the time series:
-        self.tseries = TimeSeries(
-            name=t_str_base,  # this gets added to aliases below.
-            data=self.df[t_str_base].to_numpy(),  # it's stored without units here
-            unit_name=units[t_str_base],
+        # Build the time series from the dataframe
+        self.data_series_list = series_list_from_dataframe(
+            self.df,
+            time_name=t_str.split("/")[0],
+            # ^ the unit-free name of the time column, i.e."time"
             tstamp=tstamp,
+            unit_finding_function=units.get,
+            # ^to find a column's unit, look it up in the dictionary `units`
         )
-        self.data_series_list = [self.tseries]
-        # Put the columns of the dataframe into value series:
-        for series_name, pd_series in self.df.items():
-            if series_name == t_str_base:  # don't duplicate the time series.
-                continue
-            if series_name in units:
-                unit_name = units[series_name]
-            else:
-                unit_name = None
-            vseries = ValueSeries(
-                name=str(series_name),
-                data=pd_series.to_numpy(),
-                unit_name=unit_name,
-                tseries=self.tseries,
-            )
-            self.data_series_list.append(vseries)
+        self.tseries = self.data_series_list[0]  # needed for the helper methods.
 
-        # Call helper functions to ensure everything is there:
-        self.update_aliases_and_ensure_essential_series()
-        self.build_loop_number()
+        # Call helper methods to ensure everything is there:
+        self._update_aliases_and_ensure_essential_series()
+        self._build_loop_number()
 
         # Pack it and send it back in a measurement:
         obj_as_dict = dict(
@@ -500,7 +484,7 @@ class BiologicMPRReader(BiologicReader):
 
         return self.measurement
 
-    def build_loop_number(self):
+    def _build_loop_number(self):
         """A helper function to make the loop number from the .mpr metadata"""
         try:
             loops = self.df.attrs["loops"]

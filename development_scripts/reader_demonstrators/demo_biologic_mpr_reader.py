@@ -17,9 +17,7 @@ df = eclabfiles.to_df(data_file)
 
 from ixdat import Measurement
 
-meas = Measurement.read_set(
-    data_dir / "05_O2dose_COox_03_LSV_C01.mpr", reader="biologic"
-)
+meas = Measurement.read(data_dir / "05_O2dose_COox_03_LSV_C01.mpr", reader="biologic")
 # unfortunately the CVA and CA files in that same folder do not work.
 
 meas.plot(J_str="loop number")
