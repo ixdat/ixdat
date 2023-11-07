@@ -4,7 +4,8 @@ from pathlib import Path
 from ixdat import Spectrum
 
 path_to_file = (
-    Path.home() / "Dropbox/ixdat_resources/test_data/zilien_spectra"
+    Path.home()
+    / "Dropbox/ixdat_resources/test_data/zilien_spectra"
     / "mass scan started at measurement time 0001700.tsv"
 )
 
