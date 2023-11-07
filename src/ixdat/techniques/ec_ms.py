@@ -1,5 +1,6 @@
 """Module for representation and analysis of EC-MS measurements"""
 import numpy as np
+from scipy.optimize import minimize
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration
@@ -130,6 +131,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         selector_list=None,
         t_steady_pulse=None,
         tspan_bg=None,
+        force_through_zero=False,
         ax="new",
         axes_measurement=None,
         axes_measurement_J_name="raw_current",
@@ -151,15 +153,17 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             t_steady_pulse (float): Length of steady electrolysis for each segment
                 given by selector_list. Defaults to None = entire length of segment
             tspan_bg (tspan): The time to use as a background
+            force_through_zero (boolean): Whether to force the calibration curve through
+                zero. This can be done when confident in the background subtraction.
             ax (Axis): The axis on which to plot the ms_calibration curve result.
                 Defaults to a new axis.
             axes_measurement (list of Axes): The EC-MS plot axes to highlight the
                 ms_calibration on. Defaults to None. These axes are not returned.
             axes_measurement_J_name (str): The J_name used in the axis passed
-            to axes_measurement. Must be passed manually as the axis does not "know"
-            its J_name. Defaults to "raw_current". IMPORTANT: the method still uses
-            "raw_current" to calculate the sensitivity factor, this J_name is only
-            used for plotting.
+                to axes_measurement. Must be passed manually as the axis does not "know"
+                its J_name. Defaults to "raw_current". IMPORTANT: the method still uses
+                "raw_current" to calculate the sensitivity factor, this J_name is only
+                used for plotting.
             return_ax (bool): Whether to return the axis on which the calibration curve
                 is plotted together with the MSCalResult. Defaults to False.
 
@@ -188,8 +192,21 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             n_list.append(n)
         n_vec = np.array(n_list)
         Y_vec = np.array(Y_list)
-        pfit = np.polyfit(n_vec, Y_vec, deg=1)
-        F = pfit[0]
+        n_fit = np.array([0, max(n_vec)])
+        if force_through_zero:
+
+            def rms_error(F_guess):
+                return np.mean((Y_vec - F_guess * n_vec) ** 2)
+
+            F_guess_0 = np.sum(Y_vec) / np.sum(n_vec)
+            res = minimize(rms_error, F_guess_0)
+            F = res.x[0]
+            Y_fit = n_fit * F
+        else:
+            pfit = np.polyfit(n_vec, Y_vec, deg=1)
+            F = pfit[0]
+            Y_fit = n_fit * pfit[0] + pfit[1]
+
         if ax:
             color = STANDARD_COLORS[mass]
             if ax == "new":
@@ -197,8 +214,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 ax.set_xlabel("amount produced / [nmol]")
                 ax.set_ylabel("integrated signal / [nC]")
             ax.plot(n_vec * 1e9, Y_vec * 1e9, "o", color=color)
-            n_fit = np.array([0, max(n_vec)])
-            Y_fit = n_fit * pfit[0] + pfit[1]
             ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
 
         if plugins.use_si_quant:

@@ -27,6 +27,10 @@ techniques
  ``axes_measurement`` are raw signal data (i.e. not background subtracted)
     Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
 
+- ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of
+forcing the line of best fit through zero with ``force_through_zero``
+    Resolves `Issue #109 <https://github.com/ixdat/ixdat/issues/109`_
+
 - ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of 
 passing a J_name to be used for highlighting the integrated current passed to
 ``axes_measurement``. This does not affect the calculation of sensitivity factors, 
