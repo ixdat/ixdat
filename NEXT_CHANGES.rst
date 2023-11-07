@@ -19,6 +19,14 @@ ixdat 0.2.7
 API changes
 -----------
 
+readers
+^^^^^^^
+- ``BiologicMPRReader`` to read biologic .mpr files using the ``eclabfiles`` package.
+  That package is not added as a requirement - instead if the user tries to read the
+  file without having it installed, they are encouraged to export .mpt instead.
+  ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
+  Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
+
 techniques
 ^^^^^^^^^^^
 
@@ -46,6 +54,10 @@ measurement
 ^^^^^^^^^^^
 - ``cut`` no longer crashes when one of the component measurements is empty.
   Resolves `Issue #93 <https://github.com/ixdat/ixdat/issues/93>`_
+
+- If a series name is present in the raw data *and* in in a measurement's ``aliases``,
+  the raw data series matching the name and the aliased series are appended. (Before,
+  only the raw data series matching the name would be returned.)
 
 techniques
 ^^^^^^^^^^^
