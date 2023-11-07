@@ -54,6 +54,9 @@ techniques
   axes_measurement 
   Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
+- ``CyclicVoltammogram.calibrate()`` now works, passing arguments on to a new ``ECCalibration``
+  Resolves `Issue #111 <https://github.com/ixdat/ixdat/issues/111>`_
+
 readers
 ^^^^^^^
 - Zilien MS spectrum reader fixed.

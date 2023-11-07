@@ -83,6 +83,9 @@ if False:  # check a save-load round trip
 # check the cyclic voltammatry selection stuff
 
 cv = combined_meas.as_cv()
+
+cv.calibrate(RE_vs_RHE=0.72)
+
 cv_selection = cv[10:16]
 
 cv_selection.plot_measurement(J_name="cycle")
