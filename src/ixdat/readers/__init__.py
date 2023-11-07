@@ -11,7 +11,7 @@ from ..techniques import TECHNIQUE_CLASSES
 from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 
 # potentiostats
-from .biologic import BiologicMPTReader
+from .biologic import BiologicReader
 from .autolab import NovaASCIIReader
 from .ivium import IviumDatasetReader
 from .chi import CHInstrumentsTXTReader
@@ -41,7 +41,7 @@ from .qexafs import QexafsDATReader
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "ixdat_spectrum": IxdatSpectrumReader,
-    "biologic": BiologicMPTReader,
+    "biologic": BiologicReader,
     "avantage": AvantageAVGReader,
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
