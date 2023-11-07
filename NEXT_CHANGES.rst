@@ -59,6 +59,11 @@ readers
 - Zilien MS spectrum reader fixed.
   Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
 
+plotters
+^^^^^^^^
+- ``ECOpticalPlotter.plot_wavelengths_vs_potential()`` now returns a list of axes.
+  Resolves `Issue #121 <https://github.com/ixdat/ixdat/issues/121>`_
+
 exporters
 ^^^^^^^^^
 - Fixed exporting and re-importing of ``ECOpticalMeasurment``s for new pandas version

@@ -381,6 +381,7 @@ class ECOpticalPlotter(SECPlotter):
         self.ec_plotter.plot_measurement(
             measurement=measurement, axes=[axes[1], axes[3]], tspan=tspan, **kwargs
         )
+        return axes
 
     def plot_wavelengths_vs_potential(
         self,
@@ -429,3 +430,4 @@ class ECOpticalPlotter(SECPlotter):
         self.ec_plotter.plot_vs_potential(
             measurement=measurement, ax=axes[1], tspan=tspan, **kwargs
         )
+        return axes
