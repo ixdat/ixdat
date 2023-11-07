@@ -5,7 +5,7 @@ from pathlib import Path
 from ixdat import Measurement
 from ixdat.techniques import MSMeasurement, ECMeasurement
 
-data_dir = Path(r"~\Dropbox\ixdat_resources\test_data\zilien_with_ec").expanduser()
+data_dir = Path.home() / ("Dropbox/ixdat_resources/test_data/zilien_with_ec")
 
 path_to_file = data_dir / "2021-02-01 17_44_12.tsv"
 
