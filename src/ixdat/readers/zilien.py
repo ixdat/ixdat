@@ -25,10 +25,11 @@ from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
 from ..techniques.ms import MSSpectrum
 from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
+from ..exceptions import ReadError
 
 
 ZILIEN_TIMESTAMP_FORM = "%Y-%m-%d %H_%M_%S"  # like 2021-03-15 18_50_10
-
+ZILIEN_MASS_COLUMN_NAMES = ["Mass  [AMU]", "Mass [AMU]"]
 ZILIEN_EC_ALIASES = {
     "t": ["Potential time [s]"],
     "raw_potential": ["Voltage [V]"],
@@ -601,18 +602,23 @@ class ZilienSpectrumReader:
             self.path_to_spectrum = Path(path_to_spectrum)
         cls = cls or MSSpectrum
         df = pd.read_csv(
-            path_to_spectrum,
+            self.path_to_spectrum,
             header=9,
             delimiter="\t",
         )
         y_name = "Current [A]"
 
-        for x_name in ["Mass  [AMU]", "Mass [AMU]"]:
+        for x_name in ZILIEN_MASS_COLUMN_NAMES:
             try:
                 x = df[x_name].to_numpy()
             except KeyError:
                 continue
             break
+        else:
+            raise ReadError(
+                f"Can't find a mass column in {self.path_to_spectrum}. "
+                f"Looked for one of {ZILIEN_MASS_COLUMN_NAMES}"
+            )
         y = df[y_name].to_numpy()
         with open(self.path_to_spectrum, "r") as f:
             for i in range(10):
@@ -630,7 +636,7 @@ class ZilienSpectrumReader:
             ],
         )
         obj_as_dict = {
-            "name": path_to_spectrum.name,
+            "name": self.path_to_spectrum.name,
             "technique": "MS",
             "field": field,
             "reader": self,
