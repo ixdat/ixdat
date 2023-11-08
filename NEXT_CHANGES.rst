@@ -28,10 +28,18 @@ techniques
     Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
 
 - ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of 
-passing a J_name to be used for highlighting the integrated current passed to
-``axes_measurement``. This does not affect the calculation of sensitivity factors, 
-only plotting.
+  passing a J_name to be used for highlighting the integrated current passed to
+  ``axes_measurement``. This does not affect the calculation of sensitivity factors,
+  only plotting.
     Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
+
+- Native MS calibration methods are moved from ``MSInlet`` to ``MSMeasurement``.
+  Meanwhile, those using ``spectro_inlets_quantification`` are prefixed with ``siq_``,
+  e.g. use ``ms_meas.gas_flux_calibration(...)`` for native ixdat MS calibration and
+  ``ms_meas.siq_gas_flux_calibration(...)`` to use the more powerful siq equivalents.
+  Resolves `Issue #122 <https://github.com/ixdat/ixdat/issues/122>`_
+
+- ``spectro_inlets_quantification`` is consistently abbreviated ``siq``.
 
 
 Debugging
