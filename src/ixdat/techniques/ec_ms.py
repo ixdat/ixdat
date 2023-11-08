@@ -2,7 +2,7 @@
 import numpy as np
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
-from .ms import MSMeasurement, MSCalResult, MSCalibration
+from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
 from .cv import CyclicVoltammogram
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
@@ -80,6 +80,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         """The tspan of an MS measurement is the tspan of its potential data"""
         return [self.t[0], self.t[-1]]
 
+    @_with_siq_quantifier
     def as_cv(self):
         self_as_dict = self.as_dict()
 
@@ -89,8 +90,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         self_as_dict["series_list"] = self.series_list
 
         ecms_cv = ECMSCyclicVoltammogram.from_dict(self_as_dict)
-        if self.quantifier:
-            ecms_cv.set_quantifier(self.quantifier)
 
         return ecms_cv
 
@@ -201,7 +200,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             Y_fit = n_fit * pfit[0] + pfit[1]
             ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
 
-        if plugins.use_si_quant:
+        if plugins.use_siq:
             cal = plugins.siq.CalPoint(
                 mol=mol, mass=mass, F_type="internal", F=F, date=self.yyMdd
             )
