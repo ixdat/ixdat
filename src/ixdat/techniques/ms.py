@@ -24,7 +24,7 @@ from ..tools import deprecate
 from ..config import plugins
 
 
-def _with_quantifier(method):
+def _with_siq_quantifier(method):
     """Decorate a Measurement-copying method to copy the quantifier to the new one.
 
     This means that the quantifier doesn't need to be re-applied when getting a
@@ -35,14 +35,14 @@ def _with_quantifier(method):
     and indexing for CyclicVoltammogram objects.
     """
 
-    def method_with_quantifier(*args, **kwargs):
+    def method_with_siq_quantifier(*args, **kwargs):
         new_measurement = method(*args, **kwargs)
         old_measurement = args[0]
-        if old_measurement.quantifier:
-            new_measurement.set_quantifier(old_measurement.quantifier)
+        if old_measurement.siq_quantifier:
+            new_measurement.set_siq_quantifier(old_measurement.siq_quantifier)
         return new_measurement
 
-    return method_with_quantifier
+    return method_with_siq_quantifier
 
 
 class MSMeasurement(Measurement):
@@ -55,7 +55,7 @@ class MSMeasurement(Measurement):
         tspan_bg = kwargs.pop("tspan_bg", None)
         super().__init__(name, **kwargs)
         self.tspan_bg = tspan_bg
-        self._quantifier = None  # Used with external quantification package
+        self._siq_quantifier = None  # Used with external quantification package
 
     @property
     def ms_calibration(self):
@@ -197,7 +197,7 @@ class MSMeasurement(Measurement):
             # quantifier's sensitivity matrix. But this method only returns one.
             # TODO: The results should therefore be cached. But how to know when they
             #   need to be recalculated?
-            t, n_dots = self.grab_fluxes(
+            t, n_dots = self.grab_siq_fluxes(
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
@@ -225,7 +225,7 @@ class MSMeasurement(Measurement):
             include_endpoints=include_endpoints,
         )
 
-    def grab_fluxes(
+    def grab_siq_fluxes(
         self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
     ):
         """Return a time vector and a dictionary with all the quantified fluxes
@@ -246,7 +246,7 @@ class MSMeasurement(Measurement):
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        sm = self._quantifier.sm
+        sm = self._siq_quantifier.sm
         signals = {}
         t = None
         for mass in sm.mass_list:
@@ -348,7 +348,198 @@ class MSMeasurement(Measurement):
             return self.as_mass(new_item)
         raise TypeError(f"{self} does not recognize '{item}' as a mass.")
 
-    def gas_flux_calibration(self, mol, mass, tspan, chip=None):
+    def gas_flux_calibration(
+        self,
+        inlet,
+        mol,
+        mass,
+        tspan=None,
+        tspan_bg=None,
+        ax=None,
+        carrier_mol=None,
+        mol_conc_ppm=None,
+    ):
+        """
+        Fit mol's sensitivity at mass based on period with steady gas composition.
+
+        Args:
+            inlet (MSInlet): An object with a `calc_n_dot_0` method for total flux to
+                the vacuum chamber containing the mass spectrometer.
+            mol (str): The name of the molecule to calibrate
+            mass (str): The mass to calibrate at
+            tspan (iter): The timespan to average the signal over. Defaults to all
+            tspan_bg (iter): Optional timespan at which the signal is at its background.
+            ax (matplotlib axis): The axis on which to indicate what signal is used
+                with a thicker line. Defaults to none
+            carrier_mol (str): The name of the molecule of the carrier gas if
+                a dilute analyte is used. Calibration assumes total flux of the
+                capillary is the same as the flux of pure carrier gas. Defaults
+                to None.
+            mol_conc_ppm (float): Concentration of the dilute analyte in the carrier gas
+                in ppm. Defaults to None.
+
+        Returns MSCalResult: a MS calibration result containing the sensitivity factor
+            for mol at mass
+        """
+        t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
+        if ax:
+            ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+        if carrier_mol:
+            if mol_conc_ppm:
+                cal_type = "carrier_gas_flux_calibration"
+            else:
+                raise QuantificationError(
+                    "Cannot use carrier gas calibration without analyte"
+                    " concentration. mol_conc_ppm is missing."
+                )
+        elif mol_conc_ppm:
+            raise QuantificationError(
+                "Cannot use carrier gas calibration without carrier"
+                " gas definition. carrier_mol is missing."
+            )
+        else:
+            cal_type = "gas_flux_calibration"
+            mol_conc_ppm = 10**6
+            carrier_mol = mol
+        n_dot = inlet.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
+        F = np.mean(S) / n_dot
+        return MSCalResult(
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type=cal_type,
+            F=F,
+        )
+
+    def gas_flux_calibration_curve(
+        self,
+        inlet,
+        mol,
+        mass,
+        tspan_list=None,
+        carrier_mol=None,
+        mol_conc_ppm=None,
+        p_inlet=None,
+        tspan_bg=None,
+        ax="new",
+        axis_measurement=None,
+        return_ax=False,
+    ):
+        """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
+
+        Args:
+            inlet (MSInlet): An object with a `calc_n_dot_0` method for total flux to
+                the vacuum chamber containing the mass spectrometer.
+            mol (str): Name of the molecule to calibrate
+            mass (str): Name of the mass at which to calibrate
+            tspan_list (list of tspan): The timespans of steady concentration
+                or pressure
+            carrier_mol (str): The name of the molecule of the carrier gas if
+                a dilute analyte is used. Calibration assumes total flux of the
+                capillary is the same as the flux of pure carrier gas. Defaults
+                to None.
+            mol_conc_ppm (float, list): Concentration of the dilute analyte in
+                the carrier gas in ppm. Defaults to None. Accepts float (for pressure
+                calibration) or list for concentration calibration. If list needs
+                to be same length as tspan_list or selector_list.
+            p_inlet (float, list): Pressure at the inlet (Pa). Overwrites the pressure
+                inherent to self (i.e. the MSInlet object). Accepts float (for conc.
+                calibration) or list for pressure calibration. If list, then
+                needs to be same length as tspan_list or selector_list.
+            tspan_bg (tspan): The time to use as a background
+            ax (Axis): The axis on which to plot the ms_calibration curve result.
+                Defaults to a new axis.
+            axis_measurement (Axis): The MS plot axes to highlight the
+                ms_calibration on. Defaults to None.
+            tspans for ms_calibration is showing raw data or bg subtracted data
+            Defaults to False, i.e. plotting data with the same bg subtraction as
+            used for the calibration.
+            return_ax (bool): Whether to return the axis on which the calibration is
+                plotted together with the MSCalResult. Defaults to False.
+
+        Return MSCalResult(, Axis): The result of the MS calibration (and calibration
+            curve axis if requested) based on flux calculation during selected time
+            periods.
+        TODO: automatically recognize the pressure from measurement (if available)
+        """
+        # prepare three lists to loop over to determine molecule flux in the
+        # different periods of steady gas composition
+
+        # prepare three lists to loop over to determine molecule flux in the
+        # different periods of steady gas composition
+        if not isinstance(mol_conc_ppm, list):
+            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
+        else:
+            mol_conc_ppm_list = mol_conc_ppm
+        if isinstance(p_inlet, list):
+            p_list = p_inlet
+        else:
+            p_list = [p_inlet for _ in tspan_list]
+        if not len(mol_conc_ppm_list) == len(p_list) == len(tspan_list):
+            raise ValueError(
+                "Length of input lists for concentrations"
+                " and tspan or pressures and tspan is not equal"
+            )
+        S_list = []
+        n_dot_list = []
+        if carrier_mol:
+            if None not in mol_conc_ppm_list:
+                cal_type = "carrier_gas_flux_calibration_curve"
+            else:
+                raise QuantificationError(
+                    "Cannot use carrier gas calibration without analyte"
+                    " concentration. 'mol_conc_ppm' is missing. For a pure gas,"
+                    "use 'mol' instead of 'carrier_mol' and don't give a 'mol_conc_ppm'"
+                )
+        elif None not in mol_conc_ppm_list:
+            raise QuantificationError(
+                "Cannot use carrier gas calibration without carrier"
+                " gas definition. 'carrier_mol' is missing. For a pure gas,"
+                "use 'mol' instead of 'carrier_mol' and don't give a 'mol_conc_ppm'"
+            )
+        else:
+            cal_type = "gas_flux_calibration_curve"
+            # redefine mol_conc_ppm_list to compensate for unit correction done
+            # in the calculation of n_dot below
+            mol_conc_ppm = 10**6
+            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
+            # specify that the gas given as mol is now the carrier_mol
+            carrier_mol = mol
+        for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
+            t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
+            if axis_measurement:
+                axis_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+            n_dot = (
+                inlet.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
+            )
+            S_list.append(np.mean(S))
+            n_dot_list.append(n_dot)
+        n_dot_vec = np.array(n_dot_list)
+        S_vec = np.array(S_list)
+        pfit = np.polyfit(n_dot_vec, S_vec, deg=1)
+        F = pfit[0]
+        if ax:
+            color = STANDARD_COLORS[mass]
+            if ax == "new":
+                ax = self.plotter.new_ax(
+                    xlabel="molecule flux / [nmol/s]", ylabel="signal / [nA]"
+                )
+            ax.plot(n_dot_vec * 1e9, S_vec * 1e9, "o", color=color)
+            n_dot_fit = np.array([0, max(n_dot_vec)])
+            S_fit = n_dot_fit * pfit[0] + pfit[1]
+            ax.plot(n_dot_fit * 1e9, S_fit * 1e9, "--", color=color)
+        cal = MSCalResult(
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type=cal_type,
+            F=F,
+        )
+        if return_ax:
+            return cal, ax
+        return cal
+
+    def siq_gas_flux_calibration(self, mol, mass, tspan, chip=None):
         """Simple pure-gas flux calibration, using external MS quantification package
 
         Args:
@@ -361,16 +552,16 @@ class MSMeasurement(Measurement):
         Returns CalPoint: An object from the external MS quantification package,
            representing the calibration result
         """
-        if not plugins.use_si_quant:
+        if not plugins.use_si_qquant:
             raise QuantificationError(
-                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "`MSMeasurement.gas_flux_calibration_siq` only works when using an "
                 "external MS quantification package "
                 "(`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        Chip = plugins.si_quant.Chip
-        CalPoint = plugins.si_quant.CalPoint
+        Chip = plugins.siq.Chip
+        CalPoint = plugins.siq.CalPoint
 
         chip = chip or Chip()
         n_dot = chip.calc_n_dot_0(gas=mol)
@@ -378,7 +569,7 @@ class MSMeasurement(Measurement):
         F = S / n_dot
         return CalPoint(mol=mol, mass=mass, F=F, F_type="capillary", date=self.yyMdd)
 
-    def gas_flux_calibration_curve(
+    def siq_gas_flux_calibration_curve(
         self,
         mol,
         mass,
@@ -432,80 +623,31 @@ class MSMeasurement(Measurement):
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        Chip = plugins.si_quant.Chip
-        CalPoint = plugins.si_quant.CalPoint
+        Chip = plugins.siq.Chip
+        CalPoint = plugins.siq.CalPoint
 
         chip = chip or Chip()
 
-        # prepare three lists to loop over to determine molecule flux in the
-        # different periods of steady gas composition
-        if not isinstance(mol_conc_ppm, list):
-            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
-        else:
-            mol_conc_ppm_list = mol_conc_ppm
-        if isinstance(p_inlet, list):
-            p_list = p_inlet
-        else:
-            p_list = [p_inlet for _ in tspan_list]
-        if not len(mol_conc_ppm_list) == len(p_list) == len(tspan_list):
-            raise ValueError(
-                "Length of input lists for concentrations"
-                " and tspan or pressures and tspan is not equal"
-            )
-        S_list = []
-        n_dot_list = []
-        if carrier_mol:
-            if None not in mol_conc_ppm_list:
-                cal_type = "carrier_gas_flux_calibration_curve"
-            else:
-                raise QuantificationError(
-                    "Cannot use carrier gas calibration without analyte"
-                    " concentration. 'mol_conc_ppm' is missing. For a pure gas,"
-                    "use 'mol' instead of 'carrier_mol' and don't give a 'mol_conc_ppm'"
-                )
-        elif None not in mol_conc_ppm_list:
-            raise QuantificationError(
-                "Cannot use carrier gas calibration without carrier"
-                " gas definition. 'carrier_mol' is missing. For a pure gas,"
-                "use 'mol' instead of 'carrier_mol' and don't give a 'mol_conc_ppm'"
-            )
-        else:
-            cal_type = "gas_flux_calibration_curve"
-            # redefine mol_conc_ppm_list to compensate for unit correction done
-            # in the calculation of n_dot below
-            mol_conc_ppm = 10**6
-            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
-            # specify that the gas given as mol is now the carrier_mol
-            carrier_mol = mol
-        for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
-            t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
-            if axis_measurement:
-                axis_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
-            n_dot = (
-                chip.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
-            )
-            S_list.append(np.mean(S))
-            n_dot_list.append(n_dot)
-        n_dot_vec = np.array(n_dot_list)
-        S_vec = np.array(S_list)
-        pfit = np.polyfit(n_dot_vec, S_vec, deg=1)
-        F = pfit[0]
-        if ax:
-            color = STANDARD_COLORS[mass]
-            if ax == "new":
-                ax = self.plotter.new_ax(
-                    xlabel="molecule flux / [nmol/s]", ylabel="signal / [nA]"
-                )
-            ax.plot(n_dot_vec * 1e9, S_vec * 1e9, "o", color=color)
-            n_dot_fit = np.array([0, max(n_dot_vec)])
-            S_fit = n_dot_fit * pfit[0] + pfit[1]
-            ax.plot(n_dot_fit * 1e9, S_fit * 1e9, "--", color=color)
-        cal = CalPoint(mol=mol, mass=mass, F_type=cal_type, F=F, date=self.yyMdd)
+        cal, ax = self.gas_flux_calibration_curve(
+            inlet=chip,
+            mol=mol,
+            mass=mass,
+            tspan_list=tspan_list,
+            carrier_mol=carrier_mol,
+            mol_conc_ppm=mol_conc_ppm,
+            p_inlet=p_inlet,
+            tspan_bg=tspan_bg,
+            ax=ax,
+            axis_measurement=axis_measurement,
+            return_ax=True,
+        )
+
+        cal = CalPoint(mol=mol, mass=mass, F_type="capillary", F=cal.F, date=self.yyMdd)
         if return_ax:
             return cal, ax
         return cal
 
-    def multicomp_gas_flux_calibration(
+    def siq_multicomp_gas_flux_calibration(
         self, mol_list, mass_list, gas, tspan, gas_bg=None, tspan_bg=None, chip=None
     ):
         """Calibration of multiple components of a calibration gas simultaneously
@@ -560,9 +702,9 @@ class MSMeasurement(Measurement):
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
             )
-        Chip = plugins.si_quant.Chip
-        CalPoint = plugins.si_quant.CalPoint
-        Calibration = plugins.si_quant.Calibration
+        Chip = plugins.siq.Chip
+        CalPoint = plugins.siq.CalPoint
+        Calibration = plugins.siq.Calibration
 
         chip = chip or Chip()
         chip.gas = gas
@@ -609,7 +751,7 @@ class MSMeasurement(Measurement):
 
         return Calibration(cal_list=cal_list)
 
-    def set_quantifier(
+    def set_siq_quantifier(
         self,
         quantifier=None,
         calibration=None,
@@ -661,14 +803,14 @@ class MSMeasurement(Measurement):
                 "(`ixdat.options.use_si_quant = True`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
             )
-        Quantifier = plugins.si_quant.Quantifier
+        Quantifier = plugins.siq.Quantifier
 
         if quantifier:
-            self._quantifier = quantifier
+            self._siq_quantifier = quantifier
         else:
             mol_list = mol_list or calibration.mol_list
             mass_list = mass_list or calibration.mass_list
-            self._quantifier = Quantifier(
+            self._siq_quantifier = Quantifier(
                 calibration=calibration,
                 mol_list=mol_list,
                 mass_list=mass_list,
@@ -676,11 +818,11 @@ class MSMeasurement(Measurement):
             )
 
     @property
-    def quantifier(self):
-        return self._quantifier
+    def siq_quantifier(self):
+        return self._siq_quantifier
 
-    cut = _with_quantifier(Measurement.cut)
-    multicut = _with_quantifier(Measurement.multicut)
+    cut = _with_siq_quantifier(Measurement.cut)
+    multicut = _with_siq_quantifier(Measurement.multicut)
 
 
 class MSCalResult(Saveable):
@@ -888,15 +1030,6 @@ class MSInlet:
     spectrometer. The default is a Spectro Inlets EC-MS chip.
     """
 
-    @deprecate(
-        last_supported_release="0.2.5",
-        update_message=(
-            "please use a third-party inlet instead, such as "
-            "`spectro_inlets_quantification.chip.Chip`"
-        ),
-        hard_deprecation_release="0.3.0",
-        remove_release="1.0.0",
-    )
     def __init__(
         self,
         *,
@@ -1050,6 +1183,12 @@ class MSInlet:
         n_dot = N_dot / AVOGADRO_CONSTANT
         return n_dot
 
+    @deprecate(
+        last_supported_release="0.2.5",
+        update_message=("`gas_flux_calibration` is now a method of `MSMeasurement`"),
+        hard_deprecation_release="0.3.0",
+        remove_release="1.0.0",
+    )
     def gas_flux_calibration(
         self,
         measurement,
@@ -1061,57 +1200,25 @@ class MSInlet:
         carrier_mol=None,
         mol_conc_ppm=None,
     ):
-        """
-        Fit mol's sensitivity at mass based on period with steady gas composition.
-
-        Args:
-            measurement (MSMeasurement): The measurement with the calibration data
-            mol (str): The name of the molecule to calibrate
-            mass (str): The mass to calibrate at
-            tspan (iter): The timespan to average the signal over. Defaults to all
-            tspan_bg (iter): Optional timespan at which the signal is at its background.
-            ax (matplotlib axis): The axis on which to indicate what signal is used
-                with a thicker line. Defaults to none
-            carrier_mol (str): The name of the molecule of the carrier gas if
-                a dilute analyte is used. Calibration assumes total flux of the
-                capillary is the same as the flux of pure carrier gas. Defaults
-                to None.
-            mol_conc_ppm (float): Concentration of the dilute analyte in the carrier gas
-                in ppm. Defaults to None.
-
-        Returns MSCalResult: a MS calibration result containing the sensitivity factor
-            for mol at mass
-        """
-        t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
-        if ax:
-            ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
-        if carrier_mol:
-            if mol_conc_ppm:
-                cal_type = "carrier_gas_flux_calibration"
-            else:
-                raise QuantificationError(
-                    "Cannot use carrier gas calibration without analyte"
-                    " concentration. mol_conc_ppm is missing."
-                )
-        elif mol_conc_ppm:
-            raise QuantificationError(
-                "Cannot use carrier gas calibration without carrier"
-                " gas definition. carrier_mol is missing."
-            )
-        else:
-            cal_type = "gas_flux_calibration"
-            mol_conc_ppm = 10**6
-            carrier_mol = mol
-        n_dot = self.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
-        F = np.mean(S) / n_dot
-        return MSCalResult(
-            name=f"{mol}@{mass}",
+        return measurement.gas_flux_calibration(
             mol=mol,
+            inlet=self,
             mass=mass,
-            cal_type=cal_type,
-            F=F,
+            tspan=tspan,
+            tspan_bg=tspan_bg,
+            ax=ax,
+            carrier_mol=carrier_mol,
+            mol_conc_ppm=mol_conc_ppm,
         )
 
+    @deprecate(
+        last_supported_release="0.2.5",
+        update_message=(
+            "`gas_flux_calibration_curve` is now a method of `MSMeasurement`"
+        ),
+        hard_deprecation_release="0.3.0",
+        remove_release="1.0.0",
+    )
     def gas_flux_calibration_curve(
         self,
         measurement,
@@ -1123,122 +1230,22 @@ class MSInlet:
         p_inlet=None,
         tspan_bg=None,
         ax="new",
-        axes_measurement=None,
-        axes_measurement_raw=False,
+        axis_measurement=None,
         return_ax=False,
     ):
-        """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
-
-        Args:
-            measurement (MSMeasurement): The measurement with the calibration data
-            mol (str): Name of the molecule to calibrate
-            mass (str): Name of the mass at which to calibrate
-            tspan_list (list of tspan): The timespans of steady concentration
-                or pressure
-            carrier_mol (str): The name of the molecule of the carrier gas if
-                a dilute analyte is used. Calibration assumes total flux of the
-                capillary is the same as the flux of pure carrier gas. Defaults
-                to None.
-            mol_conc_ppm (float, list): Concentration of the dilute analyte in
-                the carrier gas in ppm. Defaults to None. Accepts float (for pressure
-                calibration) or list for concentration calibration. If list needs
-                to be same length as tspan_list or selector_list.
-            p_inlet (float, list): Pressure at the inlet (Pa). Overwrites the pressure
-                inherent to self (i.e. the MSInlet object). Accepts float (for conc.
-                calibration) or list for pressure calibration. If list, then
-                needs to be same length as tspan_list or selector_list.
-            tspan_bg (tspan): The time to use as a background
-            ax (Axis): The axis on which to plot the ms_calibration curve result.
-                Defaults to a new axis.
-            axes_measurement (Axis): The MS plot axes to highlight the
-                ms_calibration on. Defaults to None.
-            axes_measurement_raw (bool): Whether the MS plot to highlight the
-            tspans for ms_calibration is showing raw data or bg subtracted data
-            Defaults to False, i.e. plotting data with the same bg subtraction as
-            used for the calibration.
-            return_ax (bool): Whether to return the axis on which the calibration is
-                plotted together with the MSCalResult. Defaults to False.
-
-        Return MSCalResult(, Axis): The result of the MS calibration (and calibration
-            curve axis if requested) based on flux calculation during selected time
-            periods.
-        TODO: automatically recognize the pressure from measurement (if available)
-        """
-        # prepare three lists to loop over to determine molecule flux in the
-        # different periods of steady gas composition
-        if not isinstance(mol_conc_ppm, list):
-            mol_conc_ppm_list = [mol_conc_ppm for x in tspan_list]
-        else:
-            mol_conc_ppm_list = mol_conc_ppm
-        if isinstance(p_inlet, list):
-            p_list = p_inlet
-        else:
-            p_list = [p_inlet for _ in tspan_list]
-        if not len(mol_conc_ppm_list) == len(p_list) == len(tspan_list):
-            raise ValueError(
-                "Length of input lists for concentrations"
-                " and tspan or pressures and tspan is not equal"
-            )
-        S_list = []
-        n_dot_list = []
-        if carrier_mol:
-            if None not in mol_conc_ppm_list:
-                cal_type = "carrier_gas_flux_calibration_curve"
-            else:
-                raise QuantificationError(
-                    "Cannot use carrier gas calibration without analyte"
-                    " concentration. 'mol_conc_ppm' is missing. For a pure gas,"
-                    "use 'mol' instead of 'carrier_mol' and don't give a 'mol_conc_ppm'"
-                )
-        elif None not in mol_conc_ppm_list:
-            raise QuantificationError(
-                "Cannot use carrier gas calibration without carrier"
-                " gas definition. 'carrier_mol' is missing. For a pure gas,"
-                "use 'mol' instead of 'carrier_mol' and don't give a 'mol_conc_ppm'"
-            )
-        else:
-            cal_type = "gas_flux_calibration_curve"
-            mol_conc_ppm = 10**6
-            carrier_mol = mol
-        for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
-            t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
-            if axes_measurement:
-                if axes_measurement_raw:
-                    t_plot, S_plot = measurement.grab_signal(mass, tspan=tspan)
-                else:
-                    t_plot, S_plot = t, S
-                axes_measurement.plot(
-                    t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5
-                )
-            n_dot = (
-                self.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
-            )
-            S_list.append(np.mean(S))
-            n_dot_list.append(n_dot)
-        n_dot_vec = np.array(n_dot_list)
-        S_vec = np.array(S_list)
-        pfit = np.polyfit(n_dot_vec, S_vec, deg=1)
-        F = pfit[0]
-        if ax:
-            color = STANDARD_COLORS[mass]
-            if ax == "new":
-                ax = measurement.plotter.new_ax(
-                    xlabel="molecule flux / [nmol/s]", ylabel="signal / [nA]"
-                )
-            ax.plot(n_dot_vec * 1e9, S_vec * 1e9, "o", color=color)
-            n_dot_fit = np.array([0, max(n_dot_vec)])
-            S_fit = n_dot_fit * pfit[0] + pfit[1]
-            ax.plot(n_dot_fit * 1e9, S_fit * 1e9, "--", color=color)
-        cal = MSCalResult(
-            name=f"{mol}@{mass}",
+        return measurement.gas_flux_calibration_curve(
             mol=mol,
+            inlet=self,
             mass=mass,
-            cal_type=cal_type,
-            F=F,
+            tspan_list=tspan_list,
+            tspan_bg=tspan_bg,
+            ax=ax,
+            carrier_mol=carrier_mol,
+            mol_conc_ppm=mol_conc_ppm,
+            p_inlet=p_inlet,
+            axis_measurement=axis_measurement,
+            return_ax=return_ax,
         )
-        if return_ax:
-            return cal, ax
-        return cal
 
 
 class MSSpectrum(Spectrum):

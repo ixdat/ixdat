@@ -28,5 +28,9 @@ print(native_cal)  # An ixdat MSCalResult object
 # ---- Spectro Inlets calibration ----- #
 ixdat.config.plugins.activate_si_quant()
 
-quant_cal = ms.gas_flux_calibration(mol="He", mass="M4", tspan=[100, 200])
+quant_cal = ms.siq_gas_flux_calibration(mol="He", mass="M4", tspan=[100, 200])
 print(quant_cal)  # A CalPoint object of the external package
+
+calibration = ixdat.plugins.siq.Calibration(cal_list=[quant_cal])
+
+print(calibration + quant_cal)

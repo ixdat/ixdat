@@ -202,7 +202,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
 
         if plugins.use_si_quant:
-            cal = plugins.si_quant.CalPoint(
+            cal = plugins.siq.CalPoint(
                 mol=mol, mass=mass, F_type="internal", F=F, date=self.yyMdd
             )
         else:
