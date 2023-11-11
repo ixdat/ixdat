@@ -241,7 +241,7 @@ class MSMeasurement(Measurement):
         if not plugins.use_siq:
             raise QuantificationError(
                 "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package "
+                "`spectro_inlets_quantification` "
                 "(`ixdat.plugins.activate_siq()`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
@@ -348,11 +348,19 @@ class MSMeasurement(Measurement):
             return self.as_mass(new_item)
         raise TypeError(f"{self} does not recognize '{item}' as a mass.")
 
+    @deprecate(
+        "0.2.6",
+        "Use `inlet` instead. Or consider using `siq_gas_flux_calibration` "
+        "with the `spectro_inlets_quantification` package.",
+        "0.3",
+        kwarg_name="chip",
+    )
     def gas_flux_calibration(
         self,
-        inlet,
         mol,
         mass,
+        inlet=None,
+        chip=None,
         tspan=None,
         tspan_bg=None,
         ax=None,
@@ -360,13 +368,14 @@ class MSMeasurement(Measurement):
         mol_conc_ppm=None,
     ):
         """
-        Fit mol's sensitivity at mass based on period with steady gas composition.
+        Fit mol's sensitivity at mass based on one period with steady gas composition.
 
         Args:
-            inlet (MSInlet): An object with a `calc_n_dot_0` method for total flux to
-                the vacuum chamber containing the mass spectrometer.
             mol (str): The name of the molecule to calibrate
             mass (str): The mass to calibrate at
+            inlet (MSInlet): An object with a `calc_n_dot_0` method for total flux to
+                the vacuum chamber containing the mass spectrometer.
+            chip (MSInlet): DEPRECATED. Old name for `inlet`.
             tspan (iter): The timespan to average the signal over. Defaults to all
             tspan_bg (iter): Optional timespan at which the signal is at its background.
             ax (matplotlib axis): The axis on which to indicate what signal is used
@@ -381,6 +390,11 @@ class MSMeasurement(Measurement):
         Returns MSCalResult: a MS calibration result containing the sensitivity factor
             for mol at mass
         """
+        if plugins.use_siq:
+            Warning(
+                "spectro_inlets_quantification is active but you are using the native "
+                "ixdat version of `MSMeasurement.gas_flux_calibration`"
+            )
         t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
@@ -411,11 +425,19 @@ class MSMeasurement(Measurement):
             F=F,
         )
 
+    @deprecate(
+        "0.2.6",
+        "Use `inlet` instead. Or consider using `siq_gas_flux_calibration_curve` "
+        "with the `spectro_inlets_quantification` package.",
+        "0.3",
+        kwarg_name="chip",
+    )
     def gas_flux_calibration_curve(
         self,
-        inlet,
         mol,
         mass,
+        inlet=None,
+        chip=None,
         tspan_list=None,
         carrier_mol=None,
         mol_conc_ppm=None,
@@ -423,6 +445,7 @@ class MSMeasurement(Measurement):
         tspan_bg=None,
         ax="new",
         axis_measurement=None,
+        remove_bg_on_axis_measurement=True,
         return_ax=False,
     ):
         """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
@@ -432,13 +455,16 @@ class MSMeasurement(Measurement):
                 the vacuum chamber containing the mass spectrometer.
             mol (str): Name of the molecule to calibrate
             mass (str): Name of the mass at which to calibrate
+            inlet (MSInlet): An object with a `calc_n_dot_0` method for total flux to
+                the vacuum chamber containing the mass spectrometer.
+            chip (MSInlet): DEPRECATED. Old name for `inlet`.
             tspan_list (list of tspan): The timespans of steady concentration
                 or pressure
             carrier_mol (str): The name of the molecule of the carrier gas if
                 a dilute analyte is used. Calibration assumes total flux of the
                 capillary is the same as the flux of pure carrier gas. Defaults
                 to None.
-            mol_conc_ppm (float, list): Concentration of the dilute analyte in
+            mol_conc_ppm (float or list): Concentration of the dilute analyte in
                 the carrier gas in ppm. Defaults to None. Accepts float (for pressure
                 calibration) or list for concentration calibration. If list needs
                 to be same length as tspan_list or selector_list.
@@ -451,19 +477,18 @@ class MSMeasurement(Measurement):
                 Defaults to a new axis.
             axis_measurement (Axis): The MS plot axes to highlight the
                 ms_calibration on. Defaults to None.
-            tspans for ms_calibration is showing raw data or bg subtracted data
-            Defaults to False, i.e. plotting data with the same bg subtraction as
-            used for the calibration.
-            return_ax (bool): Whether to return the axis on which the calibration is
-                plotted together with the MSCalResult. Defaults to False.
+            remove_bg_on_axis_measurement (bool):
+                Whether the plot on axis_measurement is showing raw data or bg
+                subtracted data. Defaults to True, i.e. plotting data with the
+                same bg subtraction as used for the calibration.
+            return_ax (bool): Whether to return the axis on which the calibration
+                curve is plotted together with the MSCalResult. Defaults to False.
 
         Return MSCalResult(, Axis): The result of the MS calibration (and calibration
             curve axis if requested) based on flux calculation during selected time
             periods.
         TODO: automatically recognize the pressure from measurement (if available)
         """
-        # prepare three lists to loop over to determine molecule flux in the
-        # different periods of steady gas composition
 
         # prepare three lists to loop over to determine molecule flux in the
         # different periods of steady gas composition
@@ -508,7 +533,13 @@ class MSMeasurement(Measurement):
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
             t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axis_measurement:
-                axis_measurement.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
+                if remove_bg_on_axis_measurement:
+                    t_plot, S_plot = t, S
+                else:
+                    t_plot, S_plot = self.grab_signal(mass, tspan=tspan)
+                axis_measurement.plot(
+                    t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5
+                )
             n_dot = (
                 inlet.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )
@@ -540,7 +571,7 @@ class MSMeasurement(Measurement):
         return cal
 
     def siq_gas_flux_calibration(self, mol, mass, tspan, chip=None):
-        """Simple pure-gas flux calibration, using external MS quantification package
+        """Simple pure-gas flux calibration, using `spectro_inlets_quantification`
 
         Args:
             mol (str): Name of molecule to be calibrated (e.g. "He")
@@ -549,16 +580,15 @@ class MSMeasurement(Measurement):
             chip (Chip, optional): An object defining the capillary inlet, if different
                 than the standard chip assumed by the external package.
 
-        Returns CalPoint: An object from the external MS quantification package,
+        Returns CalPoint: An object from `spectro_inlets_quantification`,
            representing the calibration result
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.gas_flux_calibration_siq` only works when using an "
-                "external MS quantification package "
-                "(`ixdat.options.activate_siq()`). "
-                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
-                "called from an instance of `MSInlet`."
+                "`MSMeasurement.siq_gas_flux_calibration` only works when using "
+                "`spectro_inlets_quantification` "
+                "(`ixdat.options.activate_siq()`). For native ixdat MS quantification, "
+                "use `gas_flux_calibration` instead."
             )
         Chip = plugins.siq.Chip
         CalPoint = plugins.siq.CalPoint
@@ -581,6 +611,7 @@ class MSMeasurement(Measurement):
         tspan_bg=None,
         ax="new",
         axis_measurement=None,
+        remove_bg_on_axis_measurement=True,
         return_ax=False,
     ):
         """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
@@ -607,21 +638,25 @@ class MSMeasurement(Measurement):
                 Defaults to a new axis.
             axis_measurement (Axes): The MS plot axes to highlight the
                 ms_calibration on. Defaults to None. These axes are not returned.
-            return_ax (bool): Whether to return the axis on which the calibration is
-                plotted together with the MSCalResult. Defaults to False.
+            remove_bg_on_axis_measurement (bool):
+                Whether the plot on axis_measurement is showing raw data or bg
+                subtracted data. Defaults to True, i.e. plotting data with the
+                same bg subtraction as used for the calibration.
+            return_ax (bool): Whether to return the axis on which the calibration
+                curve is plotted together with the MSCalResult. Defaults to False.
 
-        Return MSCalResult(, Axis): The result of the MS calibration (and calibration
-            curve axis if requested) based on flux calculation during selected time
-            periods.
+        Returns CalPoint: An object from `spectro_inlets_quantification`,
+           representing the calibration result
+
         TODO: automatically recognize the pressure from measurement (if available)
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package "
+                "`MSMeasurement.siq_gas_flux_calibration` only works when using "
+                "`spectro_inlets_quantification`"
                 "(`ixdat.options.activate_siq()`). "
-                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
-                "called from an instance of `MSInlet`."
+                "For native ixdat MS quantification, use `gas_flux_calibration`"
+                "instead."
             )
         Chip = plugins.siq.Chip
         CalPoint = plugins.siq.CalPoint
@@ -639,6 +674,7 @@ class MSMeasurement(Measurement):
             tspan_bg=tspan_bg,
             ax=ax,
             axis_measurement=axis_measurement,
+            remove_bg_on_axis_measurement=remove_bg_on_axis_measurement,
             return_ax=True,
         )
 
@@ -691,13 +727,13 @@ class MSMeasurement(Measurement):
             chip (Chip, optional): object describing the MS capillary, if different than
                the standard chip in the MS quantification package
 
-        Returns Calibration: An object from the external MS quantification package,
+        Returns Calibration: An object from `spectro_inlets_quantification`,
            representing all the calibration results from the calibration.
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.gas_flux_calibration` only works when using an "
-                "external MS quantification package "
+                "`MSMeasurement.gas_flux_calibration` only works when using "
+                "`spectro_inlets_quantification` "
                 "(`ixdat.plugins.activate_siq()`). "
                 "For native ixdat MS quantification, `gas_flux_calibration` has to be"
                 "called from an instance of `MSInlet`."
@@ -759,7 +795,7 @@ class MSMeasurement(Measurement):
         mass_list=None,
         carrier="He",
     ):
-        """Set the external-package quantifier.
+        """Set the `spectro_inlets_quantification` quantifier.
 
         The Quantifier is an object with the method `calc_n_dot`, which takes a
         dictionary of signals or signal vectors in [A] and return a dictionary of
@@ -772,8 +808,8 @@ class MSMeasurement(Measurement):
         The quantifier thus needs access to a set of sensitivity factors.
 
         The quantifier can be built in this method (avoiding explicit import of the
-        external package) by providing the sensitivity factors in the form of a
-        `Calibration` (which can be obtained from e.g.
+        `spectro_inlets_quantification` package) by providing the sensitivity factors
+        in the form of a `Calibration` (which can be obtained from e.g.
         MSMeasurement.multicomp_gas_flux_cal) and the specification of which ones to
         use by `mol_list` and `mass_list`.
         The quantifier will always use all the masses in `mass_list` to solve for the
@@ -799,7 +835,7 @@ class MSMeasurement(Measurement):
         if not plugins.use_siq:
             raise QuantificationError(
                 "`MSMeasurement.set_quatnifier` only works when using an "
-                "external MS quantification package "
+                "`spectro_inlets_quantification` "
                 "(`ixdat.options.activate_siq()`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
             )
@@ -1169,7 +1205,7 @@ class MSInlet:
         # fmt: off
         #   Equation 4.10 of Daniel Trimarco's PhD Thesis:
         N_dot = (                                                               # noqa
-                1 / (BOLTZMANN_CONSTANT * T) * 1 / l_cap * (                         # noqa
+            1 / (BOLTZMANN_CONSTANT * T) * 1 / l_cap * (                        # noqa
                 (p_t - p_2) * a**3 * 2 * pi / 3 * v_m + (p_1 - p_t) * (         # noqa
                     a**4 * pi / (8 * eta) * p_m  + a**3 * 2 * pi / 3 * v_m * (  # noqa
                         (1 + 2 * a * nu * p_m / eta) / (                        # noqa
