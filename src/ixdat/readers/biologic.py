@@ -111,6 +111,7 @@ class BiologicReader:
                 any case.
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
+        path_to_file = Path(path_to_file)  # in case the input is a string.
         if path_to_file.suffix == ".mpt":
             return BiologicMPTReader().read(path_to_file, name=name, cls=cls, **kwargs)
         if path_to_file.suffix == ".mpr":
