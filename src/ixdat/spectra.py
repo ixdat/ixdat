@@ -101,9 +101,9 @@ class Spectrum(Saveable):
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
-            from .readers import READER_CLASSES
+            from .readers import SPECTRUM_READER_CLASSES
 
-            reader = READER_CLASSES[reader]()
+            reader = SPECTRUM_READER_CLASSES[reader]()
         # print(f"{__name__}. cls={cls}")  # debugging
         return reader.read(path_to_file, cls=cls, **kwargs)
 

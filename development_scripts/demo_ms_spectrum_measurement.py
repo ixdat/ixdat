@@ -5,9 +5,7 @@ from ixdat import Measurement, Spectrum
 data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/cinfdata/Krabbe"
 
 
-spectra = Spectrum.read(
-    data_dir / "spectrumseries_mass_spec.txt", reader="ixdat_spectrum"
-)
+spectra = Spectrum.read(data_dir / "spectrumseries_mass_spec.txt", reader="ixdat")
 spectra.heat_plot()
 
 
