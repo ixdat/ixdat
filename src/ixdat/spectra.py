@@ -14,7 +14,7 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
-from .data_series import DataSeries, TimeSeries, Field
+from .data_series import DataSeries, TimeSeries, Field, time_shifted
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
 from .measurements import Measurement, get_combined_technique
@@ -509,6 +509,26 @@ class SpectrumSeries(Spectrum):
         return cls.from_dict(obj_as_dict)
 
     @property
+    def field(self):
+        """Since a spectrum can be loaded lazily, we make sure the field is loaded
+
+        We also want to make sure that the field has the tstamp of the SpectrumSeries.
+        """
+        if isinstance(self._field, PlaceHolderObject):
+            self._field = self._field.get_object()
+        if not self._field.axes_series[0].tstamp == self.tstamp:
+            self._field = Field(
+                name=self._field.name,
+                data=self._field.data,
+                unit_name=self._field.unit_name,
+                axes_series=[
+                    time_shifted(self._field.axes_series[0], tstamp=self.tstamp),
+                    self._field.axes_series[1],
+                ],
+            )
+        return self._field
+
+    @property
     def yseries(self):
         # Should this return an average or would that be counterintuitive?
         raise BuildError(
@@ -647,6 +667,7 @@ class SpectroMeasurement(Measurement):
         """The `SpectrumSeries` with the spectral data"""
         if isinstance(self._spectrum_series, PlaceHolderObject):
             self._spectrum_series = self._spectrum_series.get_object()
+        self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
 
     @property

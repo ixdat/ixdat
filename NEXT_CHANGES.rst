@@ -28,20 +28,34 @@ techniques
   Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
 
 - ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of
-forcing the line of best fit through zero with ``force_through_zero``
-    Resolves `Issue #109 <https://github.com/ixdat/ixdat/issues/109`_
+  forcing the line of best fit through zero with ``force_through_zero``
+  Resolves `Issue #109 <https://github.com/ixdat/ixdat/issues/109`_
 
 - ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of 
-passing a J_name to be used for highlighting the integrated current passed to
-``axes_measurement``. This does not affect the calculation of sensitivity factors, 
-only plotting.
-    Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
+  passing a J_name to be used for highlighting the integrated current passed to
+  ``axes_measurement``. This does not affect the calculation of sensitivity factors, 
+  only plotting.
+  Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
 
 readers
 ^^^^^^^
 - ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as 
   before for reading in a zilien spectrum. This is accomplished by different 
   groups of reader for ``Spectrum.read`` and ``Measurement.read``
+
+- ``Measurement.read(..., reader="zilien")`` now returns a ``SpectroMSMeasurement``
+  when the reader can find zilien mass scans taken during the measurement. It
+  looks for the mass scans folder as zilien names it.
+  The default plotter is a ``SpectroMSPlotter`` which includes the MS spectra
+  data in a separate panel. The spectra are accessible by:
+
+    meas = Measurement.read("my_MID_with_spectra.tsv", reader="zilien")
+    meas.spectrum_series[0].plot()
+
+  which plots the first MS spectrum.
+  To leave out the mass scan data, include the argument ``include_spectra=False``
+  in the call to ``read``.
+  This finishes `Issue #117 <https://github.com/ixdat/ixdat/issues/117`_
 
 - biologic readers now recognize both "Ece/V" and "<Ece>/V" as "raw_CE_potential".
   Resolves `Issue #110 <https://github.com/ixdat/ixdat/issues/110`_

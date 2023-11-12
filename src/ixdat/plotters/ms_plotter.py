@@ -596,7 +596,6 @@ class SpectroMSPlotter(MPLPlotter):
                 n_bottom = 2 if (mass_lists or mol_lists) else 1
                 ms_axes = 1
                 ms_spec_axes = 0
-
             axes = self.new_two_panel_axes(
                 n_bottom=n_bottom,
                 n_top=n_top,
@@ -634,7 +633,7 @@ class SpectroMSPlotter(MPLPlotter):
             )
 
         # then we have the spectrum series to plot
-        measurement.spectrum_series.heat_plot(
+        ax_heat_plot = measurement.spectrum_series.heat_plot(
             ax=axes[ms_spec_axes],
             tspan=tspan,
             xspan=xspan,
@@ -646,6 +645,9 @@ class SpectroMSPlotter(MPLPlotter):
             vmin=vmin,
             vmax=vmax,
         )
+
+        # Get the time variables aligned!
+        ax_heat_plot.set_xlim(axes[ms_axes].get_xlim())
 
         return axes
 

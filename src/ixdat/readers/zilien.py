@@ -23,7 +23,7 @@ from matplotlib import pyplot as plt
 
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
-from ..techniques.ms import MSSpectrum
+from ..techniques.ms import MSSpectrum, MSSpectrumSeries
 from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
 from ..exceptions import ReadError
 
@@ -120,7 +120,14 @@ class ZilienTSVReader:
         # a numpy array of the parsed Zilien data (a big rectangle with NaN filling)
         self._data = None
 
-    def read(self, path_to_file, cls=ECMSMeasurement, name=None, **kwargs):
+    def read(
+        self,
+        path_to_file,
+        cls=ECMSMeasurement,
+        name=None,
+        include_mass_scans=True,
+        **kwargs,
+    ):
         """Read a Zilien file
 
         Args:
@@ -209,6 +216,34 @@ class ZilienTSVReader:
         }
         measurement_kwargs.update(kwargs)
         self._measurement = cls(**measurement_kwargs)
+
+        if include_mass_scans:
+            # Check if there are MS spectra.
+            # If the file name is "YYYY-MM-DD hh_mm_ss my_file_name.tsv", then
+            # the spectra are the .tsv files in the folder "my_file_name mass scans"
+            spectra_folder = self._path_to_file.parent / (
+                self._path_to_file.stem[20:] + " mass scans"
+            )
+            if spectra_folder.exists():  # Then we have a spectra folder!
+                spectrum_list = []
+                for path_to_spectrum in spectra_folder.iterdir():
+                    if not path_to_spectrum.suffix == ".tsv":
+                        continue
+                    spectrum = ZilienSpectrumReader().read(
+                        path_to_spectrum,
+                        t_zero=self._timestamp,
+                    )
+                    spectrum_list.append(spectrum)
+                t_list = [spectrum.tstamp for spectrum in spectrum_list]
+                indeces = np.argsort(t_list)
+                spectrum_list = [spectrum_list[i] for i in indeces]
+                spectrum_series = MSSpectrumSeries.from_spectrum_list(
+                    name=spectra_folder.name,
+                    spectrum_list=spectrum_list,
+                    technique="MS_spectra",
+                )
+                self._measurement = self._measurement + spectrum_series
+
         return self._measurement
 
     @staticmethod
@@ -589,13 +624,15 @@ class ZilienSpectrumReader:
     def __init__(self, path_to_spectrum=None):
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
-    def read(self, path_to_spectrum, cls=None, **kwargs):
+    def read(self, path_to_spectrum, cls=None, t_zero=0, **kwargs):
         """Reat a Zilien spectrum.
         FIXME: This reader was written hastily and could be designed better.
 
         Args:
             path_to_tmp_dir (Path or str): the path to the tmp dir
             cls (Spectrum class): Defaults to MSSpectrum
+            t_zero (float): The unix timestamp which the mass scan start time
+                is referenced to. Defaults to 0.
             kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         if path_to_spectrum:
@@ -625,7 +662,8 @@ class ZilienSpectrumReader:
                 line = f.readline()
                 if "Mass scan started at [s]" in line:
                     tstamp_match = re.search(FLOAT_MATCH, line)
-                    tstamp = float(tstamp_match.group())
+                    t = float(tstamp_match.group())
+                    tstamp = t_zero + t
         xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
         field = Field(
             data=np.array(y),

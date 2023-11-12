@@ -22,13 +22,22 @@ spec = Spectrum.read(
 spec.plot(color="k")
 
 
-meas = Measurement.read(path_to_meas, reader="zilien", technique="MS")
-
-meas.plot()
-
-
-if True:  # test Spectrum saving and loading
+if False:  # test Spectrum saving and loading
     s_id = spec.save()
     loaded = Spectrum.get(s_id)
     ax = loaded.plot(color="g")
     ax.set_yscale("log")
+
+
+meas = Measurement.read(path_to_meas, reader="zilien", technique="MS")
+meas.plot(
+    mass_list=["M40", "M18"],
+)
+
+
+meas_no_spec = Measurement.read(
+    path_to_meas, reader="zilien", technique="MS", include_mass_scans=False
+)
+meas_no_spec.plot(
+    mass_list=["M40", "M18"],
+)
