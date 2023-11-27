@@ -132,6 +132,29 @@ And then run command for testing with ``--external`` option::
     # the 'tests' here is a project directory with the tests
     pytest tests --external
 
+Maintaining a copy of the tutorials with ``git subtree``
+********************************************************
+
+The tutorials for ixdat is developed in a
+`separate repository <https://github.com/ixdat/tutorials>`_. But these tutorials are copied into
+the ixdat repository in order to be able to generate docs from the Jupyter notebooks. This copy
+is maintained via a git feature called ``git subtree``. The copy of the tutorials in ixdat can
+be created with the following command::
+
+    git subtree pull --prefix docs/source/tutorials/tutorials_repo https://github.com/ixdat/tutorials.git main --squash
+
+and updated with new changes with the following command::
+
+    git subtree pull --prefix docs/source/tutorials/tutorials_repo https://github.com/ixdat/tutorials.git main --squash
+
+Note, this works with other branches (besides "main") of the tutorials repository as well, in the
+case that you are developing the tutorials repo and want to see what it will look like on the ixdat
+documentation site.
+
+All files in docs/source/tutorials/tutorials_repo are ignored by the ixdat repo's .gitignore except
+for the .ipynb files. This means that any notebooks requiring locally saved data will need to be
+pre-compiled if the notebook is to render in sphinx.
+
 
 Write to us
 ***********

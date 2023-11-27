@@ -1,6 +1,5 @@
 .. _tutorials:
 
-=========
 Tutorials
 =========
 
@@ -12,8 +11,8 @@ Tutorials
 Getting data in and out
 -----------------------
 
-In ``ixdat`` your data is imported with a ``reader`` (specific to your data format) into a ``Measurement`` object and can then be plotted and/or 
-exported into a format of your choice. You can figure out how in this tutorial: 
+In ``ixdat`` your data is imported with a ``reader`` (specific to your data format) into a ``Measurement`` object and can then be plotted and/or
+exported into a format of your choice. You can figure out how in this tutorial:
 
 
 Techniques
@@ -57,17 +56,17 @@ The jupyter notebooks
 All tutorials linked to above are also available as fully interactive Jupyter notebooks in the ixdat Tutorials repository:
 https://github.com/ixdat/tutorials/
 
+..
+  .. _readers_tutorial:
 
-.. _readers_tutorial:
+  Readers
+  -------
+  https://github.com/ixdat/tutorials/blob/main/L1_basic_concepts/01_Readers.ipynb
 
-Readers
--------
-https://github.com/ixdat/tutorials/blob/main/L1_basic_concepts/01_Readers.ipynb
+  .. toctree::
+      :maxdepth: 1
 
-.. toctree::
-    :maxdepth: 1
-
-    L1_basic_concepts/01_readers.ipynb
+      L1_basic_concepts/01_readers.ipynb
 
 
 .. _ec_tutorials:

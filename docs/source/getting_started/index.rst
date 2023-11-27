@@ -27,12 +27,11 @@ you may need to upgrade to the latest version. This is also easy. Just type::
 Resources
 ---------
 
-On the following pages you can find several resources to help you quickly get started with your data analysis: 
+On the following pages you can find several resources to help you quickly get started with your data analysis:
 
 .. toctree::
     :maxdepth: 2
 
-    tutorials/index
     cheat_sheet
     article_repos
 
@@ -44,8 +43,8 @@ While still being work-in-progress for the more recently released techniques, th
 
 **Cheat sheet**
 
-Get an overview of the most commonly used classes and methods in the :ref:`cheat_sheet`. 
-Reach out to the ixdat team if you are missing some particular section here! 
+Get an overview of the most commonly used classes and methods in the :ref:`cheat_sheet`.
+Reach out to the ixdat team if you are missing some particular section here!
 
 
 **Article repositories**
