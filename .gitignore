@@ -1,8 +1,8 @@
 
 # Big files from tests and docs prep
-development_scripts/**.png
-development_scripts/**.svg
-development_scripts/**.csv
+development_scripts/**/*.png
+development_scripts/**/*.svg
+development_scripts/**/*.csv
 docs/source/tutorials/tutorials_repo/**/*
 !docs/source/tutorials/tutorials_repo/**/
 !docs/source/tutorials/tutorials_repo/**/*.ipynb
