@@ -51,7 +51,7 @@ In ``ixdat`` your data is imported with a ``reader`` (specific to your data form
 exported into a format of your choice. You can figure out how in this tutorial:
 
 
-Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L1_basic_concepts/01_Readers.ipynb
+Jupyter notebook file: https://github.com/ixdat/tutorials/blob/af1b38f2096555904786bb9fbbaf79bc209d4ef9/L1_basic_concepts/ixdat_intro_readers.ipynb
 
 .. toctree::
   :maxdepth: 0
@@ -66,7 +66,7 @@ Technqiues
 
 Electrochemistry
 ^^^^^^^^^^^^^^^^
-Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_techniques/electrochemistry/02_comparing_cycles.ipynb
+Jupyter notebook file: https://github.com/ixdat/tutorials/blob/af1b38f2096555904786bb9fbbaf79bc209d4ef9/L2_techniques/electrochemistry/ixdat_demo_cyclic_voltammetry.ipynb
 
 .. toctree::
   :maxdepth: 0
@@ -78,7 +78,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_technique
 
 EC-MS
 ^^^^^
-Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_techniques/ec_ms_quantification/EC-MS_ixdat_tutorial.ipynb
+Jupyter notebook file: https://github.com/ixdat/tutorials/blob/af1b38f2096555904786bb9fbbaf79bc209d4ef9/L2_techniques/ec_ms_quantification/ixdat_demo_EC-MS.ipynb
 
 .. toctree::
   :maxdepth: 0
@@ -89,7 +89,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_technique
 
 spectroelectrochemistry
 ^^^^^^^^^^^^^^^^^^^^^^^
-Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_techniques/spectroelectrochemistry/spectroelectrochemistry_demo.ipynb
+Jupyter notebook file: https://github.com/ixdat/tutorials/blob/af1b38f2096555904786bb9fbbaf79bc209d4ef9/L2_techniques/spectroelectrochemistry/ixdat_demo_spectroelectrochemistry.ipynb
 
 .. toctree::
   :maxdepth: 0
@@ -106,7 +106,7 @@ Data concepts
 While the existing technique subclasses allow for a wide range of general and technique specific data treatment, sometimes this is not enough for your
 individual needs. Luckily, ``ixdat`` also allows for direct data handling in array-type form. How to access data in this way is demonstrated in the tutorials on advanced data handling.
 
-Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L3_data_structure/01_reading_and_using_data.ipynb
+Jupyter notebook file: https://github.com/ixdat/tutorials/blob/af1b38f2096555904786bb9fbbaf79bc209d4ef9/L3_data_structure/ixdat_demo_manipulating_electrochemistry_data.ipynb
 
 .. toctree::
   :maxdepth: 0
