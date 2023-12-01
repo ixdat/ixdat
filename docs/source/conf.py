@@ -35,11 +35,9 @@ release = "0.2.0"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-import sphinx_rtd_theme
-
-# import sphinx_automodapi  # see https://github.com/astropy/
 
 extensions = [
+    "sphinx_rtd_theme",
     "sphinx.ext.autodoc",
     # "sphinx_automodapi.automodapi",  # see https://github.com/astropy/
     "sphinx.ext.coverage",

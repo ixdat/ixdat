@@ -1,7 +1,8 @@
 # needed as per  https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 
 sphinx
-sphinx_rtd_theme
+sphinx-rtd-theme
 readthedocs-sphinx-search
+nbsphinx
 ixdat
 docutils<0.18  # see https://github.com/sphinx-doc/sphinx/issues/9727
