@@ -56,7 +56,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L1_basic_con
 .. toctree::
   :maxdepth: 0
 
-  tutorials_repo/L1_basic_concepts/01_Readers
+  tutorials_repo/L1_basic_concepts/ixdat_intro_readers
 
 
 Technqiues
@@ -71,7 +71,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_technique
 .. toctree::
   :maxdepth: 0
 
-  tutorials_repo/L2_techniques/electrochemistry/02_comparing_cycles
+  tutorials_repo/L2_techniques/electrochemistry/ixdat_demo_cyclic_voltammetry
 
 
 .. _ecms_tutorial:
@@ -83,7 +83,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_technique
 .. toctree::
   :maxdepth: 0
 
-  tutorials_repo/L2_techniques/ec_ms_quantification/EC-MS_ixdat_tutorial
+  tutorials_repo/L2_techniques/ec_ms_quantification/ixdat_demo_EC-MS
 
 .. _sec_tutorial:
 
@@ -94,7 +94,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L2_technique
 .. toctree::
   :maxdepth: 0
 
-  tutorials_repo/L2_techniques/spectroelectrochemistry/spectroelectrochemistry_demo
+  tutorials_repo/L2_techniques/spectroelectrochemistry/ixdat_demo_spectroelectrochemistry
 
 
 .. _data_tutorial:
@@ -111,7 +111,7 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/main/L3_data_stru
 .. toctree::
   :maxdepth: 0
 
-  tutorials_repo/L3_data_structure/01_reading_and_using_data
+  tutorials_repo/L3_data_structure/ixdat_demo_manipulating_electrochemistry_data
 
 
 ..
