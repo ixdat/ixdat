@@ -1,10 +1,12 @@
 """Module for representation and analysis of EC-MS measurements"""
 import numpy as np
+import warnings
 from scipy.optimize import minimize
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
 from .cv import CyclicVoltammogram
+from ..exceptions import QuantificationError
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
@@ -105,8 +107,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
 
-        Return MSCalResult: The result of the ms_calibration
+        Return MSCalResult: The result of the ecms_calibration
         """
+        if plugins.use_siq:
+            warnings.warn(
+                "spectro_inlets_quantification is active but you are using the native "
+                "ixdat version of `ECMSMeasurement.ecms_calibration`"
+            )
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         Q = self.integrate("raw_current", tspan=tspan) * 1e-3
         n = Q / (n_el * FARADAY_CONSTANT)
@@ -169,6 +176,45 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
             curve axis if requested) based on integration of selected time periods.
         """
+        if plugins.use_siq:
+            warnings.warn(
+                "spectro_inlets_quantification is active but you are using the native "
+                "ixdat version of `ECMSMeasurement.ecms_calibration_curve`"
+            )
+        return self._ecms_calibration_curve(
+            mol=mol,
+            mass=mass,
+            n_el=n_el,
+            tspan_list=tspan_list,
+            selector_name=selector_name,
+            selector_list=selector_list,
+            t_steady_pulse=t_steady_pulse,
+            tspan_bg=tspan_bg,
+            force_through_zero=force_through_zero,
+            ax=ax,
+            axes_measurement=axes_measurement,
+            axes_measurement_J_name=axes_measurement_J_name,
+            return_ax=return_ax,
+        )
+
+    def _ecms_calibration_curve(
+        self,
+        mol,
+        mass,
+        n_el,
+        tspan_list=None,
+        selector_name=None,
+        selector_list=None,
+        t_steady_pulse=None,
+        tspan_bg=None,
+        force_through_zero=False,
+        ax="new",
+        axes_measurement=None,
+        axes_measurement_J_name="raw_current",
+        return_ax=False,
+    ):
+        """Helper function. See ecms_calibration_curve for argument descriptions."""
+
         axis_ms = axes_measurement[0] if axes_measurement else None
         axis_current = axes_measurement[3] if axes_measurement else None
         Y_list = []
@@ -269,6 +315,128 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         ]
         print("Following tspans were selected for calibration: " + str(tspan_list))
         return tspan_list
+
+    def siq_ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
+        """Calibrate for mol and mass based on one period of steady electrolysis
+
+        Use `spectro_inlets_quantification` package.
+        Args:
+            mol (str): Name of the molecule to calibrate
+            mass (str): Name of the mass at which to calibrate
+            n_el (str): Number of electrons passed per molecule produced (remember the
+                sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            tspan (tspan): The timespan of steady electrolysis
+            tspan_bg (tspan): The time to use as a background
+
+        Return siq.CalPoint: The result of the ecms_calibration
+        """
+        if not plugins.use_siq:
+            raise QuantificationError(
+                "`ECMSMeasurement.siq_ecms_calibration` only works when using "
+                "`spectro_inlets_quantification`"
+                "(`ixdat.options.activate_siq()`). "
+                "For native ixdat MS quantification, use `ecms_calibration`"
+                "instead."
+            )
+        Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
+        Q = self.integrate("raw_current", tspan=tspan) * 1e-3
+        n = Q / (n_el * FARADAY_CONSTANT)
+        F = Y / n
+        cal = plugins.siq.CalPoint(
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            F_type="ecms_calibration",
+            F=F,
+        )
+        return cal
+
+    def siq_ecms_calibration_curve(
+        self,
+        mol,
+        mass,
+        n_el,
+        tspan_list=None,
+        selector_name=None,
+        selector_list=None,
+        t_steady_pulse=None,
+        tspan_bg=None,
+        force_through_zero=False,
+        ax="new",
+        axes_measurement=None,
+        axes_measurement_J_name="raw_current",
+        return_ax=False,
+    ):
+        """Fit mol's sensitivity at mass based on steady periods of EC production.
+
+        Use `spectro_inlets_quantification`.
+
+        Args:
+            mol (str): Name of the molecule to calibrate
+            mass (str): Name of the mass at which to calibrate
+            n_el (str): Number of electrons passed per molecule produced (remember the
+                sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            tspan_list (list of tspan): The timespans of steady electrolysis
+            selector_name (str): Name of selector which identifies the periods
+                of steady electrolysis for automatic selection of timespans of steady
+                electrolysis. E.g. "selector" or "Ns" for biologic EC data
+            selector_list (list): List of values for selector_name for automatic
+                selection of timespans of steady electrolysis
+            t_steady_pulse (float): Length of steady electrolysis for each segment
+                given by selector_list. Defaults to None = entire length of segment
+            tspan_bg (tspan): The time to use as a background
+            force_through_zero (boolean): Whether to force the calibration curve through
+                zero. This can be done when confident in the background subtraction.
+            ax (Axis): The axis on which to plot the ms_calibration curve result.
+                Defaults to a new axis.
+            axes_measurement (list of Axes): The EC-MS plot axes to highlight the
+                ms_calibration on. Defaults to None. These axes are not returned.
+            axes_measurement_J_name (str): The J_name used in the axis passed
+                to axes_measurement. Must be passed manually as the axis does not "know"
+                its J_name. Defaults to "raw_current". IMPORTANT: the method still uses
+                "raw_current" to calculate the sensitivity factor, this J_name is only
+                used for plotting.
+            return_ax (bool): Whether to return the axis on which the calibration curve
+                is plotted together with the MSCalResult. Defaults to False.
+
+        Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
+            curve axis if requested) based on integration of selected time periods.
+        """
+        if not plugins.use_siq:
+            raise QuantificationError(
+                "`ECMSMeasurement.siq_ecms_calibration_curve` only works when using "
+                "`spectro_inlets_quantification`"
+                "(`ixdat.options.activate_siq()`). "
+                "For native ixdat MS quantification, use `ecms_calibration_curve`"
+                "instead."
+            )
+        ms_cal_result, ax = self._ecms_calibration_curve(
+            mol=mol,
+            mass=mass,
+            n_el=n_el,
+            tspan_list=tspan_list,
+            selector_name=selector_name,
+            selector_list=selector_list,
+            t_steady_pulse=t_steady_pulse,
+            tspan_bg=tspan_bg,
+            force_through_zero=force_through_zero,
+            ax=ax,
+            axes_measurement=axes_measurement,
+            axes_measurement_J_name=axes_measurement_J_name,
+            return_ax=True,
+        )
+        cal = plugins.siq.CalPoint(
+            mol=mol,
+            mass=mass,
+            F_type="ecms_calibraion_curve",
+            F=ms_cal_result.F,
+            date=self.yyMdd
+        )
+        if return_ax:
+            return cal, ax
+        else:
+            return cal
+
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):

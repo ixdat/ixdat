@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from ixdat import Measurement
+from ixdat import Measurement, plugins
 
 data_dir = (
     Path.home() / "Dropbox/ixdat_resources/tutorials_data/"
@@ -45,3 +45,19 @@ cal_result_3 = ecms.ecms_calibration_curve(
     n_el=-2,
     tspan_list=[[600, 700], [1150, 1250], [1800, 1900], [2350, 2450]],
 )
+
+plugins.activate_siq()
+
+cal = ecms.ecms_calibration_curve(
+    mol="H2",
+    mass="M2",
+    n_el=-2,
+    tspan_list=[[600, 700], [1150, 1250], [1800, 1900], [2350, 2450]],
+)
+siq_cal = ecms.siq_ecms_calibration_curve(
+    mol="H2",
+    mass="M2",
+    n_el=-2,
+    tspan_list=[[600, 700], [1150, 1250], [1800, 1900], [2350, 2450]],
+)
+
