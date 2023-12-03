@@ -494,10 +494,10 @@ class Measurement(Saveable):
             calibration_class = CALIBRATION_CLASSES[self.technique]
         else:
             raise TechniqueError(
-                f"{self} is of technique '{self.technique}, for which there is not an "
+                f"{self} is of technique '{self.technique}', for which there is not an "
                 "available default calibration. Instead, import one of the following "
-                "classes to initiate a calibration, and then use `add_calibration` "
-                f"instead. \n Options: {CALIBRATION_CLASSES}"
+                "classes to initiate a calibration, and then use `add_calibration`. "
+                f"\nOptions: \n{CALIBRATION_CLASSES}"
             )
 
         self.add_calibration(calibration_class(*args, **kwargs))
@@ -1015,6 +1015,8 @@ class Measurement(Saveable):
             return None
         for t_name in self.time_names:
             t = self[t_name].data
+            if len(t) == 0:
+                return None
             t_start = t[0] if t_start is None else min(t_start, t[0])
             t_finish = t[-1] if t_finish is None else max(t_finish, t[-1])
         return [t_start, t_finish]
