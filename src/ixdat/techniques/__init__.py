@@ -43,6 +43,7 @@ TECHNIQUE_CLASSES = {
 
 CALIBRATION_CLASSES = {
     "EC": ECCalibration,
+    "CV": ECCalibration,
     "MS": MSCalibration,
     "EC-MS": ECMSCalibration,
     "reactor": ReactorCalibration,

@@ -193,7 +193,19 @@ class Measurement(Saveable):
                 technique_class = cls
         else:
             technique_class = cls
-        measurement = technique_class(**obj_as_dict)
+        try:
+            measurement = technique_class(**obj_as_dict)
+        except TypeError as e:
+            print(
+                "ixdat ran into an error while trying to set up an object of type "
+                f"{technique_class}. This usually happens when ixdat wasn't able"
+                "to correctly determine the measurement technique. Consider"
+                "passing the `technique` argument into the read() function. \n"
+                "For a list of available techniques use: \n "
+                ">>> from ixdat.techniques import TECHNIQUE_CLASSES\n"
+                ">>> print(TECHNIQUE_CLASSES.keys())\n"
+                f"{e}"
+            )
         return measurement
 
     @classmethod
@@ -482,10 +494,10 @@ class Measurement(Saveable):
             calibration_class = CALIBRATION_CLASSES[self.technique]
         else:
             raise TechniqueError(
-                f"{self} is of technique '{self.technique}, for which there is not an "
+                f"{self} is of technique '{self.technique}', for which there is not an "
                 "available default calibration. Instead, import one of the following "
-                "classes to initiate a calibration, and then use `add_calibration` "
-                f"instead. \n Options: {CALIBRATION_CLASSES}"
+                "classes to initiate a calibration, and then use `add_calibration`. "
+                f"\nOptions: \n{CALIBRATION_CLASSES}"
             )
 
         self.add_calibration(calibration_class(*args, **kwargs))

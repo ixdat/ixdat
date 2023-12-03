@@ -61,4 +61,7 @@ ax = sec_meas.get_dOD_spectrum(V_ref=0.66, V=1.0).plot(color="b", label="species
 sec_meas.get_dOD_spectrum(V_ref=1.0, V=1.45).plot(color="g", ax=ax, label="species 2")
 sec_meas.get_dOD_spectrum(V_ref=1.45, V=1.75).plot(color="r", ax=ax, label="species 3")
 
+axes = sec_meas.plot_wavelengths_vs_potential(wavelengths=["w460", "w600", "w850"])
+axes[0].set_ylabel("intense!")
+
 ax.legend()
