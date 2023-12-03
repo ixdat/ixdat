@@ -240,11 +240,9 @@ class MSMeasurement(Measurement):
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.gas_flux_calibration` only works when using an "
+                "`MSMeasurement.grab_siq_fluxes` only works when using an "
                 "`spectro_inlets_quantification` "
                 "(`ixdat.plugins.activate_siq()`). "
-                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
-                "called from an instance of `MSInlet`."
             )
         sm = self._siq_quantifier.sm
         signals = {}
@@ -391,7 +389,7 @@ class MSMeasurement(Measurement):
             for mol at mass
         """
         if plugins.use_siq:
-            Warning(
+            warnings.warn(
                 "spectro_inlets_quantification is active but you are using the native "
                 "ixdat version of `MSMeasurement.gas_flux_calibration`"
             )
@@ -425,13 +423,6 @@ class MSMeasurement(Measurement):
             F=F,
         )
 
-    @deprecate(
-        "0.2.6",
-        "Use `inlet` instead. Or consider using `siq_gas_flux_calibration_curve` "
-        "with the `spectro_inlets_quantification` package.",
-        "0.3",
-        kwarg_name="chip",
-    )
     def gas_flux_calibration_curve(
         self,
         mol,
@@ -489,6 +480,51 @@ class MSMeasurement(Measurement):
             periods.
         TODO: automatically recognize the pressure from measurement (if available)
         """
+        if plugins.use_siq:
+            warnings.warn(
+                "spectro_inlets_quantification is active but you are using the native "
+                "ixdat version of `MSMeasurement.siq_gas_flux_calibration_curve`"
+            )
+        return self._gas_flux_calibration_curve(
+            mol=mol,
+            mass=mass,
+            inlet=inlet,
+            chip=chip,
+            tspan_list=tspan_list,
+            carrier_mol=carrier_mol,
+            mol_conc_ppm=mol_conc_ppm,
+            p_inlet=p_inlet,
+            tspan_bg=tspan_bg,
+            ax="new",
+            axis_measurement=axis_measurement,
+            remove_bg_on_axis_measurement=remove_bg_on_axis_measurement,
+            return_ax=return_ax,
+        )
+
+    @deprecate(
+        "0.2.6",
+        "Use `inlet` instead. Or consider using `siq_gas_flux_calibration_curve` "
+        "with the `spectro_inlets_quantification` package.",
+        "0.3",
+        kwarg_name="chip",
+    )
+    def _gas_flux_calibration_curve(
+        self,
+        mol,
+        mass,
+        inlet=None,
+        chip=None,
+        tspan_list=None,
+        carrier_mol=None,
+        mol_conc_ppm=None,
+        p_inlet=None,
+        tspan_bg=None,
+        ax="new",
+        axis_measurement=None,
+        remove_bg_on_axis_measurement=True,
+        return_ax=False,
+    ):
+        """Helper function. See gas_flux_calibraiton_curve for argument descriptions."""
 
         # prepare three lists to loop over to determine molecule flux in the
         # different periods of steady gas composition
@@ -663,7 +699,7 @@ class MSMeasurement(Measurement):
 
         chip = chip or Chip()
 
-        cal, ax = self.gas_flux_calibration_curve(
+        cal, ax = self._gas_flux_calibration_curve(
             inlet=chip,
             mol=mol,
             mass=mass,
@@ -732,11 +768,9 @@ class MSMeasurement(Measurement):
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.gas_flux_calibration` only works when using "
-                "`spectro_inlets_quantification` "
+                "`MSMeasurement.siq_multicomp_gas_flux_calibration` "
+                "only works when using `spectro_inlets_quantification` "
                 "(`ixdat.plugins.activate_siq()`). "
-                "For native ixdat MS quantification, `gas_flux_calibration` has to be"
-                "called from an instance of `MSInlet`."
             )
         Chip = plugins.siq.Chip
         CalPoint = plugins.siq.CalPoint
@@ -834,7 +868,7 @@ class MSMeasurement(Measurement):
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.set_quatnifier` only works when using an "
+                "`MSMeasurement.set_siq_quantifier` only works when using an "
                 "`spectro_inlets_quantification` "
                 "(`ixdat.options.activate_siq()`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
