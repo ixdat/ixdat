@@ -420,13 +420,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             axes_measurement_J_name=axes_measurement_J_name,
             return_ax=True,
         )
-        cal = plugins.siq.CalPoint(
-            mol=mol,
-            mass=mass,
-            F_type="ecms_calibraion_curve",
-            F=ms_cal_result.F,
-            date=self.yyMdd,
-        )
+        cal = ms_cal_result.to_siq()
         if return_ax:
             return cal, ax
         else:

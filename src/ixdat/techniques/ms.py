@@ -695,7 +695,6 @@ class MSMeasurement(Measurement):
                 "instead."
             )
         Chip = plugins.siq.Chip
-        CalPoint = plugins.siq.CalPoint
 
         chip = chip or Chip()
 
@@ -714,7 +713,7 @@ class MSMeasurement(Measurement):
             return_ax=True,
         )
 
-        cal = CalPoint(mol=mol, mass=mass, F_type="capillary", F=cal.F, date=self.yyMdd)
+        cal = cal.to_siq()
         if return_ax:
             return cal, ax
         return cal

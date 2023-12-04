@@ -27,6 +27,11 @@ API changes
 
 techniques
 ^^^^^^^^^^
+- Native and ``spectro_inlets_quantification`` (siq) calibration objects can be interconverted:
+  - ``cal.to_siq()`` for ixdat ``MSCalResult`` --> siq ``CalPoint``
+  - ``MSCalResult.from_siq(cal)`` for siq ``CalPoint`` --> ixdat ``MSCalResult``
+  - ``cals.to_siq()`` for ixdat ``MSCalibration`` --> siq ``Calibration``
+  - ``MSCalibration.from_siq(cals)`` for siq ``Calibration`` --> ixdat ``MSCalibration``
 
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
   a boolean ``axes_measurement_raw``. Set to True if the axes passed to
