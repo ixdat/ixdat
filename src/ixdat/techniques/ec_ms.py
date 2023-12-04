@@ -261,18 +261,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             ax.plot(n_vec * 1e9, Y_vec * 1e9, "o", color=color)
             ax.plot(n_fit * 1e9, Y_fit * 1e9, "--", color=color)
 
-        if plugins.use_siq:
-            cal = plugins.siq.CalPoint(
-                mol=mol, mass=mass, F_type="internal", F=F, date=self.yyMdd
-            )
-        else:
-            cal = MSCalResult(
-                name=f"{mol}@{mass}",
-                mol=mol,
-                mass=mass,
-                cal_type="ecms_calibration_curve",
-                F=F,
-            )
+        cal = MSCalResult(
+            name=f"{mol}@{mass}",
+            mol=mol,
+            mass=mass,
+            cal_type="ecms_calibration_curve",
+            F=F,
+        )
 
         if return_ax:
             return cal, ax
@@ -430,13 +425,12 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass=mass,
             F_type="ecms_calibraion_curve",
             F=ms_cal_result.F,
-            date=self.yyMdd
+            date=self.yyMdd,
         )
         if return_ax:
             return cal, ax
         else:
             return cal
-
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):

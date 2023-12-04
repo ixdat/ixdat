@@ -240,7 +240,7 @@ class MSMeasurement(Measurement):
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.grab_siq_fluxes` only works when using an "
+                "`MSMeasurement.grab_siq_fluxes` only works when using "
                 "`spectro_inlets_quantification` "
                 "(`ixdat.plugins.activate_siq()`). "
             )
@@ -868,7 +868,7 @@ class MSMeasurement(Measurement):
         """
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSMeasurement.set_siq_quantifier` only works when using an "
+                "`MSMeasurement.set_siq_quantifier` only works when using "
                 "`spectro_inlets_quantification` "
                 "(`ixdat.options.activate_siq()`). "
                 "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
@@ -929,6 +929,31 @@ class MSCalResult(Saveable):
     @property
     def color(self):
         return STANDARD_COLORS[self.mass]
+
+    @classmethod
+    def from_siq(cls, siq_cal_point):
+        return cls(
+            name=siq_cal_point.mol + "@" + siq_cal_point.mass,
+            mol=siq_cal_point.mol,
+            mass=siq_cal_point.mass,
+            cal_type=siq_cal_point.F_type,
+            F=siq_cal_point.F,
+        )
+
+    def to_siq(self):
+        if not plugins.use_siq:
+            raise QuantificationError(
+                "`MSCalPoint.to_siq` only works when using "
+                "`spectro_inlets_quantification` "
+                "(`ixdat.options.activate_siq()`). "
+                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
+            )
+        return plugins.siq.CalPoint(
+            mol=self.mol,
+            mass=self.mass,
+            F=self.F,
+            F_type=self.cal_type,
+        )
 
 
 class MSCalibration(Calibration):
@@ -1091,6 +1116,41 @@ class MSCalibration(Calibration):
         self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
         with open(path_to_file, "w") as f:
             json.dump(self_as_dict, f, indent=4)
+
+    @classmethod
+    def from_siq(cls, siq_calibration):
+
+        # A complication is that it can be either a Calibration or a SensitivityList.
+        # Either way, the sensitivity factors are in `sf_list`:
+        ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]
+        # if it's a Calibration, we want the metadata:
+        try:
+            calibration = cls(
+                name=siq_calibration.name,
+                date=siq_calibration.date,
+                setup=siq_calibration.setup,
+                ms_cal_results=ms_cal_results,
+            )
+        # if not, we just want the data:
+        except AttributeError:
+            calibration = cls(ms_cal_results=ms_cal_results)
+        return calibration
+
+    def to_siq(self):
+        if not plugins.use_siq:
+            raise QuantificationError(
+                "`MSCalPoint.to_siq` only works when using "
+                "`spectro_inlets_quantification` "
+                "(`ixdat.options.activate_siq()`). "
+                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
+            )
+        cal_list = [cal.to_siq() for cal in self.ms_cal_results]
+        return plugins.siq.Calibration(
+            name=self.name,
+            date=self.date,
+            setup=self.setup,
+            cal_list=cal_list,
+        )
 
 
 class MSInlet:
