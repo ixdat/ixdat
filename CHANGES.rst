@@ -1,4 +1,4 @@
-ixdat 0.2.7 (2022-12-05)
+ixdat 0.2.8 (2022-12-05)
 ========================
 
 Documentation
@@ -90,6 +90,9 @@ constants
 - ``BOLTZMAN_CONSTANT`` renamed ``BOLTZMANN_CONSTANT``
   Resolves `Issue #125 <https://github.com/ixdat/ixdat/issues/125>`_
 
+
+ixdat 0.2.7 (2022-12-05)
+========================
 
 
 ixdat 0.2.6 (2023-10-04)

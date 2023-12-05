@@ -13,5 +13,5 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
 
-ixdat 0.2.8
+ixdat 0.2.9
 ===========
