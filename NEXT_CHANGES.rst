@@ -27,26 +27,39 @@ API changes
 
 techniques
 ^^^^^^^^^^
+- Native and ``spectro_inlets_quantification`` (siq) calibration objects can be interconverted:
+  - ``cal.to_siq()`` for ixdat ``MSCalResult`` --> siq ``CalPoint``
+  - ``MSCalResult.from_siq(cal)`` for siq ``CalPoint`` --> ixdat ``MSCalResult``
+  - ``cals.to_siq()`` for ixdat ``MSCalibration`` --> siq ``Calibration``
+  - ``MSCalibration.from_siq(cals)`` for siq ``Calibration`` --> ixdat ``MSCalibration``
 
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
- a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
- ``axes_measurement`` are raw signal data (i.e. not background subtracted)
-    Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
+  a boolean ``axes_measurement_raw``. Set to True if the axes passed to
+  ``axes_measurement`` are raw signal data (i.e. not background subtracted)
+  Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
 - ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of
-forcing the line of best fit through zero with ``force_through_zero``
-    Resolves `Issue #109 <https://github.com/ixdat/ixdat/issues/109`_
+  forcing the line of best fit through zero with ``force_through_zero``
+  Resolves `Issue #109 <https://github.com/ixdat/ixdat/issues/109`_
 
-- ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of 
-passing a J_name to be used for highlighting the integrated current passed to
-``axes_measurement``. This does not affect the calculation of sensitivity factors, 
-only plotting.
-    Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118>`_
+- ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of
+  passing a J_name to be used for highlighting the integrated current passed to
+  ``axes_measurement``. This does not affect the calculation of sensitivity factors,
+  only plotting.
+  Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
 
 readers
 ^^^^^^^
 - biologic readers now recognize both "Ece/V" and "<Ece>/V" as "raw_CE_potential".
   Resolves `Issue #110 <https://github.com/ixdat/ixdat/issues/110`_
+
+- Native MS calibration methods are moved from ``MSInlet`` to ``MSMeasurement``.
+  Meanwhile, those using ``spectro_inlets_quantification`` are prefixed with ``siq_``,
+  e.g. use ``ms_meas.gas_flux_calibration(...)`` for native ixdat MS calibration and
+  ``ms_meas.siq_gas_flux_calibration(...)`` to use the more powerful siq equivalents.
+  Resolves `Issue #122 <https://github.com/ixdat/ixdat/issues/122>`_
+
+- ``spectro_inlets_quantification`` is consistently abbreviated ``siq``.
 
 
 Debugging
@@ -66,7 +79,7 @@ techniques
 ^^^^^^^^^^^
 
 - ``MSInlet.gas_flux_calibration_curve()`` now works also when passing an
-  axes_measurement 
+  axes_measurement
   Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
 
 - ``CyclicVoltammogram.calibrate()`` now works, passing arguments on to a new ``ECCalibration``
