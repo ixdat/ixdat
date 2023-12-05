@@ -65,7 +65,9 @@ siq_cal_2 = ecms.siq_ecms_calibration_curve(
     force_through_zero=True,
 )
 
-# And here we show all the necessary interconversions:
+# And here we demonstrate all the interconversions between
+# siq and native ixdat calibration objects:
+# (this is not a natural workflow, just some code to show that the methods work.)
 
 cal_2 = MSCalResult.from_siq(siq_cal_2)
 print(cal_2)
@@ -78,7 +80,7 @@ siq_calibration = cal_1.to_siq() + cal_2.to_siq()
 print(siq_calibration)
 
 # The following dowsn't work because it's a SensitivityList instead of a Calibration :(
-# siq_calibratoin.plot_as_spectrum()
+# siq_calibration.plot_as_spectrum()
 
 calibration = MSCalibration.from_siq(siq_calibration)
 print(calibration)
