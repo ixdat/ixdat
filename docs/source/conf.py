@@ -27,7 +27,7 @@ master_doc = "index"
 #   but it seems to still require an index.rst to show the page.
 
 # The full version, including alpha/beta/rc tags
-release = "0.2.0"
+release = "0.2.8"
 
 
 # -- General configuration ---------------------------------------------------
