@@ -18,7 +18,8 @@ ftir = Spectrum.read(
    reader="opus_ftir"
 )
 
-# ftir.plot()  # waterfall plot
+ftir.plot(offset=0.1)  # waterfall plot
+ftir.heat_plot()  # heat plot
 
 
 ec = Measurement.read_set(
@@ -27,8 +28,10 @@ ec = Measurement.read_set(
    reader="biologic",
 )
 ec.calibrate(R_Ohm=30)
+ec.plot()
 
 ecftir = ec + ftir
+
 ecftir.plot(
-   V_step=0.1,  # plot a spectrum for every 0.1 V
+   # V_step=0.1,  # plot a spectrum for every 0.1 V
 )  # stacked with potential on y-axis

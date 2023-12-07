@@ -625,6 +625,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
+    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 

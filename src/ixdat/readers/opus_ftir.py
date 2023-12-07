@@ -7,7 +7,7 @@ Created on Thu Dec  7 16:42:03 2023
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from ..spectra import SpectrumSeries
+from ..techniques.ftir import FTIRSpectrumSeries
 from ..data_series import DataSeries, TimeSeries, Field
 from .reading_tools import timestamp_string_to_tstamp
 
@@ -18,7 +18,7 @@ class OpusFTIRReader:
         self,
         path_to_file,
         name=None,
-        cls=SpectrumSeries,
+        cls=FTIRSpectrumSeries,
         time_first=None,
         time_last=None,
         suffix=".dpt",
@@ -46,8 +46,8 @@ class OpusFTIRReader:
         path_to_file = Path(path_to_file)
         name = name or path_to_file.stem
 
-        if not issubclass(cls, SpectrumSeries):
-            cls = SpectrumSeries
+        if not issubclass(cls, FTIRSpectrumSeries):
+            cls = FTIRSpectrumSeries
 
         files = []
         indeces = []
@@ -92,6 +92,7 @@ class OpusFTIRReader:
             name=name,
             reader=self,
             technique="FTIR",
+            tstamp=tstamp_first,
             field=field,
         )
         return ftir_series
