@@ -9,7 +9,6 @@ from .spectrum_plotter import SpectrumSeriesPlotter
 
 
 class FTIRPlotter(SpectrumSeriesPlotter):
-
     def heat_plot(
         self,
         *,
@@ -74,12 +73,7 @@ class FTIRPlotter(SpectrumSeriesPlotter):
             vmax=vmax,
         )
 
-    def waterfall_plot(
-        self,
-        spectrum_series=None,
-        ax=None,
-        offset=0.2
-    ):
+    def waterfall_plot(self, spectrum_series=None, ax=None, offset=0.2):
         print(offset)
         spectrum_series = spectrum_series or self.spectrum_series
         if not ax:
@@ -88,6 +82,6 @@ class FTIRPlotter(SpectrumSeriesPlotter):
             ax.set_ylabel(spectrum_series.field.name)
 
         for (n, spectrum) in enumerate(spectrum_series):
-            ax.plot(spectrum.x, spectrum.y + n*offset)
+            ax.plot(spectrum.x, spectrum.y + n * offset)
 
         return ax

@@ -13,7 +13,6 @@ from .reading_tools import timestamp_string_to_tstamp
 
 
 class OpusFTIRReader:
-
     def read(
         self,
         path_to_file,
@@ -85,7 +84,10 @@ class OpusFTIRReader:
         xseries = DataSeries(name="wavenumber", unit_name="cm^-1", data=x)
         tseries = TimeSeries(name="time", unit_name="s", data=t, tstamp=tstamp_first)
         field = Field(
-            name="intensity", unit_name=None, data=y_matrix, axes_series=[tseries, xseries]
+            name="intensity",
+            unit_name=None,
+            data=y_matrix,
+            axes_series=[tseries, xseries],
         )
 
         ftir_series = cls(
