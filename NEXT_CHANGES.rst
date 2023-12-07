@@ -15,3 +15,11 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 ixdat 0.2.9
 ===========
+
+techniques
+^^^^^^^^^^
+Added FTIR and EC-FTIR. The latter for now just inherits from SpectroECMeasurement
+
+readers
+^^^^^^^
+Added "opus_ftir" reader for text-exported files from Opus FTIR spectrumeter.
