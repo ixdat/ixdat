@@ -38,6 +38,10 @@ from .avantage import AvantageAVGReader
 # xas
 from .qexafs import QexafsDATReader
 
+# ftir
+from .opus_ftir import OpusFTIRReader
+
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "ixdat_spectrum": IxdatSpectrumReader,
@@ -58,4 +62,5 @@ READER_CLASSES = {
     "msrh_sec_decay": MsrhSECDecayReader,
     "xrdml": XRDMLReader,
     "qexafs": QexafsDATReader,
+    "opus_ftir": OpusFTIRReader,
 }

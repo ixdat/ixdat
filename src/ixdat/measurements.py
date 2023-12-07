@@ -198,7 +198,7 @@ class Measurement(Saveable):
         except TypeError as e:
             print(
                 "ixdat ran into an error while trying to set up an object of type "
-                f"{technique_class}. This usually happens when ixdat wasn't able"
+                f"{technique_class}. This usually happens when ixdat wasn't able "
                 "to correctly determine the measurement technique. Consider"
                 "passing the `technique` argument into the read() function. \n"
                 "For a list of available techniques use: \n "

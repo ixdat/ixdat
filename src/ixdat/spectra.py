@@ -47,6 +47,7 @@ class Spectrum(Saveable):
         "field_id",
     }
     child_attrs = ["fields"]
+    essential_series_names = []
 
     def __init__(
         self,
