@@ -400,6 +400,10 @@ class Saveable:
         """Return an object built from its serialization."""
         return cls(**obj_as_dict)
 
+    def copy(self):
+        """Make a copy of the Measurement via its dictionary representation"""
+        return self.__class__.from_dict(self.as_dict())
+
     @classmethod
     def get(cls, i, backend=None):
         """Open an object of cls given its id (the table is cls.table_name)"""

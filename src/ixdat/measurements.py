@@ -27,6 +27,7 @@ from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
 from .tools import deprecate, tstamp_to_yyMdd
+from .units import ureg
 
 
 class Measurement(Saveable):
@@ -798,7 +799,15 @@ class Measurement(Saveable):
         )
         self.replace_series(value_name, new_vseries)
 
-    def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
+    def grab(
+        self,
+        item,
+        tspan=None,
+        include_endpoints=False,
+        tspan_bg=None,
+        unit_name=None,
+        t_unit_name=None,
+    ):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -827,9 +836,18 @@ class Measurement(Saveable):
                 subtracted from the values returned.
         """
         vseries = self[item]
+        if unit_name and not unit_name == vseries.unit_name:
+            vseries = vseries.to_unit(unit_name)
         tseries = vseries.tseries
+        print(tseries.shape)
+        if not tseries.unit_name == "s":
+            tseries = tseries.to_unit("s")
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
+        print(t.shape)
+        if t_unit_name and not t_unit_name == "s":
+            t = ureg.convert(t, "s", t_unit_name)
+        print(t.shape)
         if tspan is not None:  # np arrays don't boolean well :(
             if include_endpoints:
                 if t[0] < tspan[0]:  # then add a point to include tspan[0]
@@ -843,7 +861,9 @@ class Measurement(Saveable):
             mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
             t, v = t[mask], v[mask]
         if tspan_bg:
-            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            t_bg, v_bg = self.grab(
+                item, tspan=tspan_bg, unit_name=unit_name, t_unit_name=t_unit_name
+            )
             v = v - np.mean(v_bg)
         return t, v
 
@@ -1265,10 +1285,6 @@ class Measurement(Saveable):
         if args or kwargs:
             new_measurement = new_measurement.select_values(*args, **kwargs)
         return new_measurement
-
-    def copy(self):
-        """Make a copy of the Measurement via its dictionary representation"""
-        return self.__class__.from_dict(self.as_dict())
 
     def __add__(self, other):
         """Addition of measurements appends the series and component measurements lists.

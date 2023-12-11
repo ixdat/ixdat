@@ -7,8 +7,8 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
 import numpy as np
-from .db import Saveable
-from .units import Unit
+from .db import Saveable, fill_object_list, PlaceHolderObject
+from .units import Unit, ureg
 from .exceptions import AxisError, BuildError
 
 
@@ -65,6 +65,13 @@ class DataSeries(Saveable):
     def size(self):
         return self.data.size
 
+    def to_unit(self, new_unit_name):
+        """Return a copy of the data series with the given unit"""
+        new_data = ureg.convert(self.data, self.unit_name, new_unit_name)
+        obj_as_dict = self.as_dict()
+        obj_as_dict.update(unit_name=new_unit_name, data=new_data)
+        return self.__class__.from_dict(obj_as_dict)
+
 
 class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
@@ -112,38 +119,22 @@ class Field(DataSeries):
                 the field's data spans, if available
         """
         super().__init__(name, unit_name, data)
-        N = len(a_ids) if a_ids is not None else len(axes_series)
-        self.N_dimensions = N
-        self._a_ids = a_ids if a_ids is not None else ([None] * N)
-        # TODO: This could probably be handled more nicely with PlaceHolderObjects
-        #   see: Measurement and
-        #   https://github.com/ixdat/ixdat/pull/1#discussion_r551518461
-        self._axes_series = axes_series if axes_series is not None else ([None] * N)
-        self._check_axes()  # raises an AxisError if something's wrong
-
-    def get_axis_id(self, axis_number):
-        """Return the id of the `axis_number`'th axis of the data"""
-        if self._axes_series[axis_number]:
-            return self._axes_series[axis_number].id
-        return self._a_ids[axis_number]
-
-    def get_axis_series(self, axis_number):
-        """Return the DataSeries of the `axis_number`'th axis of the data"""
-        if not self._axes_series[axis_number]:
-            self._axes_series[axis_number] = DataSeries.get(i=self._a_ids[axis_number])
-            # And so as not have two id's for the axis_number'th axis:
-            self._a_ids[axis_number] = None
-        return self._axes_series[axis_number]
+        self._axes_series = fill_object_list(axes_series, a_ids, cls=DataSeries)
+        self.N_dimensions = len(self.a_ids)
 
     @property
     def a_ids(self):
         """List of the id's of the axes spanned by the field"""
-        return [self.get_axis_id(n) for n in range(self.N_dimensions)]
+        return [a.short_identity for a in self._axes_series]
 
     @property
     def axes_series(self):
         """List of the DataSeries defining the axes spanned by the field"""
-        return [self.get_axis_series(n) for n in range(self.N_dimensions)]
+        for i, a in enumerate(self._axes_series):
+            if isinstance(a, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
+                self._axes_series[i] = a.get_object()
+        return self._axes_series
 
     def _check_axes(self):
         """Check that there are no contradictions in the Field's axes_series and id's"""
@@ -217,8 +208,8 @@ class ValueSeries(Field):
             tseries (TimeSeries): The corresponding TimeSeries, if available
                 (can also be supplied as `axes_series[0]`)
         """
-        a_ids = a_ids or [t_id]
-        axes_series = axes_series or [tseries]
+        a_ids = a_ids or ([t_id] if t_id else None)
+        axes_series = axes_series or ([tseries] if tseries else None)
         super().__init__(name, unit_name, data, a_ids, axes_series)
         # TODO: This could probably be handled more nicely with PlaceHolderObjects
         #   see: Measurement and
