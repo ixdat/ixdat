@@ -15,3 +15,10 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 ixdat 0.2.9
 ===========
+
+
+techniques
+^^^^^^^^^^
+
+ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
+  Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.
