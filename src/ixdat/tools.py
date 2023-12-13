@@ -262,7 +262,22 @@ def deprecate(
     return decorator
 
 
-def tstamp_to_string(tstamp):
+def tstamp_to_yyMdd(tstamp: float) -> str:
+    """Return the date in compact form "yyMdd" format given the unix time (float).
+    In this format the month is given as a capital letter, starting with A for January.
+    E.g. June 4th, 2022 will become 22F04.
+    """
+    a = time.localtime(tstamp)
+    year = a.tm_year
+    month = a.tm_mon
+    day = a.tm_mday
+    date_string = "{0:02d}{1:1s}{2:02d}".format(
+        year % 100, chr(ord("A") + month - 1), day
+    )
+    return date_string
+
+
+def tstamp_to_string(tstamp: float) -> str:
     """Return a string representation if unix timestamps `tstamp`"""
     dt = datetime.datetime.fromtimestamp(tstamp)
     print(dt.tzinfo)
