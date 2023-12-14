@@ -172,8 +172,8 @@ class Measurement(Saveable):
                     out.append("┣━ " + str(value_series))
 
         return (
-            f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} series\n"
-            "\n"
+            f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} "
+            "series\n\n"
             "Series list:\n" + "\n".join(out)
         )
         return out

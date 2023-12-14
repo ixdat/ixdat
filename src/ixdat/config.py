@@ -26,10 +26,10 @@ class _Config:
             ixdat will make the directory if it does not exist.
         standard_metadata_suffix (str): The file ext. for JSON format metadata files
         standard_data_suffix (str): The file extension for numpy.save format data files
-        timestamp_string_format (str): A format string for datetime.datetime.strftime. Defaults
-            to ixdats custom datetime format: 22E18 14:34:55
-        timezone (datetime.timezone): The timezone timestamps should use when formatted to
-            string. Defaults to the current local timestamp.
+        timestamp_string_format (str): A format string for datetime.datetime.strftime.
+            Defaults to ixdats custom datetime format: 22E18 14:34:55
+        timezone (datetime.timezone): The timezone timestamps should use when formatted
+            to string. Defaults to the current local timestamp.
     """
 
     def __init__(self):

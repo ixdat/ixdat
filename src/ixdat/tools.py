@@ -292,7 +292,5 @@ def tstamp_to_string(tstamp: float) -> str:
 
 
 if __name__ == "__main__":
-    from time import time
-
-    t0 = time()
+    t0 = time.time()
     print(tstamp_to_string(t0))
