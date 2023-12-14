@@ -87,7 +87,7 @@ class TimeSeries(DataSeries):
         # On the form: TimeSeries: 'NAME', Span: 12..4000s @ 22E18 14:34:55
         return (
             f"{self.__class__.__name__}: '{self.name}', "
-            f"Span: {min(self.data):.0f}..{max(self.data):.0f} {self.unit.name} "
+            f"Span: {min(self.data):.0f}..{max(self.data):.0f}{self.unit.name} "
             f"@ {tstamp_to_string(self.tstamp)}"
         )
 
@@ -238,7 +238,7 @@ class ValueSeries(Field):
         """Return string representation"""
         return (
             f"{self.__class__.__name__}: '{self.name}', "
-            f"Span: {min(self.data):.1e}..{max(self.data):.1e} {self.unit.name}"
+            f"Span: {min(self.data):.1e}..{max(self.data):.1e}{self.unit.name}"
         )
 
     @property
