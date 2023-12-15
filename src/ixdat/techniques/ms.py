@@ -5,7 +5,7 @@ import numpy as np
 import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
 import warnings
 
-from ..measurements import Measurement, Calibration
+from ..measurements import Measurement, Calibration, Background
 from ..spectra import Spectrum, SpectroMeasurement
 from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
@@ -1151,7 +1151,115 @@ class MSCalibration(Calibration):
             cal_list=cal_list,
         )
 
+class MSBackground(Background):
+    """Class for mass spec backgrounds."""
 
+    def __init__(
+        self,
+        name=None,
+        date=None,
+        tstamp=None,  # FIXME: No need to have both a date and a tstamp?
+        setup=None,
+        ms_cal_results=None,
+        signal_bgs=None,
+        technique="MS",
+        measurement=None,
+    ):
+        """
+        Args:
+            name (str): Name of the ms_background
+            date (str): Date of the ms_background
+            setup (str): Name of the setup where the ms_background is determined
+            ms_cal_results (list of MSCalResult): The mass spec calibrations TODO: decide how to deal with this in BGs
+            measurement (MSMeasurement): The measurement
+        """
+        super().__init__(
+            name=name or f"MS background for {setup} on {date}",
+            technique=technique,
+            tstamp=tstamp,
+            measurement=measurement,
+        )
+        self.date = date
+        self.setup = setup
+        self.ms_cal_results = ms_cal_results or []
+        self.signal_bgs = signal_bgs or {}
+
+    @property
+    def ms_cal_result_ids(self):
+        return [cal.id for cal in self.ms_cal_results]
+
+    @property
+    def mol_list(self):
+        return list({cal.mol for cal in self.ms_cal_results})
+
+    @property
+    def mass_list(self):
+        return list({cal.mass for cal in self.ms_cal_results})
+
+    @property
+    def name_list(self):
+        return list({cal.name for cal in self.ms_cal_results})
+
+    def __contains__(self, mol):
+        return mol in self.mol_list or mol in self.name_list
+
+    def __iter__(self):
+        yield from self.ms_cal_results
+
+    def remove_bg_from_series(self, key, measurement=None):
+        """Return a calibrated series for `key` if possible.
+
+        If key starts with "n_", it is interpreted as a molecule flux. This method then
+        searches the calibration for a sensitivity factor for that molecule uses it to
+        divide the relevant mass signal from the measurement. Example acceptable keys:
+        "n_H2", "n_dot_H2".
+        If the key does not start with "n_", or the calibration can't find a relevant
+        sensitivity factor and mass signal, this method returns None.
+        """
+        measurement = measurement or self.measurement
+        if key.startswith("n_"):  # it's a flux!
+            mol = key.split("_")[-1]
+            try:
+                mass, F = self.get_mass_and_F(mol)
+            except QuantificationError:
+                # Calibrations just return None when they can't get what's requested.
+                return
+            signal_series = measurement[mass]
+            y = signal_series.data
+            if mass in measurement.signal_bgs:
+                # FIXME: How to make this optional to user of MSMeasuremt.grab()?
+                y = y - measurement.signal_bgs[mass]
+            n_dot = y / F
+            return ValueSeries(
+                name=f"n_dot_{mol}",
+                unit_name="mol/s",
+                data=n_dot,
+                tseries=signal_series.tseries,
+            )
+
+    @classmethod
+    def read(cls, path_to_file):
+        """Read an MSCalibration from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        # put the MSCalResults (exported as dicts) into objects:
+        obj_as_dict["ms_cal_results"] = [
+            MSCalResult.from_dict(ms_cal_as_dict)
+            for ms_cal_as_dict in obj_as_dict["ms_cal_results"]
+        ]
+        return cls.from_dict(obj_as_dict)
+
+    def export(self, path_to_file=None):
+        """Export an ECMSCalibration as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        # replace the ms_cal_result ids with the dictionaries of the results themselves:
+        del self_as_dict["ms_cal_result_ids"]
+        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
+
+   
 class MSInlet:
     """A class for describing the inlet to the mass spec
 

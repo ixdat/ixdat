@@ -48,3 +48,10 @@ CALIBRATION_CLASSES = {
     "EC-MS": ECMSCalibration,
     "reactor": ReactorCalibration,
 }
+
+BACKGROUND_CLASSES = {
+    "EC": ECBackground,
+    "CV": ECBackground,
+    "MS": MSBackground,
+    "EC-MS": ECMSBackground,
+}

@@ -1430,6 +1430,76 @@ class Calibration(Saveable):
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
         raise NotImplementedError
+        
+class Background(Saveable):
+    """Base class for backgrounds."""
+
+    table_name = "background"
+    column_attrs = {
+        "name",
+        "technique",
+        "tstamp",
+    }
+
+    def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):
+        """Initiate a Background
+
+        Args:
+            name (str): The name of the background
+            technique (str): The technique of the background
+            tstamp (float): The time at which the background is valid
+            measurement (Measurement): Optional. A measurement from which to
+                subtract the background by default.
+        """
+        super().__init__()
+        self.name = name or f"{self.__class__.__name__}({measurement})"
+        self.technique = technique
+        self.tstamp = tstamp or (measurement.tstamp if measurement else None)
+        self.measurement = measurement
+
+    @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Return an object of the Background class of the right technique
+
+        Args:
+              obj_as_dict (dict): The full serializaiton (rows from table and aux
+                tables) of the measurement. obj_as_dict["technique"] specifies the
+                technique class to use, from TECHNIQUE_CLASSES
+        """
+        # TODO: see if there isn't a way to put the import at the top of the module.
+        #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
+        from .techniques import BACKGROUND_CLASSES
+
+        if obj_as_dict["technique"] in BACKGROUND_CLASSES:
+            background_class = BACKGROUND_CLASSES[obj_as_dict["technique"]]
+        else:
+            background_class = cls
+        try:
+            background = background_class(**obj_as_dict)
+        except Exception:
+            raise
+        return background
+
+    def export(self, path_to_file=None):
+        """Export a background as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
+
+    @classmethod
+    def read(cls, path_to_file):
+        """Read a background from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        return cls.from_dict(obj_as_dict)
+
+    def remove_bg_from_series(self, key, measurement=None):
+        """This should be overwritten in real calibration classes.
+
+        FIXME: Add more documentation about how to write this in inheriting classes.
+        """
+        raise NotImplementedError
 
 
 def get_combined_technique(technique_1, technique_2):
