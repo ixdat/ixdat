@@ -54,9 +54,9 @@ class SECPlotter(SpectroMeasurementPlotter):
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
             continuous (bool): Optional. Whether to make a continuous heat plot (True) or
-                a discrete heat plot for each spectrum (False). In the discrete case, each
-                heat plot is a rectangle with the spectrum's duration as its width, if
-                available. If the duration is not available, each spectrum heat plot
+                a discrete heat plot for each spectrum (False). In the discrete case,
+                each heat plot is a rectangle with the spectrum's duration as its width,
+                if available. If the duration is not available, each spectrum heat plot
                 extends to the start of the next one.
                 Defaults to `measurement.spectrum_series.continuous`.
 

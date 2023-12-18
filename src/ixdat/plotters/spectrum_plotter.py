@@ -100,9 +100,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
             vmin (float): minimum value to represent in colours.
             vmax (float): maximum value to represent in colours.
             continuous (bool): Optional. Whether to make a continuous heat plot (True) or
-                a discrete heat plot for each spectrum (False). In the discrete case, each
-                heat plot is a rectangle with the spectrum's duration as its width, if
-                available. If the duration is not available, each spectrum heat plot
+                a discrete heat plot for each spectrum (False). In the discrete case,
+                each heat plot is a rectangle with the spectrum's duration as its width,
+                if available. If the duration is not available, each spectrum heat plot
                 extends to the start of the next one.
                 Defaults to the `spectrum_series.continuous`.
         """
