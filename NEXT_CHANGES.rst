@@ -45,6 +45,7 @@ readers
 - ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as 
   before for reading in a zilien spectrum. This is accomplished by different 
   groups of reader for ``Spectrum.read`` and ``Measurement.read``
+  Also, zilien-read spectra now know their duration.
 
 - ``Measurement.read(..., reader="zilien")`` now returns a ``SpectroMSMeasurement``
   when the reader can find zilien mass scans taken during the measurement. It
@@ -63,6 +64,15 @@ readers
 - biologic readers now recognize both "Ece/V" and "<Ece>/V" as "raw_CE_potential".
   Resolves `Issue #110 <https://github.com/ixdat/ixdat/issues/110`_
 
+plotters
+^^^^^^^^
+- ``SpectrumPlotter.heat_plot()`` and methods that rely on it can now plot discrete heat plots, with
+  each spectrum only plotted for its duration, if available. If spectrum durations are not available,
+  it plots each spectrum until the start of the next spectrum, i.e. like the previous (continuous)
+  behaviour but without interpolation.
+  Discrete heat plotting is now the default behavior for ``MSSpectroMeasurement``s read by "zilien"
+  (in which case durations are available).
+  ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
 
 Debugging
 ---------
