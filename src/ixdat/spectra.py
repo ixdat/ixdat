@@ -474,17 +474,16 @@ class SpectrumSeries(Spectrum):
                 in [s]. Should correspond roughly to the time it takes for a spectrum
                 to be acquired. Defaults to the minimum of 1 second or 1/1000'th of the
                 average time between recorded spectra.
+            durations (list of float): The durations of each of the spectra in [s].
+            continuous (bool): Whether the spectra should be considered continuous, i.e.
+                whether plotting and grabbing functions should interpolate between
+                spectrums. Defaults to False.
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
-        try:
-            self._t_tolerance = kwargs.pop("t_tolerance")
-        except KeyError:
-            self._t_tolerance = None
-        try:
-            self.durations = kwargs.pop("durations")
-        except KeyError:
-            self.durations = None
+        self._t_tolerance = kwargs.pop("t_tolerance", None)
+        self.durations = kwargs.pop("durations", None)
+        self.continuous = kwargs.pop("continuous", False)
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
@@ -629,7 +628,8 @@ class SpectrumSeries(Spectrum):
                 axes_series=[self.xseries],
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
-            spectrum_as_dict["duration"] = self.durations[key]
+            if self.durations:
+                spectrum_as_dict["duration"] = self.durations[key]
             return Spectrum.from_dict(spectrum_as_dict)
         raise KeyError
 
@@ -695,6 +695,7 @@ class SpectroMeasurement(Measurement):
         super().__init__(*args, **kwargs)
         if spectrum_series:
             self._spectrum_series = spectrum_series
+            self._spectrum_series.tstamp = self.tstamp
         elif spec_id:
             self._spectrum_series = PlaceHolderObject(spec_id, cls=SpectrumSeries)
         else:
@@ -708,6 +709,7 @@ class SpectroMeasurement(Measurement):
         """The `SpectrumSeries` with the spectral data"""
         if isinstance(self._spectrum_series, PlaceHolderObject):
             self._spectrum_series = self._spectrum_series.get_object()
+            self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
 
     @property
@@ -723,6 +725,10 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+
+    @property
+    def continuous(self):
+        return self.spectrum_series.continuous
 
     @Measurement.tstamp.setter
     def tstamp(self, tstamp):
