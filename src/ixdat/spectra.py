@@ -59,6 +59,7 @@ class Spectrum(Saveable):
         tstamp=None,
         field=None,
         field_id=None,
+        duration=None,
     ):
         """Initiate a spectrum
 
@@ -72,6 +73,7 @@ class Spectrum(Saveable):
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
+            duration (float): Optional. The duration of the spectrum measurement in [s]
         """
         super().__init__()
         self.name = name
@@ -80,6 +82,7 @@ class Spectrum(Saveable):
         self.tstamp = tstamp
         self.sample_name = sample_name
         self.reader = reader
+        self.duration = duration
         # Note: the PlaceHolderObject can be initiated without the backend because
         #     if field_id is provided, then the relevant backend is the active one,
         #     which PlaceHolderObject uses by default.
@@ -422,9 +425,10 @@ class MultiSpectrum(Saveable):
         """Build a SpectrumSeries from a list of Spectrums"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
-        technique = spectrum_list[0].technique
-        if technique.endswith("spectrum"):
-            technique = technique.rstrip("spectrum") + "spectra"
+        if not technique:
+            technique = spectrum_list[0].technique
+            if technique.endswith("spectrum"):
+                technique = technique.rstrip("spectrum") + "spectra"
         obj_as_dict = {
             "fields": fields,
             "technique": technique,
@@ -477,6 +481,10 @@ class SpectrumSeries(Spectrum):
             self._t_tolerance = kwargs.pop("t_tolerance")
         except KeyError:
             self._t_tolerance = None
+        try:
+            self.durations = kwargs.pop("durations")
+        except KeyError:
+            self.durations = None
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
@@ -487,7 +495,9 @@ class SpectrumSeries(Spectrum):
         xseries = None
         tstamp_list = []
         ys = []
-        technique = spectrum_list[0].technique
+        technique = kwargs.get("technique", None)
+        if not technique:
+            technique = spectrum_list[0].technique
 
         for spectrum in spectrum_list:
             tstamp_list.append(spectrum.tstamp)
@@ -513,7 +523,8 @@ class SpectrumSeries(Spectrum):
         obj_as_dict["field"] = field
         obj_as_dict["technique"] = technique
         del obj_as_dict["field_id"]
-        obj_as_dict.update(kwargs)
+        # Any attribute we want in the SpecrumSeries for each spectrum should go here:
+        obj_as_dict["durations"] = [s.duration for s in spectrum_list]
         return cls.from_dict(obj_as_dict)
 
     @property
@@ -618,6 +629,7 @@ class SpectrumSeries(Spectrum):
                 axes_series=[self.xseries],
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
+            spectrum_as_dict["duration"] = self.durations[key]
             return Spectrum.from_dict(spectrum_as_dict)
         raise KeyError
 

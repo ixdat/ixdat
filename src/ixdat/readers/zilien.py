@@ -13,6 +13,7 @@ Biologic dataset. These are grouped under the series header "EC-lab".
 """
 
 import re
+import time
 from collections import defaultdict
 from itertools import groupby, zip_longest
 from pathlib import Path
@@ -69,7 +70,8 @@ def parse_metadata_line(line):
     if type_as_str == "string":
         return full_name, value
     elif type_as_str == "int":
-        return full_name, int(value)
+        # Zilien writes some ints as floats, e.g. "0.0".
+        return full_name, int(float(value))
     elif type_as_str == "double":
         return full_name, float(value)
     elif type_as_str == "bool":
@@ -624,23 +626,46 @@ class ZilienSpectrumReader:
     def __init__(self, path_to_spectrum=None):
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
-    def read(self, path_to_spectrum, cls=None, t_zero=0, **kwargs):
+    def read(self, path_to_spectrum, cls=None, t_zero=None, **kwargs):
         """Read a Zilien spectrum.
         FIXME: This reader was written hastily and could be designed better.
 
         Args:
-            path_to_tmp_dir (Path or str): the path to the tmp dir
+            path_to_spectrum(Path or str): the path to the tmp dir
             cls (Spectrum class): Defaults to MSSpectrum
             t_zero (float): The unix timestamp which the mass scan start time
-                is referenced to. Defaults to 0.
+                is referenced to. Should be the tstamp of the corresponding
+                Zilien measurement. If the Spectrum is read individually, it needs
+                to be input or defaults to `time.time()`, i.e., now.
             kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         if path_to_spectrum:
             self.path_to_spectrum = Path(path_to_spectrum)
         cls = cls or MSSpectrum
+        t_zero = t_zero or time.time()
+
+        with open(self.path_to_spectrum, "r") as f:
+            in_header = True
+            i = 1
+            metadata_dict = {}
+            while in_header:
+                name, value = parse_metadata_line(f.readline())
+                metadata_dict[name] = value
+                if i == metadata_dict.get("num_header_lines", 0):
+                    in_header = False
+                i += 1
+
+        tstamp = t_zero + metadata_dict["mass_scan_started_at"]
+        duration = (
+            (metadata_dict["stop_mass"] - metadata_dict["start_mass"])
+            * metadata_dict["points_per_amu"]
+            * metadata_dict["dwell_time"]
+            * 1e-3
+        )
+
         df = pd.read_csv(
             self.path_to_spectrum,
-            header=9,
+            header=metadata_dict["data_start"] - 1,
             delimiter="\t",
         )
         y_name = "Current [A]"
@@ -657,14 +682,6 @@ class ZilienSpectrumReader:
                 f"Looked for one of {ZILIEN_MASS_COLUMN_NAMES}"
             )
         y = df[y_name].to_numpy()
-        with open(self.path_to_spectrum, "r") as f:
-            for i in range(10):
-                line = f.readline()
-                if "Mass scan started at [s]" in line:
-                    tstamp_match = re.search(FLOAT_MATCH, line)
-                    t = float(tstamp_match.group())
-                    tstamp = t_zero + t
-                    break  # because we're not looking for anything else.
 
         xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
         field = Field(
@@ -681,6 +698,7 @@ class ZilienSpectrumReader:
             "field": field,
             "reader": self,
             "tstamp": tstamp,
+            "duration": duration,
         }
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)
