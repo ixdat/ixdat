@@ -625,7 +625,7 @@ class ZilienSpectrumReader:
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
     def read(self, path_to_spectrum, cls=None, t_zero=0, **kwargs):
-        """Reat a Zilien spectrum.
+        """Read a Zilien spectrum.
         FIXME: This reader was written hastily and could be designed better.
 
         Args:
@@ -664,6 +664,8 @@ class ZilienSpectrumReader:
                     tstamp_match = re.search(FLOAT_MATCH, line)
                     t = float(tstamp_match.group())
                     tstamp = t_zero + t
+                    break  # because we're not looking for anything else.
+
         xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
         field = Field(
             data=np.array(y),

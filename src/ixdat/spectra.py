@@ -466,9 +466,17 @@ class SpectrumSeries(Spectrum):
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
+            t_tolerance (float): The minimum relevant time difference between spectra
+                in [s]. Should correspond roughly to the time it takes for a spectrum
+                to be acquired. Defaults to the minimum of 1 second or 1/1000'th of the
+                average time between recorded spectra.
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
+        try:
+            self._t_tolerance = kwargs.pop("t_tolerance")
+        except KeyError:
+            self._t_tolerance = None
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
@@ -516,7 +524,8 @@ class SpectrumSeries(Spectrum):
         """
         if isinstance(self._field, PlaceHolderObject):
             self._field = self._field.get_object()
-        if not self._field.axes_series[0].tstamp == self.tstamp:
+
+        if abs(self._field.axes_series[0].tstamp - self.tstamp) > self.t_tolerance:
             self._field = Field(
                 name=self._field.name,
                 data=self._field.data,
@@ -546,14 +555,34 @@ class SpectrumSeries(Spectrum):
     @property
     def t(self):
         """The time array of a SectrumSeries is the data of its tseries.
-        Note that it it is not sorted!
+
+        FIXME: It is the reader's job to make sure that `t` is increasing,
+           i.e. that the spectra are sorted by time.
         """
+
         return self.tseries.data
 
     @property
     def t_name(self):
         """The name of the time variable of the spectrum series"""
         return self.tseries.name
+
+    @property
+    def t_tolerance(self):
+        if self._t_tolerance is None:
+            # Note, accessing `self.t` here would lead to infinite recursion
+            #   due to `t_tolerance`'s use in the `field` property.
+            try:
+                t = self._field.axes_series[0].t
+            except AttributeError:
+                raise AttributeError(
+                    "`SpectrumSeries` object tried to use time data from its `Field`"
+                    " to determine its time tolerance but its `_field` was "
+                    f"{self._field}."
+                )
+            tolerance_by_spacing = 1 / 1000 * (t[-1] - t[0]) / len(t)
+            self._t_tolerance = min(tolerance_by_spacing, 1)
+        return self._t_tolerance
 
     @property
     def xseries(self):
@@ -667,7 +696,6 @@ class SpectroMeasurement(Measurement):
         """The `SpectrumSeries` with the spectral data"""
         if isinstance(self._spectrum_series, PlaceHolderObject):
             self._spectrum_series = self._spectrum_series.get_object()
-        self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
 
     @property
@@ -683,6 +711,15 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+
+    @Measurement.tstamp.setter
+    def tstamp(self, tstamp):
+        self._tstamp = tstamp
+        # Resetting the tstamp needs to reset the `spectrum_series`' tstamp as well:
+        self.spectrum_series.tstamp = tstamp
+        # As before it also needs to clear the cache, so series are returned wrt the
+        # new timestamp.
+        self.clear_cache()
 
     def __add__(self, other):
         added_measurement = super().__add__(other)
