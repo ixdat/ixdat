@@ -22,6 +22,9 @@ API changes
 techniques
 ^^^^^^^^^^
 
+- Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
+  For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
+
 - ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
   a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
   ``axes_measurement`` are raw signal data (i.e. not background subtracted)

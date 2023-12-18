@@ -721,6 +721,11 @@ class SpectroMeasurement(Measurement):
         # new timestamp.
         self.clear_cache()
 
+    def __getitem__(self, item):
+        if isinstance(item, int) or isinstance(item, slice):
+            return self.spectrum_series[item]
+        return super().__getitem__(item)
+
     def __add__(self, other):
         added_measurement = super().__add__(other)
         if isinstance(other, SpectroMeasurement):
