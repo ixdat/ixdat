@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from . import TECHNIQUE_CLASSES
 from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
@@ -376,7 +377,7 @@ class BiologicMPRReader(BiologicReader):
 
     read() is the important method - it takes the path to the mpt file as argument
     and returns an ECMeasurement object (ec_measurement) representing that file.
-    The ECMeasurement contains a reference to the BiologicMPTReader object, as
+    The ECMeasurement contains a reference to the BiologicMPRReader object, as
     ec_measurement.reader. This makes available all the following stuff, likely
     useful for debugging.
 
@@ -395,19 +396,21 @@ class BiologicMPRReader(BiologicReader):
             have one shared time variable)
         ec_technique (str): The name of the electrochemical sub-technique, i.e.
             "CVA", etc.
-        df (pandas DataFrame): The .mpr as returned by `eclabfiles.to_df()`
+        mpr_file (galvani.BioLogic.MPRfile): The .mpr as read by `galvani`
+        df (pandas.DataFrame): The DataFrame containing mpr_file.data
     """
 
     def __init__(self):
         super().__init__()
         # These are special to BiologicMPRReader
+        self.mpr_file = None
         self.df = None
 
     def read(self, path_to_file, name=None, cls=ECMeasurement, **kwargs):
         """Read a biologic .mpr file
 
-        This makes use of the package `eclabfiles` by Nicolas Vetch.
-        See: https://github.com/vetschn/eclabfiles.
+        This makes use of the package `galvani`.
+        See: https://github.com/echemdata/galvani/tree/master.
         The dataframe read in by `eclabfiles.to_df()` is stored in the returned
         measurement `meas` as `meas.reader.df`.
 
@@ -421,13 +424,14 @@ class BiologicMPRReader(BiologicReader):
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
         try:
-            import eclabfiles  # not a requirement of ixdat, so we import it here.
+            # not a requirement of ixdat, so we import it here:
+            from galvani import BioLogic
         except ImportError:
             # Nudge the user towards .mpt since we are better at those:
             raise ReadError(
                 "To read biologic binary files (.mpr), ixdat makes use of the "
-                "`eclabfiles` package. See https://pypi.org/project/eclabfiles/ \n"
-                "Install `eclabfiles` and try again.\n\n"
+                "`galvani` package. See https://pypi.org/project/galvani/ \n"
+                "Install `galvani` and try again.\n\n"
                 "Alternatively, read the text export (.mpt) instead. You can set EC-Lab "
                 "to export these automatically under Advanced Settings."
             )
@@ -446,27 +450,26 @@ class BiologicMPRReader(BiologicReader):
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
+        with open(self.path_to_file, "rb") as mpr_binary_file:
+            mpr_file = BioLogic.MPRfile(mpr_binary_file)
 
-        self.df = eclabfiles.to_df(self.path_to_file)
-
-        units = self.df.attrs["units"]
-        tstamp = self.df.attrs["log"]["posix_timestamp"]
-        ec_technique = self.df.attrs["settings"]["technique"]
+        self.mpr_file = mpr_file
+        self.tstamp = mpr_file.timestamp.timestamp()
+        self.df = pd.DataFrame(mpr_file.data)
 
         # Build the time series from the dataframe
         self.data_series_list = series_list_from_dataframe(
             self.df,
-            time_name=t_str.split("/")[0],
+            time_name=t_str,
             # ^ the unit-free name of the time column, i.e."time"
-            tstamp=tstamp,
-            unit_finding_function=units.get,
+            tstamp=self.tstamp,
+            unit_finding_function=get_column_unit_name,
             # ^to find a column's unit, look it up in the dictionary `units`
         )
         self.tseries = self.data_series_list[0]  # needed for the helper methods.
 
         # Call helper methods to ensure everything is there:
         self._update_aliases_and_ensure_essential_series()
-        self._build_loop_number()
 
         # Pack it and send it back in a measurement:
         obj_as_dict = dict(
@@ -474,8 +477,8 @@ class BiologicMPRReader(BiologicReader):
             technique="EC",
             reader=self,
             series_list=self.data_series_list,
-            tstamp=tstamp,
-            ec_technique=ec_technique,
+            tstamp=self.tstamp,
+            ec_technique=None,  # Not available :(
             aliases=self.aliases,
         )
         obj_as_dict.update(kwargs)
@@ -484,25 +487,6 @@ class BiologicMPRReader(BiologicReader):
         self.file_has_been_read = True
 
         return self.measurement
-
-    def _build_loop_number(self):
-        """A helper function to make the loop number from the .mpr metadata"""
-        try:
-            loops = self.df.attrs["loops"]
-        except IndexError:  # No loops, no problem.
-            return
-        loop_arrays = []
-        prior_index = 0
-        for n, index in enumerate(loops["indexes"][1:]):
-            loop_array = np.ones(index - prior_index) * n
-            loop_arrays.append(loop_array)
-            prior_index = index
-        loop_number = np.concatenate(loop_arrays)
-        self.data_series_list.append(
-            ValueSeries(
-                name="loop number", unit_name="", data=loop_number, tseries=self.tseries
-            )
-        )
 
 
 def get_column_unit_name(column_name):

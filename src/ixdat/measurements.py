@@ -226,7 +226,7 @@ class Measurement(Saveable):
             reader = READER_CLASSES[reader]()
         obj = reader.read(path_to_file, cls=cls, **kwargs)
 
-        if obj.__class__.essential_series_names:
+        if getattr(obj.__class__, "essential_series_names", None):
             for series_name in obj.__class__.essential_series_names:
                 try:
                     _ = obj[series_name]  # this also caches it.
