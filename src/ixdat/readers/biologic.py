@@ -179,7 +179,7 @@ class BiologicMPTReader(BiologicReader):
         tseries (TimeSeries): Time series for the returned measurement (biologic files
             have one shared time variable)
         ec_technique (str): The name of the electrochemical sub-technique, i.e.
-            "Cyclic Voltammotry Advanced", etc.
+            "Cyclic Voltammetry Advanced", etc.
         n_line (int): the number of the last line read by the reader
         place_in_file (str): The last location in the file read by the reader. This
             is used internally to tell the reader how to parse each line. Options are:
@@ -375,7 +375,7 @@ class BiologicMPTReader(BiologicReader):
 class BiologicMPRReader(BiologicReader):
     """A class to read .mpt files written by Biologic's EC-Lab.
 
-    read() is the important method - it takes the path to the mpt file as argument
+    read() is the important method - it takes the path to the mpr file as argument
     and returns an ECMeasurement object (ec_measurement) representing that file.
     The ECMeasurement contains a reference to the BiologicMPRReader object, as
     ec_measurement.reader. This makes available all the following stuff, likely
@@ -423,6 +423,11 @@ class BiologicMPRReader(BiologicReader):
                 any case.
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
+        UserWarning(
+            "Reading .mpr files is discouraged. We suggest to use the .mpt file "
+            "if you can. You can set EC-Lab to export these automatically under "
+            "Advanced Settings."
+        )
         try:
             # not a requirement of ixdat, so we import it here:
             from galvani import BioLogic

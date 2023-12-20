@@ -21,7 +21,7 @@ API changes
 
 readers
 ^^^^^^^
-- ``BiologicMPRReader`` to read biologic .mpr files using the ``eclabfiles`` package.
+- ``BiologicMPRReader`` to read biologic .mpr files using the ``galvani`` package.
   That package is not added as a requirement - instead if the user tries to read the
   file without having it installed, they are encouraged to export .mpt instead.
   ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
