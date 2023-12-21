@@ -65,6 +65,10 @@ class DataSeries(Saveable):
     def size(self):
         return self.data.size
 
+    @property
+    def quantity(self):
+        return self.data * self.unit.u
+
     def to_unit(self, new_unit_name):
         """Return a copy of the data series with the given unit"""
         new_data = ureg.convert(self.data, self.unit_name, new_unit_name)

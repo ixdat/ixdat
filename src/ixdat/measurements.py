@@ -27,7 +27,7 @@ from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
 from .tools import deprecate, tstamp_to_yyMdd
-from .units import ureg
+from .units import ureg, DimensionalityError, Quantity
 
 
 class Measurement(Saveable):
@@ -375,7 +375,9 @@ class Measurement(Saveable):
                     # Then we assume that the time and value data have lined up
                     # successfully! :D
                     if sorted:
-                        s_as_dict["data"] = s_as_dict["data"][sort_indeces[tseries.name]]
+                        s_as_dict["data"] = s_as_dict["data"][
+                            sort_indeces[tseries.name]
+                        ]
                     vseries = ValueSeries(
                         name=name,
                         data=s_as_dict["data"],
@@ -807,6 +809,7 @@ class Measurement(Saveable):
         tspan_bg=None,
         unit_name=None,
         t_unit_name=None,
+        return_quantity=False,
     ):
         """Return a value vector with the corresponding time vector
 
@@ -828,44 +831,72 @@ class Measurement(Saveable):
                    the argument to __getitem__ be called "item" instead of "key"?
             tspan (iter of float): Defines the timespan with its first and last values.
                 Optional. By default the entire time of the measurement is included.
+                Same units as output t.
             include_endpoints (bool): Whether to add a points at t = tspan[0] and
                 t = tspan[-1] to the data returned. This makes trapezoidal integration
                 less dependent on the time resolution. Default is False.
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
-                subtracted from the values returned.
+                subtracted from the values returned. Same units as output t.
+            return_quantity (bool): Whether to return pure numpy arrays (default, False)
+                or pint quanities (True).
         """
         vseries = self[item]
-        if unit_name and not unit_name == vseries.unit_name:
-            vseries = vseries.to_unit(unit_name)
         tseries = vseries.tseries
-        print(tseries.shape)
-        if not tseries.unit_name == "s":
-            tseries = tseries.to_unit("s")
-        v = vseries.data
-        t = tseries.data + tseries.tstamp - self.tstamp
-        print(t.shape)
-        if t_unit_name and not t_unit_name == "s":
-            t = ureg.convert(t, "s", t_unit_name)
-        print(t.shape)
+
+        # vseries units!
+        v_quantity = vseries.quantity
+        if unit_name:
+            v_quantity.ito(unit_name)
+
+        # tseries units!
+        # grab always returns time vectors referenced to the measurement's tstamp.
+        # tstamps are always in [s], thus the back-and-forth conversion here:
+        dt_quantity = (tseries.tstamp - self.tstamp) * ureg("s")
+        try:
+            t_quantity = tseries.quantity + dt_quantity
+        except DimensionalityError as e:
+            UserWarning(f"{tseries} does not have time units! \n{e}")
+            if not tseries.unit:
+                t_quantity = tseries.data * ureg("s") + dt_quantity
+            else:
+                raise
+        if t_unit_name:
+            t_quantity.ito(t_unit_name)
+
+        # tspan!
         if tspan is not None:  # np arrays don't boolean well :(
+            if not isinstance(tspan, Quantity):
+                tspan = tspan * t_quantity.u
+
             if include_endpoints:
-                if t[0] < tspan[0]:  # then add a point to include tspan[0]
-                    v_0 = np.interp(tspan[0], t, v)
-                    t = np.append(tspan[0], t)
-                    v = np.append(v_0, v)
-                if tspan[-1] < t[-1]:  # then add a point to include tspan[-1]
-                    v_end = np.interp(tspan[-1], t, v)
-                    t = np.append(t, tspan[-1])
-                    v = np.append(v, v_end)
-            mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
-            t, v = t[mask], v[mask]
+                if t_quantity[0] < tspan[0]:  # then add a point to include tspan[0]
+                    v_0_quantity = np.interp(tspan[0], t_quantity, v_quantity)
+                    t_quantity = np.append(tspan[0], t_quantity)
+                    v_quantity = np.append(v_0_quantity, v_quantity)
+                if tspan[-1] < t_quantity[-1]:  # then add a point to include tspan[-1]
+                    v_end_quantity = np.interp(tspan[-1], t_quantity, v_quantity)
+                    t_quantity = np.append(t_quantity, tspan[-1])
+                    v_quantity = np.append(v_quantity, v_end_quantity)
+
+            mask = np.logical_and(tspan[0] <= t_quantity, t_quantity <= tspan[-1])
+            t_quantity, v_quantity = t_quantity[mask], v_quantity[mask]
+
+        # background!
         if tspan_bg:
-            t_bg, v_bg = self.grab(
-                item, tspan=tspan_bg, unit_name=unit_name, t_unit_name=t_unit_name
+            t_bg_quantity, v_bg_quantity = self.grab(
+                item,
+                tspan=tspan_bg,
+                unit_name=unit_name,
+                t_unit_name=t_unit_name,
+                return_quantity=True,
             )
-            v = v - np.mean(v_bg)
-        return t, v
+            v_quantity = v_quantity - np.mean(v_bg_quantity)
+
+        if return_quantity:
+            return t_quantity, v_quantity
+
+        return t_quantity.m, v_quantity.m
 
     def grab_for_t(self, item, t, tspan_bg=None):
         """Return a numpy array with the value of item interpolated to time t

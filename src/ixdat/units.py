@@ -1,8 +1,9 @@
 """Module dealing with Units
 
-TODO: look into using an available unit's package like astropy's
+Important: The only import from pint in ixdat is in this module. This is essential
+for ureg, since units of seperately initiated UnitRegistries cannot be compared.
 """
-from pint import UnitRegistry, UndefinedUnitError
+from pint import UnitRegistry, UndefinedUnitError, DimensionalityError, Quantity
 
 
 ureg = UnitRegistry()
