@@ -122,11 +122,8 @@ class MSMeasurement(Measurement):
                 include_endpoints=include_endpoints,
             )
         time, value = super().grab(
-            item, tspan=tspan, include_endpoints=include_endpoints
+            item, tspan=tspan, include_endpoints=include_endpoints, tspan_bg=tspan_bg,
         )
-        if tspan_bg:
-            _, bg = self.grab(item, tspan=tspan_bg)
-            return time, value - np.average(bg)
         elif remove_background:
             if item in self.signal_bgs:
                 return time, value - self.signal_bgs[item]
@@ -893,6 +890,23 @@ class MSMeasurement(Measurement):
     cut = _with_siq_quantifier(Measurement.cut)
     multicut = _with_siq_quantifier(Measurement.multicut)
 
+    def remove_matrix_interference(self, mass_ref, tspan_norm, mass_list):
+        """Create a MatrixInterferenceBackground
+
+        Args:
+            mass_ref (str): Reference mass, typically strongest peak from the matrix
+            tspan_norm (tspan): Time range during which there is only matrix signal
+            mass_list (list of str): masses to remove matrix interference from
+        """
+        background = MatrixInterferenceBackground(
+            mass_list=mass_list,
+            tspan_norm=tspan_norm,
+            mass_ref=mass_ref,
+            measurement=self,
+        )
+        self.add_background(background)
+        return background
+
 
 class MSCalResult(Saveable):
     """A class for a mass spec ms_calibration result.
@@ -1153,7 +1167,7 @@ class MSCalibration(Calibration):
 
 
 
-class MSBackground:
+class MSBackground(Background):
 
     extra_column_attrs = ["mass_list"]
 
@@ -1218,35 +1232,19 @@ class MatrixInterferenceBackground(MSBackground):
         If the key does not start with "n_", or the calibration can't find a relevant
         sensitivity factor and mass signal, this method returns None.
         """
+
         measurement = measurement or self.measurement
-        if key.startswith("n_"):  # it's a flux!
-            mol = key.split("_")[-1]
-            try:
-                mass, F = self.get_mass_and_F(mol)
-            except QuantificationError:
-                # Calibrations just return None when they can't get what's requested.
-                return
-            signal_series = measurement[mass]
-            y = signal_series.data
-            if mass in measurement.signal_bgs:
-                # FIXME: How to make this optional to user of MSMeasuremt.grab()?
-                y = y - measurement.signal_bgs[mass]
-            n_dot = y / F
-            return ValueSeries(
-                name=f"n_dot_{mol}",
-                unit_name="mol/s",
-                data=n_dot,
-                tseries=signal_series.tseries,
-            )
 
         if not key in self.mass_list:
             return
+
+        mass = key
 
         signal_series = measurement[mass]
 
         t, signal = signal_series.t, signal_series.data
 
-        matrix_primary_signal = measurement.grab_for_t(self.ref_mass, t)
+        matrix_primary_signal = measurement.grab_for_t(self.mass_ref, t)
 
         mass_moving_bg = matrix_primary_signal * self.get_ratio(mass)
 
@@ -1265,10 +1263,10 @@ class MatrixInterferenceBackground(MSBackground):
             return self.ratios[mass]
 
         matrix_ref_primary = np.mean(
-            self.measurement.grab(self.ref_mass, tspan=self.tspan_norm)[1]
+            self.measurement.grab(self.mass_ref, tspan=self.tspan_norm)[1]
         )
         matrix_ref_M = np.mean(
-            self.measurement.grab_flux(mass, tspan=self.tspan_norm)[1]
+            self.measurement.grab(mass, tspan=self.tspan_norm)[1]
         )
         ratio = matrix_ref_M / matrix_ref_primary
 

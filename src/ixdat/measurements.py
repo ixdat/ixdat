@@ -45,9 +45,12 @@ class Measurement(Saveable):
     extra_linkers = {
         "component_measurements": ("measurements", "m_ids"),
         "measurement_calibrations": ("calibrations", "c_ids"),
+        "measurement_backgrounds": ("backgrounds", "b_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
-    child_attrs = ["component_measurements", "calibration_list", "series_list"]
+    child_attrs = [
+        "component_measurements", "calibration_list", "series_list", "background_list"
+    ]
     # TODO: child_attrs should be derivable from extra_linkers?
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
@@ -80,6 +83,8 @@ class Measurement(Saveable):
         series_list=None,
         c_ids=None,
         calibration_list=None,
+        b_ids=None,
+        background_list=None,
         m_ids=None,
         component_measurements=None,
         aliases=None,
@@ -132,8 +137,12 @@ class Measurement(Saveable):
             component_measurements, m_ids, cls=Measurement
         )
         self._calibration_list = fill_object_list(
-            calibration_list, c_ids, cls=Calibration
+            calibration_list, c_ids, cls=Calibration,
         )
+        self._background_list = fill_object_list(
+            background_list, b_ids, cls=Background,
+        )
+
         self._tstamp = tstamp
 
         self._cached_series = {}
@@ -477,6 +486,34 @@ class Measurement(Saveable):
     def add_calibration(self, calibration):
         self._calibration_list = [calibration] + self._calibration_list
         self.clear_cache()
+
+    @property
+    def background_list(self):
+        """List of calibrations (with placeholders filled)"""
+        for i, b in enumerate(self._background_list):
+            if isinstance(b, PlaceHolderObject):
+                # This is where we find objects from a Backend including MemoryBackend:
+                self._background_list[i] = b.get_object()
+        return self._background_list
+
+    @property
+    def backgrounds(self):
+        """For overriding: List of calibrations with any needed manipulation done."""
+        return self.background_list
+
+    @property
+    def b_ids(self):
+        """List of the id's of the measurement's Calibrations
+        FIXME: c.id can be (backend, id) if it's not on the active backend.
+            This is as of now necessary to find it if you're only given self.as_dict()
+             see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+        """
+        return [b.short_identity for b in self.background_list]
+
+    def add_background(self, background):
+        self._background_list = [background] + self._background_list
+        self.clear_cache()
+
 
     def calibrate(self, *args, **kwargs):
         """Add a calibration of the Measurement's default calibration type
@@ -1430,7 +1467,7 @@ class Calibration(Saveable):
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
         raise NotImplementedError
-        
+
 class Background(Saveable):
     """Base class for backgrounds."""
 
