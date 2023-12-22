@@ -639,13 +639,16 @@ class Measurement(Saveable):
         """Return the built measurement DataSeries with its name specified by key
 
         This method does the following:
-        1. check if `key` is in in the cache. If so return the cached data series
+        1. check if `key` is in the cache. If so return the cached data series
         2. find or build the desired data series by the first possible of:
             A. Check if `key` corresponds to a method in `series_constructors`. If
                 so, build the data series with that method.
-            B. Check if the `calibration`'s `calibrate_series` returns a data series
+            B. Check the series manipulator classes. TODO: rewrite.
+                i. Go through `calibration`s if the `calibration`'s `calibrate_series` returns a data series
                 for `key` given the data in this measurement. (Note that the
                 `calibration` will typically start with raw data looked C, below.)
+                ii. Go through `background`s. If the background's `remove_bg_from_series` returns a
+                data series for `key`, return that.
             C. Generate a list of data series and append them:
                 i. Check if `key` is in `aliases`. If so, append all the data series
                     returned for each key in `aliases[key]`.
@@ -750,11 +753,19 @@ class Measurement(Saveable):
         if key in self.series_constructors:
             return getattr(self, self.series_constructors[key])()
         # B
+        # i.
         for calibration in self.calibrations:
             series = calibration.calibrate_series(key, measurement=self)
             # ^ the calibration will call __getitem__ with the name of the
             #   corresponding raw data and return a new series with calibrated data
             #   if possible. Otherwise it will return None.
+            if series:
+                return series
+        for background in self.backgrounds:
+            series = background.remove_bg_from_series(key, measurement=self)
+            # ^ the background will call __getitem__ with the name of the
+            #   corresponding raw data and return a new series with background-subtracted
+            #   data if possible. Otherwise it will return None.
             if series:
                 return series
         # C
@@ -835,7 +846,14 @@ class Measurement(Saveable):
         )
         self.replace_series(value_name, new_vseries)
 
-    def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
+    def grab(
+            self,
+            item,
+            tspan=None,
+            include_endpoints=False,
+            tspan_bg=None,
+            remove_background=False,
+    ):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -863,7 +881,17 @@ class Measurement(Saveable):
                 baseline level. The average value of `item` in this interval will be
                 subtracted from the values returned.
         """
-        vseries = self[item]
+        if remove_background:
+            try:
+                vseries = self[item + "-bg-subtracted"]
+            except SeriesNotFoundError:
+                UserWarning(
+                    f"{self!r} tried to subtract background from {item} "
+                    f"but no relevant background available"
+                )
+                vseries = self[item]
+        else:
+            vseries = self[item]
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp

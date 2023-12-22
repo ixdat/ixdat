@@ -25,7 +25,7 @@ class MSPlotter(MPLPlotter):
         mol_lists=None,
         tspan=None,
         tspan_bg=None,
-        remove_background=None,
+        remove_background=False,
         unit=None,
         x_unit=None,
         logplot=True,
@@ -65,7 +65,7 @@ class MSPlotter(MPLPlotter):
                 must also be two timespans - one for each axis. Default is `None` for no
                 background subtraction.
             remove_background (bool): Whether otherwise to subtract pre-determined
-                background signals if available. Defaults to (not logplot)
+                background signals if available. Defaults to False
             unit (str): unit of the y axis. defaults to "A" or "mol/s"
             x_unit (str): unit of the x axis variable (usually time). defaults to "s"
             logplot (bool): Whether to plot the MS data on a log scale (default True)
@@ -75,8 +75,6 @@ class MSPlotter(MPLPlotter):
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
-        if remove_background is None:
-            remove_background = not logplot
 
         # Figure out, based on the inputs, whether or not to plot calibrated results
         # (`quantified`), specifications for the axis to plot on now (`specs_this_axis`)

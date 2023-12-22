@@ -121,15 +121,15 @@ class MSMeasurement(Measurement):
                 tspan_bg=tspan_bg,
                 include_endpoints=include_endpoints,
             )
+
         time, value = super().grab(
-            item, tspan=tspan, include_endpoints=include_endpoints, tspan_bg=tspan_bg,
+            item,
+            tspan=tspan,
+            include_endpoints=include_endpoints,
+            tspan_bg=tspan_bg,
+            remove_background=remove_background,
         )
-        elif remove_background:
-            if item in self.signal_bgs:
-                return time, value - self.signal_bgs[item]
-            elif self.tspan_bg:
-                _, bg = self.grab(item, tspan=self.tspan_bg)
-                return time, value - np.average(bg)
+
         return time, value
 
     def grab_for_t(self, item, t, tspan_bg=None, remove_background=False):
@@ -1235,10 +1235,16 @@ class MatrixInterferenceBackground(MSBackground):
 
         measurement = measurement or self.measurement
 
-        if not key in self.mass_list:
+        # key should be a string ending with "-bg-subtracted". Otherwise we won't
+        # do anything. This is necessary to avoid an infinite loop.
+        # the mass is the key without that ending.
+        if not key.endswith("-bg-subtracted"):
             return
 
-        mass = key
+        mass = key[:-14]
+
+        if mass not in self.mass_list:
+            return
 
         signal_series = measurement[mass]
 
