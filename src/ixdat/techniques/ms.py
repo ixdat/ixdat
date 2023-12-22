@@ -1166,7 +1166,6 @@ class MSCalibration(Calibration):
         )
 
 
-
 class MSBackground(Background):
 
     extra_column_attrs = ["mass_list"]
@@ -1178,8 +1177,6 @@ class MSBackground(Background):
         """
         super().__init__(**kwargs)
         self.mass_list = mass_list
-
-
 
 
 class MatrixInterferenceBackground(MSBackground):
@@ -1221,7 +1218,6 @@ class MatrixInterferenceBackground(MSBackground):
         self.mass_ref = mass_ref
         self.ratios = {}
 
-
     def remove_bg_from_series(self, key, measurement=None):
         """Return a calibrated series for `key` if possible.
 
@@ -1257,10 +1253,10 @@ class MatrixInterferenceBackground(MSBackground):
         mass_signal_bg_removed = signal - mass_moving_bg
 
         return ValueSeries(
-            name = signal_series.name + " minus matrix interference",
-            unit_name = signal_series.unit_name,
-            data = mass_signal_bg_removed,
-            tseries = signal_series.tseries,
+            name=signal_series.name + " minus matrix interference",
+            unit_name=signal_series.unit_name,
+            data=mass_signal_bg_removed,
+            tseries=signal_series.tseries,
         )
 
     def get_ratio(self, mass):
@@ -1271,9 +1267,7 @@ class MatrixInterferenceBackground(MSBackground):
         matrix_ref_primary = np.mean(
             self.measurement.grab(self.mass_ref, tspan=self.tspan_norm)[1]
         )
-        matrix_ref_M = np.mean(
-            self.measurement.grab(mass, tspan=self.tspan_norm)[1]
-        )
+        matrix_ref_M = np.mean(self.measurement.grab(mass, tspan=self.tspan_norm)[1])
         ratio = matrix_ref_M / matrix_ref_primary
 
         self.ratios[mass] = ratio

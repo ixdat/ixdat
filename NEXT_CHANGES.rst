@@ -20,5 +20,11 @@ ixdat 0.2.9
 techniques
 ^^^^^^^^^^
 
+``MSMeasurement.remove_matrix_interference`` associates a background with the measurement
+  which subtracts a ratio (measured when there's only solvent) times the signal of the primary solvent
+  mass from the signal of specified masses. To use the background, put ``remove_background=True``
+  as argument to ``plot()`` or ``grab``.
+  Background classes are implemented in a way parallel to Calibration classes.
+
 ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
   Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.

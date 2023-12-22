@@ -10,6 +10,7 @@ also defines the base class for Calibration, while technique-specific Calibratio
 classes will be defined in the corresponding module in ./techniques/
 """
 import json
+import warnings
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
 from .data_series import (
@@ -49,7 +50,10 @@ class Measurement(Saveable):
         "measurement_series": ("data_series", "s_ids"),
     }
     child_attrs = [
-        "component_measurements", "calibration_list", "series_list", "background_list"
+        "component_measurements",
+        "calibration_list",
+        "series_list",
+        "background_list",
     ]
     # TODO: child_attrs should be derivable from extra_linkers?
 
@@ -137,10 +141,14 @@ class Measurement(Saveable):
             component_measurements, m_ids, cls=Measurement
         )
         self._calibration_list = fill_object_list(
-            calibration_list, c_ids, cls=Calibration,
+            calibration_list,
+            c_ids,
+            cls=Calibration,
         )
         self._background_list = fill_object_list(
-            background_list, b_ids, cls=Background,
+            background_list,
+            b_ids,
+            cls=Background,
         )
 
         self._tstamp = tstamp
@@ -514,7 +522,6 @@ class Measurement(Saveable):
         self._background_list = [background] + self._background_list
         self.clear_cache()
 
-
     def calibrate(self, *args, **kwargs):
         """Add a calibration of the Measurement's default calibration type
 
@@ -847,12 +854,12 @@ class Measurement(Saveable):
         self.replace_series(value_name, new_vseries)
 
     def grab(
-            self,
-            item,
-            tspan=None,
-            include_endpoints=False,
-            tspan_bg=None,
-            remove_background=False,
+        self,
+        item,
+        tspan=None,
+        include_endpoints=False,
+        tspan_bg=None,
+        remove_background=False,
     ):
         """Return a value vector with the corresponding time vector
 
@@ -885,9 +892,10 @@ class Measurement(Saveable):
             try:
                 vseries = self[item + "-bg-subtracted"]
             except SeriesNotFoundError:
-                UserWarning(
+                warnings.warn(
                     f"{self!r} tried to subtract background from {item} "
-                    f"but no relevant background available"
+                    f"but no relevant background available",
+                    stacklevel=2,
                 )
                 vseries = self[item]
         else:
@@ -1495,6 +1503,7 @@ class Calibration(Saveable):
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
         raise NotImplementedError
+
 
 class Background(Saveable):
     """Base class for backgrounds."""

@@ -50,8 +50,8 @@ CALIBRATION_CLASSES = {
 }
 
 BACKGROUND_CLASSES = {
- #    "EC": ECBackground,
- #   "CV": ECBackground,
+    #    "EC": ECBackground,
+    #   "CV": ECBackground,
     "MS": MSBackground,
- #  "EC-MS": ECMSBackground,
+    #  "EC-MS": ECMSBackground,
 }
