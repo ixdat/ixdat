@@ -42,6 +42,8 @@ meas.plot(
     mass_list=["M40", "M18"],
 )
 
+meas[1].plot()  # plots a spectrum
+
 if False:  # test SpectroMSMeasurement saving and loading.
     # FIXME: broken :(  Object-relational mapping should ensure this always works.
     m_id = meas.save()
@@ -54,6 +56,10 @@ if False:  # test SpectroMSMeasurement exporting and re-reading
     loaded = Measurement.read("./my_spectro_ms_measurement.csv", reader="ixdat")
     ax = loaded.plot(mass_list=["M2", "M18", "M28", "M32", "M40"])
 
+meas.spectrum_series.continuous = True
+meas.plot(
+    mass_list=["M40", "M18"],
+)
 
 meas_no_spec = Measurement.read(
     path_to_meas, reader="zilien", technique="MS", include_mass_scans=False
