@@ -3,9 +3,7 @@
 from pathlib import Path
 from ixdat import Spectrum, Measurement
 
-data_dir = (
-    Path.home() / "/home/scott/Dropbox/ixdat_resources/test_data/zilien_with_spectra"
-)
+data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/zilien_with_spectra"
 
 path_to_meas = data_dir / "2023-05-16 11_34_16 mix_cal_gas_glass_slide.tsv"
 path_to_spec = (
@@ -42,6 +40,8 @@ meas.plot(
     mass_list=["M40", "M18"],
 )
 
+meas[1].plot()  # plots a spectrum
+
 if False:  # test SpectroMSMeasurement saving and loading.
     # FIXME: broken :(  Object-relational mapping should ensure this always works.
     m_id = meas.save()
@@ -54,6 +54,10 @@ if False:  # test SpectroMSMeasurement exporting and re-reading
     loaded = Measurement.read("./my_spectro_ms_measurement.csv", reader="ixdat")
     ax = loaded.plot(mass_list=["M2", "M18", "M28", "M32", "M40"])
 
+meas.spectrum_series.continuous = True
+meas.plot(
+    mass_list=["M40", "M18"],
+)
 
 meas_no_spec = Measurement.read(
     path_to_meas, reader="zilien", technique="MS", include_mass_scans=False

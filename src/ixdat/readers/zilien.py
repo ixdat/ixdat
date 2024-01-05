@@ -632,7 +632,7 @@ class ZilienSpectrumReader:
         FIXME: This reader was written hastily and could be designed better.
 
         Args:
-            path_to_spectrum(Path or str): the path to the tmp dir
+            path_to_spectrum(Path or str): the path to the spectrum file
             cls (Spectrum class): Defaults to MSSpectrum
             t_zero (float): The unix timestamp which the mass scan start time
                 is referenced to. Should be the tstamp of the corresponding
@@ -647,14 +647,14 @@ class ZilienSpectrumReader:
 
         with open(self.path_to_spectrum, "r") as f:
             in_header = True
-            i = 1
+            num_line = 1
             metadata_dict = {}
             while in_header:
                 name, value = parse_metadata_line(f.readline())
                 metadata_dict[name] = value
-                if i == metadata_dict.get("num_header_lines", 0):
+                if num_line == metadata_dict.get("num_header_lines", 0):
                     in_header = False
-                i += 1
+                num_line += 1
 
         tstamp = t_zero + metadata_dict["mass_scan_started_at"]
         duration = (
