@@ -70,7 +70,8 @@ def parse_metadata_line(line):
     if type_as_str == "string":
         return full_name, value
     elif type_as_str == "int":
-        # Zilien writes some ints as floats, e.g. "0.0".
+        # Python does not seem able to directly evaluate a string like "0.0" as an
+        # integer. Therefore, we evaluate it as a float first and convert to int:
         return full_name, int(float(value))
     elif type_as_str == "double":
         return full_name, float(value)

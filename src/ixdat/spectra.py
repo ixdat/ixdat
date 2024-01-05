@@ -536,6 +536,12 @@ class SpectrumSeries(Spectrum):
             self._field = self._field.get_object()
 
         if abs(self._field.axes_series[0].tstamp - self.tstamp) > self.t_tolerance:
+            # self.t_tolerance is the resolution on the time axis of the spectra.
+            # If the t=0 of the SpectrumSeries differs from the tstamp of the field
+            # by more than this amount, it can become unclear which spectrum is which.
+            # Therefore, we shift the t=0 of the time axis of the field to match the t=0
+            # of the spectrum series. This doesn't change anything except the absolute
+            # time considered to be t=0.
             self._field = Field(
                 name=self._field.name,
                 data=self._field.data,
