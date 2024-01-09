@@ -136,17 +136,19 @@ class ZilienTSVReader:
         Args:
             path_to_file (Path or str): The path of the file to read
             cls (Measurement): The measurement class to read the file as. Zilien tsv
-                files can be read both as an ECMS measurement, a MS measurement (which
-                will exclude the EC series from the meaurement) and as a ECMeasurement
+                files can be read both as an EC-MS measurement, a MS measurement (which
+                will exclude the EC series from the measurement) and as a ECMeasurement
                 (which will exclude the MS series from the measurement). To avoid
                 importing classes, this behavior can also be controlled by setting the
-                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The deafult is a
+                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The default is a
                 ECMSMeasurement.
             name (str): The name of the measurement. Will default to the part of the
                 filename before the '.tsv' extension
-            kwargs: All remaining keywor-arguments will be passed onto the `__init__` of
-                the Meaurement
-
+            include_mass_scans (bool): Whether to include mass scans (if available) and
+                thereby return a `SpectroMSMeasurement` which can be indexed to give
+                the spectrum objects.
+            kwargs: All remaining keyword-arguments will be passed onto the `__init__`
+                of the Measurement
         """
         if self._path_to_file:
             print(
@@ -228,22 +230,11 @@ class ZilienTSVReader:
                 self._path_to_file.stem[20:] + " mass scans"
             )
             if spectra_folder.exists():  # Then we have a spectra folder!
-                spectrum_list = []
-                for path_to_spectrum in spectra_folder.iterdir():
-                    if not path_to_spectrum.suffix == ".tsv":
-                        continue
-                    spectrum = ZilienSpectrumReader().read(
-                        path_to_spectrum,
-                        t_zero=self._timestamp,
-                    )
-                    spectrum_list.append(spectrum)
-                t_list = [spectrum.tstamp for spectrum in spectrum_list]
-                indeces = np.argsort(t_list)
-                spectrum_list = [spectrum_list[i] for i in indeces]
-                spectrum_series = MSSpectrumSeries.from_spectrum_list(
-                    name=spectra_folder.name,
-                    spectrum_list=spectrum_list,
-                    technique="MS_spectra",
+                spectrum_series = MSSpectrumSeries.read_set(
+                    spectra_folder,
+                    suffix=".tsv",
+                    reader="zilien",
+                    t_zero=self._timestamp,
                 )
                 self._measurement = self._measurement + spectrum_series
 
@@ -695,7 +686,7 @@ class ZilienSpectrumReader:
         )
         obj_as_dict = {
             "name": self.path_to_spectrum.name,
-            "technique": "MS",
+            "technique": "MS_spectrum",
             "field": field,
             "reader": self,
             "tstamp": tstamp,

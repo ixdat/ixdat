@@ -120,7 +120,9 @@ class Spectrum(Saveable):
         reader=None,
         **kwargs,
     ):
-        """Read and append a set of spectra as a SpectrumSeries
+        """Read a set of spectrum files and append them to return SpectrumSeries
+
+        Note: The list of spectrums is sorted by time.
 
         Args:
             path_to_file_start (Path or str): The path to the files to read including
@@ -137,13 +139,26 @@ class Spectrum(Saveable):
                 the exact files to append can be specified in a list
             reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
-                method, AND to cls.from_component_measurements()
+                method, AND to SpectrumSeries.from_spectrum_list()
         """
         from .readers.reading_tools import get_file_list
 
         file_list = file_list or get_file_list(path_to_file_start, part, suffix)
-        spectrum_list = [cls.read(f, reader=reader, **kwargs) for f in file_list]
-        return SpectrumSeries.from_spectrum_list(spectrum_list)
+        spectrum_list = []
+        for path_to_spectrum in file_list:
+            spectrum = Spectrum.read(path_to_spectrum, reader=reader, **kwargs)
+            spectrum_list.append(spectrum)
+
+        t_list = [spectrum.tstamp for spectrum in spectrum_list]
+        indeces = np.argsort(t_list)
+        spectrum_list = [spectrum_list[i] for i in indeces]
+
+        if issubclass(cls, SpectrumSeries):
+            spectra_class = cls
+        else:
+            spectra_class = SpectrumSeries
+
+        return spectra_class.from_spectrum_list(spectrum_list, **kwargs)
 
     @property
     def data_objects(self):
@@ -422,7 +437,7 @@ class MultiSpectrum(Saveable):
     def from_spectrum_list(
         cls, spectrum_list, technique=None, metadata=None, sample_name=None
     ):
-        """Build a SpectrumSeries from a list of Spectrums"""
+        """Build a MultiSpectrum from a list of Spectrums"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
         if not technique:

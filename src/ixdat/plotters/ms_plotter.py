@@ -328,6 +328,9 @@ class MSPlotter(MPLPlotter):
         new_x_unit,
         original_unit_name,
     ):
+        # FIXME: This function will disappear with pint units (#146)
+        if not new_x_unit:
+            return 1, original_unit_name
         if (original_unit_name or new_x_unit) in ["kelvin", "K", "celsius", "C"]:
             warnings.warn(
                 f"Converting '{original_unit_name}' to '{new_x_unit}' should be done in "
