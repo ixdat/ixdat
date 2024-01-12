@@ -70,6 +70,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
         scanning_mask=None,
         vmin=None,
         vmax=None,
+        continuous=None,
     ):
         """
         Plot a spectrum series with `t` on the horizontal axis, `x` on the vertical axis,
@@ -98,9 +99,17 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 before plotting data by setting y values to 0 (zero).
             vmin (float): minimum value to represent in colours.
             vmax (float): maximum value to represent in colours.
+            continuous (bool): Optional. Whether to make a continuous heat plot (True) or
+                a discrete heat plot for each spectrum (False). In the discrete case,
+                each heat plot is a rectangle with the spectrum's duration as its width,
+                if available. If the duration is not available, each spectrum heat plot
+                extends to the start of the next one.
+                Defaults to the `spectrum_series.continuous`.
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
+        if continuous is None:
+            continuous = spectrum_series.continuous
 
         xseries = field.axes_series[1]
         x = xseries.data
@@ -135,14 +144,40 @@ class SpectrumSeriesPlotter(MPLPlotter):
         if not ax:
             ax = self.new_ax()
 
-        ax.imshow(
-            np.flip(data.swapaxes(0, 1), axis=0),
-            cmap=cmap_name,
-            aspect="auto",
-            extent=(t[0], t[-1], x[0], x[-1]),
-            vmin=vmin,
-            vmax=vmax,
-        )
+        if continuous:
+            ax.imshow(
+                np.flip(data.swapaxes(0, 1), axis=0),
+                cmap=cmap_name,
+                aspect="auto",
+                extent=(t[0], t[-1], x[0], x[-1]),
+                vmin=vmin,
+                vmax=vmax,
+            )
+        else:
+            for i, t_i in enumerate(spectrum_series.t):
+                if tspan and (t_i < min(tspan) or t_i > max(tspan)):
+                    continue
+                try:
+                    duration = spectrum_series.durations[i]
+                    # ^ raises TypeError if durations is None.
+                    t_f = t_i + duration  # raises TypeError if durations[i] is None.
+                except TypeError:
+                    if i < len(t) - 1:
+                        t_f = t[i + 1]
+                    else:
+                        # If its duration is unknown, we don't plot the last spectrum.
+                        break
+                y = data[i]
+                yy = np.stack([y, y])
+                ax.imshow(
+                    np.flip(yy.swapaxes(0, 1), axis=0),
+                    cmap=cmap_name,
+                    aspect="auto",
+                    extent=(t_i, t_f, x[0], x[-1]),
+                    vmin=vmin,
+                    vmax=vmax,
+                )
+
         ax.set_xlabel(t_name)
         ax.set_ylabel(xseries.name)
 

@@ -36,8 +36,9 @@ if True:  # test export and reload
     sec_meas.export(export_name)
     sec_reloaded = Measurement.read(export_name, reader="ixdat")
     sec_reloaded.set_reference_spectrum(V_ref=0.66)
+    sec_reloaded.spectrum_series.continuous = True
+    # ^ "continuous" attribute does not save and load properly :(
     sec_reloaded.plot_vs_potential(cmap_name="jet")
-
 
 axes = sec_meas.plot_measurement(
     V_ref=0.4,

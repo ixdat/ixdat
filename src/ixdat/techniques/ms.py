@@ -6,7 +6,7 @@ import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be
 import warnings
 
 from ..measurements import Measurement, Calibration
-from ..spectra import Spectrum, SpectroMeasurement
+from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
 from ..constants import (
@@ -1378,9 +1378,15 @@ class MSInlet:
 
 
 class MSSpectrum(Spectrum):
-    """Nothing to add to normal spectrum yet.
+    """Nothing to add to normal Spectrum yet.
     TODO: Methods for co-plotting ref spectra from a database
     """
+
+    pass
+
+
+class MSSpectrumSeries(SpectrumSeries):
+    """Nothing to add to normal SpectrumSeries yet."""
 
     pass
 

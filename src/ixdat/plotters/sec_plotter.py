@@ -27,6 +27,7 @@ class SECPlotter(SpectroMeasurementPlotter):
         axes=None,
         cmap_name="inferno",
         make_colorbar=False,
+        continuous=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with time as x-asis.
@@ -52,6 +53,12 @@ class SECPlotter(SpectroMeasurementPlotter):
                 FIXME: colorbar at present mis-alignes axes
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
+            continuous (bool): Optional. Whether to make a continuous heat plot (True) or
+                a discrete heat plot for each spectrum (False). In the discrete case,
+                each heat plot is a rectangle with the spectrum's duration as its width,
+                if available. If the duration is not available, each spectrum heat plot
+                extends to the start of the next one.
+                Defaults to `measurement.spectrum_series.continuous`.
 
         Returns:
             list of Axes: axes=[spectra, potential, None, current]
@@ -82,6 +89,7 @@ class SECPlotter(SpectroMeasurementPlotter):
             ax=axes[0],
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
+            continuous=continuous,
         )
         if make_colorbar:
             pass  # TODO: adjust EC plot to be same width as heat plot despite colorbar.
