@@ -5,6 +5,7 @@ import time
 import warnings
 from functools import wraps
 from string import ascii_uppercase
+from typing import Optional
 
 import numpy as np
 from packaging import version
@@ -264,6 +265,15 @@ def deprecate(
     return decorator
 
 
+@deprecate(
+    last_supported_release="0.2.8",
+    update_message=(
+        "Please use `ixdat.tools.tstamp_to_string` with the keyword argument "
+        "`string_format='native_date'` instead."
+    ),
+    hard_deprecation_release="0.2.12",
+    remove_release="0.2.14",
+)
 def tstamp_to_yyMdd(tstamp: float) -> str:
     """Return the date in compact form "yyMdd" format given the unix time (float).
     In this format the month is given as a capital letter, starting with A for January.
@@ -279,15 +289,31 @@ def tstamp_to_yyMdd(tstamp: float) -> str:
     return date_string
 
 
-def tstamp_to_string(tstamp: float) -> str:
-    """Return a string representation if unix timestamps `tstamp`"""
+def tstamp_to_string(tstamp: float, string_format: Optional[str] = None) -> str:
+    """Return a string representation of unix timestamps `tstamp`
+
+    Args:
+        tstamp (float): The unix time stamp to convert
+        string_format (str): Optional. The datetime string format to use. If not given, the
+            value of ``ixdat.config.config.timestamp_string_format`` will be used. Accepted values
+            are format strings accepted by `datetime.datetime.strftime` or "native" or
+            "native_date", which will produce ixdat native datetime strings or date string
+            respectively.
+
+    """
     dt = datetime.datetime.fromtimestamp(tstamp, ixdat.config.config.timezone)
-    string_format = ixdat.config.config.timestamp_string_format
-    if string_format == "native":
+    if string_format is None:
+        string_format = ixdat.config.config.timestamp_string_format
+
+    if string_format in ("native", "native_date"):
         # ixdat shows months as capital letters, where Jan->A, Feb->B etc.
         month_letter = ascii_uppercase[dt.month - 1]
-        # Brings to the total format to: 22E18 14:34:55
-        string_format = f"%y{month_letter}%d %H:%M:%S"
+        if string_format == "native":
+            # Brings to the total format to: 22E18 14:34:55
+            string_format = f"%y{month_letter}%d %H:%M:%S"
+        else:
+            string_format = f"%y{month_letter}%d"
+
     return dt.strftime(string_format)
 
 
