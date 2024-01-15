@@ -281,14 +281,14 @@ def tstamp_to_yyMdd(tstamp: float) -> str:
 
 def tstamp_to_string(tstamp: float) -> str:
     """Return a string representation if unix timestamps `tstamp`"""
-    dt = datetime.datetime.fromtimestamp(tstamp)
+    dt = datetime.datetime.fromtimestamp(tstamp, ixdat.config.config.timezone)
     string_format = ixdat.config.config.timestamp_string_format
     if string_format == "native":
         # ixdat shows months as capital letters, where Jan->A, Feb->B etc.
         month_letter = ascii_uppercase[dt.month - 1]
         # Brings to the total format to: 22E18 14:34:55
         string_format = f"%y{month_letter}%d %H:%M:%S"
-    return dt.astimezone(ixdat.config.config.timezone).strftime(string_format)
+    return dt.strftime(string_format)
 
 
 if __name__ == "__main__":
