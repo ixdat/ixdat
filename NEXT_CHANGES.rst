@@ -21,9 +21,15 @@ API changes
 
 readers
 ^^^^^^^
-- ``BiologicMPRReader`` to read biologic .mpr files using the ``galvani`` package.
-  That package is not added as a requirement - instead if the user tries to read the
-  file without having it installed, they are encouraged to export .mpt instead.
+- ``BiologicReader`` can now also read biologic .mpr files using an external package.
+  When reading a file ending in ".mpr", it first tries the ``galvani`` package, which
+  seems to work for LSV, CA, and CVA files. If that fails, it tries the ``eclabfiles``
+  package, which seems to work for OCV and CP files. See:
+  - https://github.com/echemdata/galvani
+  - https://github.com/vetschn/eclabfiles
+  These packages are not added as a requirement, but instead imported dynamically.
+  If the user tries to read a .mpr file without the needed package installed, they are
+  pointed to the package but also encouraged to export .mpt instead.
   ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
   Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
 

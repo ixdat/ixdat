@@ -184,9 +184,12 @@ class BiologicReader:
             # read the .mpr file to get the series list using a function which calls
             # an external package.
             warnings.warn(
-                "Reading .mpr files is discouraged. We suggest to use the .mpt file "
-                "if you can. You can set EC-Lab to export these automatically under "
-                "Advanced Settings."
+                "Reading .mpr files is discouraged. \n"
+                "We suggest to use the .mpt file "
+                "if you can. \n You can set EC-Lab to export .mpt files automatically "
+                "under Advanced Settings. \n"
+                "ixdat is able to extract more "
+                "useful data and metadata (e.g. loop numbers) from .mpt's"
             )
             try:
                 self.series_list_from_mpr_galvani()
