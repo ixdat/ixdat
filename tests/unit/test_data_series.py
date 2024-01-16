@@ -31,9 +31,9 @@ class TestTimeSeries:
             tseries = TimeSeries(
                 "time series", "s", arange(10.9, 1000.0, 100), dt.timestamp()
             )
-        assert (
-            str(tseries)
-            == f"TimeSeries: 'time series', Span: 11..911s @ 22{month_letter}18 15:17:14"
+        assert str(tseries) == (
+            f"TimeSeries: 'time series'. Min, max: 11, 911 [s] @ 22{month_letter}18 "
+            "15:17:14"
         )
 
 
@@ -49,5 +49,6 @@ class TestValueSeries:
             tseries=TimeSeries("time", "s", array([0.0, 0.1]), tstamp=100.0),
         )
         assert (
-            str(value_series) == "ValueSeries: 'MFC1 flow', Span: 4.6e-06..1.2e-03ml/min"
+            str(value_series)
+            == "ValueSeries: 'MFC1 flow'. Min, max: 4.6e-06, 1.2e-03 [ml/min]"
         )

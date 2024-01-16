@@ -1411,7 +1411,8 @@ class Calibration(Saveable):
             measurement (Measurement): Optional. A measurement to calibrate by default.
         """
         super().__init__()
-        self.name = name or f"{self.__class__.__name__}({measurement})"
+        # NOTE: The :r syntax in f-strings doesn't work on None
+        self.name = name or f"{self.__class__.__name__}({repr(measurement)})"
         self.technique = technique
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement

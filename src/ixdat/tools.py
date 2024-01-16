@@ -294,11 +294,11 @@ def tstamp_to_string(tstamp: float, string_format: Optional[str] = None) -> str:
 
     Args:
         tstamp (float): The unix time stamp to convert
-        string_format (str): Optional. The datetime string format to use. If not given, the
-            value of ``ixdat.config.config.timestamp_string_format`` will be used. Accepted values
-            are format strings accepted by `datetime.datetime.strftime` or "native" or
-            "native_date", which will produce ixdat native datetime strings or date string
-            respectively.
+        string_format (str): Optional. The datetime string format to use. If not given,
+            the value of ``ixdat.config.config.timestamp_string_format`` will be used.
+            Accepted values are format strings accepted by `datetime.datetime.strftime`
+            or "native" or "native_date", which will produce ixdat native datetime
+            strings or date string respectively.
 
     """
     dt = datetime.datetime.fromtimestamp(tstamp, ixdat.config.config.timezone)
