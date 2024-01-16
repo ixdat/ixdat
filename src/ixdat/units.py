@@ -1,7 +1,12 @@
 """Module dealing with Units
 
-TODO: look into using an available unit's package like astropy's
+Important: The only import from pint in ixdat is in this module. This is essential
+for ureg, since units of seperately initiated UnitRegistries cannot be compared.
 """
+from pint import UnitRegistry, UndefinedUnitError, DimensionalityError, Quantity
+
+
+ureg = UnitRegistry()
 
 
 class Unit:
@@ -9,8 +14,10 @@ class Unit:
 
     def __init__(self, name):
         self.name = name or ""
-        self.si_unit = None
-        self.si_conversion_factor = None
+        try:
+            self.u = ureg(self.name)
+        except UndefinedUnitError:
+            self.u = None
 
     def __repr__(self):
         return f"Unit('{self.name}')"
