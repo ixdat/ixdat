@@ -11,11 +11,14 @@ from numpy import arange, array
 from ixdat.data_series import TimeSeries, ValueSeries
 from ixdat.config import config
 
+TZ = timezone(timedelta(hours=2), "CEST")
+
 
 @pytest.fixture
 def cfg():
     """Fixture that patches out certain items on config.config"""
-    with patch.object(config, "timezone", timezone(timedelta(hours=2), "CEST")):
+    print("TZ", type(config.timezone), repr(config.timezone))
+    with patch.object(config, "timezone", TZ):
         with patch.object(config, "timestamp_string_format", "native"):
             yield config
 
@@ -27,14 +30,16 @@ class TestTimeSeries:
         """Test __str__ method"""
         for n, month_letter in enumerate(ascii_uppercase[:12]):
             # The timestamp is equal to 20A18 15:17:14 in UTC+2
-            dt = datetime.fromtimestamp(1642511834.9103568) + relativedelta(months=n)
+            dt = datetime.fromtimestamp(1642511834.9103568, tz=TZ) + relativedelta(
+                months=n
+            )
             tseries = TimeSeries(
                 "time series", "s", arange(10.9, 1000.0, 100), dt.timestamp()
             )
-        assert str(tseries) == (
-            f"TimeSeries: 'time series'. Min, max: 11, 911 [s] @ 22{month_letter}18 "
-            "15:17:14"
-        )
+            assert str(tseries) == (
+                f"TimeSeries: 'time series'. Min, max: 11, 911 [s] @ 22{month_letter}18 "
+                f"15:17:14"
+            )
 
 
 class TestValueSeries:

@@ -298,7 +298,7 @@ def tstamp_to_string(tstamp: float, string_format: Optional[str] = None) -> str:
             the value of ``ixdat.config.config.timestamp_string_format`` will be used.
             Accepted values are format strings accepted by `datetime.datetime.strftime`
             or "native" or "native_date", which will produce ixdat native datetime
-            strings or date string respectively.
+            strings or date strings respectively.
 
     """
     dt = datetime.datetime.fromtimestamp(tstamp, ixdat.config.config.timezone)
