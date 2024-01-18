@@ -21,9 +21,9 @@ readers
 
 - Zilien MS spectrum reader fixed.
   Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
- 
-- ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as 
-  before for reading in a zilien spectrum. This is accomplished by different 
+
+- ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as
+  before for reading in a zilien spectrum. This is accomplished by different
   groups of reader for ``Spectrum.read`` and ``Measurement.read``
   Also, zilien-read spectra now know their duration.
 
@@ -45,10 +45,10 @@ techniques
 ^^^^^^^^^^
 - ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
   Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.
-  
+
 - Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
   For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
-  
+
 plotters
 ^^^^^^^^
 - ``SpectrumPlotter.heat_plot()`` and methods that rely on it can now plot discrete heat plots, with
@@ -59,3 +59,41 @@ plotters
   (in which case durations are available).
   ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
   resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
+
+General
+^^^^^^^
+
+- The string representation, which is what is printed if an object is printed, has been
+  changed for ``TimeSeries``, ``ValueSeries`` and ``Measurement``. The data series have
+  changed, so that they will return a helpful summary, displaying the name, min, max and
+  the timestamp for a ``TimeSeries`` as opposed to the class name and ``__init__``
+  argument form, which is normally inherited from ``__repr__``. In short::
+
+    Before: TimeSeries(id=1, name='Potential time [s]')
+    After: TimeSeries: 'Potential time [s]'. Min, max: 699, 1481s @ 21B01 17:44:12
+
+    Before: ValueSeries(id=2, name='Voltage [V]')
+    After: ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
+
+  These new string representations should be helpful on their own, but the main goal of
+  changing them, was to make them useful in the new string representation of
+  ``Measurement``, which is inherited by all measurements. It will now display a summary
+  of all data series in the measurement, along with information about their internal
+  connections, like which ``ValueSeries`` depends on which ``TimeSeries``. For an ECMS
+  measurement the form is::
+
+    ECMSMeasurement '2021-02-01 17_44_12' with 48 series
+
+    Series list:
+    ┏ TimeSeries: 'Potential time [s]'. Min, max: 699, 1481 [s] @ 21B01 17:44:12
+    ┣━ ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
+    ┣━ ValueSeries: 'Current [mA]'. Min, max: -2.5e-02, 2.5e-02 [mA]
+    ┗━ ValueSeries: 'Cycle [n]'. Min, max: 1.0e+00, 1.0e+00 [n]
+    ┏ TimeSeries: 'Iongauge value time [s]'. Min, max: 1, 3042 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'Iongauge value [mbar]'. Min, max: 6.6e-09, 6.9e-07 [mbar]
+    << SNIP MORE SYSTEM CHANNELS >>
+    ┏ TimeSeries: 'C0M2 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'M2 [A]'. Min, max: 3.4e-12, 2.0e-11 [A]
+    ┏ TimeSeries: 'C1M4 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'M4 [A]'. Min, max: 1.2e-17, 2.7e-10 [A]
+    << SNIP MORE MASS CHANNELS>>

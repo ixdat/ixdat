@@ -572,7 +572,7 @@ class SpectrumSeries(Spectrum):
     def yseries(self):
         # Should this return an average or would that be counterintuitive?
         raise BuildError(
-            f"{self} has no single y-series. Index it to get a Spectrum "
+            f"{self!r} has no single y-series. Index it to get a Spectrum "
             "or see `y_average`"
         )
 

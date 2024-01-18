@@ -344,7 +344,7 @@ class MSMeasurement(Measurement):
         new_item = self.reverse_aliases[item][0]
         if self.is_mass(new_item):
             return self.as_mass(new_item)
-        raise TypeError(f"{self} does not recognize '{item}' as a mass.")
+        raise TypeError(f"{self!r} does not recognize '{item}' as a mass.")
 
     @deprecate(
         "0.2.6",
@@ -1053,7 +1053,7 @@ class MSCalibration(Calibration):
         cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
         Fs = [cal.F for cal in cal_list_for_mol]
         if not Fs:
-            raise QuantificationError(f"{self} has no sensitivity factor for {mol}")
+            raise QuantificationError(f"{self!r} has no sensitivity factor for {mol}")
         index = np.argmax(np.array(Fs))
 
         the_good_cal = cal_list_for_mol[index]
@@ -1069,7 +1069,7 @@ class MSCalibration(Calibration):
         F_list = [cal.F for cal in cal_list_for_mol_at_mass]
         if not F_list:
             raise QuantificationError(
-                f"{self} has no sensitivity factor for {mol} at {mass}"
+                f"{self!r} has no sensitivity factor for {mol} at {mass}"
             )
         return np.mean(np.array(F_list))
 
