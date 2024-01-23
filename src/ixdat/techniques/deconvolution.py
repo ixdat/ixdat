@@ -18,12 +18,12 @@ import numpy as np
 class DecoMeasurement(ECMSMeasurement):
     """Class implementing deconvolution of EC-MS data"""
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, **kwargs):
         """Initialize a deconvolution EC-MS measurement
 
         Args:
             name (str): The name of the measurement"""
-        super().__init__(name, **kwargs)
+        super().__init__(**kwargs)
 
     def grab_partial_current(
         self, signal_name, kernel_obj, tspan=None, tspan_bg=None, snr=10
@@ -31,7 +31,7 @@ class DecoMeasurement(ECMSMeasurement):
         """Return the deconvoluted partial current for a given signal
 
         Args:
-            signal_name (str): Name of signal for which deconvolution is to
+            signal_name (str): Name of molecule for which deconvolution is to
                 be carried out.
             kernel_obj (Kernel): Kernel object which contains the mass transport
                 parameters
@@ -41,7 +41,7 @@ class DecoMeasurement(ECMSMeasurement):
         """
         # TODO: comments in this method so someone can tell what's going on!
 
-        t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
+        t_sig, v_sig = self.grab_flux(signal_name, tspan=tspan, tspan_bg=tspan_bg)
 
         kernel = kernel_obj.calculate_kernel(
             dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
@@ -59,7 +59,7 @@ class DecoMeasurement(ECMSMeasurement):
         """Extracts a Kernel object from a measurement.
 
         Args:
-            signal_name (str): Signal name from which the kernel/impule
+            signal_name (str): Signal name from which the kernel/impulse
                 response is to be extracted.
             cutoff_pot (int): Potential which the defines the onset of the
                 impulse. Must be larger than the resting potential before the
@@ -68,8 +68,8 @@ class DecoMeasurement(ECMSMeasurement):
                 extracted.
             tspan_bg (list): Timespan that corresponds to the background signal.
         """
-        x_curr, y_curr = self.grab_current(tspan=tspan)
-        x_pot, y_pot = self.grab_potential(tspan=tspan)
+        x_curr, y_curr = self.grab("current", tspan=tspan) # not sure if this still works
+        x_pot, y_pot = self.grab("potential", tspan=tspan) # not sure if this still works
         x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
 
         if signal_name == "M32":
@@ -212,6 +212,7 @@ class Kernel:
             vol_gas = self.params["vol_gas"]
             volflow_cap = self.params["volflow_cap"]
             henry_vola = self.params["henry_vola"]
+            el_A = self.params["el_A"]
 
             tdiff = t_kernel * diff_const / (work_dist**2)
 
@@ -220,7 +221,7 @@ class Kernel:
                 #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
                 return 1 / (
                     sqrt(s) * sinh(sqrt(s))
-                    + (vol_gas * henry_vola / 0.196e-4 / work_dist)
+                    + (vol_gas * henry_vola / (el_A * 1e-4 * work_dist))
                     * (s + volflow_cap / vol_gas * work_dist**2 / diff_const)
                     * cosh(sqrt(s))
                 )
