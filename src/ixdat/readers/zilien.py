@@ -115,7 +115,7 @@ def determine_class(technique):
     else:
         raise TechniqueError(
             f'Unknown technique given: "{technique}". '
-            'Use one of the following: "EC-MS", "EC, "MS".'
+            'Use one of the following (in upper-case): "EC-MS", "EC, "MS".'
         )
 
 
@@ -132,7 +132,7 @@ class ZilienTSVReader:
         # a dictionary with metadata general information about the Zilien measurement
         self._metadata = None
         # a list with the Zilien TSV series headers,
-        # such as "Ionguage value" (see module docstring)
+        # such as "Iongauge value" (see module docstring)
         self._series_headers = None
         # a list with the Zilien TSV columns headers,
         # such as "Time [s]" and "Pressure [mbar]"
