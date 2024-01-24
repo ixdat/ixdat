@@ -176,7 +176,6 @@ class Measurement(Saveable):
             "series\n\n"
             "Series list:\n" + "\n".join(out)
         )
-        return out
 
     @classmethod
     def from_dict(cls, obj_as_dict):

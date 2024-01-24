@@ -13,6 +13,7 @@ Biologic dataset. These are grouped under the series header "EC-lab".
 """
 
 import re
+import sys
 import time
 from collections import defaultdict
 from itertools import groupby, zip_longest
@@ -26,7 +27,7 @@ from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
 from ..techniques.ms import MSSpectrum, MSSpectrumSeries
 from .reading_tools import timestamp_string_to_tstamp
-from ..exceptions import ReadError
+from ..exceptions import ReadError, TechniqueError
 
 
 ZILIEN_TIMESTAMP_FORM = "%Y-%m-%d %H_%M_%S"  # like 2021-03-15 18_50_10
@@ -66,7 +67,7 @@ def parse_metadata_line(line):
         full_name = name
 
     # Type convert the metadata (the specification for version 1 also has a color type,
-    # but as of yet it is not used)
+    # but it is not used yet)
     if type_as_str == "string":
         return full_name, value
     elif type_as_str == "int":
@@ -102,6 +103,22 @@ def to_mass(string):
     return None
 
 
+def determine_class(technique):
+    """Choose appropriate measurement class according to a given technique."""
+
+    if technique == "EC-MS":
+        return ECMSMeasurement
+    elif technique == "EC":
+        return ECMeasurement
+    elif technique == "MS":
+        return MSMeasurement
+    else:
+        raise TechniqueError(
+            f'Unknown technique given: "{technique}". '
+            'Use one of the following: "EC-MS", "EC, "MS".'
+        )
+
+
 class ZilienTSVReader:
     """Class for reading files saved by Spectro Inlets' Zilien software"""
 
@@ -126,7 +143,7 @@ class ZilienTSVReader:
     def read(
         self,
         path_to_file,
-        cls=ECMSMeasurement,
+        cls=None,
         name=None,
         include_mass_scans=True,
         **kwargs,
@@ -136,12 +153,12 @@ class ZilienTSVReader:
         Args:
             path_to_file (Path or str): The path of the file to read
             cls (Measurement): The measurement class to read the file as. Zilien tsv
-                files can be read both as an EC-MS measurement, a MS measurement (which
-                will exclude the EC series from the measurement) and as a ECMeasurement
+                files can be read both as an EC-MS measurement, an MS measurement (which
+                will exclude the EC series from the measurement) and as an EC measurement
                 (which will exclude the MS series from the measurement). To avoid
                 importing classes, this behavior can also be controlled by setting the
-                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The default is a
-                ECMSMeasurement.
+                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The default is
+                determined according to what is parsed from the dataset.
             name (str): The name of the measurement. Will default to the part of the
                 filename before the '.tsv' extension
             include_mass_scans (bool): Whether to include mass scans (if available) and
@@ -158,24 +175,6 @@ class ZilienTSVReader:
             )
             return self._measurement
 
-        if "technique" in kwargs:
-            if kwargs["technique"] == "EC-MS":
-                cls = ECMSMeasurement
-            if kwargs["technique"] == "EC":
-                cls = ECMeasurement
-            if kwargs["technique"] == "MS":
-                cls = MSMeasurement
-        else:
-            if cls is Measurement:
-                cls = ECMSMeasurement
-            if issubclass(cls, ECMSMeasurement):
-                kwargs["technique"] = "EC-MS"
-            elif issubclass(cls, ECMeasurement):
-                kwargs["technique"] = "EC"
-            elif issubclass(cls, MSMeasurement):
-                kwargs["technique"] = "MS"
-        self._cls = cls
-
         self._path_to_file = Path(path_to_file)
 
         # Parse metadata items
@@ -191,6 +190,14 @@ class ZilienTSVReader:
         with open(self._path_to_file, "rb") as file_handle:
             file_handle.seek(file_position)
             self._data = np.genfromtxt(file_handle, delimiter="\t")
+
+        if "technique" not in kwargs:
+            kwargs["technique"] = self._get_technique()
+
+        if cls is Measurement or cls is None:
+            self._cls = determine_class(kwargs["technique"])
+        else:
+            self._cls = cls
 
         # Part of filename before the extension
         file_stem = self._path_to_file.stem
@@ -220,7 +227,7 @@ class ZilienTSVReader:
             "metadata": self._metadata,
         }
         measurement_kwargs.update(kwargs)
-        self._measurement = cls(**measurement_kwargs)
+        self._measurement = self._cls(**measurement_kwargs)
 
         if include_mass_scans:
             # Check if there are MS spectra.
@@ -267,6 +274,49 @@ class ZilienTSVReader:
         column_headers = file_handle.readline().strip("\n").split("\t")
 
         return metadata, series_headers, column_headers
+
+    def _get_technique(self):
+        """Get technique according to parsed series headers and column headers.
+
+        This method covers the following cases:
+          - "pot" and "EC-lab" is in the metadata and in the headers. There is "EC-lab" data.
+          - "pot" and "EC-lab" is in the metadata and in the headers. There is no "EC-lab" data. (bug)
+          - "pot" is not in the metadata, but it is in the headers and the data part is filled with NaN. (bug)
+          - "pot" is neither in the metadata, nor in the headers.
+
+        """
+        pot_in_metadata = "pot_pot_count" in self._metadata
+        pot_in_series_headers = "pot" in self._series_headers
+
+        result = ""
+        # there was EC measurement
+        if pot_in_metadata and pot_in_series_headers:
+            result = "EC-MS"
+
+            # BUG CASE: EC-lab series header gets included, but .mpt data don't
+            if (
+                len(self._column_headers) < len(self._series_headers)
+                and self._series_headers[-1] == "EC-lab"
+            ):
+                result = "MS"
+                sys.stderr.write(
+                    "EC-lab data is missing in the dataset. That means Zilien did not"
+                    "find .mpt files when creating it. You can convert .mpr files into "
+                    ".mpt files in EC-lab (or read the .mpr files directly) and then "
+                    "connect the two Measurement objects.\n"
+                    "Reading only the Mass Scan part of the dataset.\n\n"
+                )
+        # BUG CASE: Zilien internal bug (https://github.com/ixdat/ixdat/issues/114)
+        elif not pot_in_metadata and pot_in_series_headers:
+            result = "MS"
+        # no EC did run and EC is not included in the settings dialog
+        elif not pot_in_metadata and not pot_in_series_headers:
+            result = "MS"
+        else:
+            # unexpected case, so go with the safest option
+            result = "MS"
+
+        return result
 
     def _form_series(self):
         """Form the series and series aliases
