@@ -158,7 +158,8 @@ class BiologicReader:
         ECMeasurement contains a reference to the reader.
 
         Args:
-            path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            path_to_file (Path): The full absolute or relative path including the suffix
+                (".mpt" or ".mpr")
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
             name (str): The name to use if not the file name
             cls (Measurement subclass): The Measurement class to return an object of.
@@ -166,8 +167,8 @@ class BiologicReader:
                 any case.
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
-        self.path_to_file = path_to_file
-        self.measurement_name = name or path_to_file.name
+        self.path_to_file = Path(path_to_file)
+        self.measurement_name = name or self.path_to_file.name
         if issubclass(ECMeasurement, cls):
             cls = ECMeasurement
         self.measurement_class = cls
@@ -180,27 +181,8 @@ class BiologicReader:
             )
             return self.measurement
 
-        if path_to_file.suffix == ".mpr":
-            # read the .mpr file to get the series list using a function which calls
-            # an external package.
-            warnings.warn(
-                "Reading .mpr files is discouraged. \n"
-                "We suggest to use the .mpt file "
-                "if you can. \n You can set EC-Lab to export .mpt files automatically "
-                "under Advanced Settings. \n"
-                "ixdat is able to extract more "
-                "useful data and metadata (e.g. loop numbers) from .mpt's"
-            )
-            try:
-                self.series_list_from_mpr_galvani()
-            except Exception as e:  # I forget what the error is.
-                print(f"couldn't read {path_to_file} with `galvani`.")
-                print(f"Error was:\n{e}\n")
-                print("Trying with `eclabfiles`.")
-                self.series_list_from_mpr_eclabfiles()
-            self.tseries = self.data_series_list[0]
-            self.tstamp = self.tseries.tstamp
-
+        if self.path_to_file.suffix == ".mpr":
+            self.series_list_from_mpr()
         else:  # if the suffix is not ".mpr", assume it's a ".mpt"
             # read the .mpt file to get the series list using the methods of this class.
             self.series_list_from_mpt()
@@ -223,6 +205,7 @@ class BiologicReader:
         return self.measurement
 
     def series_list_from_mpt(self, path_to_file=None):
+        """Read a .mpt file to generate the reader's `data_series_list`"""
         path_to_file = Path(path_to_file or self.path_to_file)
 
         with open(path_to_file, "r", encoding="ISO-8859-1") as f:
@@ -321,68 +304,118 @@ class BiologicReader:
                 try:
                     value = float(value_string)
                 except ValueError:
-                    raise ReadError(f"can't parse value string '{value_string}'")
+                    # Some old .mpt files have the value "XXXX" in some columns. To
+                    # keep the reader from crashing, we warn and interpret it as 0:
+                    warnings.warn(
+                        f"Can't parse value string '{value_string}' in "
+                        f"column '{name}'. Using Value=0"
+                    )
+                    value = 0
             self.column_data[name].append(value)
+
+    def series_list_from_mpr(self, path_to_file=None):
+        """Read a .mpr file to generate the reader's `data_series_list`
+
+        Raises: ReadError, if no external package succeeds in reading the file. The
+            error message includes instructions to install each external package or the
+            error that is raised when attempting to use it.
+        """
+        # read the .mpr file to get the series list using a function which calls
+        # an external package.
+        warnings.warn(
+            "Reading .mpr files is discouraged.\n"
+            "We suggest to use the .mpt file if you can.\n"
+            "You can set EC-Lab to export .mpt files automatically under "
+            "Advanced Settings.\n"
+            "ixdat is able to extract more "
+            "useful data and metadata (e.g. loop numbers) from .mpt's\n"
+        )
+
+        # First, try with `galvani`
+        try:
+            self.series_list_from_mpr_galvani()
+        except ImportError:
+            # Nudge the user towards .mpt since we are better at those:
+            e_galvani = (
+                "To read biologic binary files (.mpr), ixdat first tries to use the "
+                "`galvani` package, which could not be imported. "
+                "See https://pypi.org/project/galvani/ \n"
+                "Install `galvani` and try again."
+            )
+        except Exception as e:
+            e_galvani = e
+        else:  # we're good!
+            print(f"read with `galvani`: {self.path_to_file}")
+            return
+
+        # Then, try with `eclabfiles`
+        try:
+            self.series_list_from_mpr_eclabfiles()
+        except ImportError:
+            # Nudge the user towards .mpt since we are better at those:
+            e_eclabfiles = (
+                "To read biologic binary files (.mpr), ixdat also tries to use the "
+                "`eclabfiles` package, which could not be imported. "
+                "See https://pypi.org/project/eclabfiles/ \n"
+                "Install `eclabfiles` and try again."
+            )
+        except Exception as e:
+            e_eclabfiles = e
+        else:  # we're good!
+            print(f"read with `eclabfiles`: {self.path_to_file}")
+            return
+
+        raise ReadError(
+            f"couldn't read {path_to_file} with `galvani` or `eclabfiles`\n"
+            f"Consider reading the .mpt file instead. You can set EC-Lab to export "
+            ".mpt files automatically under Advanced Settings.\n"
+            f"--- `galvani` error:\n{e_galvani}\n"
+            f"--- `eclabfiles` error:\n{e_eclabfiles}"
+        )
 
     def series_list_from_mpr_galvani(self, path_to_file=None):
         """Read a biologic .mpr file
 
         This makes use of the package `galvani`.
-        See: https://github.com/echemdata/galvani/tree/master.
+        See: https://github.com/echemdata/galvani.
         The dataframe read in by `eclabfiles.to_df()` is stored in the returned
         measurement `meas` as `meas.reader.df`.
 
         Args:
             path_to_file (Path): The full abs or rel path including the ".mpr" extension
         """
-        UserWarning(
-            "Reading .mpr files is discouraged. We suggest to use the .mpt file "
-            "if you can. You can set EC-Lab to export these automatically under "
-            "Advanced Settings."
-        )
-        try:
-            # not a requirement of ixdat, so we import it here:
-            from galvani import BioLogic
-        except ImportError:
-            # Nudge the user towards .mpt since we are better at those:
-            raise ReadError(
-                "To read biologic binary files (.mpr), ixdat first tries to use the "
-                "`galvani` package (see https://pypi.org/project/galvani/) \n"
-                "Install `galvani` and try again.\n\n"
-                "Alternatively, read the text export (.mpt) instead. You can set EC-Lab "
-                "to export these automatically under Advanced Settings."
-            )
+        from galvani import BioLogic
 
         path_to_file = Path(path_to_file or self.path_to_file)
 
         with open(path_to_file, "rb") as mpr_binary_file:
             mpr_file = BioLogic.MPRfile(mpr_binary_file)
 
-        tstamp = mpr_file.timestamp.timestamp()
+        self.tstamp = mpr_file.timestamp.timestamp()
         self.df = pd.DataFrame(mpr_file.data)
 
         # Build the time series from the dataframe
         self.data_series_list = series_list_from_dataframe(
             self.df,
             time_name=t_str,
-            # ^ the unit-free name of the time column, i.e."time"
-            tstamp=tstamp,
+            tstamp=self.tstamp,
             unit_finding_function=get_column_unit_name,
-            # ^to find a column's unit, look it up in the dictionary `units`
         )
+        self.tseries = self.data_series_list[0]
 
     def series_list_from_mpr_eclabfiles(self, path_to_file=None):
-        try:
-            import eclabfiles  # not a requirement of ixdat, so we import it here.
-        except ImportError:
-            # Nudge the user towards .mpt since we are better at those:
-            raise ReadError(
-                "To read biologic binary files (.mpr), ixdat makes use of the "
-                "`eclabfiles` package. See https://pypi.org/project/eclabfiles/ \n"
-                "Install `eclabfiles` and try again.\n\n"
-                "Alternatively, read the text export (.mpt) instead. You can set EC-Lab "
-                "to export these automatically under Advanced Settings."
-            )
+        """Read a biologic .mpr file
+
+        This makes use of the package `eclabfiles`.
+        See: https://github.com/vetschn/eclabfiles.
+        The dataframe read in by `eclabfiles.to_df()` is stored in the returned
+        measurement `meas` as `meas.reader.df`.
+
+        Args:
+            path_to_file (Path): The full abs or rel path including the ".mpr" extension
+        """
+        import eclabfiles  # not a requirement of ixdat, so we import it here.
+
         self.df = eclabfiles.to_df(str(path_to_file or self.path_to_file))
 
         units = self.df.attrs["units"]
@@ -392,39 +425,36 @@ class BiologicReader:
         # Build the time series from the dataframe
         self.data_series_list = series_list_from_dataframe(
             self.df,
+            # the unit-free name of the time column, i.e. "time":
             time_name=t_str.split("/")[0],
-            # ^ the unit-free name of the time column, i.e."time"
             tstamp=self.tstamp,
+            # to find a column's unit, look it up in the dictionary `units`:
             unit_finding_function=units.get,
-            # ^to find a column's unit, look it up in the dictionary `units`
         )
+        self.tseries = self.data_series_list[0]
 
     def _update_aliases_and_ensure_essential_series(self):
         """A helper function completing the data_series_list for biologic readers."""
-        series_names = [s.name for s in self.data_series_list]
         # First, check if any of the biologic aliases are
         for data_series in self.data_series_list:
             for name, alias_list in BIOLOGIC_ALIASES.items():
-                if data_series.name in alias_list:
+
+                # We need to make sure the .mpr (unit-less) names are find-able:
+                name_slash_unit = data_series.name + "/" + data_series.unit_name
+                # In that case, this adds, e.g. "time" to the aliases for essential
+                # series "t", since BIOLOGIC_ALIASES["t"] includes "time/s"
+                if data_series.name in alias_list or name_slash_unit in alias_list:
                     if name in self.aliases:
                         self.aliases[name].append(data_series.name)
                     else:
                         self.aliases[name] = [data_series.name]
-                # We need to make sure the .mpr (unit-less) names are find-able.
-                if data_series.name + "/" + data_series.unit_name in alias_list:
-                    # This adds, e.g. "time" to the aliases for essential series "t",
-                    # since BIOLOGIC_ALIASES["t"] includes "time/s"
-                    if name in self.aliases:
-                        self.aliases[name].append(data_series.name)
-                    else:
-                        self.aliases[name] = [data_series.name]
-                    break  # a series will only be one type of essential series.
 
         # The following series need to be there:
         essential_series = set(self.measurement_class.essential_series_names).union(
             {"cycle number", "Ns"}
         )
         # To ensure this, we put a ConstantValue of zero in for the series
+        series_names = [s.name for s in self.data_series_list]
         for series_name in essential_series:
             if series_name not in series_names and series_name not in self.aliases:
                 name_0 = series_name + "=0"  # A series name to indicate it is set to 0.
