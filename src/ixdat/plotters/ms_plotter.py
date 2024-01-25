@@ -976,7 +976,7 @@ STANDARD_COLORS = {
     "CO2": "brown",
     "CH4": "r",
     "C2H4": "g",
-    "NH3": "steelblue", 
+    "NH3": "steelblue",
     "O2@M32": "k",
     "O2@M34": "r",
     "O2@M36": "g",
