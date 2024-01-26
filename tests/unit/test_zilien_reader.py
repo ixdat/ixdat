@@ -7,7 +7,11 @@ import pytest
 from ixdat.data_series import TimeSeries, ValueSeries
 from ixdat.exceptions import TechniqueError
 from ixdat.readers.zilien import (
-    ZilienTSVReader, determine_class, to_mass, to_snake_case, parse_metadata_line
+    ZilienTSVReader,
+    determine_class,
+    to_mass,
+    to_snake_case,
+    parse_metadata_line,
 )
 from ixdat.techniques import ECMeasurement, MSMeasurement, ECMSMeasurement
 
@@ -379,7 +383,7 @@ class TestZilienTSVReaderUtils:
             ("_", "_"),
             ("A String to-convert", "a_string_to-convert"),
             ("TRAILING  SPACE  ", "trailing__space__"),
-        )
+        ),
     )
     def test_to_snake_case(self, data, expected):
         """Test converting a string to snakecase."""
@@ -411,7 +415,8 @@ class TestZilienTSVReaderUtils:
         assert determine_class(data) == expected
 
     @pytest.mark.parametrize(
-        "data", ("ec-ms", "ec", "ms", "read the exception message finally"),
+        "data",
+        ("ec-ms", "ec", "ms", "read the exception message finally"),
     )
     def test_determine_class_error(self, data):
         """Test an exception while determining a class type."""

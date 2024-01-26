@@ -11,12 +11,14 @@ from ixdat.techniques.ec_ms import (
 )
 
 
+# fmt: off
 DIR_FAILING = Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/failing_datasets"  # noqa: E501
 
 OK_ECMS_DATASET = DIR_FAILING / "2024-01-17 15_21_57 ec-included/2024-01-17 15_21_57 ec-included.tsv"  # noqa: E501
 OK_MS_DATASET = DIR_FAILING / "2024-01-17 15_06_41 no-ec-nonincluded/2024-01-17 15_06_41 no-ec-nonincluded.tsv"  # noqa: E501
 MISSING_POT_SERIES_BUG = DIR_FAILING / "2024-01-17 15_08_29 no-ec-included/2024-01-17 15_08_29 no-ec-included.tsv"  # noqa: E501
 MISSING_ECLAB_MPTS_SERIES_BUG = DIR_FAILING / "2024-01-17 15_13_45 ec-included-mpt-missing/2024-01-17 15_13_45 ec-included-mpt-missing.tsv"  # noqa: E501
+# fmt: on
 
 
 @pytest.mark.external
