@@ -197,12 +197,13 @@ class TestZilienTSVReader:
 
     @pytest.mark.parametrize(
         "metadata, series_headers, column_headers, expected",
+        # fmt: off
         (
             (  # good case with EC-lab data
                 {"pot_pot_count": 3},
                 ["pot", "", "", "", "Iongauge value", "", "EC-lab", "", ""],
                 [
-                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",
+                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",  # noqa: E501
                     "time/s", "experiment_number", "technique_number", "Ewe/V"
                 ],
                 "EC-MS"
@@ -211,7 +212,7 @@ class TestZilienTSVReader:
                 {"pot_pot_count": 3},
                 ["pot", "", "", "", "Iongauge value", "", "EC-lab"],
                 [
-                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",
+                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",  # noqa: E501
                 ],
                 "MS"
             ),
@@ -219,7 +220,7 @@ class TestZilienTSVReader:
                 {},
                 ["pot", "", "", "", "Iongauge value", ""],
                 [
-                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",
+                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",  # noqa: E501
                 ],
                 "MS"
             ),
@@ -242,6 +243,7 @@ class TestZilienTSVReader:
                 "MS"
             ),
         )
+        # fmt: on
     )
     def test_get_technique(self, metadata, series_headers, column_headers, expected):
         reader = ZilienTSVReader()

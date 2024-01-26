@@ -11,12 +11,12 @@ from ixdat.techniques.ec_ms import (
 )
 
 
-DIR_FAILING = Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/failing_datasets"
+DIR_FAILING = Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/failing_datasets"  # noqa: E501
 
-OK_ECMS_DATASET = DIR_FAILING / "2024-01-17 15_21_57 ec-included/2024-01-17 15_21_57 ec-included.tsv"
-OK_MS_DATASET = DIR_FAILING / "2024-01-17 15_06_41 no-ec-nonincluded/2024-01-17 15_06_41 no-ec-nonincluded.tsv"
-MISSING_POT_SERIES_BUG = DIR_FAILING / "2024-01-17 15_08_29 no-ec-included/2024-01-17 15_08_29 no-ec-included.tsv"
-MISSING_ECLAB_MPTS_SERIES_BUG = DIR_FAILING / "2024-01-17 15_13_45 ec-included-mpt-missing/2024-01-17 15_13_45 ec-included-mpt-missing.tsv"
+OK_ECMS_DATASET = DIR_FAILING / "2024-01-17 15_21_57 ec-included/2024-01-17 15_21_57 ec-included.tsv"  # noqa: E501
+OK_MS_DATASET = DIR_FAILING / "2024-01-17 15_06_41 no-ec-nonincluded/2024-01-17 15_06_41 no-ec-nonincluded.tsv"  # noqa: E501
+MISSING_POT_SERIES_BUG = DIR_FAILING / "2024-01-17 15_08_29 no-ec-included/2024-01-17 15_08_29 no-ec-included.tsv"  # noqa: E501
+MISSING_ECLAB_MPTS_SERIES_BUG = DIR_FAILING / "2024-01-17 15_13_45 ec-included-mpt-missing/2024-01-17 15_13_45 ec-included-mpt-missing.tsv"  # noqa: E501
 
 
 @pytest.mark.external
@@ -41,7 +41,7 @@ class TestRegressions:
 
         """
         with pytest.raises(SeriesNotFoundError):
-            m = Measurement.read(OK_MS_DATASET, technique="EC-MS")
+            _ = Measurement.read(OK_MS_DATASET, technique="EC-MS")
 
     def test_parse_with_missing_zilien_pot_data(self):
         """Test patched parsing a buggy MS dataset with empty "pot" part."""
@@ -57,7 +57,7 @@ class TestRegressions:
 
         """
         with pytest.raises(KeyError):
-            m = Measurement.read(MISSING_POT_SERIES_BUG, technique="EC-MS")
+            _ = Measurement.read(MISSING_POT_SERIES_BUG, technique="EC-MS")
 
     def test_parse_with_missing_biologic_data(self):
         """Test patched parsing a buggy EC-MS dataset with missing EC-lab part."""
@@ -80,4 +80,4 @@ class TestRegressions:
         sys.stderr.write = lambda _: _
 
         with pytest.raises(ValueError):
-            m = Measurement.read(MISSING_ECLAB_MPTS_SERIES_BUG, technique="EC-MS")
+            _ = Measurement.read(MISSING_ECLAB_MPTS_SERIES_BUG, technique="EC-MS")

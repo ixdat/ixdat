@@ -24,7 +24,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
-from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
+from ..techniques import (
+    ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement, TECHNIQUE_CLASSES
+)
 from ..techniques.ms import MSSpectrum, MSSpectrumSeries
 from .reading_tools import timestamp_string_to_tstamp
 from ..exceptions import ReadError, TechniqueError
@@ -106,12 +108,8 @@ def to_mass(string):
 def determine_class(technique):
     """Choose appropriate measurement class according to a given technique."""
 
-    if technique == "EC-MS":
-        return ECMSMeasurement
-    elif technique == "EC":
-        return ECMeasurement
-    elif technique == "MS":
-        return MSMeasurement
+    if technique in ("EC-MS", "EC", "MS"):
+        return TECHNIQUE_CLASSES[technique]
     else:
         raise TechniqueError(
             f'Unknown technique given: "{technique}". '
@@ -279,9 +277,12 @@ class ZilienTSVReader:
         """Get technique according to parsed series headers and column headers.
 
         This method covers the following cases:
-          - "pot" and "EC-lab" is in the metadata and in the headers. There is "EC-lab" data.
-          - "pot" and "EC-lab" is in the metadata and in the headers. There is no "EC-lab" data. (bug)
-          - "pot" is not in the metadata, but it is in the headers and the data part is filled with NaN. (bug)
+          - "pot" and "EC-lab" is in the metadata and in the headers.
+            There is "EC-lab" data.
+          - "pot" and "EC-lab" is in the metadata and in the headers.
+            There is no "EC-lab" data. (bug)
+          - "pot" is not in the metadata, but it is in the headers and the data
+            part is filled with NaN. (bug)
           - "pot" is neither in the metadata, nor in the headers.
 
         """
