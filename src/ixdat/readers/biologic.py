@@ -438,7 +438,6 @@ class BiologicReader:
         # First, check if any of the biologic aliases are
         for data_series in self.data_series_list:
             for name, alias_list in BIOLOGIC_ALIASES.items():
-
                 # We need to make sure the .mpr (unit-less) names are find-able:
                 name_slash_unit = data_series.name + "/" + data_series.unit_name
                 # In that case, this adds, e.g. "time" to the aliases for essential
@@ -448,6 +447,7 @@ class BiologicReader:
                         self.aliases[name].append(data_series.name)
                     else:
                         self.aliases[name] = [data_series.name]
+                    break
 
         # The following series need to be there:
         essential_series = set(self.measurement_class.essential_series_names).union(
