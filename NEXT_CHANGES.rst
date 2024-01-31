@@ -123,3 +123,8 @@ General
   when it is a Mass Spec measurement. And when it includes an electrochemistry
   data, then ``ECMSMeasurement`` is used. The default/safe case is ``MSMeasurement``.
   Resolves `Issue #159 <https://github.com/ixdat/ixdat/pull/159>`_
+
+dev
+^^^
+
+- Enable running external tests in CI
