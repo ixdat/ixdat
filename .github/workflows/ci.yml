@@ -45,5 +45,5 @@ jobs:
         invoke check-code-format
     - name: Test with pytest
       run: |
-        invoke test
+        invoke test --external
 
