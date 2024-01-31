@@ -13,6 +13,7 @@ Biologic dataset. These are grouped under the series header "EC-lab".
 """
 
 import re
+import time
 from collections import defaultdict
 from itertools import groupby, zip_longest
 from pathlib import Path
@@ -23,12 +24,13 @@ from matplotlib import pyplot as plt
 
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
-from ..techniques.ms import MSSpectrum
-from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
+from ..techniques.ms import MSSpectrum, MSSpectrumSeries
+from .reading_tools import timestamp_string_to_tstamp
+from ..exceptions import ReadError
 
 
 ZILIEN_TIMESTAMP_FORM = "%Y-%m-%d %H_%M_%S"  # like 2021-03-15 18_50_10
-
+ZILIEN_MASS_COLUMN_NAMES = ["Mass  [AMU]", "Mass [AMU]"]
 ZILIEN_EC_ALIASES = {
     "t": ["Potential time [s]"],
     "raw_potential": ["Voltage [V]"],
@@ -68,7 +70,9 @@ def parse_metadata_line(line):
     if type_as_str == "string":
         return full_name, value
     elif type_as_str == "int":
-        return full_name, int(value)
+        # Python does not seem able to directly evaluate a string like "0.0" as an
+        # integer. Therefore, we evaluate it as a float first and convert to int:
+        return full_name, int(float(value))
     elif type_as_str == "double":
         return full_name, float(value)
     elif type_as_str == "bool":
@@ -119,23 +123,32 @@ class ZilienTSVReader:
         # a numpy array of the parsed Zilien data (a big rectangle with NaN filling)
         self._data = None
 
-    def read(self, path_to_file, cls=ECMSMeasurement, name=None, **kwargs):
+    def read(
+        self,
+        path_to_file,
+        cls=ECMSMeasurement,
+        name=None,
+        include_mass_scans=True,
+        **kwargs,
+    ):
         """Read a Zilien file
 
         Args:
             path_to_file (Path or str): The path of the file to read
             cls (Measurement): The measurement class to read the file as. Zilien tsv
-                files can be read both as an ECMS measurement, a MS measurement (which
-                will exclude the EC series from the meaurement) and as a ECMeasurement
+                files can be read both as an EC-MS measurement, a MS measurement (which
+                will exclude the EC series from the measurement) and as a ECMeasurement
                 (which will exclude the MS series from the measurement). To avoid
                 importing classes, this behavior can also be controlled by setting the
-                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The deafult is a
+                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The default is a
                 ECMSMeasurement.
             name (str): The name of the measurement. Will default to the part of the
                 filename before the '.tsv' extension
-            kwargs: All remaining keywor-arguments will be passed onto the `__init__` of
-                the Meaurement
-
+            include_mass_scans (bool): Whether to include mass scans (if available) and
+                thereby return a `SpectroMSMeasurement` which can be indexed to give
+                the spectrum objects.
+            kwargs: All remaining keyword-arguments will be passed onto the `__init__`
+                of the Measurement
         """
         if self._path_to_file:
             print(
@@ -208,6 +221,23 @@ class ZilienTSVReader:
         }
         measurement_kwargs.update(kwargs)
         self._measurement = cls(**measurement_kwargs)
+
+        if include_mass_scans:
+            # Check if there are MS spectra.
+            # If the file name is "YYYY-MM-DD hh_mm_ss my_file_name.tsv", then
+            # the spectra are the .tsv files in the folder "my_file_name mass scans"
+            spectra_folder = self._path_to_file.parent / (
+                self._path_to_file.stem[20:] + " mass scans"
+            )
+            if spectra_folder.exists():  # Then we have a spectra folder!
+                spectrum_series = MSSpectrumSeries.read_set(
+                    spectra_folder,
+                    suffix=".tsv",
+                    reader="zilien",
+                    t_zero=self._timestamp,
+                )
+                self._measurement = self._measurement + spectrum_series
+
         return self._measurement
 
     @staticmethod
@@ -588,38 +618,63 @@ class ZilienSpectrumReader:
     def __init__(self, path_to_spectrum=None):
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
-    def read(self, path_to_spectrum, cls=None, **kwargs):
-        """Reat a Zilien spectrum.
+    def read(self, path_to_spectrum, cls=None, t_zero=None, **kwargs):
+        """Read a Zilien spectrum.
         FIXME: This reader was written hastily and could be designed better.
 
         Args:
-            path_to_tmp_dir (Path or str): the path to the tmp dir
+            path_to_spectrum(Path or str): the path to the spectrum file
             cls (Spectrum class): Defaults to MSSpectrum
+            t_zero (float): The unix timestamp which the mass scan start time
+                is referenced to. Should be the tstamp of the corresponding
+                Zilien measurement. If the Spectrum is read individually, it needs
+                to be input or defaults to `time.time()`, i.e., now.
             kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         if path_to_spectrum:
             self.path_to_spectrum = Path(path_to_spectrum)
         cls = cls or MSSpectrum
+        t_zero = t_zero or time.time()
+
+        with open(self.path_to_spectrum, "r") as f:
+            in_header = True
+            num_line = 1
+            metadata_dict = {}
+            while in_header:
+                name, value = parse_metadata_line(f.readline())
+                metadata_dict[name] = value
+                if num_line == metadata_dict.get("num_header_lines", 0):
+                    in_header = False
+                num_line += 1
+
+        tstamp = t_zero + metadata_dict["mass_scan_started_at"]
+        duration = (
+            (metadata_dict["stop_mass"] - metadata_dict["start_mass"])
+            * metadata_dict["points_per_amu"]
+            * metadata_dict["dwell_time"]
+            * 1e-3
+        )
+
         df = pd.read_csv(
-            path_to_spectrum,
-            header=9,
+            self.path_to_spectrum,
+            header=metadata_dict["data_start"] - 1,
             delimiter="\t",
         )
         y_name = "Current [A]"
 
-        for x_name in ["Mass  [AMU]", "Mass [AMU]"]:
+        for x_name in ZILIEN_MASS_COLUMN_NAMES:
             try:
                 x = df[x_name].to_numpy()
             except KeyError:
                 continue
             break
+        else:
+            raise ReadError(
+                f"Can't find a mass column in {self.path_to_spectrum}. "
+                f"Looked for one of {ZILIEN_MASS_COLUMN_NAMES}"
+            )
         y = df[y_name].to_numpy()
-        with open(self.path_to_spectrum, "r") as f:
-            for i in range(10):
-                line = f.readline()
-                if "Mass scan started at [s]" in line:
-                    tstamp_match = re.search(FLOAT_MATCH, line)
-                    tstamp = float(tstamp_match.group())
+
         xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
         field = Field(
             data=np.array(y),
@@ -630,11 +685,12 @@ class ZilienSpectrumReader:
             ],
         )
         obj_as_dict = {
-            "name": path_to_spectrum.name,
-            "technique": "MS",
+            "name": self.path_to_spectrum.name,
+            "technique": "MS_spectrum",
             "field": field,
             "reader": self,
             "tstamp": tstamp,
+            "duration": duration,
         }
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)

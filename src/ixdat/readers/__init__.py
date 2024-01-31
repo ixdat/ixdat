@@ -38,11 +38,10 @@ from .avantage import AvantageAVGReader
 # xas
 from .qexafs import QexafsDATReader
 
+# Measruement.read() looks for readers here:
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
-    "ixdat_spectrum": IxdatSpectrumReader,
     "biologic": BiologicReader,
-    "avantage": AvantageAVGReader,
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
     "chi": CHInstrumentsTXTReader,
@@ -52,10 +51,17 @@ READER_CLASSES = {
     "cinfdata_db": CinfdataDBReader,
     "zilien": ZilienTSVReader,
     "zilien_tmp": ZilienTMPReader,
-    "zilien_spec": ZilienSpectrumReader,
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
-    "xrdml": XRDMLReader,
     "qexafs": QexafsDATReader,
+}
+
+
+# Spectrum.read() looks for readers here:
+SPECTRUM_READER_CLASSES = {
+    "ixdat": IxdatSpectrumReader,
+    "avantage": AvantageAVGReader,
+    "zilien": ZilienSpectrumReader,
+    "xrdml": XRDMLReader,
 }

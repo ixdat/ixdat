@@ -95,7 +95,9 @@ class MsrhSECReader:
             axes_series=[tseries, wl_series],
             data=spectra,
         )
-        spectrum_series = SpectrumSeries.from_field(spectra, tstamp=tstamp)
+        spectrum_series = SpectrumSeries.from_field(
+            spectra, tstamp=tstamp, continuous=True
+        )
 
         # Now we process the current and potential:
         U_0 = EI_df["U"].to_numpy()  # ... but we'll actually use U from the sec data

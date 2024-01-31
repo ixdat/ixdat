@@ -30,6 +30,7 @@ regular_expressions = {
 BIOLOGIC_ALIASES = {
     "t": ["time/s"],
     "raw_potential": ["Ewe/V", "<Ewe>/V"],
+    "raw_CE_potential": ["Ece/V", "<Ece>/V"],
     "raw_current": ["I/mA", "<I>/mA"],
     "cycle": ["cycle number"],
 }

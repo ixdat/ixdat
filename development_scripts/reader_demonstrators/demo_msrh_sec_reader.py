@@ -36,8 +36,9 @@ if True:  # test export and reload
     sec_meas.export(export_name)
     sec_reloaded = Measurement.read(export_name, reader="ixdat")
     sec_reloaded.set_reference_spectrum(V_ref=0.66)
+    sec_reloaded.spectrum_series.continuous = True
+    # ^ "continuous" attribute does not save and load properly :(
     sec_reloaded.plot_vs_potential(cmap_name="jet")
-
 
 axes = sec_meas.plot_measurement(
     V_ref=0.4,
@@ -60,5 +61,8 @@ axes2 = sec_meas.plot_vs_potential(
 ax = sec_meas.get_dOD_spectrum(V_ref=0.66, V=1.0).plot(color="b", label="species 1")
 sec_meas.get_dOD_spectrum(V_ref=1.0, V=1.45).plot(color="g", ax=ax, label="species 2")
 sec_meas.get_dOD_spectrum(V_ref=1.45, V=1.75).plot(color="r", ax=ax, label="species 3")
+
+axes = sec_meas.plot_wavelengths_vs_potential(wavelengths=["w460", "w600", "w850"])
+axes[0].set_ylabel("intense!")
 
 ax.legend()

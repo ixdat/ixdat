@@ -55,6 +55,7 @@ combined_meas.calibrate(RE_vs_RHE=0.715, A_el=0.196)
 combined_meas.tstamp += t_start
 
 combined_meas.plot(tspan=tspan)
+combined_meas.plot(tspan=tspan, J_name="raw_CE_potential")
 
 cut_meas = combined_meas.cut(tspan=tspan)
 cut_meas.plot(J_name="selector")
@@ -83,6 +84,9 @@ if False:  # check a save-load round trip
 # check the cyclic voltammatry selection stuff
 
 cv = combined_meas.as_cv()
+
+cv.calibrate(RE_vs_RHE=0.72)
+
 cv_selection = cv[10:16]
 
 cv_selection.plot_measurement(J_name="cycle")

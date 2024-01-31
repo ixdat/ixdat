@@ -132,6 +132,24 @@ And then run command for testing with ``--external`` option::
     # the 'tests' here is a project directory with the tests
     pytest tests --external
 
+Tutorials
+*********
+
+The tutorials for ixdat is developed in a
+`separate repository <https://github.com/ixdat/tutorials>`_. But these tutorials are copied into
+the ixdat repository in order to be able to generate docs from the Jupyter notebooks for the documentation:
+https://ixdat.readthedocs.io/
+
+We are trying to figure out the best way to automate this process (see https://github.com/ixdat/ixdat/pull/133),
+but for now just copy the updated files of the tutorials repository into the corresponding place in
+docs/source/tutorials/tutorials_repo an compile them manually.
+
+All files in docs/source/tutorials/tutorials_repo are ignored by the ixdat repo's .gitignore except
+for the .ipynb files.
+
+The tutorials should be reviewed and merged on the tutorials repo (in un-compiled state) before being
+added to the tutorials page of the documentation.
+
 
 Write to us
 ***********

@@ -13,8 +13,9 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 `PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
 
 
-ixdat 0.2.7
+ixdat 0.2.9
 ===========
+
 
 API changes
 -----------
@@ -29,55 +30,90 @@ readers
   - https://github.com/vetschn/eclabfiles
   These packages are not added as a requirement, but instead imported dynamically.
   If the user tries to read a .mpr file without the needed package installed, they are
-  pointed to the package but also encouraged to export .mpt instead.
+  pointed to the package but also encouraged to export and read ".mpt" files instead.
   ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
   Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
 
-techniques
-^^^^^^^^^^^
 
-- ``MSInlet.gas_flux_calibration_curve()`` has the additional option of passing
- a boolean ``axes_measurement_raw``. Set to True if the axes passed to 
- ``axes_measurement`` are raw signal data (i.e. not background subtracted)
-    Mentioned in `Issue #94 <https://github.com/ixdat/ixdat/issues/94`_
+- Zilien MS spectrum reader fixed.
+  Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
 
-- ``ECMSMeasurement.ecms_calibration_curve()`` has the additional option of 
-passing a J_name to be used for highlighting the integrated current passed to
-``axes_measurement``. This does not affect the calculation of sensitivity factors, 
-only plotting.
-    Resolves `Issue #118 <https://github.com/ixdat/ixdat/issues/118`_
+- ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as
+  before for reading in a zilien spectrum. This is accomplished by different
+  groups of reader for ``Spectrum.read`` and ``Measurement.read``
+  Also, zilien-read spectra now know their duration.
 
+- ``Measurement.read(..., reader="zilien")`` now returns a ``SpectroMSMeasurement``
+  when the reader can find zilien mass scans taken during the measurement. It
+  looks for the mass scans folder as zilien names it.
+  The default plotter is a ``SpectroMSPlotter`` which includes the MS spectra
+  data in a separate panel. The spectra are accessible by:
 
-Debugging
----------
+    meas = Measurement.read("my_MID_with_spectra.tsv", reader="zilien")
+    meas.spectrum_series[0].plot()
 
-general
-^^^^^^^
-- ``EC_MS`` is no longer a dependency
-  Resolves `Issue #128 <https://github.com/ixdat/ixdat/issues/124>`_
-
-measurement
-^^^^^^^^^^^
-- ``cut`` no longer crashes when one of the component measurements is empty.
-  Resolves `Issue #93 <https://github.com/ixdat/ixdat/issues/93>`_
+  which plots the first MS spectrum.
+  To leave out the mass scan data, include the argument ``include_spectra=False``
+  in the call to ``read``.
+  This finishes `Issue #117 <https://github.com/ixdat/ixdat/issues/117`_
 
 - If a series name is present in the raw data *and* in in a measurement's ``aliases``,
   the raw data series matching the name and the aliased series are appended. (Before,
   only the raw data series matching the name would be returned.)
 
 techniques
-^^^^^^^^^^^
+^^^^^^^^^^
+- ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
+  Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.
 
-- ``MSInlet.gas_flux_calibration_curve()`` now works also when passing an
-  axes_measurement 
-  Resolves `Issue #94 <https://github.com/ixdat/ixdat/issues/94>`_
+- Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
+  For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
 
-exporters
-^^^^^^^^^
-- Fixed exporting and re-importing of ``ECOpticalMeasurment``s for new pandas version
-  Resolves `Issue #124 <https://github.com/ixdat/ixdat/issues/124>`_
+plotters
+^^^^^^^^
+- ``SpectrumPlotter.heat_plot()`` and methods that rely on it can now plot discrete heat plots, with
+  each spectrum only plotted for its duration, if available. If spectrum durations are not available,
+  it plots each spectrum until the start of the next spectrum, i.e. like the previous (continuous)
+  behaviour but without interpolation.
+  Discrete heat plotting is now the default behavior for ``MSSpectroMeasurement``s read by "zilien"
+  (in which case durations are available).
+  ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
+  resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
 
-constants
-^^^^^^^^^
-- ``BOLTZMAN_CONSTANT`` renamed ``BOLTZMANN_CONSTANT``
-  Resolves `Issue #125 <https://github.com/ixdat/ixdat/issues/125>`_
+General
+^^^^^^^
+
+- The string representation, which is what is printed if an object is printed, has been
+  changed for ``TimeSeries``, ``ValueSeries`` and ``Measurement``. The data series have
+  changed, so that they will return a helpful summary, displaying the name, min, max and
+  the timestamp for a ``TimeSeries`` as opposed to the class name and ``__init__``
+  argument form, which is normally inherited from ``__repr__``. In short::
+
+    Before: TimeSeries(id=1, name='Potential time [s]')
+    After: TimeSeries: 'Potential time [s]'. Min, max: 699, 1481s @ 21B01 17:44:12
+
+    Before: ValueSeries(id=2, name='Voltage [V]')
+    After: ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
+
+  These new string representations should be helpful on their own, but the main goal of
+  changing them, was to make them useful in the new string representation of
+  ``Measurement``, which is inherited by all measurements. It will now display a summary
+  of all data series in the measurement, along with information about their internal
+  connections, like which ``ValueSeries`` depends on which ``TimeSeries``. For an ECMS
+  measurement the form is::
+
+    ECMSMeasurement '2021-02-01 17_44_12' with 48 series
+
+    Series list:
+    ┏ TimeSeries: 'Potential time [s]'. Min, max: 699, 1481 [s] @ 21B01 17:44:12
+    ┣━ ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
+    ┣━ ValueSeries: 'Current [mA]'. Min, max: -2.5e-02, 2.5e-02 [mA]
+    ┗━ ValueSeries: 'Cycle [n]'. Min, max: 1.0e+00, 1.0e+00 [n]
+    ┏ TimeSeries: 'Iongauge value time [s]'. Min, max: 1, 3042 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'Iongauge value [mbar]'. Min, max: 6.6e-09, 6.9e-07 [mbar]
+    << SNIP MORE SYSTEM CHANNELS >>
+    ┏ TimeSeries: 'C0M2 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'M2 [A]'. Min, max: 3.4e-12, 2.0e-11 [A]
+    ┏ TimeSeries: 'C1M4 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'M4 [A]'. Min, max: 1.2e-17, 2.7e-10 [A]
+    << SNIP MORE MASS CHANNELS>>

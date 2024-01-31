@@ -184,7 +184,7 @@ class Saveable:
                 #   ID by Saveable.__init__ ?
             else:
                 raise DataBaseError(
-                    f"{self} comes from {self.backend_name} "
+                    f"{self!r} comes from {self.backend_name} "
                     "but did not get an id from its backend."
                 )
         return self._id
@@ -259,7 +259,7 @@ class Saveable:
         exclude = exclude or []
         if self.column_attrs is None:
             raise DataBaseError(
-                f"{self} can't be serialized because the class "
+                f"{self!r} can't be serialized because the class "
                 f"{self.__class__.__name__} hasn't defined column_attrs"
             )
         self_as_dict = {  # FIXME: probably better as loop, fix with table definitions.

@@ -4,9 +4,11 @@ pytest==7.0.1;python_version=='3.6'
 Sphinx
 sphinx-rtd-theme
 sphinx_automodapi
+nbsphinx
 EC_MS
 flake8==4.0.1
 twine
 setuputils3
 tox
 invoke
+python-dateutil  # For timezone handling in tests
