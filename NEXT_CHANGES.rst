@@ -100,6 +100,6 @@ General
 
 - Reading measurement without the need to specify ``technique`` keyword argument.
   The technique is determined from dataset's metadata. The ``MSMeasurement`` is used
-  when it is a Mass Spec measurement. And when it is an Electrochemistry measurement,
-  then ``ECMSMeasurement`` is used. The default/safe case is ``MSMeasurement``.
+  when it is a Mass Spec measurement. And when it includes an electrochemistry
+  data, then ``ECMSMeasurement`` is used. The default/safe case is ``MSMeasurement``.
   Resolves `Issue #159 <https://github.com/ixdat/ixdat/pull/159>`_

@@ -1,5 +1,5 @@
-import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -43,7 +43,7 @@ class TestRegressions:
 
         """
         with pytest.raises(SeriesNotFoundError):
-            _ = Measurement.read(OK_MS_DATASET, technique="EC-MS")
+            Measurement.read(OK_MS_DATASET, technique="EC-MS")
 
     def test_parse_with_missing_zilien_pot_data(self):
         """Test patched parsing a buggy MS dataset with empty "pot" part."""
@@ -59,16 +59,15 @@ class TestRegressions:
 
         """
         with pytest.raises(KeyError):
-            _ = Measurement.read(MISSING_POT_SERIES_BUG, technique="EC-MS")
+            Measurement.read(MISSING_POT_SERIES_BUG, technique="EC-MS")
 
     def test_parse_with_missing_biologic_data(self):
         """Test patched parsing a buggy EC-MS dataset with missing EC-lab part."""
 
         # silence the warning message for tests
-        sys.stderr.write = lambda _: _
-
-        m = Measurement.read(MISSING_ECLAB_MPTS_SERIES_BUG)
-        assert isinstance(m, MSMeasurement)
+        with patch("sys.stderr.write"):
+            m = Measurement.read(MISSING_ECLAB_MPTS_SERIES_BUG)
+            assert isinstance(m, MSMeasurement)
 
     def test_parse_with_missing_biologic_data_regression(self):
         """Test parsing a buggy EC-MS dataset with missing EC-lab part the old way.
@@ -79,7 +78,5 @@ class TestRegressions:
 
         """
         # silence the warning message for tests
-        sys.stderr.write = lambda _: _
-
         with pytest.raises(ValueError):
-            _ = Measurement.read(MISSING_ECLAB_MPTS_SERIES_BUG, technique="EC-MS")
+            Measurement.read(MISSING_ECLAB_MPTS_SERIES_BUG, technique="EC-MS")

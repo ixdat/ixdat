@@ -249,7 +249,8 @@ class TestZilienTSVReader:
         )
         # fmt: on
     )
-    def test_get_technique(self, metadata, series_headers, column_headers, expected):
+    @patch("sys.stderr.write")
+    def test_get_technique(self, _, metadata, series_headers, column_headers, expected):
         reader = ZilienTSVReader()
         reader._metadata = metadata
         reader._series_headers = series_headers

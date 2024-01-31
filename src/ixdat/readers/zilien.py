@@ -251,8 +251,26 @@ class ZilienTSVReader:
 
     @staticmethod
     def _read_metadata(file_handle):
-        """Read metadata from `file_handle`"""
+        """Read metadata from `file_handle`.
 
+        Description of the returned variables:
+        - metadata: A dictionary of meta dataset information
+        - series_headers: A list with string series headers (the first header line).
+          A series header is a group of column headers. They have possible one
+          or more empty cells (empty strings) inbetween them, so extra columns
+          in the group can be aligned. E.g. "Iongauge value", "MFC1 setpoint",
+          "MFC1 value", etc.
+        - column_headers: A list with string column headers (the second header line).
+          A column header is a name of one data column in a series. E.g. "Time [s]",
+          "Pressure [mbar]", "Flow [ml/min]", etc.
+
+        The length of the "series_headers" and the "column_headers" is the same.
+
+        Returns:
+            Tuple[Dict[str, str | int | float | bool], List[String], List[String]]:
+            Three variables with metadata, series and column headers described more above.
+
+        """
         # The first 4 lines always include the file version, number of header lines,
         # number of data header lines and data start line in this order.
         # Backwards compatibility is ensured, because the one extra line read will be
@@ -290,6 +308,9 @@ class ZilienTSVReader:
           - "pot" is neither in the metadata, nor in the headers.
 
         """
+
+        # Should stay "pot_pot_count", because the series name is prepended in
+        # order to keep unique series names. See `parse_metadata_line()`.
         pot_in_metadata = "pot_pot_count" in self._metadata
         pot_in_series_headers = "pot" in self._series_headers
 
@@ -299,10 +320,9 @@ class ZilienTSVReader:
             result = "EC-MS"
 
             # BUG CASE: EC-lab series header gets included, but .mpt data don't
-            if (
-                len(self._column_headers) < len(self._series_headers)
-                and self._series_headers[-1] == "EC-lab"
-            ):
+            missing_column_headers = len(self._column_headers) < len(self._series_headers)
+            empty_eclab_series = self._series_headers[-1] == "EC-lab"
+            if missing_column_headers and empty_eclab_series:
                 result = "MS"
                 sys.stderr.write(
                     "EC-lab data is missing in the dataset. That means Zilien did not"
