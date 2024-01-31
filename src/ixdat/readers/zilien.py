@@ -268,7 +268,7 @@ class ZilienTSVReader:
 
         Returns:
             Tuple[Dict[str, str | int | float | bool], List[String], List[String]]:
-            Three variables with metadata, series and column headers described more above.
+            Three variables with metadata, series and column headers described above.
 
         """
         # The first 4 lines always include the file version, number of header lines,
@@ -320,7 +320,9 @@ class ZilienTSVReader:
             result = "EC-MS"
 
             # BUG CASE: EC-lab series header gets included, but .mpt data don't
-            missing_column_headers = len(self._column_headers) < len(self._series_headers)
+            missing_column_headers = len(self._column_headers) < len(
+                self._series_headers
+            )
             empty_eclab_series = self._series_headers[-1] == "EC-lab"
             if missing_column_headers and empty_eclab_series:
                 result = "MS"
