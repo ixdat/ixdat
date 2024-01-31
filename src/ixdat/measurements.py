@@ -267,7 +267,7 @@ class Measurement(Saveable):
             reader = READER_CLASSES[reader]()
         obj = reader.read(path_to_file, cls=cls, **kwargs)
 
-        if obj.__class__.essential_series_names:
+        if getattr(obj.__class__, "essential_series_names", None):
             for series_name in obj.__class__.essential_series_names:
                 try:
                     _ = obj[series_name]  # this also caches it.
@@ -754,7 +754,7 @@ class Measurement(Saveable):
         if key in self.series_names:  # ii
             # Then we'll append any series matching the desired name
             series_to_append += [s for s in self.series_list if s.name == key]
-        elif key in self.aliases:  # i
+        if key in self.aliases:  # i
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
                 if k == key:  # this would result in infinite recursion.

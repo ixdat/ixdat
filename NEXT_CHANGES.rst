@@ -16,8 +16,24 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 ixdat 0.2.9
 ===========
 
+
+API changes
+-----------
+
 readers
 ^^^^^^^
+- ``BiologicReader`` can now also read biologic .mpr files using an external package.
+  When reading a file ending in ".mpr", it first tries the ``galvani`` package, which
+  seems to work for LSV, CA, and CVA files. If that fails, it tries the ``eclabfiles``
+  package, which seems to work for OCV and CP files. See:
+  - https://github.com/echemdata/galvani
+  - https://github.com/vetschn/eclabfiles
+  These packages are not added as a requirement, but instead imported dynamically.
+  If the user tries to read a .mpr file without the needed package installed, they are
+  pointed to the package but also encouraged to export and read ".mpt" files instead.
+  ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
+  Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
+
 
 - Zilien MS spectrum reader fixed.
   Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
@@ -40,6 +56,10 @@ readers
   To leave out the mass scan data, include the argument ``include_spectra=False``
   in the call to ``read``.
   This finishes `Issue #117 <https://github.com/ixdat/ixdat/issues/117`_
+
+- If a series name is present in the raw data *and* in in a measurement's ``aliases``,
+  the raw data series matching the name and the aliased series are appended. (Before,
+  only the raw data series matching the name would be returned.)
 
 techniques
 ^^^^^^^^^^
