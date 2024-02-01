@@ -117,3 +117,9 @@ General
     ┏ TimeSeries: 'C1M4 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
     ┗━ ValueSeries: 'M4 [A]'. Min, max: 1.2e-17, 2.7e-10 [A]
     << SNIP MORE MASS CHANNELS>>
+
+- Reading measurement without the need to specify ``technique`` keyword argument.
+  The technique is determined from dataset's metadata. The ``MSMeasurement`` is used
+  when it is a Mass Spec measurement. And when it includes an electrochemistry
+  data, then ``ECMSMeasurement`` is used. The default/safe case is ``MSMeasurement``.
+  Resolves `Issue #159 <https://github.com/ixdat/ixdat/pull/159>`_
