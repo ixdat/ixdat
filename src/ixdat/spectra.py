@@ -712,13 +712,13 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 class SpectroMeasurement(Measurement):
     extra_column_attrs = {"spectro_measurements": {"spectrum_id"}}
 
-    def __init__(self, *args, spectrum_series=None, spec_id=None, **kwargs):
+    def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)
         if spectrum_series:
             self._spectrum_series = spectrum_series
             self._spectrum_series.tstamp = self.tstamp
-        elif spec_id:
-            self._spectrum_series = PlaceHolderObject(spec_id, cls=SpectrumSeries)
+        elif spectrum_id:
+            self._spectrum_series = PlaceHolderObject(spectrum_id, cls=SpectrumSeries)
         else:
             raise TypeError(
                 "A SpectroMeasurement must be "

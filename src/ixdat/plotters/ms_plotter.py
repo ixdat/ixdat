@@ -485,7 +485,7 @@ class MSPlotter(MPLPlotter):
         return quantified, specs_this_axis, specs_next_axis
 
 
-class SpectroMSPlotter(MPLPlotter):
+class MSSpectroPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
 
     def __init__(self, measurement=None):

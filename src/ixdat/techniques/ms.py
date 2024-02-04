@@ -7,7 +7,7 @@ import warnings
 
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
-from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
+from ..plotters.ms_plotter import MSPlotter, MSSpectroPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADRO_CONSTANT,
@@ -48,6 +48,7 @@ def _with_siq_quantifier(method):
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
+    # FIXME: tspan_bg should be column of a DataTreater, not MSMeasurement:
     extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
 
@@ -1391,5 +1392,11 @@ class MSSpectrumSeries(SpectrumSeries):
     pass
 
 
-class SpectroMSMeasurement(MSMeasurement, SpectroMeasurement):
-    default_plotter = SpectroMSPlotter
+class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
+
+    # FIXME: automate this in inheritance of hyphenated techniques:
+    extra_column_attrs = {
+        "spectro_measurements": {"spectrum_id"},
+        "ms_measurement": {"tspan_bg"},
+    }
+    default_plotter = MSSpectroPlotter

@@ -224,15 +224,14 @@ class Measurement(Saveable):
         try:
             measurement = technique_class(**obj_as_dict)
         except TypeError as e:
-            print(
-                "ixdat ran into an error while trying to set up an object of type "
-                f"{technique_class}. This usually happens when ixdat wasn't able"
-                "to correctly determine the measurement technique. Consider"
-                "passing the `technique` argument into the read() function. \n"
+            raise TechniqueError(
+                "ixdat ran into an error while trying to set up an object of type\n"
+                f"  {technique_class}. This usually happens when ixdat wasn't able\n"
+                f"  to correctly determine the measurement technique. Error: \n{e}\n\n"
+                "Consider passing the `technique` argument into the read() function.\n"
                 "For a list of available techniques use: \n "
                 ">>> from ixdat.techniques import TECHNIQUE_CLASSES\n"
                 ">>> print(TECHNIQUE_CLASSES.keys())\n"
-                f"{e}"
             )
         return measurement
 
