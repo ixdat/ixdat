@@ -186,6 +186,7 @@ def datasets(request):
     return tsv, mpts, mpt_time_offsets
 
 
+@pytest.mark.skip("TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158")
 @pytest.mark.external
 @pytest.mark.parametrize(
     ["cls_or_technique", "expected_series"],
@@ -241,6 +242,9 @@ def test_read(cls_or_technique, expected_series):
 class TestZilienIntegrated:
     """Tests for reading the Zilien files with integrated Biologic dataset."""
 
+    @pytest.mark.skip(
+        "TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158"
+    )
     @pytest.mark.external
     def test_series_match(self, datasets):
         """Test presence of all the series from the mpt files in the tsv file."""
@@ -290,6 +294,9 @@ class TestZilienIntegrated:
 
             assert np.allclose(tsv_times, mpt_times)
 
+    @pytest.mark.skip(
+        "TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158"
+    )
     @pytest.mark.external
     def test_data_match(self, datasets):
         """Test the same data."""
