@@ -12,9 +12,10 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 "people" can be considered as a group.
 """
 
+import warnings
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
-from .data_series import DataSeries, TimeSeries, Field, time_shifted
+from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
 from .measurements import Measurement, get_combined_technique
@@ -497,6 +498,7 @@ class SpectrumSeries(Spectrum):
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
         self._t_tolerance = kwargs.pop("t_tolerance", None)
+        # FIXME: durations and continuous are not in the serialization:
         self.durations = kwargs.pop("durations", None)
         self.continuous = kwargs.pop("continuous", False)
         super().__init__(*args, **kwargs)
@@ -654,15 +656,98 @@ class SpectrumSeries(Spectrum):
             return Spectrum.from_dict(spectrum_as_dict)
         raise KeyError
 
+    def cut(self, tspan, t_zero=None):
+        """Return a subset with the spectrums falling in a specified timespan
+
+        Args:
+            tspan (timespan): The timespan within which you want spectrums
+            t_zero (float): The shift in t=0 with respect to the original
+                spectrum series, in [s].
+        """
+        t_mask = np.logical_and(tspan[0] < self.t, self.t < tspan[1])
+        new_t = self.t[t_mask]
+        new_tseries = TimeSeries(
+            name=self.tseries.name,
+            unit_name=self.tseries.unit_name,
+            data=new_t,
+            tstamp=self.tseries.tstamp,
+        )
+        new_y = self.y[t_mask, :]
+        new_field = Field(
+            name=self.field.name,
+            unit_name=self.field.unit_name,
+            data=new_y,
+            axes_series=[new_tseries, self.xseries],
+        )
+        new_durations = np.array(self.durations)[t_mask]
+        cut_spectrum_series_as_dict = self.as_dict()
+        cut_spectrum_series_as_dict.update(
+            field=new_field,
+            durations=new_durations,
+        )
+        cut_spectrum_series = self.__class__.from_dict(cut_spectrum_series_as_dict)
+        if t_zero:
+            if t_zero == "start":
+                cut_spectrum_series.tstamp += tspan[0]
+            else:
+                cut_spectrum_series.tstamp += t_zero
+        return cut_spectrum_series
+
     @property
     def y_average(self):
         """The y-data of the average spectrum"""
         return np.mean(self.y, axis=0)
 
     def __add__(self, other):
+        if type(other) is type(self):  # Then we are appending!
+            obj_as_dict = self.as_dict()
+            new_y_name = self.y_name
+            if not self.y_name == other.y_name:
+                new_y_name = self.y_name + "AND" + other.y_name
+                warnings.warn(
+                    "Appending spectra with different names: \n"
+                    f"{new_y_name}.\n"
+                    "Result might not be meaningful."
+                )
+            new_x_name = self.x_name
+            new_xseries = self.xseries
+            if not self.xseries.shape == other.xseries.shape:
+                raise TypeError(
+                    "Cannot append SpectrumSeries with different shapes "
+                    "of their x series!"
+                )
+            if not self.xseries.unit_name == other.xseries.unit_name:
+                raise TypeError(
+                    "Cannot append SpectrumSeries with different units "
+                    "of their x series!"
+                )
+            if not self.x_name == other.x_name:
+                new_x_name = self.x_name + "OR" + other.x_name
+                warnings.warn(
+                    "Appending spectra with different names: \n"
+                    f"{new_x_name}.\n"
+                    "Result might not be meaningful."
+                )
+                new_xseries = DataSeries(
+                    name=new_x_name, unit_name=self.xseries.unit_name, data=self.x
+                )
+            new_tseries = append_series([self.tseries, other.tseries])
+            new_y = np.append(self.y, other.y, axis=0)
+            new_field = Field(
+                name=new_y_name,
+                unit_name=self.field.unit_name,
+                data=new_y,
+                axes_series=[new_tseries, new_xseries],
+            )
+            new_durations = np.append(self.durations, other.durations)
+            obj_as_dict.update(
+                field=new_field,
+                durations=new_durations,
+            )
+            return self.__class__(**obj_as_dict)
+
         if isinstance(other, Measurement):
             return add_spectrum_series_to_measurement(other, self)
-        raise NotImplementedError("Appending `SpectrumSeries` is not yet implemented")
 
 
 def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
@@ -710,6 +795,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 
 
 class SpectroMeasurement(Measurement):
+    child_attrs = ["spectrum_series_list"] + Measurement.child_attrs
     extra_column_attrs = {"spectro_measurements": {"spectrum_id"}}
 
     def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
@@ -733,10 +819,17 @@ class SpectroMeasurement(Measurement):
             self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
 
+    # FIXME: The attribute below is needed in order to correctly
+    #   pass the spectrum_series between objects using its id,
+    #   because "child_attrs" only works on lists.
+    @property
+    def spectrum_series_list(self):
+        return [self.spectrum_series]
+
     @property
     def spectrum_id(self):
         """The id of the `SpectrumSeries`"""
-        return self.spectrum_series.id
+        return self.spectrum_series.short_identity
 
     @property
     def spectra(self):
@@ -778,6 +871,6 @@ class SpectroMeasurement(Measurement):
         See :func:`~measurements.Measurement.cut`
         """
         cut_measurement = super().cut(tspan, t_zero=t_zero)
-        spectrum_series = self.spectrum_series.cut(tspan=tspan)
+        spectrum_series = self.spectrum_series.cut(tspan=tspan, t_zero=t_zero)
         cut_measurement.set_spectrum_series(spectrum_series)
         return cut_measurement

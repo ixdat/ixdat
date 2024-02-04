@@ -1400,3 +1400,7 @@ class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
         "ms_measurement": {"tspan_bg"},
     }
     default_plotter = MSSpectroPlotter
+
+    # FIXME: this shouldn't be necessary. See #164.
+    cut = _with_siq_quantifier(SpectroMeasurement.cut)
+    multicut = _with_siq_quantifier(SpectroMeasurement.multicut)
