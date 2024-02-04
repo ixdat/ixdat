@@ -76,6 +76,11 @@ meas_p2 = meas.cut(tspan=[3000, 4000])
 meas_joined = meas_p1 + meas_p2  # tests adding of two MSSpectroMeasurement objects
 meas_joined.plot()
 
+meas_p1_no_spec = meas_no_spec.cut(tspan=[0, 3000])
 meas_p2_no_spec = meas_no_spec.cut(tspan=[3000, 4000])
+
 meas_joined_p2_no_spec = meas_p1 + meas_p2_no_spec
 meas_joined_p2_no_spec.plot()
+
+meas_joined_p1_no_spec = meas_p1_no_spec + meas_p2
+meas_joined_p1_no_spec.plot()

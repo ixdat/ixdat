@@ -69,6 +69,17 @@ techniques
 - Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
   For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
 
+- ``SpectrumSeries`` and inheriting classes now have a ``cut()`` method which, like
+  ``Measurement.cut``, returns an object containing the subset of the data falling in
+  a specified timespan.
+
+- ``SpectrumSeries`` and ``SpectroMeasurement`` objects can be added to each other,
+  given that their ``xseries`` have the same shape and the technique resulting from
+  ``get_combined_technique(meas_or_spec_1.technique, meas_or_spec_2.technique)``
+  is present in ``TECHNIQUE_CLASSES``. For example:
+      ms_with_spectra (technique="MS") + ms_without_spectra (technique="MS-MS_spectra")
+          --> ms_with_spectra (technique="MS-MS_spectra")
+
 plotters
 ^^^^^^^^
 - ``SpectrumPlotter.heat_plot()`` and methods that rely on it can now plot discrete heat plots, with
