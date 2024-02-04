@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ixdat import Measurement
 
-from pytest import approx, fixture, mark, skip
+from pytest import approx, fixture, mark
 
 
 DATA_DIR = Path(__file__).parent.parent.parent / "submodules/ixdat-large-test-files/"
@@ -317,14 +317,6 @@ def test_shape(measurements_with_data):
     of the columns are the same.
 
     """
-    if measurements_with_data[0].name in (
-        "multiple_techniques_dataset_01_02_CVA_C01.mpt",
-        "multiple_techniques_dataset_01_07_ZIR_C01.mpt",
-        "multiple_techniques_dataset_01_08_CVA_C01.mpt",
-        "dataset_with_loop_01_01_OCV_DUSB0_C01.mpt",
-        "dataset_with_loop_01_02_CVA_DUSB0_C01.mpt",
-    ):
-        skip("TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158")
 
     measurement = measurements_with_data[0]
     columns_names = measurements_with_data[1].keys()

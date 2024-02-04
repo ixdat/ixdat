@@ -66,3 +66,9 @@ meas_no_spec = Measurement.read(
 meas_no_spec.plot(
     mass_list=["M40", "M18"],
 )
+
+
+meas_p1 = meas.cut(tspan=[0, 3000])
+meas_p2 = meas.cut(tspan=[3000, 4000])
+
+meas_joined = meas_p1 + meas_p2  # tests adding of two MSSpectroMeasurement objects
