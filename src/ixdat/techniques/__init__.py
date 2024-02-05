@@ -10,7 +10,7 @@ Constants:
 from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammogram, CyclicVoltammagram  # The latter is deprecated.
 from .ms import MSMeasurement, MSCalibration, MSSpectrum, MSSpectroMeasurement
-from .ec_ms import ECMSMeasurement, ECMSCalibration
+from .ec_ms import ECMSMeasurement, ECMSCalibration, ECMSSpectroMeasurement
 from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
@@ -40,6 +40,7 @@ TECHNIQUE_CLASSES = {
     "reactor": ReactorMeasurement,
     "reactor-MS_spectra": ReactorSpectroMeasurement,
     "S-EC": SpectroECMeasurement,
+    "EC-MS-MS_spectra": ECMSSpectroMeasurement,
 }
 
 CALIBRATION_CLASSES = {
