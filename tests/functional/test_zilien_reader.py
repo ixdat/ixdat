@@ -186,7 +186,6 @@ def datasets(request):
     return tsv, mpts, mpt_time_offsets
 
 
-@pytest.mark.skip("TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158")
 @pytest.mark.external
 @pytest.mark.parametrize(
     ["cls_or_technique", "expected_series"],
@@ -206,10 +205,15 @@ def test_read(cls_or_technique, expected_series):
     if isinstance(cls_or_technique, str):
         expected_measurement_class = TECHNIQUE_NAME_TO_CLASS[cls_or_technique]
         measurement = Measurement.read(
-            PATH_TO_DATAFILE, reader="zilien", technique=cls_or_technique
+            PATH_TO_DATAFILE,
+            reader="zilien",
+            technique=cls_or_technique,
+            include_mass_scans=False,
         )
     else:
-        measurement = cls_or_technique.read(PATH_TO_DATAFILE, reader="zilien")
+        measurement = cls_or_technique.read(
+            PATH_TO_DATAFILE, reader="zilien", include_mass_scans=False
+        )
         if cls_or_technique is Measurement:
             expected_measurement_class = ECMSMeasurement
         else:
