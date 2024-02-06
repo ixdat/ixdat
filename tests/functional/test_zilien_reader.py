@@ -315,7 +315,9 @@ class TestZilienIntegrated:
             # essential series is not in the parsed dataset.
             # This suffix is removed by Zilien when integrating .mpt files,
             # so use the actual name without the suffix to check.
-            if (name := mpt_name).endswith("=0"):
+            if mpt_name.endswith("=0"):
                 name = all_mpts.reverse_aliases[mpt_name][0]
+            else:
+                name = mpt_name
 
             assert np.allclose(all_mpts[name].data, tsv[name].data)
