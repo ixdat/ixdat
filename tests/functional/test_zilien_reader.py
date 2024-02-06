@@ -242,9 +242,6 @@ def test_read(cls_or_technique, expected_series):
 class TestZilienIntegrated:
     """Tests for reading the Zilien files with integrated Biologic dataset."""
 
-    @pytest.mark.skip(
-        "TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158"
-    )
     @pytest.mark.external
     def test_series_match(self, datasets):
         """Test presence of all the series from the mpt files in the tsv file."""
@@ -259,6 +256,13 @@ class TestZilienIntegrated:
             for mpt_name in mpt.series_names:
                 if mpt_name == "time/s":
                     assert f"Biologic {mpt_name}" in tsv.series_names
+                elif mpt_name.endswith("=0"):
+                    # ConstantValue series with "=0" suffix is created when an
+                    # essential series is not in the parsed dataset.
+                    # This suffix is removed by Zilien when integrating .mpt files,
+                    # so use the actual name without the suffix to check.
+                    mpt_name_no_suffix = mpt.reverse_aliases[mpt_name][0]
+                    assert mpt_name_no_suffix in tsv.series_names
                 else:
                     assert mpt_name in tsv.series_names
 
@@ -294,9 +298,6 @@ class TestZilienIntegrated:
 
             assert np.allclose(tsv_times, mpt_times)
 
-    @pytest.mark.skip(
-        "TEMP SKIP. BROKEN, SEE: https://github.com/ixdat/ixdat/issues/158"
-    )
     @pytest.mark.external
     def test_data_match(self, datasets):
         """Test the same data."""
@@ -306,8 +307,15 @@ class TestZilienIntegrated:
 
         all_mpts = reduce(lambda x, y: x + y, mpts)
 
-        for name in all_mpts.series_names:
-            if name == "time/s":
+        for mpt_name in all_mpts.series_names:
+            if mpt_name == "time/s":
                 continue
+
+            # ConstantValue series with "=0" suffix is created when an
+            # essential series is not in the parsed dataset.
+            # This suffix is removed by Zilien when integrating .mpt files,
+            # so use the actual name without the suffix to check.
+            if (name := mpt_name).endswith("=0"):
+                name = all_mpts.reverse_aliases[mpt_name][0]
 
             assert np.allclose(all_mpts[name].data, tsv[name].data)
