@@ -15,7 +15,7 @@ class CSVExporter:
     default_export_columns = None  # Typically overwritten by inheriting Exporters
     """The names of the value series to export by default."""
 
-    def __init__(self, measurement=None, delim=",\t"):
+    def __init__(self, measurement=None, delim=","):
         """Initiate the exported with a measurement (Measurement) and delimiter (str)"""
         self.measurement = measurement
         self.delim = delim
