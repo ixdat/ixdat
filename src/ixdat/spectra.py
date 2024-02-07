@@ -504,6 +504,8 @@ class SpectrumSeries(Spectrum):
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
+        # can be overwritten in inheriting classes with e.g. plot_waterfall:
+        self.plot = self.plotter.heat_plot
 
     @classmethod
     def from_spectrum_list(cls, spectrum_list, **kwargs):
