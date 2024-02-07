@@ -16,7 +16,10 @@ ms_no_spec = Measurement.read(
     data_dir / "MS/2023-11-15 12_20_46 MS.tsv",
     include_mass_scans=False,
 )
-ms = Measurement.read(data_dir / "MS/2023-11-15 12_20_46 MS.tsv")
+ms = Measurement.read(
+    data_dir / "MS/2023-11-15 12_20_46 MS.tsv",
+    # include_mass_scans=True,  # not needed, they are included by default :)
+)
 
 ec = Measurement.read_set(data_dir / "EC/", suffix=".mpr")
 ec.calibrate(RE_vs_RHE=0.5)
@@ -27,3 +30,5 @@ ecms_no_spec.plot()
 ecms = ec + ms
 
 ecms.plot()
+
+ecms[1].plot()  # a mass scan!

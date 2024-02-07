@@ -198,18 +198,28 @@ class ZilienTSVReader:
             file_handle.seek(file_position)
             self._data = np.genfromtxt(file_handle, delimiter="\t")
 
-        if "technique" not in kwargs:
-            kwargs["technique"] = self._get_technique()
+        if "technique" in kwargs:
+            technique = kwargs["technique"]
+        else:
+            # We don't put "technique directly into kwargs because that would prevent
+            # reading of mass scans by default.
+            technique = self._get_technique()
 
         if cls is Measurement or cls is None:
-            self._cls = determine_class(kwargs["technique"])
+            self._cls = determine_class(technique)
         else:
             self._cls = cls
 
         if include_mass_scans is None:
+            # This becomes True if neither a class nor a technique was specified,
+            # or if a technique or class including spectra was specified.
             include_mass_scans = (
                 not cls or cls is Measurement or issubclass(cls, MSSpectroMeasurement)
             ) and ("MS-MS_spectra" in kwargs.get("technique", "MS-MS_spectra"))
+
+        if "technique" not in kwargs:
+            # So that technique gets passed on to the Measurement's __init__:
+            kwargs["technique"] = technique
 
         # Part of filename before the extension
         file_stem = self._path_to_file.stem
