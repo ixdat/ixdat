@@ -92,6 +92,16 @@ plotters
   ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
   resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
 
+exporters
+^^^^^^^^^
+- ``Spectrum`` and ``SpectrumSeries`` objects now have working ``export`` functions, as does
+  ``MSSpectroMeasurement``. In each case, the exported file can be read (``reader="ixdat"``)
+
+- Default delimiter is now just ",", not "\t,", as the latter doesn't open well in excel.
+
+- ``time_step`` argument to ``export`` can now be used without specifying a ``tspan``
+
+
 General
 ^^^^^^^
 

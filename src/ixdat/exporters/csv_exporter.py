@@ -33,6 +33,7 @@ class CSVExporter:
         columns=None,
         tspan=None,
         time_step=None,
+        delim=None,
     ):
         """Export a given measurement to a specified file.
 
@@ -53,7 +54,8 @@ class CSVExporter:
                 may be overwritten in inheriting exporters.
             tspan (timespan): The timespan to include in the file, defaults to all of it
             time_step (float): Optional. The time spacing between data points. Can be
-                used to reduce file size. Requires `tspan`.
+                used to reduce file size.
+            delim (str): Delimiter. Defaults to self.delim (which is ",")
         """
         measurement = measurement or self.measurement
         if not path_to_file:
@@ -62,6 +64,7 @@ class CSVExporter:
             path_to_file = Path(path_to_file)
         if not path_to_file.suffix:
             path_to_file = path_to_file.with_suffix(".csv")
+        self.delim = delim or self.delim
         self.time_step = time_step
         self.path_to_file = path_to_file
         self.prepare_header_and_data(measurement, columns, tspan, time_step)
@@ -84,6 +87,8 @@ class CSVExporter:
             measurement (Measurement): The measurement being exported
             columns (list of str): The names of the ValueSeries to include
             tspan (timespan): The timespan of the data to include in the export
+            time_step (float): Optional. The time spacing between data points. Can be
+                used to reduce file size.
 
         Keyword arguments ``tspan`` and ``time_step`` as in :meth:`export`.
         """
@@ -96,11 +101,7 @@ class CSVExporter:
         # s_list will also include names of TimeSeries.
 
         if time_step:
-            if not tspan:
-                raise ValueError(
-                    "A `time_step` can only be specified for an export if a `tspan` "
-                    "is also specified."
-                )
+            tspan = tspan or measurement.tspan
             t = np.arange(start=tspan[0], stop=tspan[-1], step=time_step)
             uniform_tseries = TimeSeries(
                 name=UNIFORM_TIME_COLUMN_NAME,
