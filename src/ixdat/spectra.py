@@ -639,6 +639,19 @@ class SpectrumSeries(Spectrum):
 
     def __getitem__(self, key):
         """Indexing a SpectrumSeries with an int n returns its n'th spectrum"""
+        from .techniques import TECHNIQUE_CLASSES
+
+        if self.technique in TECHNIQUE_CLASSES:
+            # TECHNIQUE_CLASSES points, as a rule, to the Spectrum clas, not the
+            # SpectrumSeries class of a given technique.
+            cls = TECHNIQUE_CLASSES[self.technique]
+            if issubclass(cls, SpectrumSeries):
+                # ... however, if TECHNIQUE_CLASSES does point to a SpectrumSeries
+                # class, we need indexing to return a default spectrum.
+                cls = Spectrum
+        else:
+            cls = Spectrum
+
         if isinstance(key, int):
             spectrum_as_dict = self.as_dict()
             del spectrum_as_dict["field_id"]
@@ -653,7 +666,7 @@ class SpectrumSeries(Spectrum):
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
             if self.durations:
                 spectrum_as_dict["duration"] = self.durations[key]
-            return Spectrum.from_dict(spectrum_as_dict)
+            return cls.from_dict(spectrum_as_dict)
         raise KeyError
 
     def cut(self, tspan, t_zero=None):
