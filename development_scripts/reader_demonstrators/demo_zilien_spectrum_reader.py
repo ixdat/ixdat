@@ -21,18 +21,18 @@ spec = Spectrum.read(
 spec.plot(color="k")
 
 
-if False:  # test Spectrum saving and loading.
+if True:  # test Spectrum saving and loading.
     # Works!
     s_id = spec.save()
     loaded = Spectrum.get(s_id)
     ax = loaded.plot(color="g")
     ax.set_yscale("log")
 
-if False:  # test Spectrum exporting and re-reading
+if True:  # test Spectrum exporting and re-reading
     # FIXME: Doesn't work yet. MSSpectrum has no default exporter.
-    s_id = spec.export("./my_spectrum.csv")
-    loaded = Spectrum.read("./my_spectrum.csv", reader="ixdat")
-    ax = loaded.plot(color="g")
+    spec.export("./my_spectrum.csv")
+    loaded_spec = Spectrum.read("./my_spectrum.csv", reader="ixdat")
+    ax = loaded_spec.plot(color="g")
     ax.set_yscale("log")
 
 
@@ -44,16 +44,15 @@ meas.plot(
 meas[1].plot()  # plots a spectrum
 
 if False:  # test SpectroMSMeasurement saving and loading.
-    # FIXME: broken :(  Object-relational mapping should ensure this always works.
+    # Woohoo, this works now! (Must have been cae8cf1)... but very slow...
     m_id = meas.save()
     loaded = Measurement.get(m_id)
     ax = loaded.plot(mass_list=["M2", "M18", "M32", "M40"])
 
-if False:  # test SpectroMSMeasurement exporting and re-reading
-    # FIXME: Doesn't work yet. SpectroMSMeasurement.export doesn't save spectra.
+if True:  # test SpectroMSMeasurement exporting and re-reading. Works! :)
     meas.export("./my_spectro_ms_measurement.csv")
-    loaded = Measurement.read("./my_spectro_ms_measurement.csv", reader="ixdat")
-    ax = loaded.plot(mass_list=["M2", "M18", "M28", "M32", "M40"])
+    loaded_meas = Measurement.read("./my_spectro_ms_measurement.csv", reader="ixdat")
+    ax = loaded_meas.plot(mass_list=["M2", "M18", "M28", "M32", "M40"])
 
 meas.spectrum_series.continuous = True
 meas.plot(

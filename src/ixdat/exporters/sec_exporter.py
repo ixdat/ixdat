@@ -58,15 +58,13 @@ class SECExporter(ECExporter):
         self.header_lines.append(
             f"'spectrum_series' in file: '{path_to_spectra_file.name}'\n"
         )
-        self.spectra_exporter.export(measurement.spectrum_series, path_to_spectra_file)
+        self.spectra_exporter.export(path_to_spectra_file)
         path_to_reference_spectrum_file = self.path_to_file.parent / (
             self.path_to_file.stem + "_reference.csv"
         )
         self.header_lines.append(
             f"'reference_spectrum' in file: '{path_to_reference_spectrum_file.name}'\n"
         )
-        self.reference_exporter.export(
-            measurement.reference_spectrum, path_to_reference_spectrum_file
-        )
+        self.reference_exporter.export(path_to_reference_spectrum_file)
 
         print(f"writing {self.path_to_file}!")

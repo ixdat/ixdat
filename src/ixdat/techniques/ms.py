@@ -8,6 +8,7 @@ import warnings
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters.ms_plotter import MSPlotter, MSSpectroPlotter, STANDARD_COLORS
+from ..exporters.ms_exporter import MSExporter, MSSpectroExporter
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADRO_CONSTANT,
@@ -51,6 +52,7 @@ class MSMeasurement(Measurement):
     # FIXME: tspan_bg should be column of a DataTreater, not MSMeasurement:
     extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
+    default_exporter = MSExporter
 
     def __init__(self, name, **kwargs):
         tspan_bg = kwargs.pop("tspan_bg", None)
@@ -1400,6 +1402,7 @@ class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
         "ms_measurement": {"tspan_bg"},
     }
     default_plotter = MSSpectroPlotter
+    default_exporter = MSSpectroExporter
 
     # FIXME: this shouldn't be necessary. See #164.
     cut = _with_siq_quantifier(SpectroMeasurement.cut)

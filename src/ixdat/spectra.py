@@ -18,6 +18,7 @@ from .db import Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
+from .exporters.spectrum_exporter import SpectrumExporter
 from .measurements import Measurement, get_combined_technique
 
 
@@ -92,6 +93,8 @@ class Spectrum(Saveable):
         self.plotter = SpectrumPlotter(spectrum=self)
         # defining this method here gets it the right docstrings :D
         self.plot = self.plotter.plot
+        self.exporter = SpectrumExporter(spectrum=self)
+        self.export = self.exporter.export
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
