@@ -15,7 +15,7 @@ sec_meas = Measurement.read(
     path_to_ref_spec_file=data_dir / "WL.csv",
     path_to_U_J_file=data_dir / "test-7_JV.csv",
     scan_rate=1,
-    tstamp=1,
+    tstamp="now",
     reader="msrh_sec",
 )
 
