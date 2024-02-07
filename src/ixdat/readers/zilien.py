@@ -31,7 +31,7 @@ from ..techniques import (
     Measurement,
     TECHNIQUE_CLASSES,
 )
-from ..techniques.ms import MSSpectrum, MSSpectrumSeries
+from ..techniques.ms import MSSpectrum, MSSpectrumSeries, MSSpectroMeasurement
 from .reading_tools import timestamp_string_to_tstamp
 from ..exceptions import ReadError, TechniqueError
 
@@ -50,6 +50,7 @@ ZILIEN_ALIASES = {
     ECMSMeasurement: ZILIEN_EC_ALIASES,
     MSMeasurement: {},
     ECMeasurement: ZILIEN_EC_ALIASES,
+    MSSpectroMeasurement: {},
 }
 
 BIOLOGIC_SERIES_NAME = "EC-lab"
@@ -112,12 +113,16 @@ def to_mass(string):
 def determine_class(technique):
     """Choose appropriate measurement class according to a given technique."""
 
-    if technique in ("EC-MS", "EC", "MS"):
+    if technique in ("EC-MS", "EC", "MS", "MS-MS_spectra"):
+        if technique == "MS-MS_spectra":
+            # We read it as a MSMeasurement and then add the SpectrumSeries
+            return MSMeasurement
         return TECHNIQUE_CLASSES[technique]
     else:
         raise TechniqueError(
             f'Unknown technique given: "{technique}". '
-            'Use one of the following (in upper-case): "EC-MS", "EC, "MS".'
+            "Use one of the following (in upper-case): "
+            '"EC-MS", "EC, "MS", "MS-MS_spectra".'
         )
 
 
@@ -147,7 +152,7 @@ class ZilienTSVReader:
         path_to_file,
         cls=None,
         name=None,
-        include_mass_scans=True,
+        include_mass_scans=None,
         **kwargs,
     ):
         """Read a Zilien file
@@ -165,7 +170,7 @@ class ZilienTSVReader:
                 filename before the '.tsv' extension
             include_mass_scans (bool): Whether to include mass scans (if available) and
                 thereby return a `SpectroMSMeasurement` which can be indexed to give
-                the spectrum objects.
+                the spectrum objects. (Defaults to True if technique not specified.)
             kwargs: All remaining keyword-arguments will be passed onto the `__init__`
                 of the Measurement
         """
@@ -200,6 +205,11 @@ class ZilienTSVReader:
             self._cls = determine_class(kwargs["technique"])
         else:
             self._cls = cls
+
+        if include_mass_scans is None:
+            include_mass_scans = (
+                not cls or cls is Measurement or issubclass(cls, MSSpectroMeasurement)
+            ) and ("MS-MS_spectra" in kwargs.get("technique", "MS-MS_spectra"))
 
         # Part of filename before the extension
         file_stem = self._path_to_file.stem

@@ -36,7 +36,7 @@ if True:  # test Spectrum exporting and re-reading
     ax.set_yscale("log")
 
 
-meas = Measurement.read(path_to_meas, reader="zilien", technique="MS")
+meas = Measurement.read(path_to_meas, reader="zilien", technique="MS-MS_spectra")
 meas.plot(
     mass_list=["M40", "M18"],
 )
