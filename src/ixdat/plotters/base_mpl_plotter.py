@@ -54,6 +54,7 @@ class MPLPlotter:
         """
         # Necessary to avoid deleting an open figure, I don't know why
         self.new_ax(interactive=interactive)
+        plt.clf()  # solves #161
 
         if emphasis == "top":
             gs = gridspec.GridSpec(5, 1)
