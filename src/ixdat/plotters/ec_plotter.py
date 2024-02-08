@@ -183,7 +183,7 @@ class CVDiffPlotter(MPLPlotter):
         # FIXME: This is probably the wrong use of plotter functions.
         #    see https://github.com/ixdat/ixdat/pull/30/files#r810926968
         ax = ECPlotter.plot_vs_potential(
-            self, measurement=measurement.cv_compare_1, axes=ax, color="g"
+            self, measurement=measurement.cv_compare_1, ax=ax, color="g"
         )
         ax = ECPlotter.plot_vs_potential(
             self, measurement=measurement.cv_compare_2, ax=ax, color="k", linestyle="--"
