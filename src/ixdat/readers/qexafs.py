@@ -48,8 +48,12 @@ class QexafsDATReader:
                     timestamp_string = line.split("Date:")[1].strip()
                     tstamp = timestamp_string_to_tstamp(
                         timestamp_string,
-                        form="%a, %d %B %Y %H:%M:%S BST"
-                        # like "Fri, 13 May 2022 19:21:24 BST"
+                        forms=(
+                            "%a, %d %b %Y %H:%M:%S BST",
+                            "%a, %d %b %Y %H:%M:%S %Z"
+                            # like "Fri, 13 May 2022 19:21:24 BST"
+                            # or 'Mon, 6 Feb 2023 05:38:21 GMT'
+                        ),
                     )
 
         df = pd.read_csv(path_to_file, sep="\t", header=i - 1)
