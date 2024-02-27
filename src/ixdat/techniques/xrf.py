@@ -7,7 +7,8 @@ Created on Tue Feb 27 16:58:47 2024
 
 from ..measurements import Measurement 
 from ..data_series import ValueSeries
-from ..plotters.xrf_plotter import TRXRFPlotter
+from ..plotters.xrf_plotter import TRXRFPlotter, ECTRXRFPlotter
+from .ec import ECMeasurement
 
 
 class TRXRFMeasurement(Measurement):
@@ -26,3 +27,7 @@ class TRXRFMeasurement(Measurement):
             data=self["FF"].data / self["I0"].data,
             tseries=self["FF"].tseries
         )
+
+
+class ECTRXRFMeasurement(ECMeasurement, TRXRFMeasurement):
+    default_plotter = ECTRXRFPlotter

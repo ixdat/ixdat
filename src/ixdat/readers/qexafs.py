@@ -117,7 +117,7 @@ class B18TRXRFReader:
             data=t,
             tstamp=tstamp,
         )
-        series_list = []
+        series_list = [tseries]
         for spectrum in multi_spec.spectrum_list:
             vseries = ValueSeries(
                 name=spectrum.name,
