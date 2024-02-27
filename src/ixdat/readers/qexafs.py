@@ -100,22 +100,18 @@ class QexafsDATReader:
         )
 
 
-
 class B18TRXRFReader:
     def read(self, path_to_file, cls, seconds_per_x, **kwargs):
         if issubclass(TRXRFMeasurement, cls):
             cls = TRXRFMeasurement
         qxafs_reader = QexafsDATReader()
         multi_spec = qxafs_reader.read(path_to_file)
-        
+
         tstamp = multi_spec.tstamp
         t = multi_spec.x * seconds_per_x
-        
+
         tseries = TimeSeries(
-            name="time from dummy variable",
-            unit_name="s",
-            data=t,
-            tstamp=tstamp,
+            name="time from dummy variable", unit_name="s", data=t, tstamp=tstamp,
         )
         series_list = [tseries]
         for spectrum in multi_spec.spectrum_list:
@@ -126,13 +122,12 @@ class B18TRXRFReader:
                 tseries=tseries,
             )
             series_list.append(vseries)
-        
+
         obj_as_dict = dict(
-            name=path_to_file.name, 
-            series_list=series_list, 
-            tstamp=tstamp, 
-            technique="TRXRF"
+            name=path_to_file.name,
+            series_list=series_list,
+            tstamp=tstamp,
+            technique="TRXRF",
         )
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)
-        
