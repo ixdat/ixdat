@@ -4,7 +4,8 @@ import pandas as pd
 from .reading_tools import timestamp_string_to_tstamp
 from .. import Spectrum
 from ..spectra import MultiSpectrum
-from ..data_series import DataSeries, Field
+from ..data_series import DataSeries, Field, TimeSeries, ValueSeries
+from ..techniques.xrf import TRXRFMeasurement
 
 
 class QexafsDATReader:
@@ -97,3 +98,41 @@ class QexafsDATReader:
         return MultiSpectrum(
             name=str(path_to_file), fields=fields, tstamp=tstamp, technique=technique
         )
+
+
+
+class B18TRXRFReader:
+    def read(self, path_to_file, cls, seconds_per_x, **kwargs):
+        if issubclass(TRXRFMeasurement, cls):
+            cls = TRXRFMeasurement
+        qxafs_reader = QexafsDATReader()
+        multi_spec = qxafs_reader.read(path_to_file)
+        
+        tstamp = multi_spec.tstamp
+        t = multi_spec.x * seconds_per_x
+        
+        tseries = TimeSeries(
+            name="time from dummy variable",
+            unit_name="s",
+            data=t,
+            tstamp=tstamp,
+        )
+        series_list = []
+        for spectrum in multi_spec.spectrum_list:
+            vseries = ValueSeries(
+                name=spectrum.name,
+                unit_name=spectrum.yseries.unit_name,
+                data=spectrum.y,
+                tseries=tseries,
+            )
+            series_list.append(vseries)
+        
+        obj_as_dict = dict(
+            name=path_to_file.name, 
+            series_list=series_list, 
+            tstamp=tstamp, 
+            technique="TRXRF"
+        )
+        obj_as_dict.update(kwargs)
+        return cls.from_dict(obj_as_dict)
+        

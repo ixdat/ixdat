@@ -36,7 +36,7 @@ from .xrdml import XRDMLReader
 from .avantage import AvantageAVGReader
 
 # xas
-from .qexafs import QexafsDATReader
+from .qexafs import QexafsDATReader, B18TRXRFReader
 
 # Measruement.read() looks for readers here:
 READER_CLASSES = {
@@ -54,6 +54,7 @@ READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
+    "b18_trxrf": B18TRXRFReader,
 }
 
 
