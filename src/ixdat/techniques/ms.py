@@ -7,8 +7,9 @@ import warnings
 
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
-from ..plotters.ms_plotter import MSPlotter, MSSpectroPlotter, STANDARD_COLORS
-from ..exporters.ms_exporter import MSExporter, MSSpectroExporter
+from ..plotters import MSPlotter, MSSpectroPlotter
+from ..plotters.ms_plotter import STANDARD_COLORS
+from ..exporters import MSExporter, MSSpectroExporter
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADRO_CONSTANT,

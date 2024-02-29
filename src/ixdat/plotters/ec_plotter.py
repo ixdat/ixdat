@@ -2,8 +2,7 @@
 
 import warnings
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
-from .plotting_tools import color_axis
+from . import MPLPlotter, color_axis
 from ..tools import deprecate
 from ..exceptions import SeriesNotFoundError
 

@@ -1,8 +1,8 @@
 """Plotter for Mass Spectrometry"""
 import warnings
-from ..data_series import Field
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
+from ..data_series import Field
+from . import MPLPlotter
 
 
 class MSPlotter(MPLPlotter):

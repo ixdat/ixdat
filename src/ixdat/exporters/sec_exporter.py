@@ -1,5 +1,4 @@
-from .ec_exporter import ECExporter
-from .spectrum_exporter import SpectrumExporter, SpectrumSeriesExporter
+from . import ECExporter, SpectrumExporter, SpectrumSeriesExporter
 
 
 class SECExporter(ECExporter):
@@ -54,7 +53,6 @@ class SECExporter(ECExporter):
         path_to_spectra_file = self.path_to_file.parent / (
             self.path_to_file.stem + "_spectra.csv"
         )
-        measurement = measurement or self.measurement
         self.header_lines.append(
             f"'spectrum_series' in file: '{path_to_spectra_file.name}'\n"
         )

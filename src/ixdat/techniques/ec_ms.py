@@ -8,8 +8,8 @@ from .ms import MSMeasurement, MSSpectroMeasurement, MSCalResult, MSCalibration
 from .ms import _with_siq_quantifier  # FIXME: see #164
 from .cv import CyclicVoltammogram
 from ..exceptions import QuantificationError
-from ..exporters.ecms_exporter import ECMSExporter
-from ..plotters.ecms_plotter import ECMSPlotter
+from ..exporters import ECMSExporter
+from ..plotters import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..config import plugins
 
