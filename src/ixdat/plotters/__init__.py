@@ -5,12 +5,14 @@ from .plotting_tools import (
     # FIXME: the following should be Calculators.
     #   see https://github.com/ixdat/ixdat/issues/164.
     smooth_vector,
-    calc_linear_background
+    calc_linear_background,
 )
 from .base_mpl_plotter import MPLPlotter
 from .value_plotter import ValuePlotter
 from .spectrum_plotter import (
-    SpectrumPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter
+    SpectrumPlotter,
+    SpectrumSeriesPlotter,
+    SpectroMeasurementPlotter,
 )
 from .ec_plotter import ECPlotter, CVDiffPlotter
 from .ms_plotter import MSPlotter, MSSpectroPlotter

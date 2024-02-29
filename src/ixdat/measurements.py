@@ -225,14 +225,14 @@ class Measurement(Saveable):
             measurement = technique_class(**obj_as_dict)
         except TypeError as e:
             raise TechniqueError(
-                "ixdat ran into an error while trying to set up an object of type\n"
-                f"  {technique_class}. This usually happens when ixdat wasn't able\n"
-                f"  to correctly determine the measurement technique. Error: \n{e}\n\n"
+                "ixdat ran into an error while trying to set up an object of type "
+                f"{technique_class}. This usually happens when ixdat isn't able "
+                f"to correctly determine the measurement technique.\n"
+                f"The error:\n  {e}\n\n"  # two space are intended
                 "Consider passing the `technique` argument into the read() function.\n"
-                "For a list of available techniques use: \n "
-                ">>> from ixdat.techniques import TECHNIQUE_CLASSES\n"
-                ">>> print(TECHNIQUE_CLASSES.keys())\n"
-            )
+                "The available techniques are:\n"
+                f"  {list(TECHNIQUE_CLASSES.keys())}"  # again intended
+            ) from None  # to silence the top exception, because it is in the `e`
         return measurement
 
     @classmethod
@@ -629,6 +629,9 @@ class Measurement(Saveable):
         """Return the built measurement DataSeries with its name specified by key
 
         This method does the following:
+        0. Check that the key is a string. If a technique supports lookup of other
+           types, the technique class should implement that in its `__getitem__`
+           before calling `super().__getitem__`.
         1. check if `key` is in in the cache. If so return the cached data series
         2. find or build the desired data series by the first possible of:
             A. Check if `key` corresponds to a method in `series_constructors`. If
@@ -698,6 +701,19 @@ class Measurement(Saveable):
         Returns:
             The (calibrated) (appended) dataseries for key with the right t=0.
         """
+        # step 0
+        if not isinstance(key, str):
+            message = f"Invalid lookup for {type(self)} object: {key}."
+            message += f" The key type was {type(key)}. Expected a string."
+            if isinstance(key, int):
+                message += (
+                    " Note: Integer lookup is possible for SpectroMeasurement and"
+                    " CyclicVoltammogram objects. If you expected a measurement"
+                    " containing spectra or index-able cycles,"
+                    " please check your file reading."
+                )
+            raise TypeError(message)
+
         # step 1
         if key in self._cached_series:
             return self._cached_series[key]

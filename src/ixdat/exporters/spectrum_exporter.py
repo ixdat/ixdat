@@ -27,6 +27,14 @@ class SpectrumExporter:
                 TODO: remove this kwarg. See conversation here:
                    https://github.com/ixdat/ixdat/pull/30/files#r810926968
         """
+        from .. import Spectrum
+
+        if isinstance(path_to_file, Spectrum):
+            # We changed the order of the arguments for ixdat v0.2.9:
+            raise TypeError(
+                "Provide 'path_to_file' as a first argument and then, optionally, "
+                "'spectrum' after it"
+            )
         spectrum = spectrum or self.spectrum
         df = pd.DataFrame({spectrum.x_name: spectrum.x, spectrum.y_name: spectrum.y})
 
@@ -59,9 +67,9 @@ class SpectrumSeriesExporter:
 
         Args:
             spectrum_series (SpectrumSeries): The spectrum to export by default
-            delim (char): The separator for the .csv file. Note that this cannot be
-                the ",\t" used by ixdat's main exporter since pandas only accepts single
-                character delimiters.
+            delim (char): The separator for the .csv file. (Note that this cannot be
+                the "," previously used by ixdat's main exporter since pandas only
+                accepts single character delimiters.)
         """
         self.spectrum_series = spectrum_series
         self.delim = delim
@@ -82,7 +90,14 @@ class SpectrumSeriesExporter:
                 variable increases downwards and the time variable increases to the
                 right. Either way it is clarified in the file header. Defaults to True.
         """
+        from .. import Spectrum
 
+        if isinstance(path_to_file, Spectrum):
+            # We changed the order of the arguments for ixdat v0.2.9:
+            raise TypeError(
+                "Provide 'path_to_file' as a first argument and then, optionally, "
+                "'spectrum' after it"
+            )
         spectrum_series = spectrum_series or self.spectrum_series
 
         field = spectrum_series.field

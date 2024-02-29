@@ -50,7 +50,8 @@ def _with_siq_quantifier(method):
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
-    # FIXME: tspan_bg should be column of a DataTreater, not MSMeasurement:
+    # FIXME: tspan_bg should be column of a Calculator
+    #   (see https://github.com/ixdat/ixdat/issues/164)
     extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
     default_exporter = MSExporter
@@ -1396,11 +1397,9 @@ class MSSpectrumSeries(SpectrumSeries):
 
 
 class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
-
-    # FIXME: automate this in inheritance of hyphenated techniques:
     extra_column_attrs = {
-        "spectro_measurements": {"spectrum_id"},
-        "ms_measurement": {"tspan_bg"},
+        **MSMeasurement.extra_column_attrs,
+        **SpectroMeasurement.extra_column_attrs,
     }
     default_plotter = MSSpectroPlotter
     default_exporter = MSSpectroExporter
@@ -1408,3 +1407,5 @@ class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
     # FIXME: this shouldn't be necessary. See #164.
     cut = _with_siq_quantifier(SpectroMeasurement.cut)
     multicut = _with_siq_quantifier(SpectroMeasurement.multicut)
+
+    # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1486023530

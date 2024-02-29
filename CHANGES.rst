@@ -40,7 +40,7 @@ readers
     meas.spectrum_series[0].plot()
 
   which plots the first MS spectrum.
-  To leave out the mass scan data, include the argument ``include_spectra=False``
+  To leave out the mass scan data, include the argument ``include_mass_scans=False``
   in the call to ``read``. To leave out EC data but include the mass scans, include
   the argument ``technique="MS-MS_spectra"`` in the call to ``read``.
   This finishes `Issue #117 <https://github.com/ixdat/ixdat/issues/117`_
