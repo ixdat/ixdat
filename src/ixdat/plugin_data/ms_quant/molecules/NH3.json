@@ -1,0 +1,33 @@
+{
+    "name": "NH3",
+    "formula": null,
+    "M": 17.0305,
+    "molecule_diameter": null,
+    "dynamic_viscosity": null,
+    "density_RTP": null,
+    "D_gas_RTP": null,
+    "D": null,
+    "H_0": null,
+    "T_c": null,
+    "thermo": {
+        "dfH0": {
+            "gas": -45.90,
+            "liquid": null
+        },
+        "S0": {
+            "gas": 192.77,
+            "liquid": null
+        }
+    },
+    "sigma": {
+        "100": null 
+    },
+    "spectrum": {
+        "M14": 2.2,
+        "M15": 7.51,
+        "M16": 80.07,
+        "M17": 100.0,
+        "M18": 0.4
+    },
+    "primary": "M17"
+}

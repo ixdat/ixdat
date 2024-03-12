@@ -1,0 +1,55 @@
+{
+    "name": "None_None_None_23E24",
+    "setup": null,
+    "date": "23E24",
+    "description": null,
+    "mol_props": {},
+    "cal_dicts": [
+        {
+            "mol": "Ar",
+            "mass": "M40",
+            "F": 0.09197797920176205,
+            "f": null,
+            "F_type": "capillary",
+            "precision": null,
+            "background_signal": null,
+            "background_std": null,
+            "description": null,
+            "date": "23E24",
+            "setup": null,
+            "internal_conditions": null,
+            "external_conditions": null
+        },
+        {
+            "mol": "N2",
+            "mass": "M28",
+            "F": 0.07491350453515502,
+            "f": null,
+            "F_type": "capillary",
+            "precision": null,
+            "background_signal": null,
+            "background_std": null,
+            "description": null,
+            "date": "23E24",
+            "setup": null,
+            "internal_conditions": null,
+            "external_conditions": null
+        },
+        {
+            "mol": "NH3",
+            "mass": "M17",
+            "F": 0.00938686448814989,
+            "f": null,
+            "F_type": "capillary",
+            "precision": null,
+            "background_signal": null,
+            "background_std": null,
+            "description": null,
+            "date": "23E24",
+            "setup": null,
+            "internal_conditions": null,
+            "external_conditions": null
+        }
+    ],
+    "fit_specs": null
+}
