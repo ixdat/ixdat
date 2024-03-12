@@ -1,16 +1,13 @@
 """Module for deconvolution of mass transport effects."""
 
+from .ec_ms import ECMSMeasurement
 from scipy.optimize import curve_fit  # noqa
 from scipy.interpolate import interp1d  # noqa
 from scipy import signal  # noqa
 from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth  # noqa
 import matplotlib.pyplot as plt
 from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
-
 import numpy as np
-from .ec_ms import ECMSMeasurement
-from ..exceptions import TechniqueError
-from ..config import plugins
 
 # FIXME: too much abbreviation in this module.
 # TODO: Implement the PR review here: https://github.com/ixdat/ixdat/pull/4
@@ -127,11 +124,9 @@ class ECMSImpulseResponse:
         mol,
         data=None,
         working_distance=None,
-        A_el = None,
         diff_const=None,
         henry_vola=None,
-        chip=None, 
-        gas_volume =1e-10
+        chip=None
     ):
         """Initializes a Kernel object either in functional form by defining the
         mass transport parameters or in the measured form by passing of EC-MS
@@ -142,59 +137,41 @@ class ECMSImpulseResponse:
             data: ECMSMeasurement object. Optional. If passed, the impulse response
             will be calculated based on the measured data, overwriting the parameters
             passed for a calculated one.
-            working_distance: Working distance between electrode and gas/liq interface in um. Optional, 
+            work_dist: Working distance between electrode and gas/liq interface. Optional, 
             though necessary if no data is provided.
-            A_el: Geometric electrode area in cm2. Optional, though necessary if no data is provided. 
             diff_const: Diffusion constant in liquid. Optional. Default will check
-            diffusion constant in water in Molecule data from siq.
+            diffusion constant in water in Molecule data from si_quant.
             henry_vola: Dimensionless Henry volatility. Optional. Default will check
-            Henry volatility constant in water in Molecule data from siq.
+            Henry volatility constant in water in Molecule data from si_quant.
             chip: Optional. Needed to define capillary flow. Default will use
-            SpectroInlets chip from siq.
-            gas_volume: the volume of the headspace volume in the chip. Default is the volume of the SpectroInlets chip.
-        """   
+            SpectroInlets chip from si_quant.
+        """
+
+        if data is None and working_distance is None:
+            raise DeconvolutionError # TODO need to make sure this error type exists
+            
         if data is not None:            
             self.mol = mol
             self.data = data
-            print("Generating `ECMSImpulseResponse` from measured data.")
+            print("Generating ECMSImpulseResponse from measured data.")
             self.type = "measured"
-            if working_distance is not None or A_el is not None:
-                raise UserWarning("Data was used to generate `ECMSImpulseResponse` ignoring the given working_distance/electrode area.")
-        
-        elif working_distance is not None and A_el is not None:
+            if working_distance is not None:
+                raise UserWarning("Data was used to generate ECMSImpulseResponse ignoring the given working_distance.")
+        else:
             self.mol = mol
             self.type = "functional"
             
-            if not plugins.use_siq:
-                raise TechniqueError(
-                    "`ECMSImpulseResponse` will only work properly when using " # TODO this should be improved.- doesnt need to fully depend on siq integration
-                    "`spectro_inlets_quantification` "
-                    "(`ixdat.plugins.activate_siq()`). "
-                )
+            # find the Molecule parameters 
+            # chip properties: molecule flux through capillary, and also the size of the sample volume.
             
-            # calculate the capillary flow for the specified gas & chip
-            Chip = plugins.siq.Chip
-            chip = chip or Chip()
-            n_dot = chip.calc_n_dot_0(gas=mol)
+            # dont I need the sample area for something as well??
             
-            # find the other parameters from the siq Molecule files
-            Molecule = plugins.siq.Molecule
-            molecule = Molecule(mol)
-            
-            if diff_const is None:
-                diff_const = molecule.D # TODO double check units
-            
-            if henry_vola is None:
-                henry_vola = molecule.calc_KH() # TODO double check units
-             
-            self.params = {working_distance: working_distance, A_el:A_el, diff_const: diff_const,
-                           henry_vola: henry_vola, n_dot:n_dot, gas_volume:gas_volume}      
+            self.params = {working_distance: working_distance, diff_const: diff_const,
+                           henry_vola: henry_vola, }       
             
             raise Exception(
                 "Kernel can only be initialized with data OR parameters, not both"
             )
-        else: 
-            raise TechniqueError("Cannot initialize ECMSImpluseResponse without either data or working distance and electrode area being provided.") 
       
     
     def calculate_kernel(self, dt=0.1, duration=100, norm=True, matrix=False):
@@ -217,7 +194,7 @@ class ECMSImpulseResponse:
 
             diff_const = self.params["diff_const"]
             work_dist = self.params["work_dist"]
-            vol_gas = self.params["gas_volume"]
+            vol_gas = self.params["vol_gas"]
             volflow_cap = self.params["volflow_cap"]
             henry_vola = self.params["henry_vola"]
             el_A = self.params["el_A"]
