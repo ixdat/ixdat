@@ -1,4 +1,4 @@
-from .ec_exporter import ECExporter
+from . import ECExporter
 from ..tools import deprecate
 
 

@@ -78,7 +78,7 @@ def calc_linear_background(t, y, tspans):
     """Return a copy of the vector `y` that interpolates linearly between tspans
 
     The vector `y - calc_linear_background(t, y, tspans)` will go to zero at the times
-    on `t` specified by `tspan
+    on `t` specified by `tspans`
 
     Args:
         t (numpy Array): time

@@ -1,4 +1,4 @@
-from .csv_exporter import CSVExporter
+from . import CSVExporter
 
 
 class ECExporter(CSVExporter):

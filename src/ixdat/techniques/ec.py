@@ -2,8 +2,8 @@
 
 from ..measurements import Measurement, Calibration
 from ..data_series import ValueSeries
-from ..exporters.ec_exporter import ECExporter
-from ..plotters.ec_plotter import ECPlotter
+from ..exporters import ECExporter
+from ..plotters import ECPlotter
 from ..tools import deprecate
 
 EC_FANCY_NAMES = {

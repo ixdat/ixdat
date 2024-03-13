@@ -52,21 +52,21 @@ class MPLPlotter:
 
         Returns list of axes: top left, bottom left(, top right, bottom right)
         """
-        # Necessary to avoid deleting an open figure, I don't know why
-        self.new_ax(interactive=interactive)
+        # Necessary to avoid deleting an open figure:
+        fig = plt.figure()
 
         if emphasis == "top":
-            gs = gridspec.GridSpec(5, 1)
+            gs = gridspec.GridSpec(5, 1, figure=fig)
             # gs.update(hspace=0.025)
             axes = [plt.subplot(gs[0:3, 0])]
             axes += [plt.subplot(gs[3:5, 0])]
         elif emphasis == "bottom":
-            gs = gridspec.GridSpec(5, 1)
+            gs = gridspec.GridSpec(5, 1, figure=fig)
             # gs.update(hspace=0.025)
             axes = [plt.subplot(gs[0:2, 0])]
             axes += [plt.subplot(gs[2:5, 0])]
         else:
-            gs = gridspec.GridSpec(6, 1)
+            gs = gridspec.GridSpec(6, 1, figure=fig)
             # gs.update(hspace=0.025)
             axes = [plt.subplot(gs[0:3, 0])]
             axes += [plt.subplot(gs[3:6, 0])]

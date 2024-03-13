@@ -294,6 +294,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
 
         Returns cls: a Spectrum of type cls
         """
+        path_to_file = Path(path_to_file)
         self.name = name or path_to_file.name
         with open(path_to_file, "r") as f:
             for line in f:

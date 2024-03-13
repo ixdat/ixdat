@@ -1,8 +1,8 @@
 """Plotter for Mass Spectrometry"""
 import warnings
-from ..data_series import Field
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
+from ..data_series import Field
+from . import MPLPlotter
 
 
 class MSPlotter(MPLPlotter):
@@ -485,7 +485,7 @@ class MSPlotter(MPLPlotter):
         return quantified, specs_this_axis, specs_next_axis
 
 
-class SpectroMSPlotter(MPLPlotter):
+class MSSpectroPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
 
     def __init__(self, measurement=None):
@@ -635,22 +635,23 @@ class SpectroMSPlotter(MPLPlotter):
                 **kwargs,
             )
 
-        # then we have the spectrum series to plot
-        ax_heat_plot = measurement.spectrum_series.heat_plot(
-            ax=axes[ms_spec_axes],
-            tspan=tspan,
-            xspan=xspan,
-            cmap_name=cmap_name,
-            make_colorbar=make_colorbar,
-            max_threshold=max_threshold,
-            min_threshold=min_threshold,
-            scanning_mask=scanning_mask,
-            vmin=vmin,
-            vmax=vmax,
-        )
+        if len(measurement.spectrum_series) > 0:
+            # then we have the spectrum series to plot
+            ax_heat_plot = measurement.spectrum_series.heat_plot(
+                ax=axes[ms_spec_axes],
+                tspan=tspan,
+                xspan=xspan,
+                cmap_name=cmap_name,
+                make_colorbar=make_colorbar,
+                max_threshold=max_threshold,
+                min_threshold=min_threshold,
+                scanning_mask=scanning_mask,
+                vmin=vmin,
+                vmax=vmax,
+            )
 
-        # Get the time variables aligned!
-        ax_heat_plot.set_xlim(axes[ms_axes].get_xlim())
+            # Get the time variables aligned!
+            ax_heat_plot.set_xlim(axes[ms_axes].get_xlim())
 
         return axes
 

@@ -15,7 +15,7 @@ sec_meas = Measurement.read(
     # path_to_t_J_file=data_dir / "decay/PDtest-1.35-1OSP-J-t.csv",
     path_to_t_U_file=data_dir / "decay/PDtest-1.33-1OSP-E-t.csv",
     path_to_t_J_file=data_dir / "decay/PDtest-1.33-1OSP-J-t.csv",
-    tstamp=1,
+    tstamp="now",
     reader="msrh_sec_decay",
 )
 # Suggestion: command-line switching for development scripts.

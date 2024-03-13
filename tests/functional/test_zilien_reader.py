@@ -15,6 +15,7 @@ from ixdat.techniques.ec_ms import (
     ECMSMeasurement,
     MSMeasurement,
     ECMeasurement,
+    ECMSSpectroMeasurement,
 )
 
 
@@ -208,14 +209,11 @@ def test_read(cls_or_technique, expected_series):
             PATH_TO_DATAFILE,
             reader="zilien",
             technique=cls_or_technique,
-            include_mass_scans=False,
         )
     else:
-        measurement = cls_or_technique.read(
-            PATH_TO_DATAFILE, reader="zilien", include_mass_scans=False
-        )
+        measurement = cls_or_technique.read(PATH_TO_DATAFILE, reader="zilien")
         if cls_or_technique is Measurement:
-            expected_measurement_class = ECMSMeasurement
+            expected_measurement_class = ECMSSpectroMeasurement
         else:
             expected_measurement_class = cls_or_technique
 

@@ -2,8 +2,7 @@
 
 import warnings
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
-from .plotting_tools import color_axis
+from . import MPLPlotter, color_axis
 from ..tools import deprecate
 from ..exceptions import SeriesNotFoundError
 
@@ -183,7 +182,7 @@ class CVDiffPlotter(MPLPlotter):
         # FIXME: This is probably the wrong use of plotter functions.
         #    see https://github.com/ixdat/ixdat/pull/30/files#r810926968
         ax = ECPlotter.plot_vs_potential(
-            self, measurement=measurement.cv_compare_1, axes=ax, color="g"
+            self, measurement=measurement.cv_compare_1, ax=ax, color="g"
         )
         ax = ECPlotter.plot_vs_potential(
             self, measurement=measurement.cv_compare_2, ax=ax, color="k", linestyle="--"

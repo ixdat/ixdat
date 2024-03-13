@@ -17,16 +17,24 @@ class SpectrumExporter:
         self.spectrum = spectrum
         self.delim = delim
 
-    def export(self, spectrum, path_to_file):
+    def export(self, path_to_file, spectrum=None):
         """Export spectrum to path_to_file.
 
         Args:
+            path_to_file (str or Path): The path of the file to export to. Note that if a
+                file already exists with this path, it will be overwritten.
             spectrum (Spectrum): The spectrum to export if different from self.spectrum
                 TODO: remove this kwarg. See conversation here:
                    https://github.com/ixdat/ixdat/pull/30/files#r810926968
-            path_to_file (str or Path): The path of the file to export to. Note that if a
-                file already exists with this path, it will be overwritten.
         """
+        from .. import Spectrum
+
+        if isinstance(path_to_file, Spectrum):
+            # We changed the order of the arguments for ixdat v0.2.9:
+            raise TypeError(
+                "Provide 'path_to_file' as a first argument and then, optionally, "
+                "'spectrum' after it"
+            )
         spectrum = spectrum or self.spectrum
         df = pd.DataFrame({spectrum.x_name: spectrum.x, spectrum.y_name: spectrum.y})
 
@@ -59,14 +67,14 @@ class SpectrumSeriesExporter:
 
         Args:
             spectrum_series (SpectrumSeries): The spectrum to export by default
-            delim (char): The separator for the .csv file. Note that this cannot be
-                the ",\t" used by ixdat's main exporter since pandas only accepts single
-                character delimiters.
+            delim (char): The separator for the .csv file. (Note that this cannot be
+                the "," previously used by ixdat's main exporter since pandas only
+                accepts single character delimiters.)
         """
         self.spectrum_series = spectrum_series
         self.delim = delim
 
-    def export(self, spectrum_series=None, path_to_file=None, spectra_as_rows=True):
+    def export(self, path_to_file=None, spectrum_series=None, spectra_as_rows=True):
         """Export spectrum series to path_to_file.
 
         Args:
@@ -82,7 +90,14 @@ class SpectrumSeriesExporter:
                 variable increases downwards and the time variable increases to the
                 right. Either way it is clarified in the file header. Defaults to True.
         """
+        from .. import Spectrum
 
+        if isinstance(path_to_file, Spectrum):
+            # We changed the order of the arguments for ixdat v0.2.9:
+            raise TypeError(
+                "Provide 'path_to_file' as a first argument and then, optionally, "
+                "'spectrum' after it"
+            )
         spectrum_series = spectrum_series or self.spectrum_series
 
         field = spectrum_series.field

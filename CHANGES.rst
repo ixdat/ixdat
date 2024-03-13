@@ -1,3 +1,156 @@
+
+ixdat 0.2.9
+===========
+
+
+API changes
+-----------
+
+readers
+^^^^^^^
+- ``BiologicReader`` can now also read biologic .mpr files using an external package.
+  When reading a file ending in ".mpr", it first tries the ``galvani`` package, which
+  seems to work for LSV, CA, and CVA files. If that fails, it tries the ``eclabfiles``
+  package, which seems to work for OCV and CP files. See:
+  - https://github.com/echemdata/galvani
+  - https://github.com/vetschn/eclabfiles
+  These packages are not added as a requirement, but instead imported dynamically.
+  If the user tries to read a .mpr file without the needed package installed, they are
+  pointed to the package but also encouraged to export and read ".mpt" files instead.
+  ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
+  Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
+  With `PR #134 <https://github.com/ixdat/ixdat/pull/134>`_
+
+
+- Zilien MS spectrum reader fixed.
+  Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
+
+- ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as
+  before for reading in a zilien spectrum. This is accomplished by different
+  groups of reader for ``Spectrum.read`` and ``Measurement.read``
+  Also, zilien-read spectra now know their duration.
+
+- ``Measurement.read(..., reader="zilien")`` now returns a ``SpectroMSMeasurement``
+  when the reader can find zilien mass scans taken during the measurement. It
+  looks for the mass scans folder as zilien names it.
+  The default plotter is a ``SpectroMSPlotter`` which includes the MS spectra
+  data in a separate panel. The spectra are accessible by:
+
+    meas = Measurement.read("my_MID_with_spectra.tsv", reader="zilien")
+    meas.spectrum_series[0].plot()
+
+  which plots the first MS spectrum.
+  To leave out the mass scan data, include the argument ``include_mass_scans=False``
+  in the call to ``read``. To leave out EC data but include the mass scans, include
+  the argument ``technique="MS-MS_spectra"`` in the call to ``read``.
+  This finishes `Issue #117 <https://github.com/ixdat/ixdat/issues/117`_
+
+- If a series name is present in the raw data *and* in in a measurement's ``aliases``,
+  the raw data series matching the name and the aliased series are appended. (Before,
+  only the raw data series matching the name would be returned.)
+
+techniques
+^^^^^^^^^^
+- ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
+  Passing the argument ``interpolate=False`` gets it to choose nearest spectrum instead.
+
+- Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
+  For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
+
+- ``SpectrumSeries`` and inheriting classes now have a ``cut()`` method which, like
+  ``Measurement.cut``, returns an object containing the subset of the data falling in
+  a specified timespan.
+
+- ``SpectrumSeries`` and ``SpectroMeasurement`` objects can be added to each other,
+  given that their ``xseries`` have the same shape and the technique resulting from
+  ``get_combined_technique(meas_or_spec_1.technique, meas_or_spec_2.technique)``
+  is present in ``TECHNIQUE_CLASSES``. For example:
+      ms_with_spectra (technique="MS") + ms_without_spectra (technique="MS-MS_spectra")
+          --> ms_with_spectra (technique="MS-MS_spectra")
+
+  - `Issue #158 <https://github.com/ixdat/ixdat/issues/158>`_
+  - `PR #166 <https://github.com/ixdat/ixdat/pull/166>`_
+
+plotters
+^^^^^^^^
+- ``SpectrumPlotter.heat_plot()`` and methods that rely on it can now plot discrete heat plots, with
+  each spectrum only plotted for its duration, if available. If spectrum durations are not available,
+  it plots each spectrum until the start of the next spectrum, i.e. like the previous (continuous)
+  behaviour but without interpolation.
+  Discrete heat plotting is now the default behavior for ``MSSpectroMeasurement``s read by "zilien"
+  (in which case durations are available).
+  ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
+  resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
+
+  - `Issue #161 <https://github.com/ixdat/ixdat/issues/161>`_
+  - `PR #166 <https://github.com/ixdat/ixdat/pull/166>`_
+
+exporters
+^^^^^^^^^
+- ``Spectrum`` and ``SpectrumSeries`` objects now have working ``export`` functions, as does
+  ``MSSpectroMeasurement``. In each case, the exported file can be read (``reader="ixdat"``)
+
+- Default delimiter is now just ",", not "\t,", as the latter doesn't open well in excel.
+
+- ``time_step`` argument to ``export`` can now be used without specifying a ``tspan``
+
+  - `Issue #153 <https://github.com/ixdat/ixdat/issues/153>`_
+  - `PR #166 <https://github.com/ixdat/ixdat/pull/166>`_
+
+
+General
+^^^^^^^
+
+- The string representation, which is what is printed if an object is printed, has been
+  changed for ``TimeSeries``, ``ValueSeries`` and ``Measurement``. The data series have
+  changed, so that they will return a helpful summary, displaying the name, min, max and
+  the timestamp for a ``TimeSeries`` as opposed to the class name and ``__init__``
+  argument form, which is normally inherited from ``__repr__``. In short::
+
+    Before: TimeSeries(id=1, name='Potential time [s]')
+    After: TimeSeries: 'Potential time [s]'. Min, max: 699, 1481s @ 21B01 17:44:12
+
+    Before: ValueSeries(id=2, name='Voltage [V]')
+    After: ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
+
+  These new string representations should be helpful on their own, but the main goal of
+  changing them, was to make them useful in the new string representation of
+  ``Measurement``, which is inherited by all measurements. It will now display a summary
+  of all data series in the measurement, along with information about their internal
+  connections, like which ``ValueSeries`` depends on which ``TimeSeries``. For an ECMS
+  measurement the form is::
+
+    ECMSMeasurement '2021-02-01 17_44_12' with 48 series
+
+    Series list:
+    ┏ TimeSeries: 'Potential time [s]'. Min, max: 699, 1481 [s] @ 21B01 17:44:12
+    ┣━ ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
+    ┣━ ValueSeries: 'Current [mA]'. Min, max: -2.5e-02, 2.5e-02 [mA]
+    ┗━ ValueSeries: 'Cycle [n]'. Min, max: 1.0e+00, 1.0e+00 [n]
+    ┏ TimeSeries: 'Iongauge value time [s]'. Min, max: 1, 3042 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'Iongauge value [mbar]'. Min, max: 6.6e-09, 6.9e-07 [mbar]
+    << SNIP MORE SYSTEM CHANNELS >>
+    ┏ TimeSeries: 'C0M2 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'M2 [A]'. Min, max: 3.4e-12, 2.0e-11 [A]
+    ┏ TimeSeries: 'C1M4 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
+    ┗━ ValueSeries: 'M4 [A]'. Min, max: 1.2e-17, 2.7e-10 [A]
+    << SNIP MORE MASS CHANNELS>>
+
+  - `Issue #67 <https://github.com/ixdat/ixdat/issues/67>`_
+  - `PR #148 <https://github.com/ixdat/ixdat/pull/148>`_
+
+- Reading measurement from zilien without the need to specify ``technique`` keyword argument.
+  The technique is determined from dataset's metadata. The ``MSMeasurement`` is used
+  when it is a Mass Spec measurement. And when it includes an electrochemistry
+  data, then ``ECMSMeasurement`` is used. The default/safe case is ``MSMeasurement``.
+  `PR #159 <https://github.com/ixdat/ixdat/pull/159>`_
+
+dev
+^^^
+
+- Enable running external tests in CI
+
+
 ixdat 0.2.8 (2023-12-05)
 ========================
 
@@ -391,7 +544,7 @@ techniques
     ``y0=reference_spectrum.y``, is plotted instead of raw data.
 
   Before the refactor, ``ECOpticalMeasurement`` had been called ``SpectroECMeasurement``.
-  This is all discussed in `PR #73 <https://github.com/ixdat/ixdat/pulls/73>`_
+  This is all discussed in `PR #73 <https://github.com/ixdat/ixdat/pull/73>`_
 
 - Addition of a ``Measurement`` and a ``SpectrumSeries`` gives a ``SpectroMeasurement``
   or a subclass thereof determined by hyphenating the technique. For example::
