@@ -1,0 +1,44 @@
+name: Ammonia
+formula: NH3
+M: 17.0305
+
+# ---- Thermochemistry ------ #
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+thermo:
+  S0:
+    gas: 192.77  # [J/(mol*K)]
+  dfH0:
+    gas: -45.94  # [kJ/mol]
+
+# from https://henrys-law.org/henry/browse/
+H_0: 59  # [(mol/l)/bar], Henry's law solubility constant
+T_c: 4200 # [K], Temperature dependence constant
+
+
+# ---- Mass transport ------ #
+# from https://en.wikipedia.org/wiki/Mass_diffusivity:
+D: 1.64e-09  # [m2/s], diffusion constant in water
+
+# from https://en.wikipedia.org/wiki/Kinetic_diameter
+molecule_diameter: 2.6e-10  # [m]
+
+# from https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=907539, at 300 K
+dynamic_viscosity: 1.02e-05  # [Pa*s]
+
+
+# ---- Mass spectrometry ------ #
+primary: M17  # default mass to measure at
+
+# from https://physics.nist.gov/cgi-bin/Ionization/parsesv.pl?NH3
+sigma:  # [Ang^2]
+  100: 3.012
+  70: 3.036
+
+# from https://webbook.nist.gov/chemistry/form-ser/
+spectrum:
+  M14: 2.2
+  M15: 7.51
+  M16: 80.07
+  M17: 100.0
+  M18: 0.4
