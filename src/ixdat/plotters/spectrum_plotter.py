@@ -5,6 +5,7 @@ import matplotlib as mpl
 from ixdat.plotters.plotting_tools import add_colorbar
 from matplotlib import pyplot as plt
 from .base_mpl_plotter import MPLPlotter
+from .plotting_tools import get_indeces_and_times
 
 
 class SpectrumPlotter(MPLPlotter):
@@ -211,7 +212,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
         return ax
 
-
     def plot_stacked_spectra(
         self,
         spectrum_series=None,
@@ -231,9 +231,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
     ):
         """Plot a selection of spectra, stacked
 
+        This is commonly used for e.g. FTIR.
         Specify which spectra to plot by one of four ways: dt, t_list,
         dn, or n_list. See descriptions below.
-        This is commonly used for e.g. FTIR.
 
         Args:
             spectrum_series (SpectrumSeries): What to plot from, if
@@ -270,17 +270,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
         spectrum_series = spectrum_series or self.spectrum_series
 
-        if dt or t_list:
-            t_vec = spectrum_series.tseries.t
-            if dt:
-                num = int((t_vec[-1] - t_vec[0]) / dt)
-                t_list = [t_vec[0] + n * dt for n in range(num)]
-            index_list = []
-            for t in t_list:
-                index = int(np.argmin(np.abs(t_vec - t)))
-                index_list.append(index)
-        elif dn:
-            index_list = list(range(0, len(spectrum_series.t), dn))
+        # whichever of the four were specified, we need t_list and index_list:
+        t_vec = spectrum_series.t
+        index_list, t_list = get_indeces_and_times(
+            t_vec, dt=dt, t_list=t_list, dn=dn, index_list=index_list
+        )
 
         y_vec_list = []
         for i, index in enumerate(index_list):
@@ -348,8 +342,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         ax.set_xlim(min(x), max(x))
 
         return ax
-
-
 
 
 class SpectroMeasurementPlotter(MPLPlotter):
@@ -465,3 +457,92 @@ class SpectroMeasurementPlotter(MPLPlotter):
             t=v,
             t_name=v_name,
         )
+
+    def plot_stacked_spectra_vs(
+        self,
+        *,
+        measurement=None,
+        vs=None,
+        dt=None,
+        t_list=None,
+        dn=None,
+        index_list=None,
+        average=False,
+        xspan=None,
+        xspan_bg=None,
+        scale_mode="auto",
+        scale_factor=1,
+        y_values="time",
+        ax=None,
+        color="k",
+        **kwargs,
+    ):
+        """Plot stacked spectra with a time-dependent value on the y-axis
+
+        This is commonly used for e.g. FTIR.
+        Specify which spectra to plot by one of four ways: dt, t_list,
+        dn, or n_list. See descriptions below.
+
+        Args:
+            measurement (SpectroMeasurement): The spectromeasurement to
+                plot data form, if different from self.measurement
+            vs (str): The name of the value series to stack spectra
+                according to.
+            dt (float): time interval between spectra to plot, [s]. The
+                first spectrum and those taken at times closest to each
+                integer multiple of dt after are plotted.
+            t_list (list of float): List of times for which to plot the
+                spectrum, [s]. The closest spectrum to each time in the
+                list is plotted.
+            dn (int): number of spectra between plotted spectra
+            index_list (list of int): List of indeces of spectra to plot
+            average (bool or int): Whether and how to average spectra for
+                plotting. False means no averaging. True means average all
+                the spectra in the interval between spectra. An integer
+                `n` means average the `n/2` spectra before and `n/2` spectra
+                after the spectra at the given time or index
+            xspan (list of float): Range of x-axis variable to include.
+            xspan_bg (list of float): Range of x-axis variable for which to
+                consider the signal at background. For each spectrum, the
+                average y value in this range is subtracted.
+            scale_mode (str): The way to initially scale the spectra.
+                Options:
+                - "auto": scale uniformly such that all spectra fit in
+                    their given interval. The raw y-values are scaled by
+                    min(interval) / max(y range)
+                - [no other scale_mode options yet]
+            scale_factor: A factor to apply on top of the initial scaling
+            y_values (str): What to plot on the y-axis. Options: "time", "n"
+            ax (Axis): axis to plot on, if not a new axis
+            color (str): color of traces. Defaults to black.
+            **kwargs: Additional key-word args are passed on to ax.plot()
+        """
+        measurement = measurement or self.measurement
+
+        t_vec = measurement.spectrum_series.t
+
+        ax = self.spectrum_series_plotter.plot_stacked_spectra(
+            spectrum_series=measurement.spectrum_series,
+            dt=dt,
+            t_list=t_list,
+            dn=dn,
+            index_list=index_list,
+            average=average,
+            xspan=xspan,
+            xspan_bg=xspan_bg,
+            scale_mode=scale_mode,
+            scale_factor=scale_factor,
+            y_values=y_values,
+            ax=ax,
+            color=color,
+        )
+        index_list, t_list = get_indeces_and_times(t_vec, dt, t_list, dn, index_list)
+
+        print(t_list)
+        v_list = measurement.grab_for_t(vs, np.array(t_list))
+        print(v_list)
+
+        ax.set_yticks(t_list)
+        ax.set_yticklabels([np.round(v, 2) for v in v_list])
+
+        ax.set_ylabel(vs)

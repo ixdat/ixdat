@@ -32,6 +32,7 @@ ftir.plot(
     scale_factor=2,
     color="k",
     y_values="n",
+    average=False,
 )  # stacked spectra plot
 
 
@@ -45,4 +46,9 @@ ec.plot()
 
 ecftir = ec + ftir
 
-ecftir.plot()
+ecftir.plot_measurement()
+ecftir.plot_stacked_spectra(
+    dn=20,
+    xspan=[800, 1800],
+    xspan_bg=[800, 820],
+)

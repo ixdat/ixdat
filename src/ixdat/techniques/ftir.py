@@ -8,6 +8,7 @@ Created on Thu Dec  7 17:59:53 2023
 from ..spectra import Spectrum, SpectrumSeries
 from .spectroelectrochemistry import SpectroECMeasurement
 from ..plotters.ftir_plotter import FTIRPlotter
+from ..plotters.sec_plotter import SECPlotter
 
 
 class FTIRSpectrum(Spectrum):
@@ -15,15 +16,19 @@ class FTIRSpectrum(Spectrum):
 
 
 class FTIRSpectrumSeries(SpectrumSeries):
-    default_plotter = FTIRPlotter
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.plotter = FTIRPlotter(spectrum_series=self)
         self.plot = self.plotter.plot_stacked_spectra
+        self.plot_stacked_spectra = self.plotter.plot_stacked_spectra
         self.heat_plot = self.plotter.heat_plot
         self.plot_waterfall = self.plotter.plot_waterfall
 
 
 class ECFTIRMeasurement(SpectroECMeasurement):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.plotter = SECPlotter(measurement=self)
+        self.plot = self.plotter.plot_stacked_spectra
+        self.plot_stacked_spectra = self.plotter.plot_stacked_spectra
+        self.plot_measurement = self.plotter.plot_measurement
