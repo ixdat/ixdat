@@ -234,6 +234,7 @@ class Measurement(Saveable):
                 ">>> print(TECHNIQUE_CLASSES.keys())\n"
                 f"{e}"
             )
+            raise
         return measurement
 
     @classmethod

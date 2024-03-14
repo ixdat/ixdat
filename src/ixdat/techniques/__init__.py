@@ -16,6 +16,7 @@ from .spectroelectrochemistry import (
     ECXASMeasurement,
     ECOpticalMeasurement,
 )
+from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
 from .reactor import ReactorMeasurement, SpectroReactorMeasurement, ReactorCalibration
 
 from ..spectra import Spectrum
@@ -40,6 +41,8 @@ TECHNIQUE_CLASSES = {
     "reactor": ReactorMeasurement,
     "reactor-MS_spectra": SpectroReactorMeasurement,
     "S-EC": SpectroECMeasurement,
+    "TRXRF": TRXRFMeasurement,
+    "EC-TRXRF": ECTRXRFMeasurement,
 }
 
 CALIBRATION_CLASSES = {
