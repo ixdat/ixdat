@@ -571,7 +571,7 @@ class SpectrumSeries(Spectrum):
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
             return Spectrum.from_dict(spectrum_as_dict)
-        raise KeyError
+        raise KeyError(f"Index to SpectrumSeries must be an int. Got {type(key)}")
 
     @property
     def y_average(self):

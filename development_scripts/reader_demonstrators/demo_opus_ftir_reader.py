@@ -6,6 +6,9 @@ Created on Thu Dec  7 16:20:40 2023
 """
 from pathlib import Path
 from ixdat import Spectrum, Measurement
+from matplotlib import pyplot as plt
+
+plt.close("all")
 
 
 data_dir = (
@@ -20,8 +23,16 @@ ftir = Spectrum.read(
     reader="opus_ftir",
 )
 
-ftir.plot(offset=0.1)  # waterfall plot
 ftir.heat_plot()  # heat plot
+ftir.plot_waterfall()  # waterfall plot
+ftir.plot(
+    dn=20,
+    xspan=[1000, 1500],
+    xspan_bg=[1000, 1020],
+    scale_factor=2,
+    color="k",
+    y_values="n",
+)  # stacked spectra plot
 
 
 ec = Measurement.read_set(
@@ -34,6 +45,4 @@ ec.plot()
 
 ecftir = ec + ftir
 
-ecftir.plot(
-    # V_step=0.1,  # plot a spectrum for every 0.1 V
-)  # stacked with potential on y-axis
+ecftir.plot()
