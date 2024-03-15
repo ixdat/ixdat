@@ -131,9 +131,9 @@ class ECMSImpulseResponse:
         diff_const=None,
         henry_vola=None,
         chip=None, 
-        gas_volume =1e-10
+        gas_volume=1e-10
     ):
-        """Initializes a Kernel object either in functional form by defining the
+        """Initializes a ECMSImpulseResponse object either in functional form by defining the
         mass transport parameters or in the measured form by passing of EC-MS
         data.
 
