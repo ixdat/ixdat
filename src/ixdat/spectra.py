@@ -571,7 +571,16 @@ class SpectrumSeries(Spectrum):
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
             return Spectrum.from_dict(spectrum_as_dict)
-        raise KeyError(f"Index to SpectrumSeries must be an int. Got {type(key)}")
+        elif isinstance(key, slice):
+            # Convert the slice to a list of integers, get the spectra with the code
+            # above, and recombined them:
+            indeces = list(range(key.stop)[key])
+            spectrum_list = []
+            for i in indeces:
+                spectrum_list.append(self[i])
+            return SpectrumSeries.from_spectrum_list(spectrum_list)
+
+        raise KeyError(f"SpectrumSeries indexing uses int or slice. Got {type(key)}")
 
     @property
     def y_average(self):

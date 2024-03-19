@@ -276,10 +276,13 @@ class SpectrumSeriesPlotter(MPLPlotter):
             t_vec, dt=dt, t_list=t_list, dn=dn, index_list=index_list
         )
 
+        # Now we get the y-values of the spectra to plot
+        #
         y_vec_list = []
+        print(index_list)
         for i, index in enumerate(index_list):
             if average:
-                if isinstance(average, int):
+                if type(average) is int:
                     range_start = max(0, index - average)
                     range_end = min(index + average, len(t_vec))
                 else:
@@ -290,8 +293,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
                     if i + 1 == len(index_list):
                         range_end = index
                     else:
-                        range_start = int((index + index_list[i + 1]) / 2)
-                y_vec = spectrum_series[range_start:range_end].average().y
+                        range_end = int((index + index_list[i + 1]) / 2)
+                print(range_start)
+                print(range_end)
+                print(spectrum_series[range_start:range_end])
+                y_vec = spectrum_series[range_start:range_end].y_average
             else:
                 y_vec = spectrum_series[index].y
             y_vec_list.append(y_vec)

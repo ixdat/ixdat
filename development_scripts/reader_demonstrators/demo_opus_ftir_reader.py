@@ -29,7 +29,6 @@ ftir.plot(
     dn=20,
     xspan=[1000, 1500],
     xspan_bg=[1000, 1020],
-    scale_factor=2,
     color="k",
     y_values="n",
     average=False,
@@ -47,8 +46,26 @@ ec.plot()
 ecftir = ec + ftir
 
 ecftir.plot_measurement()
+
+
 ecftir.plot_stacked_spectra(
-    dn=20,
-    xspan=[800, 1800],
+    dn=40,
+    xspan=[1050, 1400],
     xspan_bg=[800, 820],
+    scale_factor=2,
+    average=False,
+)
+ecftir.plot_stacked_spectra(
+    dn=40,
+    xspan=[1050, 1400],
+    xspan_bg=[800, 820],
+    scale_factor=2,
+    average=5,
+)
+ecftir.plot_stacked_spectra(
+    dn=40,
+    xspan=[1050, 1400],
+    xspan_bg=[1050, 1060],
+    scale_factor=2,
+    average=True,
 )
