@@ -277,15 +277,17 @@ class SpectrumSeriesPlotter(MPLPlotter):
         )
 
         # Now we get the y-values of the spectra to plot
-        #
         y_vec_list = []
-        print(index_list)
         for i, index in enumerate(index_list):
             if average:
+                # The challenge with averaging is figuring out the range of ideces over
+                # which to average.
                 if type(average) is int:
                     range_start = max(0, index - average)
                     range_end = min(index + average, len(t_vec))
                 else:
+                    # If average is set to "True", we need to figure out the median
+                    # points between the spectra, as follows.
                     if i == 0:
                         range_start = index
                     else:
@@ -294,58 +296,76 @@ class SpectrumSeriesPlotter(MPLPlotter):
                         range_end = index
                     else:
                         range_end = int((index + index_list[i + 1]) / 2)
-                print(range_start)
-                print(range_end)
-                print(spectrum_series[range_start:range_end])
+                # Once we have the range of indeces, the SpectrumSeries makes it easy:
                 y_vec = spectrum_series[range_start:range_end].y_average
             else:
+                # The simple case where we're not averaging.
                 y_vec = spectrum_series[index].y
             y_vec_list.append(y_vec)
 
+        # Establish the axis
         if not ax:
             ax = self.new_ax()
             ax.set_xlabel(spectrum_series.xseries.name)
 
+        # Whatever y's we are plotting, the x is the same:
         x = spectrum_series.x
 
+        # If an xspan_bg is given, zero the corresponding part of each y vector:
         if xspan_bg:
             mask_bg = np.logical_and(xspan_bg[0] < x, x < xspan_bg[-1])
             for i, y_vec in enumerate(y_vec_list):
                 y_vec_list[i] = y_vec_list[i] - np.mean(y_vec_list[i][mask_bg])
+        # If an xspan (for plotting) is given, cut all the vectors accordingly:
         if xspan:
             mask = np.logical_and(xspan[0] < x, x < xspan[-1])
             x = x[mask]
             for i, y_vec in enumerate(y_vec_list):
                 y_vec_list[i] = y_vec[mask]
 
+        # a list of y ranges is useful in all cases for figuring out how to scale the
+        # y-vectors onto the y axis, which a bit confusingly represents something else.
         y_ranges = [max(y_vec) - min(y_vec) for y_vec in y_vec_list]
 
+        # No matter what, we loop through the y-vectors to plot, but the code is a bit
+        # different depending on what the y-axis represents, so consider those two cases
+        # ("time" and "n", which means index) seperately.
         if y_values == "time":
             ax.set_ylabel(spectrum_series.t_name)
             if scale_mode == "auto":
+                # time intervals:
                 dts = [t_list[i + 1] - t_list[i] for i in range(len(t_list) - 1)]
+                # The scale is determined by the minimum time interval divided by
+                # the maximum y range, so that by default (scale_factor=1) all spectra
+                # fit completely in thier own time interval
                 t_per_y = min(dts) / max(y_ranges) * scale_factor
                 scaled_y_vec_list = [y_vec * t_per_y for y_vec in y_vec_list]
             else:
-                raise NotImplementedError(f"scale_mode={scale_mode} not implemented.")
+                raise ValueError(f"scale_mode={scale_mode} not implemented.")
             for t, scaled_y_vec in zip(t_list, scaled_y_vec_list):
                 ax.plot(x, t + scaled_y_vec, label=t, color=color, **kwargs)
         elif y_values == "n":
             ax.set_ylabel("spectrum number")
             if scale_mode == "auto":
+                # index intervals:
                 dns = [
                     index_list[i + 1] - index_list[i] for i in range(len(index_list) - 1)
                 ]
+                # The scale is determined by the minimum index interval divided by
+                # the maximum y range, so that by default (scale_factor=1) all spectra
+                # fit completely in thier own index interval
                 t_per_n = min(dns) / max(y_ranges) * scale_factor
                 scaled_y_vec_list = [y_vec * t_per_n for y_vec in y_vec_list]
             else:
-                raise NotImplementedError(f"scale_mode='{scale_mode}' not implemented.")
+                raise ValueError(f"scale_mode='{scale_mode}' not implemented.")
             for n, scaled_y_vec in zip(index_list, scaled_y_vec_list):
                 ax.plot(x, n + scaled_y_vec, label=n, color=color, **kwargs)
         else:
-            raise NotImplementedError(f"y_values='{y_values}' not implemented.")
+            raise ValueError(f"y_values='{y_values}' not implemented.")
 
+        # Make the spectra go all the way to the plot edges, with ticks on both sides:
         ax.set_xlim(min(x), max(x))
+        ax.tick_params(axis="y", right=True)
 
         return ax
 
@@ -544,9 +564,7 @@ class SpectroMeasurementPlotter(MPLPlotter):
         )
         index_list, t_list = get_indeces_and_times(t_vec, dt, t_list, dn, index_list)
 
-        print(t_list)
         v_list = measurement.grab_for_t(vs, np.array(t_list))
-        print(v_list)
 
         ax.set_yticks(t_list)
         ax.set_yticklabels([np.round(v, 2) for v in v_list])

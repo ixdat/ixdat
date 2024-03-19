@@ -23,3 +23,8 @@ Added FTIR and EC-FTIR. The latter for now just inherits from SpectroECMeasureme
 readers
 ^^^^^^^
 Added "opus_ftir" reader for text-exported files from Opus FTIR spectrumeter.
+
+plotters
+^^^^^^^^
+Added a plot_stacked_spectra method to SpectrumSeriesPlotter, SpectroMeasurementPlotter,
+and SECPlotter. This is the default plotting method for FTIR.

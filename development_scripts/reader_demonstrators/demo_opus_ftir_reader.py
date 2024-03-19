@@ -26,7 +26,7 @@ ftir = Spectrum.read(
 ftir.heat_plot()  # heat plot
 ftir.plot_waterfall()  # waterfall plot
 ftir.plot(
-    dn=20,
+    dt=1000,
     xspan=[1000, 1500],
     xspan_bg=[1000, 1020],
     color="k",
@@ -51,21 +51,9 @@ ecftir.plot_measurement()
 ecftir.plot_stacked_spectra(
     dn=40,
     xspan=[1050, 1400],
-    xspan_bg=[800, 820],
-    scale_factor=2,
-    average=False,
-)
-ecftir.plot_stacked_spectra(
-    dn=40,
-    xspan=[1050, 1400],
-    xspan_bg=[800, 820],
-    scale_factor=2,
-    average=5,
-)
-ecftir.plot_stacked_spectra(
-    dn=40,
-    xspan=[1050, 1400],
     xspan_bg=[1050, 1060],
-    scale_factor=2,
-    average=True,
+    scale_factor=1.5,
+    # average=False,  # no averaging
+    average=5,  # average 5 spectra each side
+    # average=True,  # most averaging
 )

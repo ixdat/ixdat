@@ -7,18 +7,23 @@ Created on Thu Dec  7 17:59:53 2023
 
 from ..spectra import Spectrum, SpectrumSeries
 from .spectroelectrochemistry import SpectroECMeasurement
-from ..plotters.ftir_plotter import FTIRPlotter
+from ..plotters.spectrum_plotter import SpectrumSeriesPlotter
 from ..plotters.sec_plotter import SECPlotter
 
 
 class FTIRSpectrum(Spectrum):
-    pass
+    """FTIR Spectrum"""
+
+    pass  # Just a generic Spectrum for now.
 
 
 class FTIRSpectrumSeries(SpectrumSeries):
+    """FTIR Spectrum Series"""
+
+    # A generic SpectrumSeries but with a custom plotter, set in the __init__.
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.plotter = FTIRPlotter(spectrum_series=self)
+        self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.plot = self.plotter.plot_stacked_spectra
         self.plot_stacked_spectra = self.plotter.plot_stacked_spectra
         self.heat_plot = self.plotter.heat_plot
@@ -26,6 +31,9 @@ class FTIRSpectrumSeries(SpectrumSeries):
 
 
 class ECFTIRMeasurement(SpectroECMeasurement):
+    """FTIR Spectrum Series"""
+
+    # A generic SpectroECMeasurement but with a custom plotter, set in the __init__.
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.plotter = SECPlotter(measurement=self)
