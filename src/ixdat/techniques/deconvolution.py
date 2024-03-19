@@ -117,7 +117,7 @@ class ECMSImpulseResponse:
     """
     Class implementing impulse response deconvolution of ECMS data.
     
-    # TODO: Make class inherit from Measurement, add properties to store kernel
+    # TODO: Make class inherit from Calculator, add properties to store kernel
     # TODO: Reference equations to paper.
     
     """
@@ -127,7 +127,7 @@ class ECMSImpulseResponse:
         mol,
         data=None,
         working_distance=None,
-        A_el = None,
+        A_el=None,
         diff_const=None,
         henry_vola=None,
         chip=None, 
@@ -170,34 +170,72 @@ class ECMSImpulseResponse:
                     "`ECMSImpulseResponse` will only work properly when using " # TODO this should be improved.- doesnt need to fully depend on siq integration
                     "`spectro_inlets_quantification` "
                     "(`ixdat.plugins.activate_siq()`). "
-                )
-            
+                )            
             # calculate the capillary flow for the specified gas & chip
             Chip = plugins.siq.Chip
             chip = chip or Chip()
             n_dot = chip.calc_n_dot_0(gas=mol)
-            
             # find the other parameters from the siq Molecule files
             Molecule = plugins.siq.Molecule
             molecule = Molecule(mol)
-            
             if diff_const is None:
                 diff_const = molecule.D # TODO double check units
-            
             if henry_vola is None:
                 henry_vola = molecule.calc_KH() # TODO double check units
-             
             self.params = {working_distance: working_distance, A_el:A_el, diff_const: diff_const,
                            henry_vola: henry_vola, n_dot:n_dot, gas_volume:gas_volume}      
-            
-            raise Exception(
-                "Kernel can only be initialized with data OR parameters, not both"
-            )
         else: 
-            raise TechniqueError("Cannot initialize ECMSImpluseResponse without either data or working distance and electrode area being provided.") 
+            raise TechniqueError("Cannot initialize ECMSImpluseResponse without either data or working distance + electrode area being provided.") 
       
-    
-    def calculate_kernel(self, dt=0.1, duration=100, norm=True, matrix=False):
+    def model_impulse_response_from_params(self, dt=0.1, duration=100, norm=True, matrix=False):
+        """Calculates an impulse response from data.
+
+        Args:
+            dt (int): Timestep for which the impulse response is calculated.
+                Has to match the timestep of the measured data for deconvolution.
+                TODO: Understand what this requirement means - better to automatically determine dt from data?
+            duration(int): Duration in seconds for which the kernel/impulse response is
+                calculated. Must be long enough to reach zero.
+            norm (bool): If true the impulse response is normalized to its
+                area.
+            matrix (bool): If true the circulant matrix constructed from the
+                impulse reponse is returned.
+        """
+        if self.type == "functional":
+
+            t_kernel = np.arange(0, duration, dt)
+            t_kernel[0] = 1e-6
+
+            diff_const = self.params["diff_const"]
+            work_dist = self.params["working distance_dist"]
+            vol_gas = self.params["gas_volume"]
+            volflow_cap = self.params["volflow_cap"]
+            henry_vola = self.params["henry_vola"]
+            A_el = self.params["A_el"]
+
+            tdiff = t_kernel * diff_const / (work_dist**2)
+
+            def fs(s):
+                # See Krempl et al, 2021. Equation 6.
+                #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+                return 1 / (
+                    sqrt(s) * sinh(sqrt(s))
+                    + (vol_gas * henry_vola / (A_el * 1e-4 * work_dist))
+                    * (s + volflow_cap / vol_gas * work_dist**2 / diff_const)
+                    * cosh(sqrt(s))
+                )
+
+            kernel = np.zeros(len(t_kernel))
+            for i in range(len(t_kernel)):
+                kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
+                print(tdiff[i])
+                print(kernel[i])
+        else:
+            raise TechniqueError("Cannot model impulse response without parameters.")
+        return kernel
+        
+                
+    def calc_impulse_response_from_data(self, dt=0.1, duration=100, norm=True, matrix=False):
         """Calculates a kernel/impulse response.
 
         Args:
@@ -210,36 +248,6 @@ class ECMSImpulseResponse:
             matrix (bool): If true the circulant matrix constructed from the kernel/
                 impulse reponse is returned.
         """
-        if self.type == "functional":
-
-            t_kernel = np.arange(0, duration, dt)
-            t_kernel[0] = 1e-6
-
-            diff_const = self.params["diff_const"]
-            work_dist = self.params["work_dist"]
-            vol_gas = self.params["gas_volume"]
-            volflow_cap = self.params["volflow_cap"]
-            henry_vola = self.params["henry_vola"]
-            el_A = self.params["el_A"]
-
-            tdiff = t_kernel * diff_const / (work_dist**2)
-
-            def fs(s):
-                # See Krempl et al, 2021. Equation 6.
-                #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-                return 1 / (
-                    sqrt(s) * sinh(sqrt(s))
-                    + (vol_gas * henry_vola / (el_A * 1e-4 * work_dist))
-                    * (s + volflow_cap / vol_gas * work_dist**2 / diff_const)
-                    * cosh(sqrt(s))
-                )
-
-            kernel = np.zeros(len(t_kernel))
-            for i in range(len(t_kernel)):
-                kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
-                print(tdiff[i])
-                print(kernel[i])
-
         elif self.type == "measured":
             kernel = self.MS_data[1]
             t_kernel = self.MS_data[0]
@@ -254,7 +262,8 @@ class ECMSImpulseResponse:
             while i < len(t_kernel):
                 kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
                 i = i + 1
-
+        else:
+            raise TechniqueError("Cannot calculate impulse response without data.")
         return kernel
     
     @property
@@ -275,55 +284,6 @@ class ECMSImpulseResponse:
         Q = np.trapz(y_curr[mask], self.EC_data[0][mask])
 
         return Q
-        
-        
-
-class Kernel:
-    """Kernel class implementing datatreatment of kernel/impulse response data."""
-
-    # TODO: Make class inherit from Measurement, add properties to store kernel
-    # TODO: Reference equations to paper.
-    def __init__(
-        self,
-        parameters={},  # FIXME: no mutable default arguments!
-        MS_data=None,
-        EC_data=None,
-    ):
-        """Initializes a Kernel object either in functional form by defining the
-        mass transport parameters or in the measured form by passing of EC-MS
-        data.
-
-        Args:
-            parameters (dict): Dictionary containing the mass transport
-                parameters with the following keys:
-                    diff_const: Diffusion constant in liquid
-                    work_dist: Working distance between electrode and gas/liq interface
-                    vol_gas: Gas sampling volume of the chip
-                    volflow_cap: Volumetric capillary flow
-                    henry_vola: Dimensionless Henry volatility
-                MS_data (list): List of numpy arrays containing the MS signal
-                    data.
-                EC_data (list): List of numpy arrays containing the EC (time,
-                    current, potential).
-        """
-
-        if MS_data and parameters:  # TODO: Make two different classes
-            raise Exception(
-                "Kernel can only be initialized with data OR parameters, not both"
-            )
-        if EC_data and MS_data:
-            print("Generating kernel from measured data")
-            self.type = "measured"
-        elif parameters:
-            print("Generating kernel from parameters")
-            self.type = "functional"
-        else:
-            print("Generating blank kernel")
-            self.type = None
-
-        self.params = parameters
-        self.MS_data = MS_data
-        self.EC_data = EC_data  # x_curr, y_curr, x_pot, y_pot
 
     @property
     def sig_area(self):
