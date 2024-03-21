@@ -165,11 +165,12 @@ class ECMSImpulseResponse():
         return kernel
         
     @classmethod # see above            
-    def calc_impulse_response_from_data(self, dt=0.1, duration=100, norm=True, matrix=False):
+    def calc_impulse_response_from_data(self, mol, dt=0.1, duration=100, norm=True, matrix=False):
         """Calculates a kernel/impulse response.
 
         Args:
-            dt (int): Timestep for which the kernel/impulse response is calculated.
+            mol (str): name of calibrated molecule for which to calculate impulse response
+            dt (int): Timestep for which the impulse response is calculated.
                 Has to match the timestep of the measured data for deconvolution.
                 TODO: Understand what this requirement means - better to automatically determine dt from data?
             duration(int): Duration in seconds for which the kernel/impulse response is
@@ -182,8 +183,7 @@ class ECMSImpulseResponse():
         
         # TODO: convert the data passed as ECMSMeasurement object to fit here.
         if self.type == "measured":
-            kernel = self.MS_data[1]
-            t_kernel = self.MS_data[0]
+            t_kernel, kernel = self.data.grab_signal(mol=mol)
             if norm:
                 area = np.trapz(kernel, t_kernel)
                 kernel = kernel / area
@@ -197,15 +197,6 @@ class ECMSImpulseResponse():
             raise TechniqueError("Cannot calculate impulse response without data.")
         return kernel
     
-    @property
-    def sig_area(self):
-        """Integrates a measured impulse response and returns the area."""
-        delta_sig = self.MS_data[1] - self.MS_data[1][-1]
-        sig_area = np.trapz(delta_sig, self.MS_data[0])
-
-        return sig_area
-
-
     def plot(self, dt=0.1, duration=100, ax=None, norm=True, **kwargs): 
         
         """Returns a plot of the kernel/impulse response.
