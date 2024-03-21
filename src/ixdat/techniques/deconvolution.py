@@ -113,13 +113,11 @@ class ECMSImpulseResponse():
         else: 
             raise TechniqueError("Cannot initialize ECMSImpluseResponse without either data or working distance + electrode area being provided.") 
       
-    @classmethod # I'm not sure I'm using this correctly, but calling this method should directly initialize an object    
+    @classmethod # I'm not sure I'm using this correctly, does this make sense here? what will this do? 
     def model_impulse_response_from_params(self, dt=0.1, duration=100, norm=True, matrix=False):
         """Calculates an impulse response from parameters used to initialize the 
         ECMSImpulseResponse object. 
         TODO: might make more sense to pass parameters to the method instead?
-        TODO: 
-
         Args:
             dt (int): Timestep for which the impulse response is calculated.
                 Has to match the timestep of the measured data for deconvolution.
@@ -165,25 +163,20 @@ class ECMSImpulseResponse():
         return kernel
         
     @classmethod # see above            
-    def calc_impulse_response_from_data(self, mol, dt=0.1, duration=100, norm=True, matrix=False):
+    def calc_impulse_response_from_data(self, mol, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False):
         """Calculates a kernel/impulse response.
 
         Args:
             mol (str): name of calibrated molecule for which to calculate impulse response
-            dt (int): Timestep for which the impulse response is calculated.
-                Has to match the timestep of the measured data for deconvolution.
-                TODO: Understand what this requirement means - better to automatically determine dt from data?
-            duration(int): Duration in seconds for which the kernel/impulse response is
-                calculated. Must be long enough to reach zero.
-            norm (bool): If true the kernel/impulse response is normalized to its
+            tspan (list): tspan over which to calculate the impulse response
+            tspan_bg (list): tspan of background to subtract 
+            norm (bool): If true the impulse response is normalized to its
                 area.
-            matrix (bool): If true the circulant matrix constructed from the kernel/
+            matrix (bool): If true the circulant matrix constructed from the
                 impulse reponse is returned.
         """
-        
-        # TODO: convert the data passed as ECMSMeasurement object to fit here.
         if self.type == "measured":
-            t_kernel, kernel = self.data.grab_signal(mol=mol)
+            t_kernel, kernel = self.data.grab_signal(mol=mol, tspan=tspan, tspan_bg=tspan_bg)
             if norm:
                 area = np.trapz(kernel, t_kernel)
                 kernel = kernel / area
