@@ -425,6 +425,83 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             return cal, ax
         else:
             return cal
+        
+        # DECONVOLUTION METHODS BELOW
+        def grab_deconvoluted_current(
+            self, signal_name, kernel_obj, tspan=None, tspan_bg=None, snr=10
+        ):
+            """Return the deconvoluted partial current for a given signal
+            
+            Note, this actually doesnt need the 
+
+            Args:
+                signal_name (str): Name of molecule for which deconvolution is to
+                    be carried out.
+                kernel_obj (Kernel): Kernel object which contains the mass transport
+                    parameters
+                tspan (list): Timespan for which the partial current is returned.
+                tspan_bg (list): Timespan that corresponds to the background signal.
+                snr (int): signal-to-noise ratio used for Wiener deconvolution.
+            """
+            # TODO: comments in this method so someone can tell what's going on!
+
+            t_sig, v_sig = self.grab_flux(signal_name, tspan=tspan, tspan_bg=tspan_bg)
+
+            kernel = kernel_obj.calculate_kernel(
+                dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
+            )
+            kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel))))
+            H = fft(kernel)
+            # TODO: store this as well.
+            partial_current = np.real(
+                ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
+            )
+            partial_current = partial_current * sum(kernel)
+            return t_sig, partial_current
+
+        def extract_kernel(self, signal_name, cutoff_pot=0, tspan=None, tspan_bg=None):
+            """Extracts a Kernel object from a measurement.
+            
+            #TODO: rework this so it works with the new overall thing.
+
+            Args:
+                signal_name (str): Signal name from which the kernel/impulse
+                    response is to be extracted.
+                cutoff_pot (int): Potential which the defines the onset of the
+                    impulse. Must be larger than the resting potential before the
+                    impulse.
+                tspan(list): Timespan from which the kernel/impulse response is
+                    extracted.
+                tspan_bg (list): Timespan that corresponds to the background signal.
+            """
+            x_curr, y_curr = self.grab("current", tspan=tspan) # not sure if this still works
+            x_pot, y_pot = self.grab("potential", tspan=tspan) # not sure if this still works
+            x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
+
+            # TODO make this more generally applicable than these 3 masses
+            if signal_name == "M32":
+                t0 = x_curr[np.argmax(y_pot > cutoff_pot)]  # time of impulse
+            elif signal_name == "M2" or signal_name == "M17":
+                t0 = x_curr[np.argmax(y_pot < cutoff_pot)]
+            else:
+                print("mass not found")
+
+            x_sig = x_sig - t0
+
+            y_sig = y_sig[x_sig > 0]
+            x_sig = x_sig[x_sig > 0]
+
+            y_curr = y_curr[x_curr > t0]
+            x_curr = x_curr[x_curr > t0]
+            y_pot = y_pot[x_pot > t0]
+            x_pot = x_pot[x_pot > t0]
+
+            kernel = Kernel(
+                MS_data=np.array([x_sig, y_sig]),
+                EC_data=np.array([x_curr, y_curr, x_pot, y_pot]),
+            )
+
+            return kernel
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
