@@ -8,7 +8,6 @@ from scipy import signal  # noqa
 from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth  # noqa
 from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 
-from .ec_ms import ECMSMeasurement
 from ..exceptions import TechniqueError
 from ..config import plugins
 from ..constants import R
@@ -65,13 +64,13 @@ class ECMSImpulseResponse():
             data: ECMSMeasurement object. Optional. If passed, the impulse response
                 will be calculated based on the measured data, overwriting the parameters
                 passed for a calculated one.
-            working_distance: Working distance between electrode and gas/liq interface in um. Optional, 
+            working_distance: Working distance between electrode and gas/liq interface in m. Optional, 
                 though necessary if no data is provided.
             A_el: Geometric electrode area in cm2. Optional, though necessary if no data is provided. 
             diff_const: Diffusion constant in liquid. Optional. Default will check
             diffusion constant in water in Molecule data from siq.
             henry_vola: Dimensionless Henry volatility. Optional. Default will check
-            Henry volatility constant in water in Molecule data from siq.
+            Henry volatility constant in water in Molecule data from siq. - CURRENTLY WRONG
             chip: Optional. Needed to define capillary flow. Default will use
                 SpectroInlets chip from siq.
             carrier_gas: The carrier gas used to calculate capillary flow. Defaults to He.
@@ -80,15 +79,14 @@ class ECMSImpulseResponse():
         if data is not None:            
             self.mol = mol
             self.data = data
-            print("Generating `ECMSImpulseResponse` from measured data.")
             self.type = "measured"
+            print("Generating `ECMSImpulseResponse` from measured data.")
             if working_distance is not None or A_el is not None:
                 raise UserWarning("Data was used to generate `ECMSImpulseResponse` ignoring the given working_distance/electrode area.")
         
         elif working_distance is not None and A_el is not None:
             self.mol = mol
             self.type = "functional"
-            
             if not plugins.use_siq:
                 raise TechniqueError(
                     "`ECMSImpulseResponse` will only work properly when using " # TODO this should be improved.- doesnt need to fully depend on siq integration
@@ -104,16 +102,19 @@ class ECMSImpulseResponse():
             # find the other parameters from the siq Molecule files
             Molecule = plugins.siq.Molecule
             molecule = Molecule(mol)
+            # print(molecule)
             if diff_const is None:
-                diff_const = molecule.D # TODO double check units
+                raise TechniqueError("Default diffusion constant not yet implemented")
+                diff_const = molecule.D # TODO double check units and figure out why the siq integration is not working
+                print(diff_const)
             if henry_vola is None:
-                henry_vola = molecule.calc_KH() # TODO double check units
-            self.params = {working_distance: working_distance, A_el:A_el, diff_const: diff_const,
-                           henry_vola: henry_vola, V_dot:V_dot, gas_volume:gas_volume}      
+                raise TechniqueError("Default henry volatility not yet implemented")
+                # henry_vola = molecule.H_0 # TODO convert this to the right unit! (dimensionless henry volatility)
+            self.params = {"working_distance": working_distance, "A_el": A_el, "diff_const": diff_const,
+                           "henry_vola": henry_vola, "V_dot": V_dot, "gas_volume": gas_volume}      
         else: 
             raise TechniqueError("Cannot initialize ECMSImpluseResponse without either data or working distance + electrode area being provided.") 
-      
-    @classmethod # I'm not sure I'm using this correctly, does this make sense here? what will this do? 
+       
     def model_impulse_response_from_params(self, dt=0.1, duration=100, norm=True, matrix=False):
         """Calculates an impulse response from parameters used to initialize the 
         ECMSImpulseResponse object. 
@@ -133,7 +134,6 @@ class ECMSImpulseResponse():
 
             t_kernel = np.arange(0, duration, dt)
             t_kernel[0] = 1e-6
-
             diff_const = self.params["diff_const"]
             work_dist = self.params["working_distance"]
             vol_gas = self.params["gas_volume"]
@@ -142,7 +142,6 @@ class ECMSImpulseResponse():
             A_el = self.params["A_el"]
 
             tdiff = t_kernel * diff_const / (work_dist**2)
-
             def fs(s):
                 # See Krempl et al, 2021. Equation 6.
                 #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
@@ -156,18 +155,26 @@ class ECMSImpulseResponse():
             kernel = np.zeros(len(t_kernel))
             for i in range(len(t_kernel)):
                 kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
-                print(tdiff[i])
-                print(kernel[i])
+                # print(tdiff[i])
+                # print(kernel[i])
+            if norm:
+                area = np.trapz(kernel, t_kernel)
+                kernel = kernel / area
+            if matrix:
+                kernel = np.tile(kernel, (len(kernel), 1))
+                i = 1
+                while i < len(t_kernel): #TODO: pythonize this?
+                    kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
+                    i = i + 1
         else:
             raise TechniqueError("Cannot model impulse response if not initialized with parameters.")
         return kernel
-        
-    @classmethod # see above            
-    def calc_impulse_response_from_data(self, mol, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False):
-        """Calculates a kernel/impulse response.
+               
+    def calc_impulse_response_from_data(self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False):
+        """Calculates impulse response from data.
+        TODO: add option to plot the implulse response from data/ return an axis to co-plot with the data
 
         Args:
-            mol (str): name of calibrated molecule for which to calculate impulse response
             tspan (list): tspan over which to calculate the impulse response
             tspan_bg (list): tspan of background to subtract 
             norm (bool): If true the impulse response is normalized to its
@@ -176,7 +183,7 @@ class ECMSImpulseResponse():
                 impulse reponse is returned.
         """
         if self.type == "measured":
-            t_kernel, kernel = self.data.grab_signal(mol=mol, tspan=tspan, tspan_bg=tspan_bg)
+            t_kernel, kernel = self.data.grab_flux(mol=self.mol, tspan=tspan, tspan_bg=tspan_bg)
             if norm:
                 area = np.trapz(kernel, t_kernel)
                 kernel = kernel / area
@@ -188,13 +195,13 @@ class ECMSImpulseResponse():
                     i = i + 1
         else:
             raise TechniqueError("Cannot calculate impulse response without data.")
-        return kernel
+        return t_kernel, kernel
     
     def plot(self, dt=0.1, duration=100, ax=None, norm=True, **kwargs): 
         
         """Returns a plot of the kernel/impulse response.
         
-        TODO: this shouldn't be it's separate function but rather use the ECMS plotter!?
+        TODO: this shouldn't be it's separate function but rather use the ECMS plotter!
         """
         if ax is None:
             fig1 = plt.figure()
@@ -204,14 +211,14 @@ class ECMSImpulseResponse():
             t_kernel = np.arange(0, duration, dt)
             ax.plot(
                 t_kernel,
-                self.calculate_kernel(dt=dt, duration=duration, norm=norm),
+                self.model_impulse_response_from_params(dt=dt, duration=duration, norm=norm),
                 **kwargs,
             )
 
         elif self.type == "measured":
             ax.plot(
-                self.MS_data[0],
-                self.calculate_kernel(dt=dt, duration=duration, norm=norm),
+                self.grab_flux(mol_list=[self.mol]),
+                self.calc_impulse_response_from_data(dt=dt, duration=duration, norm=norm),
                 **kwargs,
             )
 

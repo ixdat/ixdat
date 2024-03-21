@@ -2,6 +2,7 @@
 import numpy as np
 import warnings
 from scipy.optimize import minimize
+from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
@@ -427,61 +428,62 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         else:
             return cal
         
-        # DECONVOLUTION METHODS BELOW
-        def grab_deconvoluted_current(
-            self, mol, impulse_response, tspan=None, tspan_bg=None, snr=10
+    # DECONVOLUTION METHODS BELOW
+    def grab_deconvoluted_current(
+        self, mol, impulse_response, tspan=None, tspan_bg=None, snr=10
         ):
-            """Return the deconvoluted partial current for a given signal using the
-            algorithm developed by Krempl et al. https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-            
-            Note, this actually doesnt need the EC data - it is calculated
-            from calibrated MS data. It is only meaningful for ECMS measurements 
-            at the moment, justifying placement here.
+        """Return the deconvoluted partial current for a given signal using the
+        algorithm developed by Krempl et al. https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+        
+        Note, this actually doesnt need the EC data - it is calculated
+        from calibrated MS data. It is only meaningful for ECMS measurements 
+        at the moment, justifying placement here.
 
-            Args:
-                mol (str): Name of molecule for which deconvolution is to
-                    be carried out.
-                impulse_response (ECMSImpulseResponse): Kernel object which contains the mass transport
-                    parameters
-                tspan (list): Timespan for which the partial current is returned.
-                tspan_bg (list): Timespan that corresponds to the background signal.
-                snr (int): signal-to-noise ratio used for Wiener deconvolution.
-            """
-            # TODO: comments in this method so someone can tell what's going on!
-            
-            # grab the calibrated data
-            t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
-            # calculate the impulse response
-            kernel = impulse_response.calc_impulse_response_from_params(mol=mol,
-            dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
-            )  
-            # this seems quite inefficient, to re-calculate the impulse response every time?
-            # TODO: store this somehow?
-            kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel)))) # not sure what this does?
-            H = fft(kernel)
-            # TODO: store this as well.
-            partial_current = np.real(
-                ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
-            )
-            partial_current = partial_current * sum(kernel)
-            return t_sig, partial_current
+        Args:
+            mol (str): Name of molecule for which deconvolution is to
+                be carried out.
+            impulse_response (ECMSImpulseResponse): Kernel object which contains the mass transport
+                parameters
+            tspan (list): Timespan for which the partial current is returned.
+            tspan_bg (list): Timespan that corresponds to the background signal.
+            snr (int): signal-to-noise ratio used for Wiener deconvolution.
+        """
+        # TODO: comments in this method so someone can tell what's going on!
+        
+        # grab the calibrated data
+        t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
+        # calculate the impulse response
+        kernel = impulse_response.calc_impulse_response_from_params(mol=mol,
+        dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
+        )  
+        # this seems quite inefficient, to re-calculate the impulse response every time?
+        # TODO: store this somehow?
+        kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel)))) # not sure what this does?
+        H = fft(kernel)
+        # TODO: store this as well.
+        partial_current = np.real(
+            ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
+        )
+        partial_current = partial_current * sum(kernel)
+        return t_sig, partial_current
 
-        def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
-            """Extracts an ECMSImpulseResponse object from a measurement using the
-            algorithm developed by Krempl et al. https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-            
-            # TODO: add some option of plotting the impulse response together with the data
-            # TODO: re-add a possibility to choose cut-off potentials rather
-            than having to specify the tspan to make the existance of this method more meaningful
-            Args:
-                mol (str): Molecule from which the impulse response is to be extracted.
-                tspan(list): Timespan over which which the impulse response is
-                    extracted.
-                tspan_bg (list): Timespan that corresponds to the background signal.
-            """
-            # grab the calibrated data
-            impulse_response = ECMSImpulseResponse(mol=mol, data=self).calc_impulse_response_from_data(tspan=tspan, tspan_bg=tspan_bg)
-            return impulse_response
+    def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
+        """Extracts an ECMSImpulseResponse object from a measurement using the
+        algorithm developed by Krempl et al. https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+        
+        # TODO: add some option of plotting the impulse response together with the data
+        # TODO: re-add a possibility to choose cut-off potentials rather
+        than having to specify the tspan to make the existance of this method more meaningful, right now it
+        just returns an array of the calibrated signal of mol normalized to the peak area
+        Args:
+            mol (str): Molecule from which the impulse response is to be extracted.
+            tspan(list): Timespan over which which the impulse response is
+                extracted.
+            tspan_bg (list): Timespan that corresponds to the background signal.
+        """
+        # grab the calibrated data
+        impulse_response = ECMSImpulseResponse(mol=mol, data=self).calc_impulse_response_from_data(tspan=tspan, tspan_bg=tspan_bg)
+        return impulse_response
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
