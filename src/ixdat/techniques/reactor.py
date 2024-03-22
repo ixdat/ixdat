@@ -1,6 +1,6 @@
 """Representation and analysis of thermal catalysis (TP) with MS measurements"""
 from .ms import MSMeasurement, SpectroMSMeasurement
-from ..measurements import Calibration
+from ..measurements import Calculator
 from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
 from ..data_series import ValueSeries
 import warnings
@@ -276,7 +276,7 @@ class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
     default_plotter = SpectroTPMSPlotter
 
 
-class ReactorCalibration(Calibration):
+class ReactorCalibration(Calculator):
     """A reactor calibration to calibrate inverse of meta_series"""
 
     def __repr__(self):
@@ -286,7 +286,7 @@ class ReactorCalibration(Calibration):
             f"(Calibration={self.name} for setup={self.setup} on date={self.date})"
         )
 
-    def calibrate_series(self, key, measurement=None):
+    def calculate_series(self, key, measurement=None):
         """Return a calibrated series for key based on the raw data in the measurement.
 
         Key should start with "inverse". Anything else will return None.

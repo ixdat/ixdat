@@ -1,6 +1,6 @@
 """Module for representation and analysis of EC measurements"""
 
-from ..measurements import Measurement, Calibration
+from ..measurements import Measurement, Calculator
 from ..data_series import ValueSeries
 from ..exporters.ec_exporter import ECExporter
 from ..plotters.ec_plotter import ECPlotter
@@ -185,22 +185,22 @@ class ECMeasurement(Measurement):
         return a
 
     @property
-    def calibrations(self):
-        """The list of calibrations of the measurement.
+    def calculators(self):
+        """The list of calculators of the measurement.
 
         The following is necessary to ensure that all EC Calibration parameters are
         joined in a single calibration when processing. So that "potential" is both
         calibrated to RHE and ohmic drop corrected, even if the two calibration
         parameters were added separately.
         """
-        full_calibration_list = self.calibration_list
-        good_calibration_list = [self.ec_calibration]
-        for calibration in full_calibration_list:
-            if calibration.__class__ is ECCalibration:
+        full_calculator_list = self.calculator_list
+        good_calculator_list = [self.ec_calibration]
+        for calculator in full_calculator_list:
+            if calculator.__class__ is ECCalibration:
                 # Then we have all we need from it
                 continue
-            good_calibration_list.append(calibration)
-        return good_calibration_list
+            good_calculator_list.append(calculator)
+        return good_calculator_list
 
     @property
     def ec_calibration(self):
@@ -210,23 +210,23 @@ class ECMeasurement(Measurement):
     @property
     def RE_vs_RHE(self):
         """The refernce electrode potential on the RHE scale in [V]"""
-        for calibration in self.calibration_list:
-            if getattr(calibration, "RE_vs_RHE", None) is not None:
-                return calibration.RE_vs_RHE
+        for calculator in self.calculator_list:
+            if getattr(calculator, "RE_vs_RHE", None) is not None:
+                return calculator.RE_vs_RHE
 
     @property
     def A_el(self):
         """The electrode area in [cm^2]"""
-        for calibration in self.calibration_list:
-            if getattr(calibration, "A_el", None) is not None:
-                return calibration.A_el
+        for calculator in self.calculator_list:
+            if getattr(calculator, "A_el", None) is not None:
+                return calculator.A_el
 
     @property
     def R_Ohm(self):
         """The ohmic drop resistance in [Ohm]"""
-        for calibration in self.calibration_list:
-            if getattr(calibration, "R_Ohm", None) is not None:
-                return calibration.R_Ohm
+        for calculator in self.calculator_list:
+            if getattr(calculator, "R_Ohm", None) is not None:
+                return calculator.R_Ohm
 
     def calibrate_RE(self, RE_vs_RHE):
         """Calibrate the reference electrode by providing `RE_vs_RHE` in [V]."""
@@ -234,7 +234,7 @@ class ECMeasurement(Measurement):
             RE_vs_RHE=RE_vs_RHE,
             measurement=self,
         )
-        self.add_calibration(new_calibration)
+        self.add_calculator(new_calibration)
 
     def normalize_current(self, A_el):
         """Normalize current to electrode surface area by providing `A_el` in [cm^2]."""
@@ -242,7 +242,7 @@ class ECMeasurement(Measurement):
             A_el=A_el,
             measurement=self,
         )
-        self.add_calibration(new_calibration)
+        self.add_calculator(new_calibration)
 
     def correct_ohmic_drop(self, R_Ohm):
         """Correct for ohmic drop by providing `R_Ohm` in [Ohm]."""
@@ -250,7 +250,7 @@ class ECMeasurement(Measurement):
             R_Ohm=R_Ohm,
             measurement=self,
         )
-        self.add_calibration(new_calibration)
+        self.add_calculator(new_calibration)
 
     @property
     def potential(self):
@@ -302,7 +302,7 @@ class ECMeasurement(Measurement):
         return CyclicVoltammogram.from_dict(cv_as_dict)
 
 
-class ECCalibration(Calibration):
+class ECCalibration(Calculator):
     """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
 
     extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
@@ -343,7 +343,7 @@ class ECCalibration(Calibration):
             f"(RE_vs_RHE={self.RE_vs_RHE}, A_el={self.A_el}, R_Ohm={self.R_Ohm})"
         )
 
-    def calibrate_series(self, key, measurement=None):
+    def calculate_series(self, key, measurement=None):
         """Return a calibrated series for key based on the raw data in the measurement.
 
         Key should be "potential" or "current". Anything else will return None.

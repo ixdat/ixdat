@@ -42,7 +42,7 @@ TECHNIQUE_CLASSES = {
     "S-EC": SpectroECMeasurement,
 }
 
-CALIBRATION_CLASSES = {
+CALCULATOR_CLASSES = {
     "EC": ECCalibration,
     "CV": ECCalibration,
     "MS": MSCalibration,

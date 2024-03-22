@@ -5,7 +5,7 @@ import numpy as np
 import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
 import warnings
 
-from ..measurements import Measurement, Calibration
+from ..measurements import Measurement, Calculator
 from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
 from ..exceptions import QuantificationError
@@ -216,7 +216,7 @@ class MSMeasurement(Measurement):
             return t, signal / mol.F
         return self.grab(
             # grab() invokes __getitem__, which invokes the `Calibration`. Specifically,
-            # `MSCalibration.calibrate_series()` interprets item names starting with
+            # `MSCalibration.calculate_series()` interprets item names starting with
             # "n_" as molecule fluxes, and checks itself for a sensitivity factor.
             f"n_dot_{mol}",
             tspan=tspan,
@@ -955,7 +955,7 @@ class MSCalResult(Saveable):
         )
 
 
-class MSCalibration(Calibration):
+class MSCalibration(Calculator):
     """Class for mass spec calibrations. TODO: replace with powerful external package"""
 
     extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
@@ -1017,7 +1017,7 @@ class MSCalibration(Calibration):
     def __iter__(self):
         yield from self.ms_cal_results
 
-    def calibrate_series(self, key, measurement=None):
+    def calculate_series(self, key, measurement=None):
         """Return a calibrated series for `key` if possible.
 
         If key starts with "n_", it is interpreted as a molecule flux. This method then
