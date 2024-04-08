@@ -168,7 +168,7 @@ class ECMSImpulseResponse():
                     i = i + 1
         else:
             raise TechniqueError("Cannot model impulse response if not initialized with parameters.")
-        return kernel
+        return t_kernel, kernel
                
     def calc_impulse_response_from_data(self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False):
         """Calculates impulse response from data.
