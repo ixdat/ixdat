@@ -325,7 +325,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
         # a list of y ranges is useful in all cases for figuring out how to scale the
         # y-vectors onto the y axis, which a bit confusingly represents something else.
-        y_ranges = [max(y_vec) - min(y_vec) for y_vec in y_vec_list]
+        y_ranges = np.max(y_vec_list, axis=1) - np.min(y_vec_list, axis=1)
 
         # No matter what, we loop through the y-vectors to plot, but the code is a bit
         # different depending on what the y-axis represents, so consider those two cases
