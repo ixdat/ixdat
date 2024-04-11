@@ -14,7 +14,7 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
-from .data_series import DataSeries, TimeSeries, Field
+from .data_series import DataSeries, TimeSeries, Field, time_shifted
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
 from .measurements import Measurement, get_combined_technique
@@ -60,6 +60,7 @@ class Spectrum(Saveable):
         tstamp=None,
         field=None,
         field_id=None,
+        duration=None,
     ):
         """Initiate a spectrum
 
@@ -73,6 +74,7 @@ class Spectrum(Saveable):
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
+            duration (float): Optional. The duration of the spectrum measurement in [s]
         """
         super().__init__()
         self.name = name
@@ -81,6 +83,7 @@ class Spectrum(Saveable):
         self.tstamp = tstamp
         self.sample_name = sample_name
         self.reader = reader
+        self.duration = duration
         # Note: the PlaceHolderObject can be initiated without the backend because
         #     if field_id is provided, then the relevant backend is the active one,
         #     which PlaceHolderObject uses by default.
@@ -102,9 +105,9 @@ class Spectrum(Saveable):
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
-            from .readers import READER_CLASSES
+            from .readers import SPECTRUM_READER_CLASSES
 
-            reader = READER_CLASSES[reader]()
+            reader = SPECTRUM_READER_CLASSES[reader]()
         # print(f"{__name__}. cls={cls}")  # debugging
         return reader.read(path_to_file, cls=cls, **kwargs)
 
@@ -118,7 +121,9 @@ class Spectrum(Saveable):
         reader=None,
         **kwargs,
     ):
-        """Read and append a set of spectra as a SpectrumSeries
+        """Read a set of spectrum files and append them to return SpectrumSeries
+
+        Note: The list of spectrums is sorted by time.
 
         Args:
             path_to_file_start (Path or str): The path to the files to read including
@@ -135,13 +140,26 @@ class Spectrum(Saveable):
                 the exact files to append can be specified in a list
             reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
-                method, AND to cls.from_component_measurements()
+                method, AND to SpectrumSeries.from_spectrum_list()
         """
         from .readers.reading_tools import get_file_list
 
         file_list = file_list or get_file_list(path_to_file_start, part, suffix)
-        spectrum_list = [cls.read(f, reader=reader, **kwargs) for f in file_list]
-        return SpectrumSeries.from_spectrum_list(spectrum_list)
+        spectrum_list = []
+        for path_to_spectrum in file_list:
+            spectrum = Spectrum.read(path_to_spectrum, reader=reader, **kwargs)
+            spectrum_list.append(spectrum)
+
+        t_list = [spectrum.tstamp for spectrum in spectrum_list]
+        indeces = np.argsort(t_list)
+        spectrum_list = [spectrum_list[i] for i in indeces]
+
+        if issubclass(cls, SpectrumSeries):
+            spectra_class = cls
+        else:
+            spectra_class = SpectrumSeries
+
+        return spectra_class.from_spectrum_list(spectrum_list, **kwargs)
 
     @property
     def data_objects(self):
@@ -420,12 +438,13 @@ class MultiSpectrum(Saveable):
     def from_spectrum_list(
         cls, spectrum_list, technique=None, metadata=None, sample_name=None
     ):
-        """Build a SpectrumSeries from a list of Spectrums"""
+        """Build a MultiSpectrum from a list of Spectrums"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
-        technique = spectrum_list[0].technique
-        if technique.endswith("spectrum"):
-            technique = technique.rstrip("spectrum") + "spectra"
+        if not technique:
+            technique = spectrum_list[0].technique
+            if technique.endswith("spectrum"):
+                technique = technique.rstrip("spectrum") + "spectra"
         obj_as_dict = {
             "fields": fields,
             "technique": technique,
@@ -467,9 +486,20 @@ class SpectrumSeries(Spectrum):
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
+            t_tolerance (float): The minimum relevant time difference between spectra
+                in [s]. Should correspond roughly to the time it takes for a spectrum
+                to be acquired. Defaults to the minimum of 1 second or 1/1000'th of the
+                average time between recorded spectra.
+            durations (list of float): The durations of each of the spectra in [s].
+            continuous (bool): Whether the spectra should be considered continuous, i.e.
+                whether plotting and grabbing functions should interpolate between
+                spectrums. Defaults to False.
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
+        self._t_tolerance = kwargs.pop("t_tolerance", None)
+        self.durations = kwargs.pop("durations", None)
+        self.continuous = kwargs.pop("continuous", False)
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
@@ -480,7 +510,9 @@ class SpectrumSeries(Spectrum):
         xseries = None
         tstamp_list = []
         ys = []
-        technique = spectrum_list[0].technique
+        technique = kwargs.get("technique", None)
+        if not technique:
+            technique = spectrum_list[0].technique
 
         for spectrum in spectrum_list:
             tstamp_list.append(spectrum.tstamp)
@@ -506,14 +538,42 @@ class SpectrumSeries(Spectrum):
         obj_as_dict["field"] = field
         obj_as_dict["technique"] = technique
         del obj_as_dict["field_id"]
-        obj_as_dict.update(kwargs)
+        # Any attribute we want in the SpecrumSeries for each spectrum should go here:
+        obj_as_dict["durations"] = [s.duration for s in spectrum_list]
         return cls.from_dict(obj_as_dict)
+
+    @property
+    def field(self):
+        """Since a spectrum can be loaded lazily, we make sure the field is loaded
+
+        We also want to make sure that the field has the tstamp of the SpectrumSeries.
+        """
+        if isinstance(self._field, PlaceHolderObject):
+            self._field = self._field.get_object()
+
+        if abs(self._field.axes_series[0].tstamp - self.tstamp) > self.t_tolerance:
+            # self.t_tolerance is the resolution on the time axis of the spectra.
+            # If the t=0 of the SpectrumSeries differs from the tstamp of the field
+            # by more than this amount, it can become unclear which spectrum is which.
+            # Therefore, we shift the t=0 of the time axis of the field to match the t=0
+            # of the spectrum series. This doesn't change anything except the absolute
+            # time considered to be t=0.
+            self._field = Field(
+                name=self._field.name,
+                data=self._field.data,
+                unit_name=self._field.unit_name,
+                axes_series=[
+                    time_shifted(self._field.axes_series[0], tstamp=self.tstamp),
+                    self._field.axes_series[1],
+                ],
+            )
+        return self._field
 
     @property
     def yseries(self):
         # Should this return an average or would that be counterintuitive?
         raise BuildError(
-            f"{self} has no single y-series. Index it to get a Spectrum "
+            f"{self!r} has no single y-series. Index it to get a Spectrum "
             "or see `y_average`"
         )
 
@@ -527,14 +587,34 @@ class SpectrumSeries(Spectrum):
     @property
     def t(self):
         """The time array of a SectrumSeries is the data of its tseries.
-        Note that it it is not sorted!
+
+        FIXME: It is the reader's job to make sure that `t` is increasing,
+           i.e. that the spectra are sorted by time.
         """
+
         return self.tseries.data
 
     @property
     def t_name(self):
         """The name of the time variable of the spectrum series"""
         return self.tseries.name
+
+    @property
+    def t_tolerance(self):
+        if self._t_tolerance is None:
+            # Note, accessing `self.t` here would lead to infinite recursion
+            #   due to `t_tolerance`'s use in the `field` property.
+            try:
+                t = self._field.axes_series[0].t
+            except AttributeError:
+                raise AttributeError(
+                    "`SpectrumSeries` object tried to use time data from its `Field`"
+                    " to determine its time tolerance but its `_field` was "
+                    f"{self._field}."
+                )
+            tolerance_by_spacing = 1 / 1000 * (t[-1] - t[0]) / len(t)
+            self._t_tolerance = min(tolerance_by_spacing, 1)
+        return self._t_tolerance
 
     @property
     def xseries(self):
@@ -570,6 +650,8 @@ class SpectrumSeries(Spectrum):
                 axes_series=[self.xseries],
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
+            if self.durations:
+                spectrum_as_dict["duration"] = self.durations[key]
             return Spectrum.from_dict(spectrum_as_dict)
         elif isinstance(key, slice):
             # Convert the slice to a list of integers, get the spectra with the code
@@ -645,6 +727,7 @@ class SpectroMeasurement(Measurement):
         super().__init__(*args, **kwargs)
         if spectrum_series:
             self._spectrum_series = spectrum_series
+            self._spectrum_series.tstamp = self.tstamp
         elif spec_id:
             self._spectrum_series = PlaceHolderObject(spec_id, cls=SpectrumSeries)
         else:
@@ -658,6 +741,7 @@ class SpectroMeasurement(Measurement):
         """The `SpectrumSeries` with the spectral data"""
         if isinstance(self._spectrum_series, PlaceHolderObject):
             self._spectrum_series = self._spectrum_series.get_object()
+            self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
 
     @property
@@ -673,6 +757,24 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+
+    @property
+    def continuous(self):
+        return self.spectrum_series.continuous
+
+    @Measurement.tstamp.setter
+    def tstamp(self, tstamp):
+        self._tstamp = tstamp
+        # Resetting the tstamp needs to reset the `spectrum_series`' tstamp as well:
+        self.spectrum_series.tstamp = tstamp
+        # As before it also needs to clear the cache, so series are returned wrt the
+        # new timestamp.
+        self.clear_cache()
+
+    def __getitem__(self, item):
+        if isinstance(item, int) or isinstance(item, slice):
+            return self.spectrum_series[item]
+        return super().__getitem__(item)
 
     def __add__(self, other):
         added_measurement = super().__add__(other)

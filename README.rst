@@ -87,7 +87,7 @@ designed into every level.
      - Future
      -
 
-Tutorials are described at https://ixdat.readthedocs.io/en/latest/tutorials.html
+Tutorials are provided at https://ixdat.readthedocs.io/en/latest/tutorials/index.html
 
 Installation
 ------------
@@ -136,4 +136,4 @@ Join us
 ``ixdat`` is free and open source software and we welcome input and new collaborators. Please help us improve ``ixdat``!
 
 Contact us (https://github.com/ixdat/ixdat/discussions or sbscott@ic.ac.uk) or just
-`get started developing <https://ixdat.readthedocs.io/en/latest/developing.html>`_.
+`get started developing <https://ixdat.readthedocs.io/en/latest/developing/index.html>`_.

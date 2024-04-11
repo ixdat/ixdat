@@ -13,6 +13,8 @@ Biologic dataset. These are grouped under the series header "EC-lab".
 """
 
 import re
+import sys
+import time
 from collections import defaultdict
 from itertools import groupby, zip_longest
 from pathlib import Path
@@ -22,10 +24,16 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
-from ..techniques import ECMSMeasurement, MSMeasurement, ECMeasurement, Measurement
-from ..techniques.ms import MSSpectrum
-from .reading_tools import timestamp_string_to_tstamp, FLOAT_MATCH
-from ..exceptions import ReadError
+from ..techniques import (
+    ECMSMeasurement,
+    MSMeasurement,
+    ECMeasurement,
+    Measurement,
+    TECHNIQUE_CLASSES,
+)
+from ..techniques.ms import MSSpectrum, MSSpectrumSeries
+from .reading_tools import timestamp_string_to_tstamp
+from ..exceptions import ReadError, TechniqueError
 
 
 ZILIEN_TIMESTAMP_FORM = "%Y-%m-%d %H_%M_%S"  # like 2021-03-15 18_50_10
@@ -65,11 +73,13 @@ def parse_metadata_line(line):
         full_name = name
 
     # Type convert the metadata (the specification for version 1 also has a color type,
-    # but as of yet it is not used)
+    # but it is not used yet)
     if type_as_str == "string":
         return full_name, value
     elif type_as_str == "int":
-        return full_name, int(value)
+        # Python does not seem able to directly evaluate a string like "0.0" as an
+        # integer. Therefore, we evaluate it as a float first and convert to int:
+        return full_name, int(float(value))
     elif type_as_str == "double":
         return full_name, float(value)
     elif type_as_str == "bool":
@@ -99,6 +109,18 @@ def to_mass(string):
     return None
 
 
+def determine_class(technique):
+    """Choose appropriate measurement class according to a given technique."""
+
+    if technique in ("EC-MS", "EC", "MS"):
+        return TECHNIQUE_CLASSES[technique]
+    else:
+        raise TechniqueError(
+            f'Unknown technique given: "{technique}". '
+            'Use one of the following (in upper-case): "EC-MS", "EC, "MS".'
+        )
+
+
 class ZilienTSVReader:
     """Class for reading files saved by Spectro Inlets' Zilien software"""
 
@@ -112,7 +134,7 @@ class ZilienTSVReader:
         # a dictionary with metadata general information about the Zilien measurement
         self._metadata = None
         # a list with the Zilien TSV series headers,
-        # such as "Ionguage value" (see module docstring)
+        # such as "Iongauge value" (see module docstring)
         self._series_headers = None
         # a list with the Zilien TSV columns headers,
         # such as "Time [s]" and "Pressure [mbar]"
@@ -120,23 +142,32 @@ class ZilienTSVReader:
         # a numpy array of the parsed Zilien data (a big rectangle with NaN filling)
         self._data = None
 
-    def read(self, path_to_file, cls=ECMSMeasurement, name=None, **kwargs):
+    def read(
+        self,
+        path_to_file,
+        cls=None,
+        name=None,
+        include_mass_scans=True,
+        **kwargs,
+    ):
         """Read a Zilien file
 
         Args:
             path_to_file (Path or str): The path of the file to read
             cls (Measurement): The measurement class to read the file as. Zilien tsv
-                files can be read both as an ECMS measurement, a MS measurement (which
-                will exclude the EC series from the meaurement) and as a ECMeasurement
+                files can be read both as an EC-MS measurement, an MS measurement (which
+                will exclude the EC series from the measurement) and as an EC measurement
                 (which will exclude the MS series from the measurement). To avoid
                 importing classes, this behavior can also be controlled by setting the
-                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The deafult is a
-                ECMSMeasurement.
+                `technique` argument to either 'EC-MS', 'MS' or 'EC'. The default is
+                determined according to what is parsed from the dataset.
             name (str): The name of the measurement. Will default to the part of the
                 filename before the '.tsv' extension
-            kwargs: All remaining keywor-arguments will be passed onto the `__init__` of
-                the Meaurement
-
+            include_mass_scans (bool): Whether to include mass scans (if available) and
+                thereby return a `SpectroMSMeasurement` which can be indexed to give
+                the spectrum objects.
+            kwargs: All remaining keyword-arguments will be passed onto the `__init__`
+                of the Measurement
         """
         if self._path_to_file:
             print(
@@ -145,24 +176,6 @@ class ZilienTSVReader:
                 "Use a new Reader if you want to read another file."
             )
             return self._measurement
-
-        if "technique" in kwargs:
-            if kwargs["technique"] == "EC-MS":
-                cls = ECMSMeasurement
-            if kwargs["technique"] == "EC":
-                cls = ECMeasurement
-            if kwargs["technique"] == "MS":
-                cls = MSMeasurement
-        else:
-            if cls is Measurement:
-                cls = ECMSMeasurement
-            if issubclass(cls, ECMSMeasurement):
-                kwargs["technique"] = "EC-MS"
-            elif issubclass(cls, ECMeasurement):
-                kwargs["technique"] = "EC"
-            elif issubclass(cls, MSMeasurement):
-                kwargs["technique"] = "MS"
-        self._cls = cls
 
         self._path_to_file = Path(path_to_file)
 
@@ -179,6 +192,14 @@ class ZilienTSVReader:
         with open(self._path_to_file, "rb") as file_handle:
             file_handle.seek(file_position)
             self._data = np.genfromtxt(file_handle, delimiter="\t")
+
+        if "technique" not in kwargs:
+            kwargs["technique"] = self._get_technique()
+
+        if cls is Measurement or cls is None:
+            self._cls = determine_class(kwargs["technique"])
+        else:
+            self._cls = cls
 
         # Part of filename before the extension
         file_stem = self._path_to_file.stem
@@ -208,13 +229,48 @@ class ZilienTSVReader:
             "metadata": self._metadata,
         }
         measurement_kwargs.update(kwargs)
-        self._measurement = cls(**measurement_kwargs)
+        self._measurement = self._cls(**measurement_kwargs)
+
+        if include_mass_scans:
+            # Check if there are MS spectra.
+            # If the file name is "YYYY-MM-DD hh_mm_ss my_file_name.tsv", then
+            # the spectra are the .tsv files in the folder "my_file_name mass scans"
+            spectra_folder = self._path_to_file.parent / (
+                self._path_to_file.stem[20:] + " mass scans"
+            )
+            if spectra_folder.exists():  # Then we have a spectra folder!
+                spectrum_series = MSSpectrumSeries.read_set(
+                    spectra_folder,
+                    suffix=".tsv",
+                    reader="zilien",
+                    t_zero=self._timestamp,
+                )
+                self._measurement = self._measurement + spectrum_series
+
         return self._measurement
 
     @staticmethod
     def _read_metadata(file_handle):
-        """Read metadata from `file_handle`"""
+        """Read metadata from `file_handle`.
 
+        Description of the returned variables:
+        - metadata: A dictionary of meta dataset information
+        - series_headers: A list with string series headers (the first header line).
+          A series header is a group of column headers. They have possible one
+          or more empty cells (empty strings) inbetween them, so extra columns
+          in the group can be aligned. E.g. "Iongauge value", "MFC1 setpoint",
+          "MFC1 value", etc.
+        - column_headers: A list with string column headers (the second header line).
+          A column header is a name of one data column in a series. E.g. "Time [s]",
+          "Pressure [mbar]", "Flow [ml/min]", etc.
+
+        The length of the "series_headers" and the "column_headers" is the same.
+
+        Returns:
+            Tuple[Dict[str, str | int | float | bool], List[String], List[String]]:
+            Three variables with metadata, series and column headers described above.
+
+        """
         # The first 4 lines always include the file version, number of header lines,
         # number of data header lines and data start line in this order.
         # Backwards compatibility is ensured, because the one extra line read will be
@@ -238,6 +294,56 @@ class ZilienTSVReader:
         column_headers = file_handle.readline().strip("\n").split("\t")
 
         return metadata, series_headers, column_headers
+
+    def _get_technique(self):
+        """Get technique according to parsed series headers and column headers.
+
+        This method covers the following cases:
+          - "pot" and "EC-lab" is in the metadata and in the headers.
+            There is "EC-lab" data.
+          - "pot" and "EC-lab" is in the metadata and in the headers.
+            There is no "EC-lab" data. (bug)
+          - "pot" is not in the metadata, but it is in the headers and the data
+            part is filled with NaN. (bug)
+          - "pot" is neither in the metadata, nor in the headers.
+
+        """
+
+        # Should stay "pot_pot_count", because the series name is prepended in
+        # order to keep unique series names. See `parse_metadata_line()`.
+        pot_in_metadata = "pot_pot_count" in self._metadata
+        pot_in_series_headers = "pot" in self._series_headers
+
+        result = ""
+        # there was EC measurement
+        if pot_in_metadata and pot_in_series_headers:
+            result = "EC-MS"
+
+            # BUG CASE: EC-lab series header gets included, but .mpt data don't
+            missing_column_headers = len(self._column_headers) < len(
+                self._series_headers
+            )
+            empty_eclab_series = self._series_headers[-1] == "EC-lab"
+            if missing_column_headers and empty_eclab_series:
+                result = "MS"
+                sys.stderr.write(
+                    "EC-lab data is missing in the dataset. That means Zilien did not"
+                    "find .mpt files when creating it. You can convert .mpr files into "
+                    ".mpt files in EC-lab (or read the .mpr files directly) and then "
+                    "connect the two Measurement objects.\n"
+                    "Reading only the Mass Scan part of the dataset.\n\n"
+                )
+        # BUG CASE: Zilien internal bug (https://github.com/ixdat/ixdat/issues/114)
+        elif not pot_in_metadata and pot_in_series_headers:
+            result = "MS"
+        # no EC did run and EC is not included in the settings dialog
+        elif not pot_in_metadata and not pot_in_series_headers:
+            result = "MS"
+        else:
+            # unexpected case, so go with the safest option
+            result = "MS"
+
+        return result
 
     def _form_series(self):
         """Form the series and series aliases
@@ -589,21 +695,46 @@ class ZilienSpectrumReader:
     def __init__(self, path_to_spectrum=None):
         self.path_to_spectrum = Path(path_to_spectrum) if path_to_spectrum else None
 
-    def read(self, path_to_spectrum, cls=None, **kwargs):
-        """Reat a Zilien spectrum.
+    def read(self, path_to_spectrum, cls=None, t_zero=None, **kwargs):
+        """Read a Zilien spectrum.
         FIXME: This reader was written hastily and could be designed better.
 
         Args:
-            path_to_tmp_dir (Path or str): the path to the tmp dir
+            path_to_spectrum(Path or str): the path to the spectrum file
             cls (Spectrum class): Defaults to MSSpectrum
+            t_zero (float): The unix timestamp which the mass scan start time
+                is referenced to. Should be the tstamp of the corresponding
+                Zilien measurement. If the Spectrum is read individually, it needs
+                to be input or defaults to `time.time()`, i.e., now.
             kwargs: Key-word arguments are passed on ultimately to cls.__init__
         """
         if path_to_spectrum:
             self.path_to_spectrum = Path(path_to_spectrum)
         cls = cls or MSSpectrum
+        t_zero = t_zero or time.time()
+
+        with open(self.path_to_spectrum, "r") as f:
+            in_header = True
+            num_line = 1
+            metadata_dict = {}
+            while in_header:
+                name, value = parse_metadata_line(f.readline())
+                metadata_dict[name] = value
+                if num_line == metadata_dict.get("num_header_lines", 0):
+                    in_header = False
+                num_line += 1
+
+        tstamp = t_zero + metadata_dict["mass_scan_started_at"]
+        duration = (
+            (metadata_dict["stop_mass"] - metadata_dict["start_mass"])
+            * metadata_dict["points_per_amu"]
+            * metadata_dict["dwell_time"]
+            * 1e-3
+        )
+
         df = pd.read_csv(
             self.path_to_spectrum,
-            header=9,
+            header=metadata_dict["data_start"] - 1,
             delimiter="\t",
         )
         y_name = "Current [A]"
@@ -620,12 +751,7 @@ class ZilienSpectrumReader:
                 f"Looked for one of {ZILIEN_MASS_COLUMN_NAMES}"
             )
         y = df[y_name].to_numpy()
-        with open(self.path_to_spectrum, "r") as f:
-            for i in range(10):
-                line = f.readline()
-                if "Mass scan started at [s]" in line:
-                    tstamp_match = re.search(FLOAT_MATCH, line)
-                    tstamp = float(tstamp_match.group())
+
         xseries = DataSeries(data=x, name=x_name, unit_name="m/z")
         field = Field(
             data=np.array(y),
@@ -637,10 +763,11 @@ class ZilienSpectrumReader:
         )
         obj_as_dict = {
             "name": self.path_to_spectrum.name,
-            "technique": "MS",
+            "technique": "MS_spectrum",
             "field": field,
             "reader": self,
             "tstamp": tstamp,
+            "duration": duration,
         }
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)

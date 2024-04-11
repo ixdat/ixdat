@@ -26,7 +26,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
-from .tools import deprecate, tstamp_to_yyMdd
+from .tools import deprecate, tstamp_to_string
 
 
 class Measurement(Saveable):
@@ -149,6 +149,34 @@ class Measurement(Saveable):
         #    dynamically choose plotters (Nice idea from Anna:
         #    https://github.com/ixdat/ixdat/issues/32)
 
+    def __str__(self):
+        """Return string representation"""
+        tseries_to_valueseries = {}
+        for series in self.series_list:
+            if isinstance(series, TimeSeries):
+                if series not in tseries_to_valueseries:
+                    tseries_to_valueseries[series] = []
+            else:
+                if series.tseries in tseries_to_valueseries:
+                    tseries_to_valueseries[series.tseries].append(series)
+                else:
+                    tseries_to_valueseries[series.tseries] = [series]
+
+        out = []
+        for tseries, value_serieses in tseries_to_valueseries.items():
+            out.append("┏ " + str(tseries))
+            for n, value_series in enumerate(value_serieses):
+                if n == len(value_serieses) - 1:
+                    out.append("┗━ " + str(value_series))
+                else:
+                    out.append("┣━ " + str(value_series))
+
+        return (
+            f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} "
+            "series\n\n"
+            "Series list:\n" + "\n".join(out)
+        )
+
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return an object of the measurement class of the right technique
@@ -238,7 +266,7 @@ class Measurement(Saveable):
             reader = READER_CLASSES[reader]()
         obj = reader.read(path_to_file, cls=cls, **kwargs)
 
-        if obj.__class__.essential_series_names:
+        if getattr(obj.__class__, "essential_series_names", None):
             for series_name in obj.__class__.essential_series_names:
                 try:
                     _ = obj[series_name]  # this also caches it.
@@ -415,7 +443,7 @@ class Measurement(Saveable):
 
     @property
     def yyMdd(self):
-        return tstamp_to_yyMdd(self.tstamp)
+        return tstamp_to_string(self.tstamp, string_format="native_date")
 
     @property
     def metadata_json_string(self):
@@ -494,7 +522,7 @@ class Measurement(Saveable):
             calibration_class = CALIBRATION_CLASSES[self.technique]
         else:
             raise TechniqueError(
-                f"{self} is of technique '{self.technique}', for which there is not an "
+                f"{self!r} is of technique '{self.technique}, for which there is not an "
                 "available default calibration. Instead, import one of the following "
                 "classes to initiate a calibration, and then use `add_calibration`. "
                 f"\nOptions: \n{CALIBRATION_CLASSES}"
@@ -725,13 +753,13 @@ class Measurement(Saveable):
         if key in self.series_names:  # ii
             # Then we'll append any series matching the desired name
             series_to_append += [s for s in self.series_list if s.name == key]
-        elif key in self.aliases:  # i
+        if key in self.aliases:  # i
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
                 if k == key:  # this would result in infinite recursion.
                     print(  # TODO: Real warnings.
                         "WARNING!!!\n"
-                        f"\t{self} has {key} in its aliases for {key}:\n"
+                        f"\t{self!r} has {key} in its aliases for {key}:\n"
                         f"\tself.aliases['{key}'] = {self.aliases[key]}"
                     )
                     continue
@@ -753,7 +781,7 @@ class Measurement(Saveable):
         if key.endswith("-v") or key.endswith("-y"):
             return self[key[:-2]]
 
-        raise SeriesNotFoundError(f"{self} does not contain '{key}'")
+        raise SeriesNotFoundError(f"{self!r} does not contain '{key}'")
 
     def replace_series(self, series_name, new_series=None):
         """Remove an existing series, add a series to the measurement, or both.
@@ -771,7 +799,7 @@ class Measurement(Saveable):
         """
         if new_series and not series_name == new_series.name:
             raise TypeError(
-                f"Cannot replace {series_name} in {self} with {new_series}. "
+                f"Cannot replace {series_name} in {self!r} with {new_series}. "
                 f"Names must agree."
             )
         if series_name in self._cached_series:
@@ -1146,7 +1174,7 @@ class Measurement(Saveable):
         if args:
             if not self.selector_name:
                 raise BuildError(
-                    f"{self} does not have a default selection string "
+                    f"{self!r} does not have a default selection string "
                     f"(Measurement.sel_str), and so selection only works with kwargs."
                 )
             kwargs[self.selector_name] = args[0]
@@ -1212,7 +1240,7 @@ class Measurement(Saveable):
             selector_name = selector_name or self.selector_name
             if not selector_name:
                 raise BuildError(
-                    f"{self} does not have a default selector_name "
+                    f"{self:r} does not have a default selector_name "
                     f"(Measurement.selector_name), and so selection only works "
                     f"with a selector_name specified "
                     f"(see `help(Measurement.select_values)`)"
@@ -1382,7 +1410,8 @@ class Calibration(Saveable):
             measurement (Measurement): Optional. A measurement to calibrate by default.
         """
         super().__init__()
-        self.name = name or f"{self.__class__.__name__}({measurement})"
+        # NOTE: The :r syntax in f-strings doesn't work on None
+        self.name = name or f"{self.__class__.__name__}({repr(measurement)})"
         self.technique = technique
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement

@@ -143,7 +143,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         )
         return dOD_series
 
-    def get_spectrum(self, V=None, t=None, index=None, name=None):
+    def get_spectrum(self, V=None, t=None, index=None, name=None, interpolate=True):
         """Return the Spectrum at a given potential V, time t, or index
 
         Exactly one of V, t, and index should be given. If V (t) is out of the range of
@@ -155,6 +155,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             t (float): The time at which to get the spectrum
             index (int): The index of the spectrum
             name (str): Optional. name to give the new spectrum if interpolated
+            interpolate (bool): Optional. Set to false to grab closest spectrum rather
+                than interpolating.
 
         Return Spectrum: The spectrum. The data is (spectrum.x, spectrum.y)
         """
@@ -168,18 +170,28 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         counts = self.spectra.data
         end_spectra = (self.spectrum_series[0].y, self.spectrum_series[-1].y)
         if V:
-            counts_interpolater = interp1d(
-                self.U, counts, axis=0, fill_value=end_spectra, bounds_error=False
-            )
-            # FIXME: This requires that potential and spectra have same tseries!
-            y = counts_interpolater(V)
+            if interpolate:
+                counts_interpolater = interp1d(
+                    self.U, counts, axis=0, fill_value=end_spectra, bounds_error=False
+                )
+                # FIXME: This requires that potential and spectra have same tseries!
+                y = counts_interpolater(V)
+            else:
+                U_diff = np.abs(self.U - V)
+                index = np.argmin(U_diff)
+                y = counts[index]
             name = name or f"{self.spectra.name}_{V}V"
         elif t:
             t_spec = self.spectra.axes_series[0].t
-            counts_interpolater = interp1d(
-                t_spec, counts, axis=0, fill_value=end_spectra, bounds_error=False
-            )
-            y = counts_interpolater(t)
+            if interpolate:
+                counts_interpolater = interp1d(
+                    t_spec, counts, axis=0, fill_value=end_spectra, bounds_error=False
+                )
+                y = counts_interpolater(t)
+            else:
+                t_diff = np.abs(t_spec - t)
+                index = np.argmin(t_diff)
+                y = counts[index]
             name = name or f"{self.spectra.name}_{t}s"
         else:
             raise ValueError("Need t or V or index to select a spectrum!")

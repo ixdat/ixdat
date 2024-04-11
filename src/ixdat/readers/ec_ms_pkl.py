@@ -3,7 +3,7 @@ from . import TECHNIQUE_CLASSES
 import pickle
 from ..data_series import TimeSeries, ValueSeries
 from ..measurements import Measurement
-from .biologic import BIOLOGIC_COLUMN_NAMES, get_column_unit
+from .biologic import BIOLOGIC_COLUMN_NAMES, get_column_unit_name
 
 
 ECMSMeasurement = TECHNIQUE_CLASSES["EC-MS"]
@@ -91,7 +91,7 @@ def measurement_from_ec_ms_dataset(
         elif col in BIOLOGIC_COLUMN_NAMES and col not in tseries_meas.series_names:
             v_name = col
             tseries = tseries_meas["time/s"]
-            unit_name = get_column_unit(col)
+            unit_name = get_column_unit_name(col)
         else:
             print(f"Not including '{col}' as I don't know what it is.")
             continue
