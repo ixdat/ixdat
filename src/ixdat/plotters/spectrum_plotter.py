@@ -5,6 +5,7 @@ import matplotlib as mpl
 from ixdat.plotters.plotting_tools import add_colorbar
 from matplotlib import pyplot as plt
 from .base_mpl_plotter import MPLPlotter
+from .plotting_tools import get_indeces_and_times
 
 
 class SpectrumPlotter(MPLPlotter):
@@ -203,6 +204,8 @@ class SpectrumSeriesPlotter(MPLPlotter):
     ):
         """Plot a SpectrumSeries as spectra colored by the time at which they are taken
 
+        This is commonly used for e.g. in-situ UV-Vis spectrometry
+
         Args:
             spectrum_series (SpectrumSeries): The spectrum series to be plotted, if
                 different from self.spectrum_series.
@@ -241,6 +244,163 @@ class SpectrumSeriesPlotter(MPLPlotter):
         if make_colorbar:
             cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
             cb.set_label(t_name)
+
+        return ax
+
+    def plot_stacked_spectra(
+        self,
+        spectrum_series=None,
+        dt=None,
+        t_list=None,
+        dn=None,
+        index_list=None,
+        average=False,
+        xspan=None,
+        xspan_bg=None,
+        scale_mode="auto",
+        scale_factor=1,
+        y_values="time",
+        ax=None,
+        color="k",
+        **kwargs,
+    ):
+        """Plot a selection of spectra, stacked
+
+        This is commonly used for e.g. FTIR.
+        Specify which spectra to plot by one of four ways: dt, t_list,
+        dn, or n_list. See descriptions below.
+
+        Args:
+            spectrum_series (SpectrumSeries): What to plot from, if
+                different from self.spectrum_series
+            dt (float): time interval between spectra to plot, [s]. The
+                first spectrum and those taken at times closest to each
+                integer multiple of dt after are plotted.
+            t_list (list of float): List of times for which to plot the
+                spectrum, [s]. The closest spectrum to each time in the
+                list is plotted.
+            dn (int): number of spectra between plotted spectra
+            index_list (list of int): List of indeces of spectra to plot
+            average (bool or int): Whether and how to average spectra for
+                plotting. False means no averaging. True means average all
+                the spectra in the interval between spectra. An integer
+                `n` means average the `n/2` spectra before and `n/2` spectra
+                after the spectra at the given time or index
+            xspan (list of float): Range of x-axis variable to include.
+            xspan_bg (list of float): Range of x-axis variable for which to
+                consider the signal at background. For each spectrum, the
+                average y value in this range is subtracted.
+            scale_mode (str): The way to initially scale the spectra.
+                Options:
+                - "auto": scale uniformly such that all spectra fit in
+                    their given interval. The raw y-values are scaled by
+                    min(interval) / max(y range)
+                - [no other scale_mode options yet]
+            scale_factor: A factor to apply on top of the initial scaling
+            y_values (str): What to plot on the y-axis. Options: "time", "n"
+            ax (Axis): axis to plot on, if not a new axis
+            color (str): color of traces. Defaults to black.
+            **kwargs: Additional key-word args are passed on to ax.plot()
+        """
+
+        spectrum_series = spectrum_series or self.spectrum_series
+
+        # whichever of the four were specified, we need t_list and index_list:
+        t_vec = spectrum_series.t
+        index_list, t_list = get_indeces_and_times(
+            t_vec, dt=dt, t_list=t_list, dn=dn, index_list=index_list
+        )
+
+        # Now we get the y-values of the spectra to plot
+        y_vec_list = []
+        for i, index in enumerate(index_list):
+            if average:
+                # The challenge with averaging is figuring out the range of ideces over
+                # which to average.
+                if type(average) is int:
+                    range_start = max(0, index - average)
+                    range_end = min(index + average, len(t_vec))
+                else:
+                    # If average is set to "True", we need to figure out the median
+                    # points between the spectra, as follows.
+                    if i == 0:
+                        range_start = index
+                    else:
+                        range_start = int((index + index_list[i - 1]) / 2)
+                    if i + 1 == len(index_list):
+                        range_end = index
+                    else:
+                        range_end = int((index + index_list[i + 1]) / 2)
+                # Once we have the range of indeces, the SpectrumSeries makes it easy:
+                y_vec = spectrum_series[range_start:range_end].y_average
+            else:
+                # The simple case where we're not averaging.
+                y_vec = spectrum_series[index].y
+            y_vec_list.append(y_vec)
+
+        # Establish the axis
+        if not ax:
+            ax = self.new_ax()
+            ax.set_xlabel(spectrum_series.xseries.name)
+
+        # Whatever y's we are plotting, the x is the same:
+        x = spectrum_series.x
+
+        # If an xspan_bg is given, zero the corresponding part of each y vector:
+        if xspan_bg:
+            mask_bg = np.logical_and(xspan_bg[0] < x, x < xspan_bg[-1])
+            for i, y_vec in enumerate(y_vec_list):
+                y_vec_list[i] = y_vec_list[i] - np.mean(y_vec_list[i][mask_bg])
+        # If an xspan (for plotting) is given, cut all the vectors accordingly:
+        if xspan:
+            mask = np.logical_and(xspan[0] < x, x < xspan[-1])
+            x = x[mask]
+            for i, y_vec in enumerate(y_vec_list):
+                y_vec_list[i] = y_vec[mask]
+
+        # a list of y ranges is useful in all cases for figuring out how to scale the
+        # y-vectors onto the y axis, which a bit confusingly represents something else.
+        y_ranges = np.max(y_vec_list, axis=1) - np.min(y_vec_list, axis=1)
+
+        # No matter what, we loop through the y-vectors to plot, but the code is a bit
+        # different depending on what the y-axis represents, so consider those two cases
+        # ("time" and "n", which means index) seperately.
+        if y_values == "time":
+            ax.set_ylabel(spectrum_series.t_name)
+            if scale_mode == "auto":
+                # time intervals:
+                dts = [t_list[i + 1] - t_list[i] for i in range(len(t_list) - 1)]
+                # The scale is determined by the minimum time interval divided by
+                # the maximum y range, so that by default (scale_factor=1) all spectra
+                # fit completely in thier own time interval
+                t_per_y = min(dts) / max(y_ranges) * scale_factor
+                scaled_y_vec_list = [y_vec * t_per_y for y_vec in y_vec_list]
+            else:
+                raise ValueError(f"scale_mode={scale_mode} not implemented.")
+            for t, scaled_y_vec in zip(t_list, scaled_y_vec_list):
+                ax.plot(x, t + scaled_y_vec, label=t, color=color, **kwargs)
+        elif y_values == "n":
+            ax.set_ylabel("spectrum number")
+            if scale_mode == "auto":
+                # index intervals:
+                dns = [
+                    index_list[i + 1] - index_list[i] for i in range(len(index_list) - 1)
+                ]
+                # The scale is determined by the minimum index interval divided by
+                # the maximum y range, so that by default (scale_factor=1) all spectra
+                # fit completely in thier own index interval
+                t_per_n = min(dns) / max(y_ranges) * scale_factor
+                scaled_y_vec_list = [y_vec * t_per_n for y_vec in y_vec_list]
+            else:
+                raise ValueError(f"scale_mode='{scale_mode}' not implemented.")
+            for n, scaled_y_vec in zip(index_list, scaled_y_vec_list):
+                ax.plot(x, n + scaled_y_vec, label=n, color=color, **kwargs)
+        else:
+            raise ValueError(f"y_values='{y_values}' not implemented.")
+
+        # Make the spectra go all the way to the plot edges, with ticks on both sides:
+        ax.set_xlim(min(x), max(x))
+        ax.tick_params(axis="y", right=True)
 
         return ax
 
@@ -358,3 +518,90 @@ class SpectroMeasurementPlotter(MPLPlotter):
             t=v,
             t_name=v_name,
         )
+
+    def plot_stacked_spectra_vs(
+        self,
+        *,
+        measurement=None,
+        vs=None,
+        dt=None,
+        t_list=None,
+        dn=None,
+        index_list=None,
+        average=False,
+        xspan=None,
+        xspan_bg=None,
+        scale_mode="auto",
+        scale_factor=1,
+        y_values="time",
+        ax=None,
+        color="k",
+        **kwargs,
+    ):
+        """Plot stacked spectra with a time-dependent value on the y-axis
+
+        This is commonly used for e.g. FTIR.
+        Specify which spectra to plot by one of four ways: dt, t_list,
+        dn, or n_list. See descriptions below.
+
+        Args:
+            measurement (SpectroMeasurement): The spectromeasurement to
+                plot data form, if different from self.measurement
+            vs (str): The name of the value series to stack spectra
+                according to.
+            dt (float): time interval between spectra to plot, [s]. The
+                first spectrum and those taken at times closest to each
+                integer multiple of dt after are plotted.
+            t_list (list of float): List of times for which to plot the
+                spectrum, [s]. The closest spectrum to each time in the
+                list is plotted.
+            dn (int): number of spectra between plotted spectra
+            index_list (list of int): List of indeces of spectra to plot
+            average (bool or int): Whether and how to average spectra for
+                plotting. False means no averaging. True means average all
+                the spectra in the interval between spectra. An integer
+                `n` means average the `n/2` spectra before and `n/2` spectra
+                after the spectra at the given time or index
+            xspan (list of float): Range of x-axis variable to include.
+            xspan_bg (list of float): Range of x-axis variable for which to
+                consider the signal at background. For each spectrum, the
+                average y value in this range is subtracted.
+            scale_mode (str): The way to initially scale the spectra.
+                Options:
+                - "auto": scale uniformly such that all spectra fit in
+                    their given interval. The raw y-values are scaled by
+                    min(interval) / max(y range)
+                - [no other scale_mode options yet]
+            scale_factor: A factor to apply on top of the initial scaling
+            y_values (str): What to plot on the y-axis. Options: "time", "n"
+            ax (Axis): axis to plot on, if not a new axis
+            color (str): color of traces. Defaults to black.
+            **kwargs: Additional key-word args are passed on to ax.plot()
+        """
+        measurement = measurement or self.measurement
+
+        t_vec = measurement.spectrum_series.t
+
+        ax = self.spectrum_series_plotter.plot_stacked_spectra(
+            spectrum_series=measurement.spectrum_series,
+            dt=dt,
+            t_list=t_list,
+            dn=dn,
+            index_list=index_list,
+            average=average,
+            xspan=xspan,
+            xspan_bg=xspan_bg,
+            scale_mode=scale_mode,
+            scale_factor=scale_factor,
+            y_values=y_values,
+            ax=ax,
+            color=color,
+        )
+        index_list, t_list = get_indeces_and_times(t_vec, dt, t_list, dn, index_list)
+
+        v_list = measurement.grab_for_t(vs, np.array(t_list))
+
+        ax.set_yticks(t_list)
+        ax.set_yticklabels([np.round(v, 2) for v in v_list])
+
+        ax.set_ylabel(vs)

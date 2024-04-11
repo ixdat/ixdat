@@ -47,6 +47,7 @@ class Spectrum(Saveable):
         "field_id",
     }
     child_attrs = ["fields"]
+    essential_series_names = []
 
     def __init__(
         self,
@@ -652,7 +653,16 @@ class SpectrumSeries(Spectrum):
             if self.durations:
                 spectrum_as_dict["duration"] = self.durations[key]
             return Spectrum.from_dict(spectrum_as_dict)
-        raise KeyError
+        elif isinstance(key, slice):
+            # Convert the slice to a list of integers, get the spectra with the code
+            # above, and recombined them:
+            indeces = list(range(key.stop)[key])
+            spectrum_list = []
+            for i in indeces:
+                spectrum_list.append(self[i])
+            return SpectrumSeries.from_spectrum_list(spectrum_list)
+
+        raise KeyError(f"SpectrumSeries indexing uses int or slice. Got {type(key)}")
 
     @property
     def y_average(self):
@@ -706,6 +716,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
+    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 

@@ -22,6 +22,8 @@ API changes
 
 readers
 ^^^^^^^
+- Added "opus_ftir" reader for text-exported files from Opus FTIR spectrumeter.
+
 - ``BiologicReader`` can now also read biologic .mpr files using an external package.
   When reading a file ending in ".mpr", it first tries the ``galvani`` package, which
   seems to work for LSV, CA, and CVA files. If that fails, it tries the ``eclabfiles``
@@ -63,6 +65,8 @@ readers
 
 techniques
 ^^^^^^^^^^
+- Added FTIR and EC-FTIR. The latter for now just inherits from SpectroECMeasurement
+
 - ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
   Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.
 
@@ -79,6 +83,8 @@ plotters
   (in which case durations are available).
   ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
   resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
+- Added a plot_stacked_spectra method to SpectrumSeriesPlotter, SpectroMeasurementPlotter,
+  and SECPlotter. This is the default plotting method for FTIR.
 
 General
 ^^^^^^^
