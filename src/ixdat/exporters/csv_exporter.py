@@ -14,11 +14,12 @@ class CSVExporter:
 
     default_export_columns = None  # Typically overwritten by inheriting Exporters
     """The names of the value series to export by default."""
+    delim = ","  # Can be overwritten by inheriting Exporters
+    """The default delimiter"""
 
-    def __init__(self, measurement=None, delim=","):
+    def __init__(self, measurement=None):
         """Initiate the exported with a measurement (Measurement) and delimiter (str)"""
         self.measurement = measurement
-        self.delim = delim
         self.header_lines = None
         self.time_step = None
         self.s_list = None
@@ -55,7 +56,7 @@ class CSVExporter:
             tspan (timespan): The timespan to include in the file, defaults to all of it
             time_step (float): Optional. The time spacing between data points. Can be
                 used to reduce file size.
-            delim (str): Delimiter. Defaults to self.delim (which is ",")
+            delim (str): Delimiter. Defaults to self.delim (which is "," by default)
         """
         measurement = measurement or self.measurement
         if not path_to_file:

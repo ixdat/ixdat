@@ -213,6 +213,7 @@ class ZilienTSVReader:
 
         if include_mass_scans is None:
             # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1494540212
+            # and https://github.com/ixdat/ixdat/pull/166#discussion_r1528603252
             # This becomes True if neither a class nor a technique was specified,
             # or if a technique or class including spectra was specified.
             include_mass_scans = (

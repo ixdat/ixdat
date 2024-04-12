@@ -734,8 +734,11 @@ class SpectrumSeries(Spectrum):
             new_xseries = self.xseries
             if self.xseries.shape != other.xseries.shape:
                 raise TypeError(
-                    "Cannot append SpectrumSeries with different shapes "
-                    "of their x series!"
+                    f"Tried to append a spectrum with x={self.xseries.name} "
+                    f"of length ({self.xseries.shape[0]} to a spectrum with "
+                    f"{other.xseries.name} of length {other.xseries.shape[0]}. "
+                    f"However, spectrum series can only be appended if they have "
+                    "the same number of points on their x axis."
                 )
             if self.xseries.unit_name != other.xseries.unit_name:
                 raise TypeError(

@@ -30,7 +30,7 @@ class MSSpectroExporter(MSExporter):
             - export the MSSpectrumSeries
             - add a line to the main file header pointing to the spectra file
 
-        Args and Kwargs: see :meth:`ECExporter.prepare_header_and_data`
+        Args and Kwargs: "see CSVExporter.prepare_header_and_data
         """
         super().prepare_header_and_data(measurement, columns, tspan, time_step=time_step)
         path_to_spectra_file = self.path_to_file.parent / (
