@@ -1,9 +1,7 @@
 """Plotters for spectroelectrochemistry. Makes use of those in spectrum_plotter.py"""
 
 import matplotlib as mpl
-
-from .ec_plotter import ECPlotter
-from .spectrum_plotter import SpectrumSeriesPlotter, SpectroMeasurementPlotter
+from . import ECPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter
 from ..exceptions import SeriesNotFoundError
 
 

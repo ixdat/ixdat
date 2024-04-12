@@ -2,9 +2,8 @@
 
 import numpy as np
 import matplotlib as mpl
-from ixdat.plotters.plotting_tools import add_colorbar
 from matplotlib import pyplot as plt
-from .base_mpl_plotter import MPLPlotter
+from . import MPLPlotter, add_colorbar
 from .plotting_tools import get_indeces_and_times
 
 

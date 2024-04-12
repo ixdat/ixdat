@@ -10,8 +10,12 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 
-`PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
+`PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
 
+
+For ixdat 0.3.0
+
+=======
 
 ixdat 0.2.9
 ===========
@@ -134,3 +138,4 @@ dev
 ^^^
 
 - Enable running external tests in CI
+
