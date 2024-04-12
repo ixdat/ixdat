@@ -1,7 +1,6 @@
 
-ixdat 0.2.9
-===========
-
+ixdat 0.2.9 (2024-04-12)
+========================
 
 API changes
 -----------
@@ -20,7 +19,6 @@ readers
   ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
   Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
   With `PR #134 <https://github.com/ixdat/ixdat/pull/134>`_
-
 
 - Zilien MS spectrum reader fixed.
   Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
@@ -49,10 +47,27 @@ readers
   the raw data series matching the name and the aliased series are appended. (Before,
   only the raw data series matching the name would be returned.)
 
+- Added "opus_ftir" reader for text-exported files from Opus FTIR spectrumeter.
+
+- ``BiologicReader`` can now also read biologic .mpr files using an external package.
+  When reading a file ending in ".mpr", it first tries the ``galvani`` package, which
+  seems to work for LSV, CA, and CVA files. If that fails, it tries the ``eclabfiles``
+  package, which seems to work for OCV and CP files. See:
+  - https://github.com/echemdata/galvani
+  - https://github.com/vetschn/eclabfiles
+  These packages are not added as a requirement, but instead imported dynamically.
+  If the user tries to read a .mpr file without the needed package installed, they are
+  pointed to the package but also encouraged to export and read ".mpt" files instead.
+  ".mpr" files are recognized as biologic, and ``reader="biologic"`` works for both types.
+  Resolves `Issue #132 <https://github.com/ixdat/ixdat/issues/132`_
+
 techniques
 ^^^^^^^^^^
+
+- Added FTIR and EC-FTIR. The latter for now just inherits from SpectroECMeasurement
+
 - ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
-  Passing the argument ``interpolate=False`` gets it to choose nearest spectrum instead.
+  Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.
 
 - Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
   For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
@@ -82,8 +97,8 @@ plotters
   ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
   resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
 
-  - `Issue #161 <https://github.com/ixdat/ixdat/issues/161>`_
-  - `PR #166 <https://github.com/ixdat/ixdat/pull/166>`_
+- Added a ``plot_stacked_spectra`` method to ``SpectrumSeriesPlotter``, ``SpectroMeasurementPlotter``,
+  and ``SECPlotter``. This is the default plotting method for FTIR.
 
 exporters
 ^^^^^^^^^
@@ -96,7 +111,6 @@ exporters
 
   - `Issue #153 <https://github.com/ixdat/ixdat/issues/153>`_
   - `PR #166 <https://github.com/ixdat/ixdat/pull/166>`_
-
 
 General
 ^^^^^^^
@@ -136,14 +150,11 @@ General
     ┗━ ValueSeries: 'M4 [A]'. Min, max: 1.2e-17, 2.7e-10 [A]
     << SNIP MORE MASS CHANNELS>>
 
-  - `Issue #67 <https://github.com/ixdat/ixdat/issues/67>`_
-  - `PR #148 <https://github.com/ixdat/ixdat/pull/148>`_
-
-- Reading measurement from zilien without the need to specify ``technique`` keyword argument.
+- Reading measurement without the need to specify ``technique`` keyword argument.
   The technique is determined from dataset's metadata. The ``MSMeasurement`` is used
   when it is a Mass Spec measurement. And when it includes an electrochemistry
   data, then ``ECMSMeasurement`` is used. The default/safe case is ``MSMeasurement``.
-  `PR #159 <https://github.com/ixdat/ixdat/pull/159>`_
+  Resolves `Issue #159 <https://github.com/ixdat/ixdat/pull/159>`_
 
 dev
 ^^^
@@ -157,7 +168,7 @@ ixdat 0.2.8 (2023-12-05)
 Documentation
 -------------
 Jupyter notebook tutorials are now compiled to .rst with nbsphinx.
-This solves ``Issue #115 <https://github.com/ixdat/ixdat/issues/115>`_
+This solves `Issue #115 <https://github.com/ixdat/ixdat/issues/115>`_
 
 
 API changes
@@ -293,7 +304,10 @@ Techniques
 
     ixdat.plugins.si_quant.QUANT_DIRECTORY = "~/projects/batteries/quantification_data"
 
-=======
+
+debugging
+---------
+
 readers
 ^^^^^^^
 
@@ -407,7 +421,7 @@ techniques
 ^^^^^^^^^^^
 - Improved docstring for ``ECMSMeasurement.ecms_calibration_curve()`` to include the new additions from previous release.
 
-- Added MSInlet``gas_flux_calibration_curve`` to enable multiple point calibration using calculated gas flux
+- Added MSInlet ``gas_flux_calibration_curve`` to enable multiple point calibration using calculated gas flux
   either with different concentrations in carrier gas or at different inlet pressures. Note, concentration needs to be given in ppm, as the flux calculation uses various constants from the carrier gas molecule instead of a mixture, which will lead to significant inaccuracy for high concentrations.
 
 - ``Measurement.select`` is now even more versatile. A user can specify a ``selector_name``
@@ -421,7 +435,7 @@ readers
   files in that folder (with the specified suffix) are appended.
   Resolves `Issue #88 <https://github.com/ixdat/ixdat/issues/88>`_
 
-- ``Measurement.read_set`` now also raises a ``ReadError` rather than returning ``None`` in
+- ``Measurement.read_set`` now also raises a ``ReadError`` rather than returning ``None`` in
   the case of no matching files.
 
 - ``Measurement.read`` (and by extension ``Measurement.read_set``) can now be called
