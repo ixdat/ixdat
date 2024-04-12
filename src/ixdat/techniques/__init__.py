@@ -16,8 +16,9 @@ from .spectroelectrochemistry import (
     ECXASMeasurement,
     ECOpticalMeasurement,
 )
-from .reactor import ReactorMeasurement, ReactorSpectroMeasurement, ReactorCalibration
 
+from .reactor import ReactorMeasurement, ReactorSpectroMeasurement, ReactorCalibration
+from .ftir import FTIRSpectrum, ECFTIRMeasurement
 from ..spectra import Spectrum
 from ..measurements import Measurement  # for importing in the technique modules
 
@@ -41,6 +42,8 @@ TECHNIQUE_CLASSES = {
     "reactor-MS_spectra": ReactorSpectroMeasurement,
     "S-EC": SpectroECMeasurement,
     "EC-MS-MS_spectra": ECMSSpectroMeasurement,
+    "FTIR": FTIRSpectrum,
+    "EC-FTIR": ECFTIRMeasurement,
 }
 
 CALIBRATION_CLASSES = {

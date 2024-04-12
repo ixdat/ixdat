@@ -797,7 +797,10 @@ class MSMeasurement(Measurement):
         delta_signal_list = []
         for mass in mass_list:
             S = self.grab_signal(mass, tspan=tspan)[1].mean()
-            S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            if tspan_bg:
+                S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            else:
+                S_bg = 0
             delta_S = S - S_bg
             delta_signal_list.append(delta_S)
         delta_signal_vec = np.array(delta_signal_list)

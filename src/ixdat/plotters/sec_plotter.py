@@ -167,6 +167,10 @@ class SECPlotter(SpectroMeasurementPlotter):
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
 
+    def plot_stacked_spectra(self, **kwargs):
+        kwargs.update(vs="potential")
+        return super().plot_stacked_spectra_vs(**kwargs)
+
 
 class ECOpticalPlotter(SECPlotter):
     def plot_measurement(
