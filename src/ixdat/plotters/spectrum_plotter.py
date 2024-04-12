@@ -7,7 +7,6 @@ from . import MPLPlotter, add_colorbar
 from .plotting_tools import get_indeces_and_times
 
 
-
 class SpectrumPlotter(MPLPlotter):
     """A plotter for a spectrum"""
 

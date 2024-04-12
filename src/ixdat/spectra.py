@@ -677,7 +677,7 @@ class SpectrumSeries(Spectrum):
             if self.durations is not None and len(self.durations) > 0:
                 spectrum_as_dict["duration"] = self.durations[key]
             return cls.from_dict(spectrum_as_dict)
-        
+
         elif isinstance(key, slice):
             # Convert the slice to a list of integers, get the spectra with the code
             # above, and recombined them:
@@ -688,7 +688,6 @@ class SpectrumSeries(Spectrum):
             return SpectrumSeries.from_spectrum_list(spectrum_list)
 
         raise KeyError(f"SpectrumSeries indexing uses int or slice. Got {type(key)}")
-
 
     def cut(self, tspan, t_zero=None):
         """Return a subset with the spectrums falling in a specified timespan
