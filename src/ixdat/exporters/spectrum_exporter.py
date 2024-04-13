@@ -5,17 +5,16 @@ from collections import OrderedDict
 class SpectrumExporter:
     """An ixdat CSV exporter for spectra. Uses pandas."""
 
-    def __init__(self, spectrum, delim=","):
+    delim = ","
+    """The separator for the .csv file. Has to be single-char due to pandas"""
+
+    def __init__(self, spectrum):
         """Initiate the SpectrumExporter.
 
         Args:
             spectrum (Spectrum): The spectrum to export by default
-            delim (char): The separator for the .csv file. Note that this cannot be
-                the ",\t" used by ixdat's main exporter since pandas only accepts single
-                character delimiters.
         """
         self.spectrum = spectrum
-        self.delim = delim
 
     def export(self, path_to_file, spectrum=None):
         """Export spectrum to path_to_file.
@@ -62,17 +61,16 @@ class SpectrumExporter:
 class SpectrumSeriesExporter:
     """An exporter for ixdat spectrum series."""
 
-    def __init__(self, spectrum_series, delim=","):
+    delim = ","
+    """The separator for the .csv file. Has to be single-char due to pandas"""
+
+    def __init__(self, spectrum_series):
         """Initiate the SpectrumSeriesExporter.
 
         Args:
             spectrum_series (SpectrumSeries): The spectrum to export by default
-            delim (char): The separator for the .csv file. (Note that this cannot be
-                the "," previously used by ixdat's main exporter since pandas only
-                accepts single character delimiters.)
         """
         self.spectrum_series = spectrum_series
-        self.delim = delim
 
     def export(self, path_to_file=None, spectrum_series=None, spectra_as_rows=True):
         """Export spectrum series to path_to_file.

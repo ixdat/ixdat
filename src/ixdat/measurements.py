@@ -232,7 +232,8 @@ class Measurement(Saveable):
                 "Consider passing the `technique` argument into the read() function.\n"
                 "The available techniques are:\n"
                 f"  {list(TECHNIQUE_CLASSES.keys())}"  # again intended
-            ) from None  # to silence the top exception, because it is in the `e`
+            )  # adding `from None` here would avoid repeating the message in `e`...
+            # ...but it can be useful to have the full traceback!
 
         return measurement
 
