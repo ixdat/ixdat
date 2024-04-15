@@ -16,6 +16,7 @@ regular_expressions = {
     "tstamp": r"tstamp = ([0-9\.]+)\n",
     "technique": r"technique = (.+)\n",
     "N_header_lines": r"N_header_lines = ([0-9]+)\n",
+    "continuous": r"continuous = (.+)\n",
     "backend_name": r"backend_name = (.+)\n",
     "id": r"id = ([0-9]+)",
     "timecol": r"timecol '(.+)' for: (?:'(.+)')$",
@@ -198,6 +199,10 @@ class IxdatCSVReader:
         if timestamp_match:
             self.tstamp = float(timestamp_match.group(1))
             return
+        continuous_match = re.search(regular_expressions["continuous"], line)
+        if continuous_match:
+            self.meas_as_dict["continuous"] = continuous_match.group(1) == "True"
+            return
         technique_match = re.search(regular_expressions["technique"], line)
         if technique_match:
             self.technique = technique_match.group(1)
@@ -218,6 +223,7 @@ class IxdatCSVReader:
             aux_file = self.path_to_file.parent / aux_file_match.group(2)
             self.read_aux_file(aux_file, name=aux_file_name)
             return
+
         if " = " in line:
             key, value = line.strip().split(" = ")
             if key in bad_keys:
@@ -347,9 +353,10 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 data=y,
                 axes_series=[tseries, xseries],
             )
-            return cls.from_field(  # see SpectrumSeries.from_field()
-                field, name=self.name, technique=self.technique, tstamp=self.tstamp
+            self.meas_as_dict.update(
+                field=field, name=self.name, technique=self.technique, tstamp=self.tstamp
             )
+            return cls.from_dict(self.meas_as_dict)
         else:  # return a simple Spectrum object
             x_name, y_name = tuple(df.keys())
             x = df[x_name].to_numpy()

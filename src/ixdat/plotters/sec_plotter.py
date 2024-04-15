@@ -6,7 +6,7 @@ from ..exceptions import SeriesNotFoundError
 
 
 class SECPlotter(SpectroMeasurementPlotter):
-    """An spectroelectrochemistry (SEC) matplotlib plotter."""
+    """A spectroelectrochemistry (SEC) matplotlib plotter."""
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""
@@ -81,7 +81,7 @@ class SECPlotter(SpectroMeasurementPlotter):
         )
         axes[0] = self.spectrum_series_plotter.heat_plot(
             spectrum_series=measurement.spectrum_series,
-            field=field or measurement.spectra,
+            field=field,
             tspan=tspan,
             xspan=xspan,
             ax=axes[0],

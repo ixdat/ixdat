@@ -96,5 +96,6 @@ class OpusFTIRReader:
             technique="FTIR",
             tstamp=tstamp_first,
             field=field,
+            continuous=True,
         )
         return ftir_series

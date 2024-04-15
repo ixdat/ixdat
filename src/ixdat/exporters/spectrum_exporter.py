@@ -105,7 +105,7 @@ class SpectrumSeriesExporter:
         x = xseries.data
 
         header_lines = []
-        for attr in ["name", "technique", "tstamp", "backend_name", "id"]:
+        for attr in ["name", "technique", "tstamp", "backend_name", "id", "continuous"]:
             line = f"{attr} = {getattr(spectrum_series, attr)}\n"
             header_lines.append(line)
 
