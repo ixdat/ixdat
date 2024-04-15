@@ -278,7 +278,7 @@ def get_column_unit(column_name):
 class IxdatSpectrumReader(IxdatCSVReader):
     """A reader for ixdat spectra."""
 
-    def read(self, path_to_file, name=None, cls=SpectrumSeries, **kwargs):
+    def read(self, path_to_file, name=None, cls=Spectrum, **kwargs):
         """Read an ixdat spectrum.
 
         This reads the header with the process_line() function inherited from
@@ -303,25 +303,17 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 else:
                     break
         df = pd.read_csv(path_to_file, sep=",", header=self.N_header_lines - 2)
-        if self.technique.endswith("spectrum"):
-            # FIXME: in the future, this needs to cover all spectrum classes
-            x_name, y_name = tuple(df.keys())
-            x = df[x_name].to_numpy()
-            y = df[y_name].to_numpy()
+
+        if issubclass(TECHNIQUE_CLASSES.get(self.technique, int), Spectrum):
+            cls = TECHNIQUE_CLASSES[self.technique]
+
+        elif self.technique.endswith("spectrum"):
             cls = cls if issubclass(cls, Spectrum) else Spectrum
-            return cls.from_data(  # see Spectrum.from_data()
-                x,
-                y,
-                self.tstamp,
-                x_name,
-                y_name,
-                name=self.name,
-                technique=self.technique,
-                reader=self,
-            )
 
         elif self.technique.endswith("spectra"):
-            # FIXME: in the future, this needs to cover all spectrum series classes
+            cls = cls if issubclass(cls, SpectrumSeries) else SpectrumSeries
+
+        if issubclass(cls, SpectrumSeries):  # return a SpectrumSeries object
             names = {}
             units = {}
             swap_axes = False
@@ -355,7 +347,20 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 data=y,
                 axes_series=[tseries, xseries],
             )
-            cls = cls if issubclass(cls, SpectrumSeries) else SpectrumSeries
             return cls.from_field(  # see SpectrumSeries.from_field()
                 field, name=self.name, technique=self.technique, tstamp=self.tstamp
+            )
+        else:  # return a simple Spectrum object
+            x_name, y_name = tuple(df.keys())
+            x = df[x_name].to_numpy()
+            y = df[y_name].to_numpy()
+            return cls.from_data(  # see Spectrum.from_data()
+                x,
+                y,
+                self.tstamp,
+                x_name,
+                y_name,
+                name=self.name,
+                technique=self.technique,
+                reader=self,
             )

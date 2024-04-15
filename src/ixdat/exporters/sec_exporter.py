@@ -4,8 +4,8 @@ from . import ECExporter, SpectrumExporter, SpectrumSeriesExporter
 class SECExporter(ECExporter):
     """Adds to CSVExporter the export of the Field with the SEC spectra"""
 
-    def __init__(self, measurement, delim=","):
-        super().__init__(measurement, delim=delim)
+    def __init__(self, measurement):
+        super().__init__(measurement)
         # FIXME: The lines below don't work because this __init__ gets called before
         #   the measurement's __init__ is finished.
         # self.reference_exporter = SpectrumExporter(measurement.reference_spectrum)

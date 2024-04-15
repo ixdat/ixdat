@@ -1,4 +1,17 @@
 
+
+ixdat 0.2.10 (2024-04-15)
+========================
+
+debugging
+---------
+- Fixed bug in 0.2.9 on exporter initiation that had caused a crash on initation of some Spectrum
+  and SpectroMeasurement objects due to removed `delim` argument.
+
+- Fixed bug in 0.2.9 on spectrum reading that had caused a crash when making SpectrumSeries objects
+  from auxiliary files representing simple Spectrum objects.
+
+
 ixdat 0.2.9 (2024-04-12)
 ========================
 
