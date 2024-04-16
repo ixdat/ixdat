@@ -6,7 +6,7 @@ from ..exceptions import SeriesNotFoundError
 
 
 class SECPlotter(SpectroMeasurementPlotter):
-    """An spectroelectrochemistry (SEC) matplotlib plotter."""
+    """A spectroelectrochemistry (SEC) matplotlib plotter."""
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""
@@ -81,7 +81,7 @@ class SECPlotter(SpectroMeasurementPlotter):
         )
         axes[0] = self.spectrum_series_plotter.heat_plot(
             spectrum_series=measurement.spectrum_series,
-            field=field or measurement.spectra,
+            field=field,
             tspan=tspan,
             xspan=xspan,
             ax=axes[0],
@@ -324,8 +324,6 @@ class ECOpticalPlotter(SECPlotter):
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
                 self.measurement
-            tspan (timespan): The timespan of data to keep for the measurement.
-            wlspan (iterable): The wavelength span of spectral data to plot
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
             V_ref (float): potential to use as reference for calculating optical density
             t_ref (float): time to use as a reference for calculating optical density

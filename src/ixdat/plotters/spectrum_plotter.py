@@ -67,9 +67,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
         t_name=None,
         max_threshold=None,
         min_threshold=None,
-        scanning_mask=None,
         vmin=None,
         vmax=None,
+        scanning_mask=None,
         continuous=None,
     ):
         """
@@ -92,13 +92,15 @@ class SpectrumSeriesPlotter(MPLPlotter):
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
             max_threshold (float): Maximum value to display.
-                Values above are set to zero.
+                Values above are set to max_threshold.
             min_threshold (float): Minimum value to display.
-                Values below are set to 0.
+                Values below are set to min_threshold.
+            vmin (float): minimum value to represent in colours. Defaults to minimum
+                value (after applying min_threshold).
+            vmax (float): maximum value to represent in colours. Defaults to maximum
+                value (after applying max_threshold).
             scanning_mask (list): List of booleans to exclude from scanning variable
                 before plotting data by setting y values to 0 (zero).
-            vmin (float): minimum value to represent in colours.
-            vmax (float): maximum value to represent in colours.
             continuous (bool): Optional. Whether to make a continuous heat plot (True) or
                 a discrete heat plot for each spectrum (False). In the discrete case,
                 each heat plot is a rectangle with the spectrum's duration as its width,
@@ -108,33 +110,25 @@ class SpectrumSeriesPlotter(MPLPlotter):
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
-        if continuous is None:
-            continuous = spectrum_series.continuous
+        data = field.data
 
         xseries = field.axes_series[1]
         x = xseries.data
         t = t if t is not None else field.axes_series[0].t
         t_name = t_name or field.axes_series[0].name
 
-        data = field.data
+        if max_threshold is not None:
+            data[data > max_threshold] = max_threshold
+        if min_threshold is not None:
+            data[data < min_threshold] = min_threshold
 
-        if max_threshold:
-            # data = np.minimum(max_threshold, data)
-            data[data > max_threshold] = 0
-        if min_threshold:
-            data[data < min_threshold] = 0
+        if vmin is None:
+            vmin = np.min(data)
+        if vmax is None:
+            vmax = np.max(data)
 
         if np.any(scanning_mask):
             data[:, scanning_mask] = 0
-
-        if tspan:
-            t_mask = np.logical_and(tspan[0] < t, t < tspan[-1])
-            t = t[t_mask]
-            data = data[t_mask, :]
-            if (t[0] < t[-1]) != (tspan[0] < tspan[-1]):  # this is an XOR.
-                # Then we need to plot the data against U in the reverse direction:
-                t = np.flip(t, axis=0)
-                data = np.flip(data, axis=0)
 
         if xspan:
             x_mask = np.logical_and(xspan[0] < x, x < xspan[-1])
@@ -144,7 +138,18 @@ class SpectrumSeriesPlotter(MPLPlotter):
         if not ax:
             ax = self.new_ax()
 
+        if continuous is None:
+            continuous = spectrum_series.continuous
+
         if continuous:
+            if tspan:
+                t_mask = np.logical_and(tspan[0] < t, t < tspan[-1])
+                t = t[t_mask]
+                data = data[t_mask, :]
+                if (t[0] < t[-1]) != (tspan[0] < tspan[-1]):  # this is an XOR.
+                    # Then we need to plot the data against U in the reverse direction:
+                    t = np.flip(t, axis=0)
+                    data = np.flip(data, axis=0)
             ax.imshow(
                 np.flip(data.swapaxes(0, 1), axis=0),
                 cmap=cmap_name,
@@ -154,7 +159,8 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 vmax=vmax,
             )
         else:
-            for i, t_i in enumerate(spectrum_series.t):
+            t_list = []
+            for i, t_i in enumerate(t):
                 if tspan and (t_i < min(tspan) or t_i > max(tspan)):
                     continue
                 try:
@@ -177,6 +183,8 @@ class SpectrumSeriesPlotter(MPLPlotter):
                     vmin=vmin,
                     vmax=vmax,
                 )
+                t_list += [t_i, t_f]
+            ax.set_xlim(min(t_list), max(t_list))
 
         ax.set_xlabel(t_name)
         ax.set_ylabel(xseries.name)
@@ -188,6 +196,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 vmin=(vmin if vmin else np.min(data)),
                 vmax=(vmax if vmax else np.max(data)),
             )
+
         return ax
 
     def plot_waterfall(

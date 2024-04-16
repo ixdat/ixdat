@@ -228,6 +228,7 @@ class MsrhSECDecayReader:
                 data=spectra,
             ),
             tstamp=tstamp,
+            continuous=True,
         )
         series_list = [
             tseries_J,

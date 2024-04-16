@@ -880,6 +880,10 @@ class SpectroMeasurement(Measurement):
     def continuous(self):
         return self.spectrum_series.continuous
 
+    @continuous.setter
+    def continuous(self, continuous):
+        self.spectrum_series.continuous = continuous
+
     @Measurement.tstamp.setter
     def tstamp(self, tstamp):
         self._tstamp = tstamp

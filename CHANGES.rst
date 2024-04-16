@@ -1,4 +1,32 @@
+ixdat 0.2.11 (2024-04-16)
+========================
 
+debugging
+---------
+- Fixed three bugs in 0.2.10 on spectrum series heat plotting:
+  - The x axis limit is now such that the full duration
+    of all the spectra is included when ``spectrum_series.continous`` is ``False`` (not just the last one).
+  - A universal ``vmin`` and ``vmax`` are determined for all the spectra to be plotted. This avoids effective
+    normalization of each individual spectrum when ``spectrum_series.continuous`` is ``False`` (which made it
+    impossible to see changes in overall intensity).
+  - The ``vs`` variable is now handled correctly when ``continuous`` is ``False``, enabling plotting vs potential
+    of non-continuous spectrum series data.
+
+API changes
+-----------
+
+- ``OpusFTIRReader`` and ``MsrhSECDecayReader`` both set the ``continuous`` attribute of the ``SpectrumSeries``
+  object to ``True``, since these are readers for fast and continuous-scanning instruments.
+
+- The ``continuous`` attribute is now exported and read from ixdat-exported .csv's.
+
+- The ``continuous`` property of ``SpectroMeasurement`` now has a setter. To change it, e.g.::
+
+    ftir = Spectrum.read(...)
+    ec = Measurement.read(...)
+    ecftir = ec + ftir
+    ecftir.continous = False
+    ecftir.plot_measurement()
 
 ixdat 0.2.10 (2024-04-15)
 ========================
@@ -6,7 +34,7 @@ ixdat 0.2.10 (2024-04-15)
 debugging
 ---------
 - Fixed bug in 0.2.9 on exporter initiation that had caused a crash on initation of some Spectrum
-  and SpectroMeasurement objects due to removed `delim` argument.
+  and SpectroMeasurement objects due to removed ``delim`` argument.
 
 - Fixed bug in 0.2.9 on spectrum reading that had caused a crash when making SpectrumSeries objects
   from auxiliary files representing simple Spectrum objects.
