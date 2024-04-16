@@ -324,8 +324,6 @@ class ECOpticalPlotter(SECPlotter):
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
                 self.measurement
-            tspan (timespan): The timespan of data to keep for the measurement.
-            wlspan (iterable): The wavelength span of spectral data to plot
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
             V_ref (float): potential to use as reference for calculating optical density
             t_ref (float): time to use as a reference for calculating optical density

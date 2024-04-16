@@ -98,7 +98,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
             vmin (float): minimum value to represent in colours. Defaults to minimum
                 value (after applying min_threshold).
             vmax (float): maximum value to represent in colours. Defaults to maximum
-                value (after_applying max_threshold).
+                value (after applying max_threshold).
             scanning_mask (list): List of booleans to exclude from scanning variable
                 before plotting data by setting y values to 0 (zero).
             continuous (bool): Optional. Whether to make a continuous heat plot (True) or
@@ -117,11 +117,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         t = t if t is not None else field.axes_series[0].t
         t_name = t_name or field.axes_series[0].name
 
-        if xspan:
-            x_mask = np.logical_and(xspan[0] < x, x < xspan[-1])
-            x = x[x_mask]
-            data = data[:, x_mask]
-
         if max_threshold is not None:
             data[data > max_threshold] = max_threshold
         if min_threshold is not None:
@@ -134,6 +129,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
 
         if np.any(scanning_mask):
             data[:, scanning_mask] = 0
+
+        if xspan:
+            x_mask = np.logical_and(xspan[0] < x, x < xspan[-1])
+            x = x[x_mask]
+            data = data[:, x_mask]
 
         if not ax:
             ax = self.new_ax()

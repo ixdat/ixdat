@@ -55,7 +55,7 @@ ax.get_figure().savefig("sec_waterfall.png")
 
 axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=False)
 axes2 = sec_meas.plot_vs_potential(
-    V_ref=0.66, vspan=[1.4, 2], cmap_name="jet", make_colorbar=False
+    V_ref=0.66, vspan=[1.0, 1.5], wlspan=[500, 700], cmap_name="jet", make_colorbar=False
 )
 
 ax = sec_meas.get_dOD_spectrum(V_ref=0.66, V=1.0).plot(color="b", label="species 1")

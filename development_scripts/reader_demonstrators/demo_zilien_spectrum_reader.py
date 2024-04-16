@@ -97,4 +97,4 @@ print(len(meas_p3.spectrum_series))  # 0
 
 meas_joined = meas_p1 + meas_p2 + meas_p3  # order doesn't matter!
 print(len(meas_joined.spectrum_series))  # 4
-meas_joined.plot()  # 0
+meas_joined.plot()
