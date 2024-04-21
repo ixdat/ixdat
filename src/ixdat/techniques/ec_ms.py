@@ -4,11 +4,12 @@ import warnings
 from scipy.optimize import minimize
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
-from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
+from .ms import MSMeasurement, MSSpectroMeasurement, MSCalResult, MSCalibration
+from .ms import _with_siq_quantifier  # FIXME: see #164
 from .cv import CyclicVoltammogram
 from ..exceptions import QuantificationError
-from ..exporters.ecms_exporter import ECMSExporter
-from ..plotters.ecms_plotter import ECMSPlotter
+from ..exporters import ECMSExporter
+from ..plotters import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..config import plugins
 
@@ -468,3 +469,7 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         try_2 = MSCalibration.calibrate_series(self, key, measurement)
         if try_2:
             return try_2
+
+
+class ECMSSpectroMeasurement(ECMSMeasurement, MSSpectroMeasurement):
+    pass
