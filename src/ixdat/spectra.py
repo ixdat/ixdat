@@ -12,11 +12,13 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 "people" can be considered as a group.
 """
 
+import warnings
 import numpy as np
 from .db import Saveable, fill_object_list, PlaceHolderObject
-from .data_series import DataSeries, TimeSeries, Field
+from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
+from .exporters.spectrum_exporter import SpectrumExporter
 from .measurements import Measurement, get_combined_technique
 
 
@@ -47,6 +49,7 @@ class Spectrum(Saveable):
         "field_id",
     }
     child_attrs = ["fields"]
+    essential_series_names = []
 
     def __init__(
         self,
@@ -59,6 +62,7 @@ class Spectrum(Saveable):
         tstamp=None,
         field=None,
         field_id=None,
+        duration=None,
     ):
         """Initiate a spectrum
 
@@ -72,6 +76,7 @@ class Spectrum(Saveable):
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
+            duration (float): Optional. The duration of the spectrum measurement in [s]
         """
         super().__init__()
         self.name = name
@@ -80,6 +85,7 @@ class Spectrum(Saveable):
         self.tstamp = tstamp
         self.sample_name = sample_name
         self.reader = reader
+        self.duration = duration
         # Note: the PlaceHolderObject can be initiated without the backend because
         #     if field_id is provided, then the relevant backend is the active one,
         #     which PlaceHolderObject uses by default.
@@ -88,6 +94,8 @@ class Spectrum(Saveable):
         self.plotter = SpectrumPlotter(spectrum=self)
         # defining this method here gets it the right docstrings :D
         self.plot = self.plotter.plot
+        self.exporter = SpectrumExporter(spectrum=self)
+        self.export = self.exporter.export
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -101,9 +109,9 @@ class Spectrum(Saveable):
         if isinstance(reader, str):
             # TODO: see if there isn't a way to put the import at the top of the module.
             #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437471
-            from .readers import READER_CLASSES
+            from .readers import SPECTRUM_READER_CLASSES
 
-            reader = READER_CLASSES[reader]()
+            reader = SPECTRUM_READER_CLASSES[reader]()
         # print(f"{__name__}. cls={cls}")  # debugging
         return reader.read(path_to_file, cls=cls, **kwargs)
 
@@ -117,7 +125,9 @@ class Spectrum(Saveable):
         reader=None,
         **kwargs,
     ):
-        """Read and append a set of spectra as a SpectrumSeries
+        """Read a set of spectrum files and append them to return SpectrumSeries
+
+        Note: The list of spectrums is sorted by time.
 
         Args:
             path_to_file_start (Path or str): The path to the files to read including
@@ -134,13 +144,26 @@ class Spectrum(Saveable):
                 the exact files to append can be specified in a list
             reader (str or Reader class): The (name of the) reader to read the files with
             kwargs: Key-word arguments are passed via cls.read() to the reader's read()
-                method, AND to cls.from_component_measurements()
+                method, AND to SpectrumSeries.from_spectrum_list()
         """
         from .readers.reading_tools import get_file_list
 
         file_list = file_list or get_file_list(path_to_file_start, part, suffix)
-        spectrum_list = [cls.read(f, reader=reader, **kwargs) for f in file_list]
-        return SpectrumSeries.from_spectrum_list(spectrum_list)
+        spectrum_list = []
+        for path_to_spectrum in file_list:
+            spectrum = Spectrum.read(path_to_spectrum, reader=reader, **kwargs)
+            spectrum_list.append(spectrum)
+
+        t_list = [spectrum.tstamp for spectrum in spectrum_list]
+        indeces = np.argsort(t_list)
+        spectrum_list = [spectrum_list[i] for i in indeces]
+
+        if issubclass(cls, SpectrumSeries):
+            spectra_class = cls
+        else:
+            spectra_class = SpectrumSeries
+
+        return spectra_class.from_spectrum_list(spectrum_list, **kwargs)
 
     @property
     def data_objects(self):
@@ -419,12 +442,13 @@ class MultiSpectrum(Saveable):
     def from_spectrum_list(
         cls, spectrum_list, technique=None, metadata=None, sample_name=None
     ):
-        """Build a SpectrumSeries from a list of Spectrums"""
+        """Build a MultiSpectrum from a list of Spectrums"""
         fields = [spectrum.field for spectrum in spectrum_list]
         tstamp = spectrum_list[0].tstamp
-        technique = spectrum_list[0].technique
-        if technique.endswith("spectrum"):
-            technique = technique.rstrip("spectrum") + "spectra"
+        if not technique:
+            technique = spectrum_list[0].technique
+            if technique.endswith("spectrum"):
+                technique = technique.rstrip("spectrum") + "spectra"
         obj_as_dict = {
             "fields": fields,
             "technique": technique,
@@ -466,12 +490,26 @@ class SpectrumSeries(Spectrum):
             field (Field): The Field containing the data (x, y, and tstamp)
             field_id (id): The id in the data_series table of the Field with the data,
                 if the field is not yet loaded from backend.
+            t_tolerance (float): The minimum relevant time difference between spectra
+                in [s]. Should correspond roughly to the time it takes for a spectrum
+                to be acquired. Defaults to the minimum of 1 second or 1/1000'th of the
+                average time between recorded spectra.
+            durations (list of float): The durations of each of the spectra in [s].
+            continuous (bool): Whether the spectra should be considered continuous, i.e.
+                whether plotting and grabbing functions should interpolate between
+                spectrums. Defaults to False.
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
+        self._t_tolerance = kwargs.pop("t_tolerance", None)
+        # FIXME: durations and continuous are not in the serialization:
+        self.durations = kwargs.pop("durations", None)
+        self.continuous = kwargs.pop("continuous", False)
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
+        # can be overwritten in inheriting classes with e.g. plot_waterfall:
+        self.plot = self.plotter.heat_plot
 
     @classmethod
     def from_spectrum_list(cls, spectrum_list, **kwargs):
@@ -479,7 +517,9 @@ class SpectrumSeries(Spectrum):
         xseries = None
         tstamp_list = []
         ys = []
-        technique = spectrum_list[0].technique
+        technique = kwargs.get("technique", None)
+        if not technique:
+            technique = spectrum_list[0].technique
 
         for spectrum in spectrum_list:
             tstamp_list.append(spectrum.tstamp)
@@ -505,14 +545,43 @@ class SpectrumSeries(Spectrum):
         obj_as_dict["field"] = field
         obj_as_dict["technique"] = technique
         del obj_as_dict["field_id"]
-        obj_as_dict.update(kwargs)
+        # Any attribute we want in the SpecrumSeries for each spectrum should go here:
+        obj_as_dict["durations"] = [s.duration for s in spectrum_list]
         return cls.from_dict(obj_as_dict)
+
+    @property
+    def field(self):
+        """Since a spectrum can be loaded lazily, we make sure the field is loaded
+
+        We also want to make sure that the field has the tstamp of the SpectrumSeries.
+        """
+        if isinstance(self._field, PlaceHolderObject):
+            self._field = self._field.get_object()
+        if len(self) == 0:  # this is the case when self._field is empty
+            return self._field
+        if abs(self._field.axes_series[0].tstamp - self.tstamp) > self.t_tolerance:
+            # self.t_tolerance is the resolution on the time axis of the spectra.
+            # If the t=0 of the SpectrumSeries differs from the tstamp of the field
+            # by more than this amount, it can become unclear which spectrum is which.
+            # Therefore, we shift the t=0 of the time axis of the field to match the t=0
+            # of the spectrum series. This doesn't change anything except the absolute
+            # time considered to be t=0.
+            self._field = Field(
+                name=self._field.name,
+                data=self._field.data,
+                unit_name=self._field.unit_name,
+                axes_series=[
+                    time_shifted(self._field.axes_series[0], tstamp=self.tstamp),
+                    self._field.axes_series[1],
+                ],
+            )
+        return self._field
 
     @property
     def yseries(self):
         # Should this return an average or would that be counterintuitive?
         raise BuildError(
-            f"{self} has no single y-series. Index it to get a Spectrum "
+            f"{self!r} has no single y-series. Index it to get a Spectrum "
             "or see `y_average`"
         )
 
@@ -526,14 +595,37 @@ class SpectrumSeries(Spectrum):
     @property
     def t(self):
         """The time array of a SectrumSeries is the data of its tseries.
-        Note that it it is not sorted!
+
+        FIXME: It is the reader's job to make sure that `t` is increasing,
+           i.e. that the spectra are sorted by time.
         """
+
         return self.tseries.data
 
     @property
     def t_name(self):
         """The name of the time variable of the spectrum series"""
         return self.tseries.name
+
+    def __len__(self):
+        return len(self._field.axes_series[0].t)
+
+    @property
+    def t_tolerance(self):
+        if self._t_tolerance is None and len(self) > 0:
+            # Note, accessing `self.t` here would lead to infinite recursion
+            #   due to `t_tolerance`'s use in the `field` property.
+            try:
+                t = self._field.axes_series[0].t
+            except AttributeError:
+                raise AttributeError(
+                    "`SpectrumSeries` object tried to use time data from its `Field`"
+                    " to determine its time tolerance but its `_field` was "
+                    f"{self._field}."
+                )
+            tolerance_by_spacing = 1 / 1000 * (t[-1] - t[0]) / len(t)
+            self._t_tolerance = min(tolerance_by_spacing, 1)
+        return self._t_tolerance
 
     @property
     def xseries(self):
@@ -557,6 +649,19 @@ class SpectrumSeries(Spectrum):
 
     def __getitem__(self, key):
         """Indexing a SpectrumSeries with an int n returns its n'th spectrum"""
+        from .techniques import TECHNIQUE_CLASSES
+
+        if self.technique in TECHNIQUE_CLASSES:
+            # TECHNIQUE_CLASSES points, as a rule, to the Spectrum clas, not the
+            # SpectrumSeries class of a given technique.
+            cls = TECHNIQUE_CLASSES[self.technique]
+            if issubclass(cls, SpectrumSeries):
+                # ... however, if TECHNIQUE_CLASSES does point to a SpectrumSeries
+                # class, we need indexing to return a default spectrum.
+                cls = Spectrum
+        else:
+            cls = Spectrum
+
         if isinstance(key, int):
             spectrum_as_dict = self.as_dict()
             del spectrum_as_dict["field_id"]
@@ -569,8 +674,57 @@ class SpectrumSeries(Spectrum):
                 axes_series=[self.xseries],
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
-            return Spectrum.from_dict(spectrum_as_dict)
-        raise KeyError
+            if self.durations is not None and len(self.durations) > 0:
+                spectrum_as_dict["duration"] = self.durations[key]
+            return cls.from_dict(spectrum_as_dict)
+
+        elif isinstance(key, slice):
+            # Convert the slice to a list of integers, get the spectra with the code
+            # above, and recombined them:
+            indeces = list(range(key.stop)[key])
+            spectrum_list = []
+            for i in indeces:
+                spectrum_list.append(self[i])
+            return SpectrumSeries.from_spectrum_list(spectrum_list)
+
+        raise KeyError(f"SpectrumSeries indexing uses int or slice. Got {type(key)}")
+
+    def cut(self, tspan, t_zero=None):
+        """Return a subset with the spectrums falling in a specified timespan
+
+        Args:
+            tspan (timespan): The timespan within which you want spectrums
+            t_zero (float): The shift in t=0 with respect to the original
+                spectrum series, in [s].
+        """
+        t_mask = np.logical_and(tspan[0] < self.t, self.t < tspan[1])
+        new_t = self.t[t_mask]
+        new_tseries = TimeSeries(
+            name=self.tseries.name,
+            unit_name=self.tseries.unit_name,
+            data=new_t,
+            tstamp=self.tseries.tstamp,
+        )
+        new_y = self.y[t_mask, :]
+        new_field = Field(
+            name=self.field.name,
+            unit_name=self.field.unit_name,
+            data=new_y,
+            axes_series=[new_tseries, self.xseries],
+        )
+        new_durations = np.array(self.durations)[t_mask]
+        cut_spectrum_series_as_dict = self.as_dict()
+        cut_spectrum_series_as_dict.update(
+            field=new_field,
+            durations=new_durations,
+        )
+        cut_spectrum_series = self.__class__.from_dict(cut_spectrum_series_as_dict)
+        if t_zero:
+            if t_zero == "start":
+                cut_spectrum_series.tstamp += tspan[0]
+            else:
+                cut_spectrum_series.tstamp += t_zero
+        return cut_spectrum_series
 
     @property
     def y_average(self):
@@ -578,9 +732,57 @@ class SpectrumSeries(Spectrum):
         return np.mean(self.y, axis=0)
 
     def __add__(self, other):
+        if type(other) is type(self):  # Then we are appending!
+            obj_as_dict = self.as_dict()
+            new_y_name = self.y_name
+            if self.y_name != other.y_name:
+                new_y_name = self.y_name + "AND" + other.y_name
+                warnings.warn(
+                    "Appending spectra with different names: \n"
+                    f"{new_y_name}.\n"
+                    "Result might not be meaningful."
+                )
+            new_xseries = self.xseries
+            if self.xseries.shape != other.xseries.shape:
+                raise TypeError(
+                    f"Tried to append a spectrum with x={self.xseries.name} "
+                    f"of length ({self.xseries.shape[0]} to a spectrum with "
+                    f"{other.xseries.name} of length {other.xseries.shape[0]}. "
+                    f"However, spectrum series can only be appended if they have "
+                    "the same number of points on their x axis."
+                )
+            if self.xseries.unit_name != other.xseries.unit_name:
+                raise TypeError(
+                    "Cannot append SpectrumSeries with different units "
+                    "of their x series!"
+                )
+            if self.x_name != other.x_name:
+                new_x_name = self.x_name + "OR" + other.x_name
+                warnings.warn(
+                    "Appending spectra with different names: \n"
+                    f"{new_x_name}.\n"
+                    "Result might not be meaningful."
+                )
+                new_xseries = DataSeries(
+                    name=new_x_name, unit_name=self.xseries.unit_name, data=self.x
+                )
+            new_tseries = append_series([self.tseries, other.tseries])
+            new_y = np.append(self.y, other.y, axis=0)
+            new_field = Field(
+                name=new_y_name,
+                unit_name=self.field.unit_name,
+                data=new_y,
+                axes_series=[new_tseries, new_xseries],
+            )
+            new_durations = np.append(self.durations, other.durations)
+            obj_as_dict.update(
+                field=new_field,
+                durations=new_durations,
+            )
+            return self.__class__(**obj_as_dict)
+
         if isinstance(other, Measurement):
             return add_spectrum_series_to_measurement(other, self)
-        raise NotImplementedError("Appending `SpectrumSeries` is not yet implemented")
 
 
 def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
@@ -624,18 +826,21 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
+    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 
 class SpectroMeasurement(Measurement):
+    child_attrs = ["spectrum_series_list"] + Measurement.child_attrs
     extra_column_attrs = {"spectro_measurements": {"spectrum_id"}}
 
-    def __init__(self, *args, spectrum_series=None, spec_id=None, **kwargs):
+    def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)
         if spectrum_series:
             self._spectrum_series = spectrum_series
-        elif spec_id:
-            self._spectrum_series = PlaceHolderObject(spec_id, cls=SpectrumSeries)
+            self._spectrum_series.tstamp = self.tstamp
+        elif spectrum_id:
+            self._spectrum_series = PlaceHolderObject(spectrum_id, cls=SpectrumSeries)
         else:
             raise TypeError(
                 "A SpectroMeasurement must be "
@@ -647,12 +852,20 @@ class SpectroMeasurement(Measurement):
         """The `SpectrumSeries` with the spectral data"""
         if isinstance(self._spectrum_series, PlaceHolderObject):
             self._spectrum_series = self._spectrum_series.get_object()
+            self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
+
+    # FIXME: The attribute below is needed in order to correctly
+    #   pass the spectrum_series between objects using its id,
+    #   because "child_attrs" only works on lists.
+    @property
+    def spectrum_series_list(self):
+        return [self.spectrum_series]
 
     @property
     def spectrum_id(self):
         """The id of the `SpectrumSeries`"""
-        return self.spectrum_series.id
+        return self.spectrum_series.short_identity
 
     @property
     def spectra(self):
@@ -662,6 +875,28 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+
+    @property
+    def continuous(self):
+        return self.spectrum_series.continuous
+
+    @continuous.setter
+    def continuous(self, continuous):
+        self.spectrum_series.continuous = continuous
+
+    @Measurement.tstamp.setter
+    def tstamp(self, tstamp):
+        self._tstamp = tstamp
+        # Resetting the tstamp needs to reset the `spectrum_series`' tstamp as well:
+        self.spectrum_series.tstamp = tstamp
+        # As before it also needs to clear the cache, so series are returned wrt the
+        # new timestamp.
+        self.clear_cache()
+
+    def __getitem__(self, item):
+        if isinstance(item, int) or isinstance(item, slice):
+            return self.spectrum_series[item]
+        return super().__getitem__(item)
 
     def __add__(self, other):
         added_measurement = super().__add__(other)
@@ -676,6 +911,6 @@ class SpectroMeasurement(Measurement):
         See :func:`~measurements.Measurement.cut`
         """
         cut_measurement = super().cut(tspan, t_zero=t_zero)
-        spectrum_series = self.spectrum_series.cut(tspan=tspan)
+        spectrum_series = self.spectrum_series.cut(tspan=tspan, t_zero=t_zero)
         cut_measurement.set_spectrum_series(spectrum_series)
         return cut_measurement

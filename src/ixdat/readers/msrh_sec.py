@@ -1,6 +1,7 @@
 from pathlib import Path  # noqa
 import numpy as np
 import pandas as pd
+import time
 from .reading_tools import prompt_for_tstamp
 from ..techniques import TECHNIQUE_CLASSES
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
@@ -65,6 +66,8 @@ class MsrhSECReader:
         t = calc_t_using_scan_rate(U, dvdt=scan_rate * 1e-3)
         # If they didn't provide a tstamp, we have to prompt for it.
         tstamp = tstamp or prompt_for_tstamp(path_to_file)
+        if tstamp == "now":
+            tstamp = time.time()
         # Ready to define the measurement's TimeSeries:
         tseries = TimeSeries("time from scan rate", unit_name="s", data=t, tstamp=tstamp)
 
@@ -95,7 +98,9 @@ class MsrhSECReader:
             axes_series=[tseries, wl_series],
             data=spectra,
         )
-        spectrum_series = SpectrumSeries.from_field(spectra, tstamp=tstamp)
+        spectrum_series = SpectrumSeries.from_field(
+            spectra, tstamp=tstamp, continuous=True
+        )
 
         # Now we process the current and potential:
         U_0 = EI_df["U"].to_numpy()  # ... but we'll actually use U from the sec data
@@ -207,6 +212,8 @@ class MsrhSECDecayReader:
         t_E = t_J_df["t"].to_numpy()
 
         tstamp = tstamp or prompt_for_tstamp(path_to_file)
+        if tstamp == "now":
+            tstamp = time.time()
 
         tseries_J = TimeSeries("t for current", "s", data=t_E, tstamp=tstamp)
         tseries_U = TimeSeries("t for potential", "s", data=t_U, tstamp=tstamp)
@@ -221,6 +228,7 @@ class MsrhSECDecayReader:
                 data=spectra,
             ),
             tstamp=tstamp,
+            continuous=True,
         )
         series_list = [
             tseries_J,

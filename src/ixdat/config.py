@@ -13,7 +13,7 @@ ixdat.config.plugins.use_si_quant = True  # use the spectro_inlets_quantificatio
 
 See `help(ixdat.options.plugins)` for information.
 """
-
+import datetime
 from pathlib import Path
 from .tools import deprecate
 
@@ -26,6 +26,10 @@ class _Config:
             ixdat will make the directory if it does not exist.
         standard_metadata_suffix (str): The file ext. for JSON format metadata files
         standard_data_suffix (str): The file extension for numpy.save format data files
+        timestamp_string_format (str): A format string for datetime.datetime.strftime.
+            Defaults to ixdats custom datetime format: 22E18 14:34:55
+        timezone (datetime.timezone): The timezone timestamps should use when formatted
+            to string. Defaults to the current local timestamp.
     """
 
     def __init__(self):
@@ -34,6 +38,8 @@ class _Config:
         self.standard_ixdat_directory = Path.home() / ".ixdat"
         self.standard_data_directory = self.standard_ixdat_directory / "projects"
         self.default_project_name = "test"
+        self.timestamp_string_format = "native"
+        self.timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
     @property
     def ixdat_temp_dir(self):

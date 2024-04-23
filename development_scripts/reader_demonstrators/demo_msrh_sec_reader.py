@@ -15,7 +15,7 @@ sec_meas = Measurement.read(
     path_to_ref_spec_file=data_dir / "WL.csv",
     path_to_U_J_file=data_dir / "test-7_JV.csv",
     scan_rate=1,
-    tstamp=1,
+    tstamp="now",
     reader="msrh_sec",
 )
 
@@ -37,7 +37,8 @@ if True:  # test export and reload
     sec_reloaded = Measurement.read(export_name, reader="ixdat")
     sec_reloaded.set_reference_spectrum(V_ref=0.66)
     sec_reloaded.plot_vs_potential(cmap_name="jet")
-
+    sec_reloaded.continuous = False
+    sec_reloaded.plot_vs_potential(cmap_name="jet")
 
 axes = sec_meas.plot_measurement(
     V_ref=0.4,
@@ -54,7 +55,7 @@ ax.get_figure().savefig("sec_waterfall.png")
 
 axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=False)
 axes2 = sec_meas.plot_vs_potential(
-    V_ref=0.66, vspan=[1.4, 2], cmap_name="jet", make_colorbar=False
+    V_ref=0.66, vspan=[1.0, 1.5], wlspan=[500, 700], cmap_name="jet", make_colorbar=False
 )
 
 ax = sec_meas.get_dOD_spectrum(V_ref=0.66, V=1.0).plot(color="b", label="species 1")

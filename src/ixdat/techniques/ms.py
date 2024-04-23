@@ -6,8 +6,10 @@ import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be
 import warnings
 
 from ..measurements import Measurement, Calibration
-from ..spectra import Spectrum, SpectroMeasurement
-from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
+from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
+from ..plotters import MSPlotter, MSSpectroPlotter
+from ..plotters.ms_plotter import STANDARD_COLORS
+from ..exporters import MSExporter, MSSpectroExporter
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADRO_CONSTANT,
@@ -48,8 +50,11 @@ def _with_siq_quantifier(method):
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
+    # FIXME: tspan_bg should be column of a Calculator
+    #   (see https://github.com/ixdat/ixdat/issues/164)
     extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
+    default_exporter = MSExporter
 
     def __init__(self, name, **kwargs):
         tspan_bg = kwargs.pop("tspan_bg", None)
@@ -353,7 +358,7 @@ class MSMeasurement(Measurement):
         new_item = self.reverse_aliases[item][0]
         if self.is_mass(new_item):
             return self.as_mass(new_item)
-        raise TypeError(f"{self} does not recognize '{item}' as a mass.")
+        raise TypeError(f"{self!r} does not recognize '{item}' as a mass.")
 
     @deprecate(
         "0.2.6",
@@ -801,7 +806,10 @@ class MSMeasurement(Measurement):
         delta_signal_list = []
         for mass in mass_list:
             S = self.grab_signal(mass, tspan=tspan)[1].mean()
-            S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            if tspan_bg:
+                S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            else:
+                S_bg = 0
             delta_S = S - S_bg
             delta_signal_list.append(delta_S)
         delta_signal_vec = np.array(delta_signal_list)
@@ -1062,7 +1070,7 @@ class MSCalibration(Calibration):
         cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
         Fs = [cal.F for cal in cal_list_for_mol]
         if not Fs:
-            raise QuantificationError(f"{self} has no sensitivity factor for {mol}")
+            raise QuantificationError(f"{self!r} has no sensitivity factor for {mol}")
         index = np.argmax(np.array(Fs))
 
         the_good_cal = cal_list_for_mol[index]
@@ -1078,7 +1086,7 @@ class MSCalibration(Calibration):
         F_list = [cal.F for cal in cal_list_for_mol_at_mass]
         if not F_list:
             raise QuantificationError(
-                f"{self} has no sensitivity factor for {mol} at {mass}"
+                f"{self!r} has no sensitivity factor for {mol} at {mass}"
             )
         return np.mean(np.array(F_list))
 
@@ -1387,12 +1395,29 @@ class MSInlet:
 
 
 class MSSpectrum(Spectrum):
-    """Nothing to add to normal spectrum yet.
+    """Nothing to add to normal Spectrum yet.
     TODO: Methods for co-plotting ref spectra from a database
     """
 
     pass
 
 
-class SpectroMSMeasurement(MSMeasurement, SpectroMeasurement):
-    default_plotter = SpectroMSPlotter
+class MSSpectrumSeries(SpectrumSeries):
+    """Nothing to add to normal SpectrumSeries yet."""
+
+    pass
+
+
+class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
+    extra_column_attrs = {
+        **MSMeasurement.extra_column_attrs,
+        **SpectroMeasurement.extra_column_attrs,
+    }
+    default_plotter = MSSpectroPlotter
+    default_exporter = MSSpectroExporter
+
+    # FIXME: this shouldn't be necessary. See #164.
+    cut = _with_siq_quantifier(SpectroMeasurement.cut)
+    multicut = _with_siq_quantifier(SpectroMeasurement.multicut)
+
+    # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1486023530

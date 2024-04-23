@@ -16,6 +16,7 @@ regular_expressions = {
     "tstamp": r"tstamp = ([0-9\.]+)\n",
     "technique": r"technique = (.+)\n",
     "N_header_lines": r"N_header_lines = ([0-9]+)\n",
+    "continuous": r"continuous = (.+)\n",
     "backend_name": r"backend_name = (.+)\n",
     "id": r"id = ([0-9]+)",
     "timecol": r"timecol '(.+)' for: (?:'(.+)')$",
@@ -198,6 +199,10 @@ class IxdatCSVReader:
         if timestamp_match:
             self.tstamp = float(timestamp_match.group(1))
             return
+        continuous_match = re.search(regular_expressions["continuous"], line)
+        if continuous_match:
+            self.meas_as_dict["continuous"] = continuous_match.group(1) == "True"
+            return
         technique_match = re.search(regular_expressions["technique"], line)
         if technique_match:
             self.technique = technique_match.group(1)
@@ -218,6 +223,7 @@ class IxdatCSVReader:
             aux_file = self.path_to_file.parent / aux_file_match.group(2)
             self.read_aux_file(aux_file, name=aux_file_name)
             return
+
         if " = " in line:
             key, value = line.strip().split(" = ")
             if key in bad_keys:
@@ -278,7 +284,7 @@ def get_column_unit(column_name):
 class IxdatSpectrumReader(IxdatCSVReader):
     """A reader for ixdat spectra."""
 
-    def read(self, path_to_file, name=None, cls=SpectrumSeries, **kwargs):
+    def read(self, path_to_file, name=None, cls=Spectrum, **kwargs):
         """Read an ixdat spectrum.
 
         This reads the header with the process_line() function inherited from
@@ -294,6 +300,7 @@ class IxdatSpectrumReader(IxdatCSVReader):
 
         Returns cls: a Spectrum of type cls
         """
+        path_to_file = Path(path_to_file)
         self.name = name or path_to_file.name
         with open(path_to_file, "r") as f:
             for line in f:
@@ -302,25 +309,17 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 else:
                     break
         df = pd.read_csv(path_to_file, sep=",", header=self.N_header_lines - 2)
-        if self.technique.endswith("spectrum"):
-            # FIXME: in the future, this needs to cover all spectrum classes
-            x_name, y_name = tuple(df.keys())
-            x = df[x_name].to_numpy()
-            y = df[y_name].to_numpy()
+
+        if issubclass(TECHNIQUE_CLASSES.get(self.technique, int), Spectrum):
+            cls = TECHNIQUE_CLASSES[self.technique]
+
+        elif self.technique.endswith("spectrum"):
             cls = cls if issubclass(cls, Spectrum) else Spectrum
-            return cls.from_data(  # see Spectrum.from_data()
-                x,
-                y,
-                self.tstamp,
-                x_name,
-                y_name,
-                name=self.name,
-                technique=self.technique,
-                reader=self,
-            )
 
         elif self.technique.endswith("spectra"):
-            # FIXME: in the future, this needs to cover all spectrum series classes
+            cls = cls if issubclass(cls, SpectrumSeries) else SpectrumSeries
+
+        if issubclass(cls, SpectrumSeries):  # return a SpectrumSeries object
             names = {}
             units = {}
             swap_axes = False
@@ -354,7 +353,21 @@ class IxdatSpectrumReader(IxdatCSVReader):
                 data=y,
                 axes_series=[tseries, xseries],
             )
-            cls = cls if issubclass(cls, SpectrumSeries) else SpectrumSeries
-            return cls.from_field(  # see SpectrumSeries.from_field()
-                field, name=self.name, technique=self.technique, tstamp=self.tstamp
+            self.meas_as_dict.update(
+                field=field, name=self.name, technique=self.technique, tstamp=self.tstamp
+            )
+            return cls.from_dict(self.meas_as_dict)
+        else:  # return a simple Spectrum object
+            x_name, y_name = tuple(df.keys())
+            x = df[x_name].to_numpy()
+            y = df[y_name].to_numpy()
+            return cls.from_data(  # see Spectrum.from_data()
+                x,
+                y,
+                self.tstamp,
+                x_name,
+                y_name,
+                name=self.name,
+                technique=self.technique,
+                reader=self,
             )

@@ -1,8 +1,6 @@
 """Plotter for Electrochemistry - Mass Spectrometry"""
 
-from .base_mpl_plotter import MPLPlotter
-from .ec_plotter import ECPlotter
-from .ms_plotter import MSPlotter
+from . import MPLPlotter, ECPlotter, MSPlotter
 from ..tools import deprecate
 
 

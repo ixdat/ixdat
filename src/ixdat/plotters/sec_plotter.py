@@ -1,14 +1,12 @@
 """Plotters for spectroelectrochemistry. Makes use of those in spectrum_plotter.py"""
 
 import matplotlib as mpl
-
-from .ec_plotter import ECPlotter
-from .spectrum_plotter import SpectrumSeriesPlotter, SpectroMeasurementPlotter
+from . import ECPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter
 from ..exceptions import SeriesNotFoundError
 
 
 class SECPlotter(SpectroMeasurementPlotter):
-    """An spectroelectrochemistry (SEC) matplotlib plotter."""
+    """A spectroelectrochemistry (SEC) matplotlib plotter."""
 
     def __init__(self, measurement=None):
         """Initiate the plotter with its default Meausurement to plot"""
@@ -27,6 +25,7 @@ class SECPlotter(SpectroMeasurementPlotter):
         axes=None,
         cmap_name="inferno",
         make_colorbar=False,
+        continuous=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with time as x-asis.
@@ -52,6 +51,12 @@ class SECPlotter(SpectroMeasurementPlotter):
                 FIXME: colorbar at present mis-alignes axes
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
+            continuous (bool): Optional. Whether to make a continuous heat plot (True) or
+                a discrete heat plot for each spectrum (False). In the discrete case,
+                each heat plot is a rectangle with the spectrum's duration as its width,
+                if available. If the duration is not available, each spectrum heat plot
+                extends to the start of the next one.
+                Defaults to `measurement.spectrum_series.continuous`.
 
         Returns:
             list of Axes: axes=[spectra, potential, None, current]
@@ -76,12 +81,13 @@ class SECPlotter(SpectroMeasurementPlotter):
         )
         axes[0] = self.spectrum_series_plotter.heat_plot(
             spectrum_series=measurement.spectrum_series,
-            field=field or measurement.spectra,
+            field=field,
             tspan=tspan,
             xspan=xspan,
             ax=axes[0],
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
+            continuous=continuous,
         )
         if make_colorbar:
             pass  # TODO: adjust EC plot to be same width as heat plot despite colorbar.
@@ -160,6 +166,10 @@ class SECPlotter(SpectroMeasurementPlotter):
         )
         axes[1].set_xlim(axes[0].get_xlim())
         return axes
+
+    def plot_stacked_spectra(self, **kwargs):
+        kwargs.update(vs="potential")
+        return super().plot_stacked_spectra_vs(**kwargs)
 
 
 class ECOpticalPlotter(SECPlotter):
@@ -314,8 +324,6 @@ class ECOpticalPlotter(SECPlotter):
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
                 self.measurement
-            tspan (timespan): The timespan of data to keep for the measurement.
-            wlspan (iterable): The wavelength span of spectral data to plot
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
             V_ref (float): potential to use as reference for calculating optical density
             t_ref (float): time to use as a reference for calculating optical density

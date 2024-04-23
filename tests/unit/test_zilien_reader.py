@@ -4,9 +4,16 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from ixdat.techniques import ECMeasurement, MSMeasurement, ECMSMeasurement
-from ixdat.readers.zilien import ZilienTSVReader, to_mass, parse_metadata_line
 from ixdat.data_series import TimeSeries, ValueSeries
+from ixdat.exceptions import TechniqueError
+from ixdat.readers.zilien import (
+    ZilienTSVReader,
+    determine_class,
+    to_mass,
+    to_snake_case,
+    parse_metadata_line,
+)
+from ixdat.techniques import ECMeasurement, MSMeasurement, ECMSMeasurement
 
 
 DATA_DIR = Path(__file__).parent.parent.parent / "submodules" / "ixdat-large-test-files"
@@ -82,8 +89,13 @@ class TestZilienTSVReader:
         ),
     )
     def test_zilien_dataset_part(self, series_header, column_headers, expected_aliases):
-        """Test forming of Zilien part of a dataset."""
+        """Test forming of Zilien part of a dataset.
 
+        The headers are parametrized, because some headers do produce an alias
+        (C4M26 -> M26) and some do not. The data stays the same, because the
+        values in the columns don't have an effect on the parsing.
+
+        """
         reader = ZilienTSVReader()
         reader._timestamp = 123456
         reader._metadata = {
@@ -157,8 +169,13 @@ class TestZilienTSVReader:
         # fmt: on
     )
     def test_biologic_dataset_part(self, data, lines_count, expected_series_length):
-        """Test forming of Biologic part of a dataset."""
+        """Test forming of Biologic part of a dataset.
 
+        The data change, because the "experiment_number" and the "technique_number"
+        columns are used to split the data chuck into more chunks. The headers
+        stay the same, because nothing else is produces from them.
+
+        """
         reader = ZilienTSVReader()
         reader._timestamp = 123456
         reader._metadata = {
@@ -181,6 +198,65 @@ class TestZilienTSVReader:
 
         for i, count in enumerate(expected_series_length):
             assert series[i].data.size == count
+
+    @pytest.mark.parametrize(
+        "metadata, series_headers, column_headers, expected",
+        # fmt: off
+        (
+            (  # good case with EC-lab data
+                {"pot_pot_count": 3},
+                ["pot", "", "", "", "Iongauge value", "", "EC-lab", "", ""],
+                [
+                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",  # noqa: E501
+                    "time/s", "experiment_number", "technique_number", "Ewe/V"
+                ],
+                "EC-MS"
+            ),
+            (  # bug case without EC-lab data
+                {"pot_pot_count": 3},
+                ["pot", "", "", "", "Iongauge value", "", "EC-lab"],
+                [
+                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",  # noqa: E501
+                ],
+                "MS"
+            ),
+            (  # bug case without pot data
+                {},
+                ["pot", "", "", "", "Iongauge value", ""],
+                [
+                    "Time [s]", "Voltage [V]", "Current [mA]", "Cycle [n]", "Time [s]", "Pressure [mbar]",  # noqa: E501
+                ],
+                "MS"
+            ),
+            (  # good case without EC measurement run
+                {},
+                ["Iongauge value", ""],
+                ["Time [s]", "Pressure [mbar]"],
+                "MS"
+            ),
+            (  # random and unexpected case
+                {"pot_pot_count": 3},
+                ["Iongauge value", ""],
+                ["Time [s]", "Pressure [mbar]"],
+                "MS"
+            ),
+            (  # random and unexpected case
+                {},
+                ["Iongauge value", "", "EC-lab", ""],
+                ["Time [s]", "Pressure [mbar]", "time/s", "Ewe/V"],
+                "MS"
+            ),
+        )
+        # fmt: on
+    )
+    @patch("sys.stderr.write")
+    def test_get_technique(self, _, metadata, series_headers, column_headers, expected):
+        reader = ZilienTSVReader()
+        reader._metadata = metadata
+        reader._series_headers = series_headers
+        reader._column_headers = column_headers
+
+        assert reader._get_technique() == expected
 
     @pytest.mark.parametrize(
         "klass, expected_aliases, expected_series",
@@ -301,6 +377,22 @@ class TestZilienTSVReaderUtils:
     @pytest.mark.parametrize(
         "data, expected",
         (
+            ("", ""),
+            ("a", "a"),
+            ("A", "a"),
+            (" ", "_"),
+            ("_", "_"),
+            ("A String to-convert", "a_string_to-convert"),
+            ("TRAILING  SPACE  ", "trailing__space__"),
+        ),
+    )
+    def test_to_snake_case(self, data, expected):
+        """Test converting a string to snakecase."""
+        assert to_snake_case(data) == expected
+
+    @pytest.mark.parametrize(
+        "data, expected",
+        (
             ("not-a-match", None),
             ("C0M2", "2"),
             ("C2M15", "15"),
@@ -310,6 +402,27 @@ class TestZilienTSVReaderUtils:
     def test_to_mass(self, data, expected):
         """Test conversion to mass."""
         assert to_mass(data) == expected
+
+    @pytest.mark.parametrize(
+        "data, expected",
+        (
+            ("EC-MS", ECMSMeasurement),
+            ("EC", ECMeasurement),
+            ("MS", MSMeasurement),
+        ),
+    )
+    def test_determine_class(self, data, expected):
+        """Test determining a class type."""
+        assert determine_class(data) == expected
+
+    @pytest.mark.parametrize(
+        "data",
+        ("ec-ms", "ec", "ms", "read the exception message finally"),
+    )
+    def test_determine_class_error(self, data):
+        """Test an exception while determining a class type."""
+        with pytest.raises(TechniqueError):
+            determine_class(data)
 
     @pytest.mark.parametrize(
         "data, expected",
