@@ -100,6 +100,9 @@ class MSMeasurement(Measurement):
         tspan_bg=None,
         include_endpoints=False,
         remove_background=False,
+        unit_name=None,
+        t_unit_name=None,
+        return_quantity=False,
     ):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
@@ -122,7 +125,10 @@ class MSMeasurement(Measurement):
                 include_endpoints=include_endpoints,
             )
         time, value = super().grab(
-            item, tspan=tspan, include_endpoints=include_endpoints
+            item, tspan=tspan, include_endpoints=include_endpoints,
+            unit_name=unit_name,
+            t_unit_name=t_unit_name,
+            return_quantity=return_quantity,
         )
         if tspan_bg:
             _, bg = self.grab(item, tspan=tspan_bg)
@@ -135,7 +141,7 @@ class MSMeasurement(Measurement):
                 return time, value - np.average(bg)
         return time, value
 
-    def grab_for_t(self, item, t, tspan_bg=None, remove_background=False):
+    def grab_for_t(self, item, t, tspan_bg=None, remove_background=False, unit_name=None, t_unit_name=None, return_quantity=False,):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -149,7 +155,10 @@ class MSMeasurement(Measurement):
                 Defaults to False, but in grab_flux it defaults to True.
         """
         t_0, v_0 = self.grab(
-            item, tspan_bg=tspan_bg, remove_background=remove_background
+            item, tspan_bg=tspan_bg, remove_background=remove_background,            
+                  unit_name=unit_name,
+                  t_unit_name=t_unit_name,
+                  return_quantity=return_quantity,
         )
         v = np.interp(t, t_0, v_0)
         return v
