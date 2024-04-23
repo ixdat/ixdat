@@ -4,11 +4,12 @@ import warnings
 from scipy.optimize import minimize
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
-from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
+from .ms import MSMeasurement, MSSpectroMeasurement, MSCalResult, MSCalibration
+from .ms import _with_siq_quantifier  # FIXME: see #164
 from .cv import CyclicVoltammogram
 from ..exceptions import QuantificationError
-from ..exporters.ecms_exporter import ECMSExporter
-from ..plotters.ecms_plotter import ECMSPlotter
+from ..exporters import ECMSExporter
+from ..plotters import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..config import plugins
 
@@ -25,31 +26,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter
-
-    def __init__(self, **kwargs):
-        """FIXME: Passing the right key-word arguments on is a mess"""
-        ec_kwargs = {
-            k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
-        }
-        ms_kwargs = {
-            k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
-        }
-        # ms_kwargs["ms_calibration"] = self.ms_calibration  # FIXME: This is a mess.
-        # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
-        #  works together with MemoryBackend
-        if "series_list" in kwargs:
-            ec_kwargs.update(series_list=kwargs["series_list"])
-            ms_kwargs.update(series_list=kwargs["series_list"])
-        if "component_measurements" in kwargs:
-            ec_kwargs.update(component_measurements=kwargs["component_measurements"])
-            ms_kwargs.update(component_measurements=kwargs["component_measurements"])
-        if "calibration_list" in kwargs:
-            ec_kwargs.update(calibration_list=kwargs["calibration_list"])
-            ms_kwargs.update(calibration_list=kwargs["calibration_list"])
-        ECMeasurement.__init__(self, **ec_kwargs)
-        MSMeasurement.__init__(self, **ms_kwargs)
-        self._ec_plotter = None
-        self._ms_plotter = None
 
     @property
     def ec_plotter(self):
@@ -493,3 +469,7 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         try_2 = MSCalibration.calibrate_series(self, key, measurement)
         if try_2:
             return try_2
+
+
+class ECMSSpectroMeasurement(ECMSMeasurement, MSSpectroMeasurement):
+    pass

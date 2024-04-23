@@ -5,11 +5,12 @@ Demonstrated/tested at the bottom under `if __name__ == "__main__":`
 
 import re
 from pathlib import Path
-
+import warnings
 import numpy as np
+import pandas as pd
 
 from . import TECHNIQUE_CLASSES
-from .reading_tools import timestamp_string_to_tstamp
+from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
 from ..data_series import TimeSeries, ValueSeries, ConstantValue
 from ..exceptions import ReadError, SeriesNotFoundError
 
@@ -44,7 +45,7 @@ def fix_WE_potential(measurement):
     electrode potential ("<Ece>/V") and cell potential ("Ewe-Ece/V").
 
     This function is not called automatically - it needs to be called manually on the
-    measurements loaded from the aflicted files. It requires that the counter electrode
+    measurements loaded from the afflicted files. It requires that the counter electrode
     potential was recorded.
 
     Args:
@@ -73,7 +74,7 @@ def fix_WE_potential(measurement):
     measurement.clear_cache()
 
 
-class BiologicMPTReader:
+class BiologicReader:
     """A class to read .mpt files written by Biologic's EC-Lab.
 
     read() is the important method - it takes the path to the mpt file as argument
@@ -83,7 +84,20 @@ class BiologicMPTReader:
     useful for debugging.
 
     Attributes:
+        file_has_been_read (bool): This is used to make sure read() is only successfully
+            called once by the Reader. False until read() is called, then True.
+        measurement (Measurement): The measurement returned by read() when the file is
+            read. self.measurement is None before read() is called.
+        measurement_name (str): The name of the measurement being read
         path_to_file (Path): the location and name of the file read by the reader
+        tstamp (float): The unix time corresponding to t=0, parsed from timestamp_string
+        measurement_class (class): Type of measurement to return
+        data_series_list (list of DataSeries): Data series of the measurement being read
+        aliases (dict): Aliases for data series in the measurement being read
+        tseries (TimeSeries): Time series for the returned measurement (biologic files
+            have one shared time variable)
+        ec_technique (str): The name of the electrochemical sub-technique, i.e.
+            "Cyclic Voltammetry Advanced", etc.
         n_line (int): the number of the last line read by the reader
         place_in_file (str): The last location in the file read by the reader. This
             is used internally to tell the reader how to parse each line. Options are:
@@ -93,35 +107,43 @@ class BiologicMPTReader:
             print_header() function.
         timestamp_string (str): The string identified to represent the t=0 time of the
             measurement recorded in the file.
-        tstamp (str): The unix time corresponding to t=0, parsed from timestamp_string
-        ec_technique (str): The name of the electrochemical sub-technique, i.e.
-            "Cyclic Voltammatry Advanced", etc.
         N_header_lines (int): The number of lines in the header of the file
         column_names (list of str): The names of the data columns in the file
         column_data (dict of str: np.array): The data in the file as a dict.
             Note that the np arrays are the same ones as in the measurement's DataSeries,
             so this does not waste memory.
-        file_has_been_read (bool): This is used to make sure read() is only successfully
-            called once by the Reader. False until read() is called, then True.
-        measurement (Measurement): The measurement returned by read() when the file is
-            read. self.measureemnt is None before read() is called.
+        df (Pandas DataFrame): The data from a .mpr as read by an external package
     """
 
     def __init__(self):
         """Initialize a Reader for .mpt files. See class docstring."""
-        self.name = None
+        super().__init__()
+
+        # These are general for readers
+        self.file_has_been_read = False
+        self.measurement = None
+        self.measurement_name = None
         self.path_to_file = None
+        self.tstamp = None
+
+        # These are common to .mpt and .mpr reading
+        self.tseries = None
+        self.data_series_list = []
+        self.aliases = {}
+        self.measurement_class = ECMeasurement
+        self.ec_technique = None
+
+        # These are special to .mpt reading
         self.n_line = 0
         self.place_in_file = "header"
         self.header_lines = []
         self.timestamp_string = None
-        self.tstamp = None
-        self.ec_technique = None
         self.N_header_lines = None
         self.column_names = []
         self.column_data = {}
-        self.file_has_been_read = False
-        self.measurement = None
+
+        # this is special to .mpr reading:
+        self.df = None
 
     def read(self, path_to_file, name=None, cls=ECMeasurement, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
@@ -137,7 +159,8 @@ class BiologicMPTReader:
         ECMeasurement contains a reference to the reader.
 
         Args:
-            path_to_file (Path): The full abs or rel path including the ".mpt" extension
+            path_to_file (Path): The full absolute or relative path including the suffix
+                (".mpt" or ".mpr")
             **kwargs (dict): Key-word arguments are passed to ECMeasurement.__init__
             name (str): The name to use if not the file name
             cls (Measurement subclass): The Measurement class to return an object of.
@@ -145,11 +168,11 @@ class BiologicMPTReader:
                 any case.
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
-
-        path_to_file = Path(path_to_file) if path_to_file else self.path_to_file
-
+        self.path_to_file = Path(path_to_file)
+        self.measurement_name = name or self.path_to_file.name
         if issubclass(ECMeasurement, cls):
             cls = ECMeasurement
+        self.measurement_class = cls
 
         if self.file_has_been_read:
             print(
@@ -158,11 +181,38 @@ class BiologicMPTReader:
                 "Use a new Reader if you want to read another file."
             )
             return self.measurement
-        self.name = name or path_to_file.name
-        self.path_to_file = path_to_file
-        with open(self.path_to_file, "r", encoding="ISO-8859-1") as f:
+
+        if self.path_to_file.suffix == ".mpr":
+            self.series_list_from_mpr()
+        else:  # if the suffix is not ".mpr", assume it's a ".mpt"
+            # read the .mpt file to get the series list using the methods of this class.
+            self.series_list_from_mpt()
+        self._update_aliases_and_ensure_essential_series()
+
+        obj_as_dict = dict(
+            name=self.measurement_name,
+            technique="EC",
+            reader=self,
+            series_list=self.data_series_list,
+            tstamp=self.tstamp,
+            ec_technique=self.ec_technique,
+            aliases=self.aliases,
+        )
+        obj_as_dict.update(kwargs)
+
+        self.measurement = cls.from_dict(obj_as_dict)
+        self.file_has_been_read = True
+
+        return self.measurement
+
+    def series_list_from_mpt(self, path_to_file=None):
+        """Read a .mpt file to generate the reader's `data_series_list`"""
+        path_to_file = Path(path_to_file or self.path_to_file)
+
+        with open(path_to_file, "r", encoding="ISO-8859-1") as f:
             for line in f:
-                self.process_line(line)
+                self._process_line(line)
+
         for name in self.column_names:
             self.column_data[name] = np.array(self.column_data[name])
 
@@ -171,81 +221,37 @@ class BiologicMPTReader:
                 f"{self} did not find any data for t_str='{t_str}'. "
                 f"This reader only works for files with a '{t_str}' column"
             )
-        tseries = TimeSeries(
+        self.tseries = TimeSeries(
             name=t_str,
             data=self.column_data[t_str],
             tstamp=self.tstamp,
             unit_name="s",
         )
-        data_series_list = [tseries]
+        self.data_series_list = [self.tseries]
         for column_name, data in self.column_data.items():
             if column_name == t_str:
                 continue
             vseries = ValueSeries(
                 name=column_name,
                 data=data,
-                tseries=tseries,
-                unit_name=get_column_unit(column_name),
+                tseries=self.tseries,
+                unit_name=get_column_unit_name(column_name),
             )
-            data_series_list.append(vseries)
+            self.data_series_list.append(vseries)
 
-        series_names = [s.name for s in data_series_list]
-        aliases = {}
-        for name, potential_aliases in BIOLOGIC_ALIASES.items():
-            found_aliases = [pa for pa in potential_aliases if pa in series_names]
-            if found_aliases:
-                aliases[name] = found_aliases
-
-        for series_name in cls.essential_series_names:
-            if series_name not in series_names and series_name not in aliases:
-                name_0 = series_name + "=0"
-                data_series_list.append(
-                    ConstantValue(name=name_0, unit_name="", data=0, tseries=tseries)
-                )
-                aliases[series_name] = [name_0]
-
-        # All biologic ECMeasurements need a `cycle number` and `Ns` in order for the
-        # `selector` to be built correctly when these files are appended, but some .mpt
-        # files are missing those columns. Here, we put in a constant=0 for "Ns" and/or
-        # "cycle number" if they are missing:
-        if "cycle number" not in [s.name for s in data_series_list]:
-            data_series_list.append(
-                ConstantValue(name="cycle number", unit_name="", data=0, tseries=tseries)
-            )
-        if "Ns" not in [s.name for s in data_series_list]:
-            data_series_list.append(
-                ConstantValue(name="Ns", unit_name="", data=0, tseries=tseries)
-            )
-
-        obj_as_dict = dict(
-            name=self.name,
-            technique="EC",
-            reader=self,
-            series_list=data_series_list,
-            tstamp=self.tstamp,
-            ec_technique=self.ec_technique,
-            aliases=aliases,
-        )
-        obj_as_dict.update(kwargs)
-
-        self.measurement = cls.from_dict(obj_as_dict)  # cls.from_dict(**init_kwargs)
-        self.file_has_been_read = True
-
-        return self.measurement
-
-    def process_line(self, line):
+    def _process_line(self, line):
         """Call the correct line processing method depending on self.place_in_file"""
         if self.place_in_file == "header":
-            self.process_header_line(line)
+            self._process_header_line(line)
         elif self.place_in_file == "column names":
-            self.process_column_line(line)
+            self._process_column_line(line)
         elif self.place_in_file == "data":
-            self.process_data_line(line)
+            self._process_data_line(line)
         else:  # just for debugging
             raise ReadError(f"place_in_file = {self.place_in_file}")
         self.n_line += 1
 
-    def process_header_line(self, line):
+    def _process_header_line(self, line):
         """Search line for important metadata and set the relevant attribute of self"""
         self.header_lines.append(line)
         if not self.N_header_lines:
@@ -280,14 +286,14 @@ class BiologicMPTReader:
         if self.N_header_lines and self.n_line >= self.N_header_lines - 2:
             self.place_in_file = "column names"
 
-    def process_column_line(self, line):
+    def _process_column_line(self, line):
         """Split the line to get the names of the file's data columns"""
         self.header_lines.append(line)
         self.column_names = line.strip().split(delim)
         self.column_data.update({name: [] for name in self.column_names})
         self.place_in_file = "data"
 
-    def process_data_line(self, line):
+    def _process_data_line(self, line):
         """Split the line and append the numbers the corresponding data column arrays"""
         data_strings_from_line = line.strip().split()
         for name, value_string in zip(self.column_names, data_strings_from_line):
@@ -299,8 +305,167 @@ class BiologicMPTReader:
                 try:
                     value = float(value_string)
                 except ValueError:
-                    raise ReadError(f"can't parse value string '{value_string}'")
+                    # Some old .mpt files have the value "XXXX" in some columns. To
+                    # keep the reader from crashing, we warn and interpret it as 0:
+                    warnings.warn(
+                        f"Can't parse value string '{value_string}' in "
+                        f"column '{name}'. Using Value=0"
+                    )
+                    value = 0
             self.column_data[name].append(value)
+
+    def series_list_from_mpr(self, path_to_file=None):
+        """Read a .mpr file to generate the reader's `data_series_list`
+
+        Raises: ReadError, if no external package succeeds in reading the file. The
+            error message includes instructions to install each external package or the
+            error that is raised when attempting to use it.
+        """
+        # read the .mpr file to get the series list using a function which calls
+        # an external package.
+        warnings.warn(
+            "Reading .mpr files is discouraged.\n"
+            "We suggest to use the .mpt file if you can.\n"
+            "You can set EC-Lab to export .mpt files automatically under "
+            "Advanced Settings.\n"
+            "ixdat is able to extract more "
+            "useful data and metadata (e.g. loop numbers) from .mpt's\n"
+        )
+
+        # First, try with `galvani`
+        try:
+            self.series_list_from_mpr_galvani()
+        except ImportError:
+            # Nudge the user towards .mpt since we are better at those:
+            e_galvani = (
+                "To read biologic binary files (.mpr), ixdat first tries to use the "
+                "`galvani` package, which could not be imported. "
+                "See https://pypi.org/project/galvani/ \n"
+                "Install `galvani` and try again."
+            )
+        except Exception as e:
+            e_galvani = e
+        else:  # we're good!
+            print(f"read with `galvani`: {self.path_to_file}")
+            return
+
+        # Then, try with `eclabfiles`
+        try:
+            self.series_list_from_mpr_eclabfiles()
+        except ImportError:
+            # Nudge the user towards .mpt since we are better at those:
+            e_eclabfiles = (
+                "To read biologic binary files (.mpr), ixdat also tries to use the "
+                "`eclabfiles` package, which could not be imported. "
+                "See https://pypi.org/project/eclabfiles/ \n"
+                "Install `eclabfiles` and try again."
+            )
+        except Exception as e:
+            e_eclabfiles = e
+        else:  # we're good!
+            print(f"read with `eclabfiles`: {self.path_to_file}")
+            return
+
+        raise ReadError(
+            f"couldn't read {path_to_file} with `galvani` or `eclabfiles`\n"
+            f"Consider reading the .mpt file instead. You can set EC-Lab to export "
+            ".mpt files automatically under Advanced Settings.\n"
+            f"--- `galvani` error:\n{e_galvani}\n"
+            f"--- `eclabfiles` error:\n{e_eclabfiles}"
+        )
+
+    def series_list_from_mpr_galvani(self, path_to_file=None):
+        """Read a biologic .mpr file
+
+        This makes use of the package `galvani`.
+        See: https://github.com/echemdata/galvani.
+        The dataframe read in by `eclabfiles.to_df()` is stored in the returned
+        measurement `meas` as `meas.reader.df`.
+
+        Args:
+            path_to_file (Path): The full abs or rel path including the ".mpr" extension
+        """
+        from galvani import BioLogic
+
+        path_to_file = Path(path_to_file or self.path_to_file)
+
+        with open(path_to_file, "rb") as mpr_binary_file:
+            mpr_file = BioLogic.MPRfile(mpr_binary_file)
+
+        self.tstamp = mpr_file.timestamp.timestamp()
+        self.df = pd.DataFrame(mpr_file.data)
+
+        # Build the time series from the dataframe
+        self.data_series_list = series_list_from_dataframe(
+            self.df,
+            time_name=t_str,
+            tstamp=self.tstamp,
+            unit_finding_function=get_column_unit_name,
+        )
+        self.tseries = self.data_series_list[0]
+
+    def series_list_from_mpr_eclabfiles(self, path_to_file=None):
+        """Read a biologic .mpr file
+
+        This makes use of the package `eclabfiles`.
+        See: https://github.com/vetschn/eclabfiles.
+        The dataframe read in by `eclabfiles.to_df()` is stored in the returned
+        measurement `meas` as `meas.reader.df`.
+
+        Args:
+            path_to_file (Path): The full abs or rel path including the ".mpr" extension
+        """
+        import eclabfiles  # not a requirement of ixdat, so we import it here.
+
+        self.df = eclabfiles.to_df(str(path_to_file or self.path_to_file))
+
+        units = self.df.attrs["units"]
+        self.tstamp = self.df.attrs["log"]["posix_timestamp"]
+        self.ec_technique = self.df.attrs["settings"]["technique"]
+
+        # Build the time series from the dataframe
+        self.data_series_list = series_list_from_dataframe(
+            self.df,
+            # the unit-free name of the time column, i.e. "time":
+            time_name=t_str.split("/")[0],
+            tstamp=self.tstamp,
+            # to find a column's unit, look it up in the dictionary `units`:
+            unit_finding_function=units.get,
+        )
+        self.tseries = self.data_series_list[0]
+
+    def _update_aliases_and_ensure_essential_series(self):
+        """A helper function completing the data_series_list for biologic readers."""
+        # First, check if any of the biologic aliases are
+        for data_series in self.data_series_list:
+            for name, alias_list in BIOLOGIC_ALIASES.items():
+                # We need to make sure the .mpr (unit-less) names are find-able:
+                name_slash_unit = data_series.name + "/" + data_series.unit_name
+                # In that case, this adds, e.g. "time" to the aliases for essential
+                # series "t", since BIOLOGIC_ALIASES["t"] includes "time/s"
+                if data_series.name in alias_list or name_slash_unit in alias_list:
+                    if name in self.aliases:
+                        self.aliases[name].append(data_series.name)
+                    else:
+                        self.aliases[name] = [data_series.name]
+                    break
+
+        # The following series need to be there:
+        essential_series = set(self.measurement_class.essential_series_names).union(
+            {"cycle number", "Ns"}
+        )
+        # To ensure this, we put a ConstantValue of zero in for the series
+        series_names = [s.name for s in self.data_series_list]
+        for series_name in essential_series:
+            if series_name not in series_names and series_name not in self.aliases:
+                name_0 = series_name + "=0"  # A series name to indicate it is set to 0.
+                self.data_series_list.append(
+                    ConstantValue(
+                        name=name_0, unit_name="", data=0, tseries=self.tseries
+                    )
+                )
+                # Add an alias to make it find-able with the essential series name:
+                self.aliases[series_name] = [name_0]
 
     def print_header(self):
         """Print the file header including column names. read() must be called first."""
@@ -311,7 +476,7 @@ class BiologicMPTReader:
         return f"{self.__class__.__name__}({self.path_to_file})"
 
 
-def get_column_unit(column_name):
+def get_column_unit_name(column_name):
     """Return the unit name of a .mpt column, i.e the part of the name after the '/'"""
     if "/" in column_name:
         unit_name = column_name.split("/")[-1]

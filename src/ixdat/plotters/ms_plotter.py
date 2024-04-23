@@ -1,8 +1,8 @@
 """Plotter for Mass Spectrometry"""
 import warnings
-from ..data_series import Field
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
+from ..data_series import Field
+from . import MPLPlotter
 
 
 class MSPlotter(MPLPlotter):
@@ -328,6 +328,9 @@ class MSPlotter(MPLPlotter):
         new_x_unit,
         original_unit_name,
     ):
+        # FIXME: This function will disappear with pint units (#146)
+        if not new_x_unit:
+            return 1, original_unit_name
         if (original_unit_name or new_x_unit) in ["kelvin", "K", "celsius", "C"]:
             warnings.warn(
                 f"Converting '{original_unit_name}' to '{new_x_unit}' should be done in "
@@ -482,7 +485,7 @@ class MSPlotter(MPLPlotter):
         return quantified, specs_this_axis, specs_next_axis
 
 
-class SpectroMSPlotter(MPLPlotter):
+class MSSpectroPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
 
     def __init__(self, measurement=None):
@@ -596,7 +599,6 @@ class SpectroMSPlotter(MPLPlotter):
                 n_bottom = 2 if (mass_lists or mol_lists) else 1
                 ms_axes = 1
                 ms_spec_axes = 0
-
             axes = self.new_two_panel_axes(
                 n_bottom=n_bottom,
                 n_top=n_top,
@@ -633,19 +635,23 @@ class SpectroMSPlotter(MPLPlotter):
                 **kwargs,
             )
 
-        # then we have the spectrum series to plot
-        measurement.spectrum_series.heat_plot(
-            ax=axes[ms_spec_axes],
-            tspan=tspan,
-            xspan=xspan,
-            cmap_name=cmap_name,
-            make_colorbar=make_colorbar,
-            max_threshold=max_threshold,
-            min_threshold=min_threshold,
-            scanning_mask=scanning_mask,
-            vmin=vmin,
-            vmax=vmax,
-        )
+        if len(measurement.spectrum_series) > 0:
+            # then we have the spectrum series to plot
+            ax_heat_plot = measurement.spectrum_series.heat_plot(
+                ax=axes[ms_spec_axes],
+                tspan=tspan,
+                xspan=xspan,
+                cmap_name=cmap_name,
+                make_colorbar=make_colorbar,
+                max_threshold=max_threshold,
+                min_threshold=min_threshold,
+                scanning_mask=scanning_mask,
+                vmin=vmin,
+                vmax=vmax,
+            )
+
+            # Get the time variables aligned!
+            ax_heat_plot.set_xlim(axes[ms_axes].get_xlim())
 
         return axes
 
@@ -965,12 +971,13 @@ STANDARD_COLORS = {
     "He": "m",
     "H2O": "y",
     "CO": "0.5",
-    "N2": "8f8fffff",  # light blue-ish-purple
+    "N2": "#8f8fffff",  # light blue-ish-purple
     "O2": "k",
     "Ar": "c",
     "CO2": "brown",
     "CH4": "r",
     "C2H4": "g",
+    "NH3": "steelblue",
     "O2@M32": "k",
     "O2@M34": "r",
     "O2@M36": "g",

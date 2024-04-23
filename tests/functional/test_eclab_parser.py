@@ -43,7 +43,7 @@ TEST_DATA = {
         "I Range": ("", (41, 41)),
         "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
         "P/W": ("W", (-4.0162254e-007, 1.0149774e-005)),
-        "Ns": ("", (0, 0)),  # this is automatically added by ixdat as a ConstantValue
+        "Ns=0": ("", (0, 0)),  # this is automatically added by ixdat as a ConstantValue
     },
     "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_03_CP_C01.mpt": {  # noqa: E501
         "mode": ("", (1, 1)),
@@ -213,8 +213,8 @@ TEST_DATA = {
         "Im(Y)/Ohm-1": ("Ohm-1", None),
         "|Y|/Ohm-1": ("Ohm-1", None),
         "Phase(Y)/deg": ("deg", None),
-        "cycle number": ("", None),  # added by Ixdat
-        "Ns": ("", None),  # added by Ixdat
+        "cycle number=0": ("", None),  # added by Ixdat
+        "Ns=0": ("", None),  # added by Ixdat
     },
     "biologic_multiple_techniques_dataset/multiple_techniques_dataset_01_08_CVA_C01.mpt": {  # noqa: E501
         "mode": ("", (2, 2)),
@@ -232,7 +232,7 @@ TEST_DATA = {
         "I Range": ("", (41, 41)),
         "Rcmp/Ohm": ("Ohm", (0.0000000e000, 0.0000000e000)),
         "P/W": ("W", (9.5904383e-008, 2.4153431e-007)),
-        "Ns": ("", (0, 0)),  # added by Ixdat
+        "Ns=0": ("", (0, 0)),  # added by Ixdat
     },
     # DATASET WITH A LOOP
     "biologic_dataset_with_loop/dataset_with_loop_01_01_OCV_DUSB0_C01.mpt": {  # noqa: E501
@@ -244,8 +244,8 @@ TEST_DATA = {
         "Ewe-Ece/V": ("V", (-1.9979715e-001, -1.9840407e-001)),
         "loop_number": ("", (0, 0)),  # added by Ixdat
         "raw_current=0": ("", (0, 0)),  # added by Ixdat
-        "cycle number": ("", (0, 0)),  # added by Ixdat
-        "Ns": ("", (0, 0)),  # added by Ixdat
+        "cycle number=0": ("", (0, 0)),  # added by Ixdat
+        "Ns=0": ("", (0, 0)),  # added by Ixdat
     },
     "biologic_dataset_with_loop/dataset_with_loop_01_02_CVA_DUSB0_C01.mpt": {  # noqa: E501
         "mode": ("", (2, 2)),
@@ -265,7 +265,7 @@ TEST_DATA = {
         "P/W": ("W", (3.1451185e-007, 5.5134848e-007)),
         "Ewe-Ece/V": ("V", (-1.9443744e-001, -2.1177679e-001)),
         "loop_number": ("", (0, 1)),  # added by Ixdat
-        "Ns": ("", (0, 0)),  # added by Ixdat
+        "Ns=0": ("", (0, 0)),  # added by Ixdat
     },
     "biologic_dataset_with_loop/dataset_with_loop_01_03_CP_DUSB0_C01.mpt": {  # noqa: E501
         "mode": ("", (1, 1)),
@@ -303,7 +303,6 @@ TEST_DATA = {
 @fixture(scope="module", params=tuple(TEST_DATA.items()))
 def measurements_with_data(request):
     """Load all measurements from files and connect it with the test data."""
-
     filename = request.param[0]
     columns_data = request.param[1]
     measurement = Measurement.read(DATA_DIR / filename, reader="biologic")

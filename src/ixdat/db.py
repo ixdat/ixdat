@@ -184,7 +184,7 @@ class Saveable:
                 #   ID by Saveable.__init__ ?
             else:
                 raise DataBaseError(
-                    f"{self} comes from {self.backend_name} "
+                    f"{self!r} comes from {self.backend_name} "
                     "but did not get an id from its backend."
                 )
         return self._id
@@ -259,7 +259,7 @@ class Saveable:
         exclude = exclude or []
         if self.column_attrs is None:
             raise DataBaseError(
-                f"{self} can't be serialized because the class "
+                f"{self!r} can't be serialized because the class "
                 f"{self.__class__.__name__} hasn't defined column_attrs"
             )
         self_as_dict = {  # FIXME: probably better as loop, fix with table definitions.
@@ -422,15 +422,21 @@ class Saveable:
 class PlaceHolderObject:
     """A tool for ixdat's laziness, instances sit in for Saveable objects."""
 
-    def __init__(self, i, cls, backend=None):
+    def __init__(self, identity, cls, backend=None):
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
-            i (int): The id (principle key) of the object represented
+            identity (int or tuple): The id (principle key) of the object represented OR
+                the short identity, i.e. a tuple of the id and the backend. In the later
+                case, identity[1] overrides a backend if given
             cls (class): Class inheriting from Saveable and thus specifiying the table
             backend (Backend, optional): by default, placeholders objects must live in
                 the active backend. This is the case if loaded with get().
         """
+        if isinstance(identity, int):
+            i = identity
+        else:
+            backend, i = identity
         self.id = i
         self.cls = cls
         if not backend:  #
@@ -471,13 +477,8 @@ def fill_object_list(object_list, obj_ids, cls=None):
     if not obj_ids:
         return object_list
     for identity in obj_ids:
-        if isinstance(identity, int):
-            i = identity
-            backend = DB.backend
-        else:
-            backend, i = identity
-        if i not in provided_series_ids:
-            object_list.append(PlaceHolderObject(i=i, cls=cls, backend=backend))
+        if identity not in provided_series_ids:
+            object_list.append(PlaceHolderObject(identity=identity, cls=cls))
     return object_list
 
 
