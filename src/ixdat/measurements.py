@@ -9,6 +9,7 @@ A Measurement will typically be accompanied by one or more Calculator. This modu
 also defines the base class for Calculator, while technique-specific Calculator
 classes will be defined in the corresponding module in ./techniques/
 """
+import warnings
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
@@ -131,9 +132,7 @@ class Measurement(Saveable):
         self._component_measurements = fill_object_list(
             component_measurements, m_ids, cls=Measurement
         )
-        self._calculator_list = fill_object_list(
-            calculator_list, c_ids, cls=Calculator
-        )
+        self._calculator_list = fill_object_list(calculator_list, c_ids, cls=Calculator)
         self._tstamp = tstamp
 
         self._cached_series = {}
@@ -171,10 +170,17 @@ class Measurement(Saveable):
                 else:
                     out.append("┣━ " + str(value_series))
 
+        calc_out = []
+        for calculator in self.calculator_list:
+            calc_out.append(str(calculator))
+
         return (
             f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} "
             "series\n\n"
-            "Series list:\n" + "\n".join(out)
+            "Series list:\n"
+            + "\n".join(out)
+            + "\n\nCalculator list:\n"
+            + "\n".join(calc_out)
         )
 
     @classmethod
@@ -540,7 +546,6 @@ class Measurement(Saveable):
     # a measurement's calculator list is enough, and `calibrate` is a more natural
     # and broad English verb than the others.
 
-
     @property
     def series_list(self):
         """List of the DataSeries containing the measurement's data"""
@@ -743,12 +748,15 @@ class Measurement(Saveable):
             return getattr(self, self.series_constructors[key])()
         # B
         for calculator in self.calculators:
-            series = calculator.calculate_series(key, measurement=self)
-            # ^ the calculator will call __getitem__ with the name of the
-            #   corresponding raw data and return a new series with calculated data
-            #   if possible. Otherwise it will return None.
-            if series:
-                return series
+            if key in calculator.available_series_names:
+                series = calculator.calculate_series(key, measurement=self)
+                if series:
+                    return series
+                warnings.warn(
+                    f"The Calulator {calculator} inscludes {key} in its"
+                    f" `available_series_names`, yet returns `None` when asked to"
+                    " calculate it."
+                )
         # C
         series_to_append = []
         if key in self.series_names:  # ii
@@ -758,10 +766,9 @@ class Measurement(Saveable):
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
                 if k == key:  # this would result in infinite recursion.
-                    print(  # TODO: Real warnings.
-                        "WARNING!!!\n"
-                        f"\t{self!r} has {key} in its aliases for {key}:\n"
-                        f"\tself.aliases['{key}'] = {self.aliases[key]}"
+                    warnings.warn(
+                        f"{self!r} has {key} in its aliases for {key}:\n"
+                        f"self.aliases['{key}'] = {self.aliases[key]}"
                     )
                     continue
                 try:
@@ -1344,9 +1351,7 @@ class Measurement(Saveable):
                 + (other.component_measurements or [other])
             )
         )
-        new_calculator_list = list(
-            set(self._calculator_list + other._calculator_list)
-        )
+        new_calculator_list = list(set(self._calculator_list + other._calculator_list))
         new_aliases = self.aliases.copy()
         for key, names in other.aliases.items():
             if key in new_aliases:
@@ -1418,6 +1423,13 @@ class Calculator(Saveable):
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement
 
+    def __str__(self):
+        rep = (
+            f"{self.__class__.__name__} '{self.name}' providing:\n"
+            + f"--> {self.available_series_names} "
+        )
+        return rep
+
     @classmethod
     def from_dict(cls, obj_as_dict):
         """Return an object of the Calculator class of the right technique
@@ -1454,6 +1466,14 @@ class Calculator(Saveable):
         with open(path_to_file) as f:
             obj_as_dict = json.load(f)
         return cls.from_dict(obj_as_dict)
+
+    @property
+    def available_series_names(self):
+        """The set of the names of the series the Calculater can provide
+
+        FIXME: Add more documentation about how to write this in inheriting classes.
+        """
+        raise NotImplementedError
 
     def calculate_series(self, key, measurement=None):
         """This should be overwritten in real Calculator classes.

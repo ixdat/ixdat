@@ -343,6 +343,10 @@ class ECCalibration(Calculator):
             f"(RE_vs_RHE={self.RE_vs_RHE}, A_el={self.A_el}, R_Ohm={self.R_Ohm})"
         )
 
+    available_series_names = {"potential", "current"}
+    # This is a constant class attribute rather than a property because an
+    # ECCalibration always returns potential and current, as correctly as possible.
+
     def calculate_series(self, key, measurement=None):
         """Return a calibrated series for key based on the raw data in the measurement.
 

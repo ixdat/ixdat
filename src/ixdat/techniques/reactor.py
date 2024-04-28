@@ -272,7 +272,7 @@ class ReactorMeasurement(MSMeasurement):
         return unit_factor, new_unit
 
 
-class SpectroReactorMeasurement(ReactorMeasurement, MSSpectroMeasurement):
+class ReactorSpectroMeasurement(ReactorMeasurement, MSSpectroMeasurement):
     default_plotter = TPMSSpectroPlotter
 
 

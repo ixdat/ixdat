@@ -461,12 +461,19 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         self.technique = technique
         self.L = L
 
-    def calibrate_series(self, key, measurement=None):
+    @property
+    def available_series_names(self):
+        names = set([f"n_dot_{mol}" for mol in self.mol_list])
+        names.add("potential")
+        names.add("current")
+        return names
+
+    def calculate_series(self, key, measurement=None):
         measurement = measurement or self.measurement
-        try_1 = ECCalibration.calibrate_series(self, key, measurement)
+        try_1 = ECCalibration.calculate_series(self, key, measurement)
         if try_1:
             return try_1
-        try_2 = MSCalibration.calibrate_series(self, key, measurement)
+        try_2 = MSCalibration.calculate_series(self, key, measurement)
         if try_2:
             return try_2
 

@@ -67,7 +67,7 @@ class MSMeasurement(Measurement):
         ms_cal_list = []
         tspan_bg = None
         signal_bgs = {}
-        for cal in self.calibration_list:
+        for cal in self.calculator_list:
             ms_cal_list = ms_cal_list + getattr(cal, "ms_cal_list", [])
             for mass, bg in getattr(cal, "signal_bgs", {}).items():
                 if mass not in signal_bgs:
@@ -87,7 +87,7 @@ class MSMeasurement(Measurement):
         for mass in mass_list:
             t, v = self.grab(mass, tspan_bg)
             signal_bgs[mass] = np.mean(v)
-        self.add_calibration(MSCalibration(signal_bgs=signal_bgs))
+        self.add_calculator(MSCalibration(signal_bgs=signal_bgs))
 
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
@@ -1024,6 +1024,10 @@ class MSCalibration(Calculator):
 
     def __iter__(self):
         yield from self.ms_cal_results
+
+    @property
+    def available_series_names(self):
+        return set([f"n_dot_{mol}" for mol in self.mol_list])
 
     def calculate_series(self, key, measurement=None):
         """Return a calibrated series for `key` if possible.
