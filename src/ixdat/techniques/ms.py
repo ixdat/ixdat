@@ -102,7 +102,7 @@ class MSMeasurement(Measurement):
         remove_background=False,
         unit_name=None,
         t_unit_name=None,
-        return_quantity=False       
+        return_quantity=True,       
     ):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
