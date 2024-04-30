@@ -800,6 +800,13 @@ class Measurement(Saveable):
             tseries=old_vseries.tseries,
         )
         self.replace_series(value_name, new_vseries)
+        
+    def inplace_to_unit(self, valueseries_name, new_unit_name):
+        """In place updating data and unit of a dataseries
+        FIXME: Should this be closer to the data series instead of the measurement?
+        """
+        new_series = self[valueseries_name].to_unit(new_unit_name)
+        self.replace_series(valueseries_name, new_series)
 
     def grab(
         self,
@@ -809,7 +816,7 @@ class Measurement(Saveable):
         tspan_bg=None,
         unit_name=None,
         t_unit_name=None,
-        return_quantity=False,
+        return_quantity=True,
     ):
         """Return a value vector with the corresponding time vector
 
