@@ -8,8 +8,9 @@ import warnings
 
 ureg = UnitRegistry()
 
-ureg.setup_matplotlib(True)
-ureg.autoconvert_offset_to_baseunit = False
+ureg.setup_matplotlib(True)  # I think this should be closer to the measurement or specific plotter
+ureg.autoconvert_offset_to_baseunit = True  # This is tmo help with logarithmic plotting. I dont know if it is better to simply set the dimensions to "dimensionless" prior to plotting with units
+
 
 
 class Unit:
@@ -22,29 +23,34 @@ class Unit:
         except UndefinedUnitError:
             self.u = None
             
-    def set_unit(self, new_unit_name):
-        if ureg(self.name) == ureg(""):
-            self.name = new_unit_name
-            self.u = ureg(self.name)
-        else:
-            warnings.warn(
-                f"DataSeries already has assigned a unit {self.u} with the name" 
-                f" {self.name}. Consider using 'reset_unit()' if the unit is wrong",
-                stacklevel=2,
-            )
-                             
-    def reset_unit(self,new_unit_name):
+                
+    def set_unit(self,new_unit_name):
         warnings.warn(
-            f"resetting unit of dataseries to {new_unit_name} from unit {self.u} with the name {self.name}.",
+            f"setting unit of dataseries to {new_unit_name} from unit {self.u}"
+            " with the name {self.name}. This does NOT alter the values in "
+            "this dataseries. "
+            f"If conversion to this unit {new_unit_name} is expected this "
+            "can be done with inplace_to_unit() from the measurement class",
             stacklevel=2,
         )
         self.name = new_unit_name
-        self.u = ureg(self.name)
 
-               
+        self.u = ureg(self.name)
+                     
 
     def __repr__(self):
         return f"Unit('{self.name}')"
 
     def __eq__(self, other):
         return self.name == other.name
+
+
+STANDARD_UNITS = {
+    "current":"A",
+    "time":"s",
+    "charge":"C",
+    "electrical_potential":"V",
+    "resistance":"Ω",
+    "temperature":"K",
+    "pressure":"mbar"
+}
