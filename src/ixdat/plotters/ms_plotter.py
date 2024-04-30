@@ -3,11 +3,12 @@ import warnings
 from ..data_series import Field
 import numpy as np
 from .base_mpl_plotter import MPLPlotter
-
+from ..units import ureg, DimensionalityError
 
 class MSPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
-
+    ureg.setup_matplotlib(True)
+    
     def __init__(self, measurement=None):
         """Initiate the ECMSPlotter with its default Meausurement to plot"""
         super().__init__()
@@ -93,6 +94,7 @@ class MSPlotter(MPLPlotter):
             measurement,
         )
         ax = specs_this_axis["ax"]
+
         v_list = specs_this_axis["v_list"]
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
@@ -119,25 +121,35 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity=True,
                 )
             if logplot:
-                v[v < MIN_SIGNAL] = MIN_SIGNAL
+                try:
+                    v[v < MIN_SIGNAL] = MIN_SIGNAL
+                except DimensionalityError:
+                    v[v < MIN_SIGNAL.m] = MIN_SIGNAL.m
+                    
             if logdata:
                 logplot = False
                 # to correctly plot data with corrosponding unit and unit_factor
-                v = np.log(v * unit_factor) * 1 / unit_factor
-                unit = f"ln({unit})"
+                v = np.log(v)# * unit_factor) * 1 / unit_factor
+                #unit = f"ln({unit})"
             # expect always to plot against time
-            x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")
+            #x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, DEFAULT_UNIT["time"])
+            
+
+            
             ax.plot(
-                t * x_unit_factor,
-                v * unit_factor,
+                t,#* x_unit_factor,
+                v, #* unit_factor,
                 color=color,
                 label=v_name,
                 **kwargs,
             )
-        ax.set_ylabel(f"signal / [{unit}]")
-        ax.set_xlabel(f"time / [{x_unit}]")
+        #ax.set_ylabel(f"signal / [{unit}]")
+        #ax.set_xlabel(f"time / [{x_unit}]")
+        
+        
         if specs_next_axis:
             self.plot_measurement(
                 measurement=measurement,
@@ -161,7 +173,14 @@ class MSPlotter(MPLPlotter):
             ax.set_yscale("log")
         if legend:
             ax.legend()
-
+         
+        if x_unit:
+            ax.xaxis.set_units(ureg(x_unit))
+            ax.set_xlabel(f"time / [{x_unit}]")
+        if unit:
+            ax.yaxis.set_units(ureg(unit))
+            ax.set_ylabel(f"signal / [{unit}]")
+            
         return axes if axes else ax
 
     def plot_vs(
@@ -269,6 +288,7 @@ class MSPlotter(MPLPlotter):
                 )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
+                
             x_mass = np.interp(t_v, t, x)
             plot_kwargs_this_mass = plot_kwargs.copy()
             if "color" not in plot_kwargs:
@@ -415,7 +435,8 @@ class MSPlotter(MPLPlotter):
             ax = (
                 axes[0]
                 if axes
-                else self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+                else self.new_ax(ylabel=f"signal / [{DEFAULT_UNIT['signal']}]", 
+                                 xlabel=f"time / [{DEFAULT_UNIT['time']}]")
             )
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
@@ -467,6 +488,7 @@ class MSPlotter(MPLPlotter):
                 unit_factor = unit_factor / measurement.A_el
         else:
             unit = unit or "A"
+            print(unit)
             unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "mA": 1e3, "A": 1}[unit]
         # TODO: Real units with a unit module! This should even be able to figure out the
         #  unit prefix to put stuff in a nice 1-to-1e3 range
@@ -921,8 +943,13 @@ class SpectroMSPlotter(MPLPlotter):
 
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
-MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
+MIN_SIGNAL = 1e-14 * ureg("A")  # So that the bottom half of the plot isn't wasted on log(noise)
 # TODO: This should probably be customizeable from a settings file.
+
+DEFAULT_UNIT = {
+    "time": "s",
+    "signal": "A"
+}
 
 STANDARD_COLORS = {
     "M2": "b",
