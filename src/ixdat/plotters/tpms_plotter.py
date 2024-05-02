@@ -4,6 +4,7 @@ from .ms_plotter import MSPlotter
 from .plotting_tools import color_axis
 from ..data_series import Field
 import numpy as np
+from ..units import ureg
 
 
 class TPMSPlotter(MPLPlotter):
@@ -166,24 +167,24 @@ class TPMSPlotter(MPLPlotter):
                     include_endpoints=False,
                 )
 
-                y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                    measurement[TP_name], meta_units=TP_units
-                )
+                #y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
+                #    measurement[TP_name], meta_units=TP_units
+                #)
 
                 # expect always to plot against time on x axis
-                x_unit_factor, x_unit = _get_unit_factor_and_name(
-                    new_unit_name=x_unit, from_unit_name="s"
-                )
+                #x_unit_factor, x_unit = _get_unit_factor_and_name(
+                #    new_unit_name=x_unit, from_unit_name="s"
+                #)
 
                 ax.plot(
-                    t * x_unit_factor,
-                    v * y_unit_factor,
+                    t,# * x_unit_factor,
+                    v,# * y_unit_factor,
                     color=color,
                     label=TP_name,
                     **kwargs,
                 )
 
-            if logplot and y_unit == "mbar":
+            if logplot: # and y_unit == "mbar":
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
@@ -191,8 +192,20 @@ class TPMSPlotter(MPLPlotter):
             if not n:  # Only color the spine is one variable is plotted
                 color_axis(ax, color=color, lr=["left", "right"][i])
 
-            ax.set_ylabel(f"{y_label} / [{y_unit}]")
+            #ax.set_ylabel(f"{y_label} / [{y_unit}]")
+            #ax.set_xlabel(f"time / [{x_unit}]")
+        if x_unit:
+            ax.xaxis.set_units(ureg(x_unit))
             ax.set_xlabel(f"time / [{x_unit}]")
+        if unit:
+            axes[3].yaxis.set_units(ureg("mbar").u)            
+            axes[1].yaxis.set_units(ureg("K").u)
+
+
+            #axes[1].set_ylabel(f"temperature / [{unit}]")
+            #axes[3].set_ylabel(f"pressure / [{unit}]")            
+
+            
 
         if not i:  # remove last axis if nothing is plotted on it
             axes[3].remove()
