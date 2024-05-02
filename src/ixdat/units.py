@@ -9,6 +9,7 @@ import warnings
 ureg = UnitRegistry()
 
 ureg.setup_matplotlib(True)  # I think this should be closer to the measurement or specific plotter
+ureg.mpl_formatter = " / [{:~P}]"
 ureg.autoconvert_offset_to_baseunit = True  # This is tmo help with logarithmic plotting. I dont know if it is better to simply set the dimensions to "dimensionless" prior to plotting with units
 
 
@@ -19,9 +20,11 @@ class Unit:
     def __init__(self, name):
         self.name = name or ""
         try:
-            self.u = ureg(self.name)
+            self.u = ureg(self.name).u
         except UndefinedUnitError:
             self.u = None
+        
+
             
                 
     def set_unit(self,new_unit_name):
@@ -35,7 +38,8 @@ class Unit:
         )
         self.name = new_unit_name
 
-        self.u = ureg(self.name)
+        self.u = ureg(self.name).u
+
                      
 
     def __repr__(self):
