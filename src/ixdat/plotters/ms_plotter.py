@@ -32,6 +32,7 @@ class MSPlotter(MPLPlotter):
         logplot=True,
         logdata=False,
         legend=True,
+        use_quantity=True,
         **kwargs,
     ):
         """Plot m/z signal vs time (MID) data and return the axis.
@@ -92,6 +93,7 @@ class MSPlotter(MPLPlotter):
             ax,
             axes,
             measurement,
+            use_quantity,
         )
         ax = specs_this_axis["ax"]
 
@@ -113,6 +115,7 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
             else:
                 t, v = measurement.grab_signal(
@@ -121,12 +124,12 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
-                    return_quantity=True,
+                    return_quantity=use_quantity,
                 )
             if logplot:
                 try:
-                    v[v < MIN_SIGNAL] = MIN_SIGNAL
-                except DimensionalityError:
+                    v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
+                except DimensionalityError as e:
                     v[v < MIN_SIGNAL.m] = MIN_SIGNAL.m
                     
             if logdata:
@@ -135,13 +138,13 @@ class MSPlotter(MPLPlotter):
                 v = np.log(v)# * unit_factor) * 1 / unit_factor
                 #unit = f"ln({unit})"
             # expect always to plot against time
-            #x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, DEFAULT_UNIT["time"])
+            #x_unit_factor, x_unit = [1, ureg(x_unit).u] if pint_module else self._get_x_unit_factor(x_unit, DEFAULT_UNIT["time"])
             
 
             
             ax.plot(
-                t,#* x_unit_factor,
-                v, #* unit_factor,
+                t, #* x_unit_factor,
+                v* unit_factor,
                 color=color,
                 label=v_name,
                 **kwargs,
@@ -261,6 +264,7 @@ class MSPlotter(MPLPlotter):
             ax,
             axes,
             measurement,
+            use_quantity,
         )
         ax = specs_this_axis["ax"]
         v_list = specs_this_axis["v_list"]
@@ -402,6 +406,7 @@ class MSPlotter(MPLPlotter):
         ax,
         axes,
         measurement,
+        use_quantity,
     ):
         """From the overloaded function inputs, figure out what the user wants to do.
 
@@ -470,7 +475,11 @@ class MSPlotter(MPLPlotter):
         else:
             specs_next_axis = None
 
-        if quantified:
+        if use_quantity:
+            unit = unit or None,
+            unit_factor = 1
+
+        elif quantified:
             unit = unit or "mol/s"
             unit_factor = {
                 "pmol/s": 1e12,
@@ -488,7 +497,6 @@ class MSPlotter(MPLPlotter):
                 unit_factor = unit_factor / measurement.A_el
         else:
             unit = unit or "A"
-            print(unit)
             unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "mA": 1e3, "A": 1}[unit]
         # TODO: Real units with a unit module! This should even be able to figure out the
         #  unit prefix to put stuff in a nice 1-to-1e3 range
@@ -943,7 +951,7 @@ class SpectroMSPlotter(MPLPlotter):
 
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
-MIN_SIGNAL = 1e-14 * ureg("A")  # So that the bottom half of the plot isn't wasted on log(noise)
+MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
 # TODO: This should probably be customizeable from a settings file.
 
 DEFAULT_UNIT = {

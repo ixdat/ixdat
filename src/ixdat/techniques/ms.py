@@ -180,6 +180,7 @@ class MSMeasurement(Measurement):
         remove_background=True,
         removebackground=None,
         include_endpoints=False,
+        return_quantity=True,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
@@ -223,6 +224,7 @@ class MSMeasurement(Measurement):
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
                 include_endpoints=include_endpoints,
+                return_quantity=return_quantity,
             )
             return t, signal / mol.F
         return self.grab(
@@ -234,6 +236,7 @@ class MSMeasurement(Measurement):
             tspan_bg=tspan_bg,
             remove_background=remove_background,
             include_endpoints=include_endpoints,
+            return_quantity=return_quantity,
         )
 
     def grab_siq_fluxes(

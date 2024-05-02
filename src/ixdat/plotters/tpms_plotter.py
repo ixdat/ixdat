@@ -37,7 +37,7 @@ class TPMSPlotter(MPLPlotter):
         P_names=None,
         T_color=None,
         P_color=None,
-        logplot=None,
+        logplot=[True, False],
         logdata=None,
         legend=True,
         emphasis="top",
@@ -90,7 +90,7 @@ class TPMSPlotter(MPLPlotter):
             P_color (str): Overwrite standard color to plot the variable given by P_name
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
-            logdata (bool): Whether to plot the MS data on a log scale (default True
+            logdata (list of bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
@@ -184,7 +184,7 @@ class TPMSPlotter(MPLPlotter):
                     **kwargs,
                 )
 
-            if logplot: # and y_unit == "mbar":
+            if logplot and v.check({'[length]': -1, '[mass]': 1, '[time]': -2}):
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
@@ -1113,6 +1113,13 @@ def _get_unit_factor_and_name(new_unit_name, from_unit_name):
 
 
 #  ----- These are the standard colors for TP-MS plots! ------- #
+
+DEFAULT_UNITS = {
+    "signal":"A",
+    "time":"s",
+    "temperature":"K",
+    "pressure":"mbar"
+    }
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
 # TODO: This should probably be customizeable from a settings file.
