@@ -4,14 +4,38 @@ Important: The only import from pint in ixdat is in this module. This is essenti
 for ureg, since units of seperately initiated UnitRegistries cannot be compared.
 """
 from pint import UnitRegistry, UndefinedUnitError, DimensionalityError, Quantity
+from pint.util import UnitsContainer
+from pint import formatting
 import warnings
 
+try:
+    @formatting.register_unit_format("ixdat")
+    def format_ixdat(unit: UnitsContainer, registry: UnitRegistry, **options) -> str:
+        formatted_unit = formatting.formatter(
+            unit.items(),
+            as_ratio=False,
+            single_denominator=False,
+            product_fmt=" ",
+            division_fmt="/",
+            power_fmt="{}$^{}$",
+            parentheses_fmt="({})",
+            exp_call=_ixdat_fmt_exponent, #formatting._pretty_fmt_exponent,
+            **options,
+        )
+        
+        
+        return "Signal / [" + formatted_unit + "]"
+except ValueError:
+    print("Warning")
+def _ixdat_fmt_exponent(num) -> str:
+    return "{"+f"{num}"+"}"
+    
+    
 ureg = UnitRegistry()
 
 ureg.setup_matplotlib(True)  # I think this should be closer to the measurement or specific plotter
-ureg.mpl_formatter = " / [{:~P}]"
-ureg.autoconvert_offset_to_baseunit = True  # This is tmo help with logarithmic plotting. I dont know if it is better to simply set the dimensions to "dimensionless" prior to plotting with units
-
+ureg.mpl_formatter = "{:~ixdat}"
+ureg.autoconvert_offset_to_baseunit = True  # This is to help with logarithmic plotting. I dont know if it is better to simply set the dimensions to "dimensionless" prior to plotting with units
 
 
 class Unit:
@@ -23,9 +47,6 @@ class Unit:
             self.u = ureg(self.name).u
         except UndefinedUnitError:
             self.u = None
-        
-
-            
                 
     def set_unit(self,new_unit_name):
         warnings.warn(
@@ -37,10 +58,7 @@ class Unit:
             stacklevel=2,
         )
         self.name = new_unit_name
-
         self.u = ureg(self.name).u
-
-                     
 
     def __repr__(self):
         return f"Unit('{self.name}')"

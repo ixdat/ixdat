@@ -7,12 +7,12 @@ from ..units import ureg, DimensionalityError
 
 class MSPlotter(MPLPlotter):
     """A matplotlib plotter specialized in mass spectrometry MID measurements."""
-    ureg.setup_matplotlib(True)
     
     def __init__(self, measurement=None):
         """Initiate the ECMSPlotter with its default Meausurement to plot"""
         super().__init__()
         self.measurement = measurement
+        self.ureg = ureg
 
     def plot_measurement(
         self,
@@ -100,6 +100,7 @@ class MSPlotter(MPLPlotter):
         v_list = specs_this_axis["v_list"]
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
+        print(unit)
         unit_factor = specs_this_axis["unit_factor"]
         for v_or_v_name in v_list:
             if isinstance(v_or_v_name, str):
@@ -130,6 +131,7 @@ class MSPlotter(MPLPlotter):
                 try:
                     v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
                 except DimensionalityError as e:
+                    print(e)
                     v[v < MIN_SIGNAL.m] = MIN_SIGNAL.m
                     
             if logdata:
@@ -177,12 +179,16 @@ class MSPlotter(MPLPlotter):
         if legend:
             ax.legend()
          
-        if x_unit:
-            ax.xaxis.set_units(ureg(x_unit))
-            ax.set_xlabel(f"time / [{x_unit}]")
+        #if x_unit:
+        #ureg.mpl_formatter = "{} / [{}]".format("time","{:~P}")
+        ax.xaxis.set_units(ureg("s").u)
+        ax.set_xlabel(f"time / [{x_unit}]")
+        ax.xaxis.isDefault_label = True
+        #ureg.mpl_formatter = "{} / [{}]".format("signal","{:~P}")
+        
         if unit:
             ax.yaxis.set_units(ureg(unit))
-            ax.set_ylabel(f"signal / [{unit}]")
+            #ax.set_ylabel(f"signal / [{unit}]")
             
         return axes if axes else ax
 
@@ -347,6 +353,15 @@ class MSPlotter(MPLPlotter):
 
         return axes if axes else ax
 
+    def _get_label_name_from_unit(self, unit, ax):
+        if unit.dimensionality in DEFAULT_YLABELS.values():
+            ylabel = [ylabel for ylabel, dimension in DEFAULT_YLABELS.items() if dimension == unit.dimensionality][0]
+            ureg.mpl_formatter = "{} / [{}]".format(ylabel, "{:~P}")
+            ax.set_units(unit)
+            ureg.mpl_formatter = "signal / [{:~P}]"
+        else: 
+            ylabel 
+
     def _get_x_unit_factor(
         self,
         new_x_unit,
@@ -441,7 +456,8 @@ class MSPlotter(MPLPlotter):
                 axes[0]
                 if axes
                 else self.new_ax(ylabel=f"signal / [{DEFAULT_UNIT['signal']}]", 
-                                 xlabel=f"time / [{DEFAULT_UNIT['time']}]")
+                                 xlabel=f"time / [{DEFAULT_UNIT['time']}]",
+                                 use_quantity=use_quantity)
             )
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
@@ -476,7 +492,7 @@ class MSPlotter(MPLPlotter):
             specs_next_axis = None
 
         if use_quantity:
-            unit = unit or None,
+            unit = unit or None
             unit_factor = 1
 
         elif quantified:
@@ -949,6 +965,8 @@ class SpectroMSPlotter(MPLPlotter):
         return axes
 
 
+   
+
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
@@ -958,6 +976,12 @@ DEFAULT_UNIT = {
     "time": "s",
     "signal": "A"
 }
+
+DEFAULT_YLABELS = {
+    "signal":{'[current]': 1},
+    "cal. sig":{'[substance]': 1, '[time]': -1},
+    "time": {'[time]': 1},
+    }
 
 STANDARD_COLORS = {
     "M2": "b",

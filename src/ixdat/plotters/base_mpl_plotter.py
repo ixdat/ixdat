@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
-from matplotlib.units import ConversionError
+from ..units import ureg
 
 
 class MPLPlotter:
@@ -16,7 +16,7 @@ class MPLPlotter:
         self._axis_for_range_selection = set()
         self._selected_range = {"left": None, "right": None}
 
-    def new_ax(self, xlabel=None, ylabel=None, interactive=True):
+    def new_ax(self, xlabel=None, ylabel=None, interactive=True, use_quantity=False):
         """Return a new matplotlib axis optionally with the given x and y labels
 
         Args:
@@ -28,9 +28,9 @@ class MPLPlotter:
         """
 
         fig, ax = plt.subplots()
-        if xlabel:
+        if xlabel and not use_quantity:
             ax.set_xlabel(xlabel)
-        if ylabel:
+        if ylabel and not use_quantity:
             ax.set_ylabel(ylabel)
 
         # Add the axis to those we perform range selection on and connect mouse events
