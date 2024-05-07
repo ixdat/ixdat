@@ -53,7 +53,7 @@ class Unit:
 #     c.add_transformation('[substance] / [lenght] **2 / [time]', '[substance] / [time]', lambda ureg, x: x * _A_el)
 #     c.add_transformation('[substance] / [time]', '[substance] / [lenght] ** 2 / [time]', lambda ureg, x: x / _A_el)
 
-def register_format_function(plotter_type):
+def _register_format_function(plotter_type):
     try:
         @formatting.register_unit_format(f"ixdat_{plotter_type.lower()}")
         def format_function(unit: UnitsContainer, registry: UnitRegistry, **options) -> str:
@@ -78,7 +78,7 @@ def register_format_function(plotter_type):
 
 # Register the format functions for each plotter type
 for plotter in ["DEFAULT", "EC", "LOG"]:
-    register_format_function(plotter)
+    _register_format_function(plotter)
 
 
 
@@ -107,6 +107,7 @@ STANDARD_LABELS_BY_PLOTTER = {
         "time":ureg.s.dimensionality,
         "temperature":ureg.kelvin.dimensionality,
         "pressure":ureg.bar.dimensionality,
+        "mass spec signal":ureg.dimensionless.dimensionality,
     },
     'LOG':{
         "ln(signal)":ureg.A.dimensionality,

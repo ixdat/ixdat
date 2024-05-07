@@ -130,8 +130,8 @@ class MSPlotter(MPLPlotter):
             if logplot:
                 try:
                     v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
-                except DimensionalityError:
-                    v[v < MIN_SIGNAL.m] = MIN_SIGNAL.m
+                except (DimensionalityError, AttributeError):
+                    v[v < MIN_SIGNAL] = MIN_SIGNAL
                     
             if logdata:
                 logplot = False
@@ -152,8 +152,6 @@ class MSPlotter(MPLPlotter):
             # expect always to plot against time
             #x_unit_factor, x_unit = [1, ureg(x_unit).u] if use_quantity else self._get_x_unit_factor(x_unit, DEFAULT_UNIT["time"])
             
-
-            
             ax.plot(
                 t, #* x_unit_factor,
                 v * unit_factor,
@@ -161,6 +159,7 @@ class MSPlotter(MPLPlotter):
                 label=v_name,
                 **kwargs,
             )
+        
         
         if logdata:
             ax.set_ylabel(ylabel)
@@ -478,10 +477,11 @@ class MSPlotter(MPLPlotter):
             ax = (
                 axes[0]
                 if axes
-                else self.new_ax(ylabel=f"signal / [{DEFAULT_UNIT['signal']}]", 
-                                 xlabel=f"time / [{DEFAULT_UNIT['time']}]",
-                                 use_quantity=use_quantity)
+                else self.new_ax()#ylabel=f"signal / [{DEFAULT_UNIT['signal']}]", 
+                    #xlabel=f"time / [{DEFAULT_UNIT['time']}]",
+                #             use_quantity=use_quantity)
             )
+
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
         if v_lists:
@@ -554,6 +554,7 @@ class MSPlotter(MPLPlotter):
         else:
             unit = unit or "A"
             unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "mA": 1e3, "A": 1}[unit]
+            
         # TODO: Real units with a unit module! This should even be able to figure out the
         #  unit prefix to put stuff in a nice 1-to-1e3 range
 

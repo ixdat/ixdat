@@ -42,6 +42,7 @@ class TPMSPlotter(MPLPlotter):
         logdata=None,
         legend=True,
         emphasis="top",
+        use_quantity=True,
         **kwargs,
     ):
         """Make a two panel plot with mass spec data on top panel and meta data on bottom
@@ -140,6 +141,7 @@ class TPMSPlotter(MPLPlotter):
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
+                use_quantity=use_quantity,
                 **kwargs,
             )
 
@@ -166,6 +168,7 @@ class TPMSPlotter(MPLPlotter):
                     TP_name,
                     tspan=tspan,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
 
                 #y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
@@ -201,9 +204,14 @@ class TPMSPlotter(MPLPlotter):
             ax.xaxis.set_units(ureg(x_unit).u)
             #ax.set_xlabel(f"time / [{x_unit}]")
         if TP_units:
-            axes[1].yaxis.set_units(ureg(TP_units["T"]).u)            
-            axes[3].yaxis.set_units(ureg(TP_units["P"]).u)            
-
+            try:
+                axes[1].yaxis.set_units(ureg(TP_units["T"]).u)            
+            except:
+                print("find a better exception tommorrow, ConversionError")
+            try:
+                axes[3].yaxis.set_units(ureg(TP_units["P"]).u)            
+            except:
+                print("find a better exception tommorrow, ConversionError")
 
             #axes[1].set_ylabel(f"temperature / [{unit}]")
             #axes[3].set_ylabel(f"pressure / [{unit}]")            

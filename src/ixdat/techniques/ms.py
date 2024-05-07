@@ -123,9 +123,11 @@ class MSMeasurement(Measurement):
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 include_endpoints=include_endpoints,
+                return_quantity=return_quantity
             )
         time, value = super().grab(
-            item, tspan=tspan, include_endpoints=include_endpoints
+            item, tspan=tspan, include_endpoints=include_endpoints,
+            return_quantity=return_quantity,
         )
         if tspan_bg:
             _, bg = self.grab(item, tspan=tspan_bg)
@@ -214,6 +216,7 @@ class MSMeasurement(Measurement):
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
                 include_endpoints=include_endpoints,
+                return_quantity=return_quantity,
             )
             return t, n_dots[mol]
 
@@ -240,7 +243,8 @@ class MSMeasurement(Measurement):
         )
 
     def grab_siq_fluxes(
-        self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
+        self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False,
+              return_quantity=False,
     ):
         """Return a time vector and a dictionary with all the quantified fluxes
 
