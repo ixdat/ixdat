@@ -2,7 +2,7 @@
 import warnings
 from ..data_series import Field
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
+from .base_mpl_plotter import MPLPlotter, ConversionError
 from ..units import ureg, DimensionalityError
 
 class MSPlotter(MPLPlotter):
@@ -100,8 +100,8 @@ class MSPlotter(MPLPlotter):
         v_list = specs_this_axis["v_list"]
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
-        print(unit)
         unit_factor = specs_this_axis["unit_factor"]
+        
         for v_or_v_name in v_list:
             if isinstance(v_or_v_name, str):
                 v_name = v_or_v_name
@@ -130,30 +130,41 @@ class MSPlotter(MPLPlotter):
             if logplot:
                 try:
                     v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
-                except DimensionalityError as e:
-                    print(e)
+                except DimensionalityError:
                     v[v < MIN_SIGNAL.m] = MIN_SIGNAL.m
                     
             if logdata:
                 logplot = False
                 # to correctly plot data with corrosponding unit and unit_factor
-                v = np.log(v)# * unit_factor) * 1 / unit_factor
+                try:
+                    v = np.log(v * unit_factor) * 1 / unit_factor 
+                except DimensionalityError:
+                    vu = v.to(unit).u if unit else v.u
+                    v = np.log(v.to(unit).m) * ureg.dimensionless if unit else np.log(v.m) * ureg.dimensionless
+                    ylabel = f"{vu:~ixdat_log}"
+
+
+                    
+                    
+                    #if not use_quantity else 
+                
                 #unit = f"ln({unit})"
             # expect always to plot against time
-            #x_unit_factor, x_unit = [1, ureg(x_unit).u] if pint_module else self._get_x_unit_factor(x_unit, DEFAULT_UNIT["time"])
+            #x_unit_factor, x_unit = [1, ureg(x_unit).u] if use_quantity else self._get_x_unit_factor(x_unit, DEFAULT_UNIT["time"])
             
 
             
             ax.plot(
                 t, #* x_unit_factor,
-                v* unit_factor,
+                v * unit_factor,
                 color=color,
                 label=v_name,
                 **kwargs,
             )
-        #ax.set_ylabel(f"signal / [{unit}]")
-        #ax.set_xlabel(f"time / [{x_unit}]")
         
+        if logdata:
+            ax.set_ylabel(ylabel)
+            ax.yaxis.isDefault_label = True 
         
         if specs_next_axis:
             self.plot_measurement(
@@ -168,6 +179,7 @@ class MSPlotter(MPLPlotter):
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
+                use_quantity=use_quantity,
                 **kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
@@ -180,14 +192,23 @@ class MSPlotter(MPLPlotter):
             ax.legend()
          
         if x_unit:
-            ax.xaxis.set_units(ureg(x_unit).u)
+            ax.xaxis.isDefault_label = True  # This should be done in creating new labels in _parse_overloaded when we know tseries is in unit 's'
+            x_unit = x_unit if isinstance(x_unit, type(ureg.s)) else ureg(x_unit).u
+            ax.xaxis.set_units(x_unit)
             #ax.set_xlabel(f"time / [{x_unit}]")
-            #ax.xaxis.isDefault_label = True
         
-        if unit:
-            ax.yaxis.set_units(ureg(unit).u)
-            #ax.set_ylabel(f"signal / [{unit}]")
-            #ax.yaxis.isDefault_label = True
+        if unit and not logdata:
+            if use_quantity:
+                try:
+                    ax.yaxis.set_units(unit)
+                except ConversionError:
+                    ax.yaxis.set_units(ureg.dimensionless)
+                    warnings.warn(f"failed to convert axis to {unit}")
+                    
+                    
+            else:
+                ax.set_ylabel(f"signal / [{unit}]")
+                ax.yaxis.isDefault_label = True
             
         return axes if axes else ax
 
@@ -210,6 +231,7 @@ class MSPlotter(MPLPlotter):
         logplot=True,
         logdata=False,
         legend=True,
+        use_quantity=True,
         **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
@@ -286,6 +308,7 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity = use_quantity,
                 )
             else:
                 t_v, v = measurement.grab_signal(
@@ -294,6 +317,7 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity = use_quantity,
                 )
             if logplot:
                 v[v < MIN_SIGNAL] = MIN_SIGNAL
@@ -352,62 +376,62 @@ class MSPlotter(MPLPlotter):
 
         return axes if axes else ax
 
-    def _get_label_name_from_unit(self, unit, ax):
-        if unit.dimensionality in DEFAULT_YLABELS.values():
-            ylabel = [ylabel for ylabel, dimension in DEFAULT_YLABELS.items() if dimension == unit.dimensionality][0]
-            ureg.mpl_formatter = "{} / [{}]".format(ylabel, "{:~P}")
-            ax.set_units(unit)
-            ureg.mpl_formatter = "signal / [{:~P}]"
-        else: 
-            ylabel 
+    # def _get_label_name_from_unit(self, unit, ax):
+    #     if unit.dimensionality in DEFAULT_YLABELS.values():
+    #         ylabel = [ylabel for ylabel, dimension in DEFAULT_YLABELS.items() if dimension == unit.dimensionality][0]
+    #         ureg.mpl_formatter = "{} / [{}]".format(ylabel, "{:~P}")
+    #         ax.set_units(unit)
+    #         ureg.mpl_formatter = "signal / [{:~P}]"
+    #     else: 
+    #         ylabel 
 
-    def _get_x_unit_factor(
-        self,
-        new_x_unit,
-        original_unit_name,
-    ):
-        if (original_unit_name or new_x_unit) in ["kelvin", "K", "celsius", "C"]:
-            warnings.warn(
-                f"Converting '{original_unit_name}' to '{new_x_unit}' should be done in "
-                f"({self.measurement.__class__.__name__}) prior to plotting using "
-                f"({self.__class__.__name__}). "
-                f"Plotting using '{original_unit_name}'.",
-                stacklevel=2,
-            )
-            return 1, original_unit_name
-        try:
-            x_unit_factor = {
-                # Time conversion
-                "s": 1,
-                "min": 1 / 60,
-                "minutes": 1 / 60,
-                "h": 1 / 3600,
-                "hr": 1 / 3600,
-                "hour": 1 / 3600,
-                "hours": 1 / 3600,
-                "d": 1 / (3600 * 24),
-                "days": 1 / (3600 * 24),
-                # Pressure conversion
-                "mbar": 1,
-                "bar": 1000,
-                "hPa": 1,
-                "kPa": 0.1,
-                # Temperature conversion
-                # "K": 273.15,
-                # "kelvin": 273.15,
-                # "C": -273.15,
-                # "celsius": -273.15,
-            }[new_x_unit]
-        except KeyError:
-            warnings.warn(
-                f"Can't convert original unit '{original_unit_name}' to new unit "
-                f"'{new_x_unit}'. Plotting using original unit '{new_x_unit}' with "
-                "unit_factor=1 (one).",
-                stacklevel=2,
-            )
-            x_unit_factor = 1
-            new_x_unit = original_unit_name
-        return x_unit_factor, new_x_unit
+    # def _get_x_unit_factor(
+    #     self,
+    #     new_x_unit,
+    #     original_unit_name,
+    # ):
+    #     if (original_unit_name or new_x_unit) in ["kelvin", "K", "celsius", "C"]:
+    #         warnings.warn(
+    #             f"Converting '{original_unit_name}' to '{new_x_unit}' should be done in "
+    #             f"({self.measurement.__class__.__name__}) prior to plotting using "
+    #             f"({self.__class__.__name__}). "
+    #             f"Plotting using '{original_unit_name}'.",
+    #             stacklevel=2,
+    #         )
+    #         return 1, original_unit_name
+    #     try:
+    #         x_unit_factor = {
+    #             # Time conversion
+    #             "s": 1,
+    #             "min": 1 / 60,
+    #             "minutes": 1 / 60,
+    #             "h": 1 / 3600,
+    #             "hr": 1 / 3600,
+    #             "hour": 1 / 3600,
+    #             "hours": 1 / 3600,
+    #             "d": 1 / (3600 * 24),
+    #             "days": 1 / (3600 * 24),
+    #             # Pressure conversion
+    #             "mbar": 1,
+    #             "bar": 1000,
+    #             "hPa": 1,
+    #             "kPa": 0.1,
+    #             # Temperature conversion
+    #             # "K": 273.15,
+    #             # "kelvin": 273.15,
+    #             # "C": -273.15,
+    #             # "celsius": -273.15,
+    #         }[new_x_unit]
+    #     except KeyError:
+    #         warnings.warn(
+    #             f"Can't convert original unit '{original_unit_name}' to new unit "
+    #             f"'{new_x_unit}'. Plotting using original unit '{new_x_unit}' with "
+    #             "unit_factor=1 (one).",
+    #             stacklevel=2,
+    #         )
+    #         x_unit_factor = 1
+    #         new_x_unit = original_unit_name
+    #     return x_unit_factor, new_x_unit
 
     def _parse_overloaded_inputs(
         self,
@@ -475,11 +499,12 @@ class MSPlotter(MPLPlotter):
                 tspan_bg_right = None
             else:
                 tspan_bg = tspan_bg[0]
-            if isinstance(unit, str) or not unit:
+            if isinstance(unit, str) or not unit or isinstance(unit, type(ureg.nA)):
                 unit_right = unit
             else:
                 unit_right = unit[1]
                 unit = unit[0]
+                
             specs_next_axis = {
                 "ax": ax_right,
                 "unit": unit_right,
@@ -491,8 +516,24 @@ class MSPlotter(MPLPlotter):
             specs_next_axis = None
 
         if use_quantity:
-            unit = unit or None
-            unit_factor = 1
+            if isinstance(unit, str):
+                unit = ureg(unit).u
+                
+            elif isinstance(unit, type(ureg.A)):
+                unit = unit 
+
+            else:
+                unit = ureg.mol / ureg.s if quantified else ureg.A
+            
+            unit_factor = 1 # leave the converting work to pint library
+
+            if unit.dimensionality.__eq__((ureg.mol / ureg.s / ureg.cm ** 2).dimensionality):
+                if isinstance(measurement.A_el, type(ureg("cm**-2"))): 
+                    unit_factor = unit_factor / measurement.A_el
+                else:
+                    unit_factor = unit_factor / (measurement.A_el * ureg.cm**2) 
+                    warnings.warn(f"You should explicit set the unit of {measurement.A_el} before plotting."
+                                  "Falling back to default unit {ureg.cm**-2}")
 
         elif quantified:
             unit = unit or "mol/s"

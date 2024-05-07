@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+from matplotlib.units import ConversionError
 from ..units import ureg
 
 
@@ -30,6 +31,7 @@ class MPLPlotter:
         fig, ax = plt.subplots()
         if xlabel and not use_quantity:
             ax.set_xlabel(xlabel)
+            ax.xaxis.isDefault_label = True
         if ylabel and not use_quantity:
             ax.set_ylabel(ylabel)
 

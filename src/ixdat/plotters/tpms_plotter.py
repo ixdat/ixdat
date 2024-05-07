@@ -15,6 +15,7 @@ class TPMSPlotter(MPLPlotter):
         super().__init__()
         self.measurement = measurement
         self.ms_plotter = MSPlotter(measurement=measurement)
+        self.ureg = ureg
 
     def plot_measurement(
         self,
@@ -184,7 +185,7 @@ class TPMSPlotter(MPLPlotter):
                     **kwargs,
                 )
 
-            if logplot and v.check({'[length]': -1, '[mass]': 1, '[time]': -2}):
+            if logplot and v.u != ureg.bar and v.check({'[length]': -1, '[mass]': 1, '[time]': -2}):
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
