@@ -8,9 +8,12 @@ from pint.util import UnitsContainer
 from pint import formatting
 import warnings
 
+ureg = UnitRegistry()
+
+
 try:
     @formatting.register_unit_format("ixdat")
-    def format_ixdat(unit: UnitsContainer, registry: UnitRegistry, **options) -> str:
+    def format_ixdat_ms(unit: UnitsContainer, registry: UnitRegistry, technique='MS', **options) -> str:
         formatted_unit = formatting.formatter(
             unit.items(),
             as_ratio=False,
@@ -19,19 +22,23 @@ try:
             division_fmt="/",
             power_fmt="{}$^{}$",
             parentheses_fmt="({})",
-            exp_call=_ixdat_fmt_exponent, #formatting._pretty_fmt_exponent,
+            exp_call=_ixdat_fmt_exponent,
             **options,
         )
         
-        
-        return "Signal / [" + formatted_unit + "]"
+
+        dimension = _get_dimension(unit=unit, technique=technique)
+        print("dimension: ", dimension)
+
+        return f"{dimension} / [" + formatted_unit + "]"
 except ValueError:
     print("Warning")
+
+
 def _ixdat_fmt_exponent(num) -> str:
     return "{"+f"{num}"+"}"
     
     
-ureg = UnitRegistry()
 
 ureg.setup_matplotlib(True)  # I think this should be closer to the measurement or specific plotter
 ureg.mpl_formatter = "{:~ixdat}"
@@ -67,12 +74,30 @@ class Unit:
         return self.name == other.name
 
 
-STANDARD_UNITS = {
-    "current":"A",
-    "time":"s",
-    "charge":"C",
-    "electrical_potential":"V",
-    "resistance":"Ω",
-    "temperature":"K",
-    "pressure":"mbar"
+
+
+def _get_dimension(technique, unit):
+    u = ureg.dimensionless
+    for key, value in unit.items():
+        u *= ureg(key).u ** int(value)
+    dimensionality = u.dimensionality
+    print(u, dimensionality)
+    print("cal. sig.", (ureg.mol / ureg.s).dimensionality)
+    for label, dimension in STANDARD_LABELS_BY_TECHNIQUE[technique].items():
+        if dimension.__eq__(dimensionality):
+            return label
+    return "signal"
+
+STANDARD_LABELS_BY_TECHNIQUE = {
+    'MS':{
+        "signal":ureg.A.dimensionality,
+        "time":ureg.s.dimensionality,
+        "temperature":ureg.kelvin.dimensionality,
+        "pressure":ureg.bar.dimensionality,
+        "cal. sig.":(ureg.mol / ureg.s).dimensionality,
+    },
+    'reactor':{
+
+
+    }
 }

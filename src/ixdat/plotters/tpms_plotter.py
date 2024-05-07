@@ -191,15 +191,17 @@ class TPMSPlotter(MPLPlotter):
 
             if not n:  # Only color the spine is one variable is plotted
                 color_axis(ax, color=color, lr=["left", "right"][i])
+        #                ax.yaxis.set_units(ureg(unit).u) 
 
+                
             #ax.set_ylabel(f"{y_label} / [{y_unit}]")
             #ax.set_xlabel(f"time / [{x_unit}]")
         if x_unit:
-            ax.xaxis.set_units(ureg(x_unit))
-            ax.set_xlabel(f"time / [{x_unit}]")
-        if unit:
-            axes[3].yaxis.set_units(ureg("mbar").u)            
-            axes[1].yaxis.set_units(ureg("K").u)
+            ax.xaxis.set_units(ureg(x_unit).u)
+            #ax.set_xlabel(f"time / [{x_unit}]")
+        if TP_units:
+            axes[1].yaxis.set_units(ureg(TP_units["T"]).u)            
+            axes[3].yaxis.set_units(ureg(TP_units["P"]).u)            
 
 
             #axes[1].set_ylabel(f"temperature / [{unit}]")

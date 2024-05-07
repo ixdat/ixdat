@@ -179,16 +179,15 @@ class MSPlotter(MPLPlotter):
         if legend:
             ax.legend()
          
-        #if x_unit:
-        #ureg.mpl_formatter = "{} / [{}]".format("time","{:~P}")
-        ax.xaxis.set_units(ureg("s").u)
-        ax.set_xlabel(f"time / [{x_unit}]")
-        ax.xaxis.isDefault_label = True
-        #ureg.mpl_formatter = "{} / [{}]".format("signal","{:~P}")
+        if x_unit:
+            ax.xaxis.set_units(ureg(x_unit).u)
+            #ax.set_xlabel(f"time / [{x_unit}]")
+            #ax.xaxis.isDefault_label = True
         
         if unit:
-            ax.yaxis.set_units(ureg(unit))
+            ax.yaxis.set_units(ureg(unit).u)
             #ax.set_ylabel(f"signal / [{unit}]")
+            #ax.yaxis.isDefault_label = True
             
         return axes if axes else ax
 
