@@ -816,7 +816,7 @@ class Measurement(Saveable):
         tspan_bg=None,
         unit_name=None,
         t_unit_name=None,
-        return_quantity=True,
+        return_quantity=False,
     ):
         """Return a value vector with the corresponding time vector
 

@@ -1061,7 +1061,7 @@ class MSCalibration(Calibration):
             n_dot = y / F
             return ValueSeries(
                 name=f"n_dot_{mol}",
-                unit_name="mol/s",
+                unit_name="mol/s",  # FIXME if one is using quantities / units this should be set dynamically
                 data=n_dot,
                 tseries=signal_series.tseries,
             )

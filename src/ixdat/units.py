@@ -3,7 +3,7 @@
 Important: The only import from pint in ixdat is in this module. This is essential
 for ureg, since units of seperately initiated UnitRegistries cannot be compared.
 """
-from pint import UnitRegistry, UndefinedUnitError, DimensionalityError, Quantity, Context
+from pint import UnitRegistry, UndefinedUnitError, DimensionalityError, Quantity
 from pint.util import UnitsContainer
 from pint import formatting
 import warnings
@@ -26,14 +26,15 @@ class Unit:
             self.u = None
                 
     def set_unit(self,new_unit_name):
-        warnings.warn(
-            f"setting unit of dataseries to {new_unit_name} from unit {self.u}"
-            " with the name {self.name}. This does NOT alter the values in "
-            "this dataseries. "
-            f"If conversion to this unit {new_unit_name} is expected this "
-            "can be done with inplace_to_unit() from the measurement class",
-            stacklevel=2,
-        )
+        if not self.u == ureg.dimensionless:
+            warnings.warn(
+                f"setting unit of dataseries to {new_unit_name} from unit {self.u}"
+                " with the name {self.name}. This does NOT alter the values in "
+                "this dataseries. "
+                f"If conversion to this unit {new_unit_name} is expected this "
+                "can be done with inplace_to_unit() from the measurement class",
+                stacklevel=2,
+                )
         self.name = new_unit_name
         self.u = ureg(self.name).u
 
@@ -44,16 +45,8 @@ class Unit:
         return self.name == other.name
 
 
-# Adding some context to go back and forth from mol/s to mol/s/cm^2 
-## NEED more work to figure out where and when the A_el constant should be added to the registry and defining this context. 
-
-# def add_context_to_measurement(measurement):
-#     ureg.define('_A_el = measurement.A_el')
-#     c = Context('area_calibration')
-#     c.add_transformation('[substance] / [lenght] **2 / [time]', '[substance] / [time]', lambda ureg, x: x * _A_el)
-#     c.add_transformation('[substance] / [time]', '[substance] / [lenght] ** 2 / [time]', lambda ureg, x: x / _A_el)
-
 def _register_format_function(plotter_type):
+    """ Make a default formatter to dynamic update matplotlib labels when units are updated on axes """
     try:
         @formatting.register_unit_format(f"ixdat_{plotter_type.lower()}")
         def format_function(unit: UnitsContainer, registry: UnitRegistry, **options) -> str:
@@ -68,7 +61,6 @@ def _register_format_function(plotter_type):
                 exp_call=_ixdat_fmt_exponent,
                 **options,
             )
-            
             dimension = _get_dimension(unit=unit, plotter=plotter_type)
             if plotter_type == "LOG":
                 return f"{dimension} / [ln(" + formatted_unit + ")]"
@@ -80,34 +72,46 @@ def _register_format_function(plotter_type):
 for plotter in ["DEFAULT", "EC", "LOG"]:
     _register_format_function(plotter)
 
-
-
 def _ixdat_fmt_exponent(num) -> str:
+    ''' Format number exponents of units '''
     return "{"+f"{num}"+"}"
     
-
-
 def _get_dimension(plotter, unit):
+    ''' Get physical context based on dimensions of units to put in label '''
     u = ureg.dimensionless
     for key, value in unit.items():
         u *= ureg(key).u ** int(value)
     dimensionality = u.dimensionality
-    #print(u, dimensionality)
-    #print("cal. sig.", (ureg.mol / ureg.s).dimensionality)
+
     for label, dimension in STANDARD_LABELS_BY_PLOTTER[plotter].items():
         if dimension.__eq__(dimensionality):
             return label[0] if isinstance(label, tuple) else label
     return "signal"
 
+def _area_calibration(A_el):
+    ''' provide Context for mol/s <-> mol/s/cm^2 
+        FIXME this needs a lot of improve ment. 
+        Goal: is to be able to set unit on axes without replotting
+    '''
+    c = ureg.Context('A_el_calibration')
+    c.add_transformation('[substance]/[time]/[length]**2',
+                     '[substance]/[time]', 
+                      lambda ureg, x: x * A_el)
+    c.add_transformation('[substance]/[time]',
+                     '[substance]/[time]/[length]**2',
+                     lambda ureg, x: x / A_el)
+    ureg.add_context(c)
+
+
 STANDARD_LABELS_BY_PLOTTER = {
     'DEFAULT':{
         "signal":ureg.A.dimensionality,
         ("cal. sig.","mol/s"):(ureg.mol / ureg.s).dimensionality,
-        ("cal. sig.","mol/s/cm"):(ureg.mol / ureg.s / ureg.cm ** 2).dimensionality,
+        ("cal. sig.","mol/s/cm^2"):(ureg.mol / ureg.s / ureg.cm ** 2).dimensionality,
         "time":ureg.s.dimensionality,
         "temperature":ureg.kelvin.dimensionality,
         "pressure":ureg.bar.dimensionality,
-        "mass spec signal":ureg.dimensionless.dimensionality,
+        "mass spec signal":ureg.dimensionless.dimensionality,  # formatter never reaches this due to pints handeling of dimensionless units
     },
     'LOG':{
         "ln(signal)":ureg.A.dimensionality,
