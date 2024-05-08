@@ -150,7 +150,8 @@ class MSPlotter(MPLPlotter):
                 v = np.log(v.to(unit).m) * ureg.dimensionless if use_quantity else np.log(v / (1*unit).to_base_units().m) * ureg.dimensionless  
                 ylabel = f"{vu:~ixdat_log}"
                 
-            if use_quantity and not v.check(unit):
+                
+            if use_quantity and not v.check(unit) and not logdata:
                 vn = f"n_dot_{v_name}" if quantified else f"{v_name}"
                 print(f"cannot plot {vn} with units {v.u:~P} on axis with units {unit}.")
                 print(f"If the unit of '{vn}' is wrong you can set the correct unit with measurement['{vn}'].unit.set_unit('correct_unit_name')")
@@ -291,9 +292,9 @@ class MSPlotter(MPLPlotter):
         v_list = specs_this_axis["v_list"]
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
-        unit_factor = specs_this_axis["unit_factor"]
+        #unit_factor = specs_this_axis["unit_factor"]
 
-        t, x = measurement.grab(x_name, tspan=tspan, include_endpoints=True)
+        t, x = measurement.grab(x_name, tspan=tspan, include_endpoints=True, return_quantity=use_quantity)
         for i, v_name in enumerate(v_list):
             if quantified:
                 t_v, v = measurement.grab_flux(
@@ -314,7 +315,12 @@ class MSPlotter(MPLPlotter):
                     return_quantity = use_quantity,
                 )
             if logplot:
-                v[v < MIN_SIGNAL] = MIN_SIGNAL
+                try:
+                    v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
+                except (DimensionalityError, AttributeError):
+                    v[v < MIN_SIGNAL] = MIN_SIGNAL                
+            # if logplot:
+            #     v[v < MIN_SIGNAL] = MIN_SIGNAL
                 
             x_mass = np.interp(t_v, t, x)
             plot_kwargs_this_mass = plot_kwargs.copy()
@@ -323,25 +329,30 @@ class MSPlotter(MPLPlotter):
             if "label" not in plot_kwargs:
                 plot_kwargs_this_mass["label"] = v_name
 
-            x_unit_factor, x_unit = self._get_x_unit_factor(
-                x_unit, measurement[x_name].unit.name
-            )
+            # x_unit_factor, x_unit = self._get_x_unit_factor(
+            #     x_unit, measurement[x_name].unit.name
+            # )
             # Used to plot ln(mol) on a linear scale
-            if logdata:
-                logplot = False
-                v = np.log(v * unit_factor) * 1 / unit_factor
-                if not i:  # To avoid looping ln()'s around unit for each mass plotted.
-                    unit = f"ln({unit})"
-
+            # if logdata:
+            #     logplot = False
+            #     v = np.log(v * unit_factor) * 1 / unit_factor
+            #     if not i:  # To avoid looping ln()'s around unit for each mass plotted.
+            #         unit = f"ln({unit})"
+            
             ax.plot(
-                x_mass * x_unit_factor,
-                v * unit_factor,
+                x_mass if use_quantity else x_mass * ureg.dimensionless,  # ixdat internal time is seconds
+                v if use_quantity else (v * ureg.mol / ureg.s if quantified else v * ureg.A),  # ixdat internal default is A for ms signal and mol/s for calibrated signals
                 **plot_kwargs_this_mass,
             )
+            # ax.plot(
+            #     x_mass * x_unit_factor,
+            #     v * unit_factor,
+            #     **plot_kwargs_this_mass,
+            # )
 
-        ax.set_ylabel(f"signal / [{unit}]")
+        # ax.set_ylabel(f"signal / [{unit}]")
 
-        ax.set_xlabel(f"{x_name} / [{x_unit}]")
+        # ax.set_xlabel(f"{x_name} / [{x_unit}]")
 
         if specs_next_axis:
             self.plot_vs(
@@ -367,7 +378,15 @@ class MSPlotter(MPLPlotter):
             ax.set_yscale("log")
         if legend:
             ax.legend()
-
+         
+        if x_unit:
+            x_unit = x_unit if isinstance(x_unit, type(ureg.s)) else (ureg(x_unit).u if isinstance(x_unit, str) else x_unit.u)
+            ax.xaxis.set_units(x_unit)
+        
+        if unit and not logdata:
+            unit = unit if isinstance(unit, type(ureg.A)) else (ureg(unit).u if isinstance(unit, str) else unit.u)
+            ax.yaxis.set_units(unit)
+            
         return axes if axes else ax
 
     def _parse_overloaded_inputs(
