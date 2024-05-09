@@ -11,6 +11,7 @@ from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 from ..exceptions import TechniqueError
 from ..config import plugins
 from ..constants import R
+from ..plotters.plotting_tools import calc_linear_background
 
 # FIXME: too much abbreviation in this module.
 # TODO: Implement the PR review here: https://github.com/ixdat/ixdat/pull/4
@@ -25,7 +26,6 @@ from ..constants import R
 # It should be possible to perform this on any ECMS data I have.
 # *) Change the name "Kernel" to "ECMSImpulseResponse". Might be the correct mathematical
 # term, but I found it confusing (especially since Python also has Kernels)
-# *) Make the ECMSImpulseResponse class inherit from Measurement (if I figure out how to) or even ECMSMeasurement?
 # *) I don't think there should be a separation in the class whether the object is
 # constructed from measured data or parameters (since the object will be the same, won't it? It's like
 # the sensitivity factor will be the same object whether calculated or measured).
@@ -172,18 +172,27 @@ class ECMSImpulseResponse():
                
     def calc_impulse_response_from_data(self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False):
         """Calculates impulse response from data.
+        TODO: add possibility of subtracting a linear background!!! 
         TODO: add option to plot the implulse response from data/ return an axis to co-plot with the data
+        TODO: figure out if it's ok to just get rid of dt and duration (not used here)
+        TODO: change the name kernel to something else
 
         Args:
             tspan (list): tspan over which to calculate the impulse response
-            tspan_bg (list): tspan of background to subtract 
+            tspan_bg (list): tspan of background to subtract. if list of tspans is passed,
+            will interpolate between the points using calc_linear_background()
             norm (bool): If true the impulse response is normalized to its
-                area.
+                area. Default is True.
             matrix (bool): If true the circulant matrix constructed from the
-                impulse reponse is returned.
+                impulse reponse is returned. Default is False.
         """
         if self.type == "measured":
-            t_kernel, kernel = self.data.grab_flux(mol=self.mol, tspan=tspan, tspan_bg=tspan_bg)
+            if type(tspan_bg[0]) is not list: 
+                t_kernel, kernel = self.data.grab_flux(mol=self.mol, tspan=tspan, tspan_bg=tspan_bg)
+            else:
+                t_kernel, kernel_raw = self.data.grab_flux(mol=self.mol, tspan=tspan)
+                bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
+                kernel = kernel_raw - bg
             if norm:
                 area = np.trapz(kernel, t_kernel)
                 kernel = kernel / area
@@ -202,6 +211,7 @@ class ECMSImpulseResponse():
         """Returns a plot of the kernel/impulse response.
         
         TODO: this shouldn't be it's separate function but rather use the ECMS plotter!
+        TODO: maybe shouldnt be in this module?
         """
         if ax is None:
             fig1 = plt.figure()
