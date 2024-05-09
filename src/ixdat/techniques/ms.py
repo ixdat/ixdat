@@ -325,6 +325,31 @@ class MSMeasurement(Measurement):
                 fig, ax = self.plotter.new_ax()
             ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mass], alpha=0.2)
         return np.trapz(S - S_bg, t)
+    
+    def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
+        """Integrate a calibrated ms signal with background subtraction and evt. plotting
+
+        TODO: Should this, like grab_signal does now, have the option of using a
+            background saved in the object rather than calculating a new one?
+        TODO: combine with integrate_signal?
+
+        Args:
+            mass (str): The mass for which to integrate the signal
+            tspan (tspan): The timespan over which to integrate
+            tspan_bg (tspan): Timespan at which the signal is at its background value
+            ax (Axis): axis to plot on. Defaults to None
+        """
+        t, S = self.grab_flux(mol, tspan=tspan, include_endpoints=True)
+        if tspan_bg:
+            t_bg, S_bg_0 = self.grab_flux(mol, tspan=tspan_bg, include_endpoints=True)
+            S_bg = np.mean(S_bg_0) * np.ones(t.shape)
+        else:
+            S_bg = np.zeros(t.shape)
+        if ax:
+            if ax == "new":
+                fig, ax = self.plotter.new_ax()
+            ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mol], alpha=0.2)
+        return np.trapz(S - S_bg, t)
 
     @property
     def mass_list(self):
