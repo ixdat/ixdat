@@ -2,7 +2,7 @@
 import warnings
 from ..data_series import Field
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
+from .base_mpl_plotter import MPLPlotter, ConversionError
 from ..units import ureg, DimensionalityError, Quantity
 
 
@@ -82,7 +82,7 @@ class MSPlotter(MPLPlotter):
         measurement = measurement or self.measurement
         if remove_background is None:
             remove_background = not logplot
-
+        
         # Figure out, based on the inputs, whether or not to plot calibrated results
         # (`quantified`), specifications for the axis to plot on now (`specs_this_axis`)
         # and specifications for the next axis to plot on, if any (`specs_next_axis`):
@@ -222,6 +222,7 @@ class MSPlotter(MPLPlotter):
                 else (ureg(x_unit).u if isinstance(x_unit, str) else x_unit.u)
             )
             ax.xaxis.set_units(x_unit)
+            
 
         if unit and not logdata:
             unit = (
@@ -230,6 +231,7 @@ class MSPlotter(MPLPlotter):
                 else (ureg(unit).u if isinstance(unit, str) else unit.u)
             )
             ax.yaxis.set_units(unit)
+                    
 
         return axes if axes else ax
 
@@ -536,7 +538,7 @@ class MSPlotter(MPLPlotter):
                 tspan_bg_right = None
             else:
                 tspan_bg = tspan_bg[0]
-            if isinstance(unit, list) or isinstance(unit, tuple):
+            if isinstance(unit, (list, tuple)):
                 unit_right = unit[1]
                 unit = unit[0]
             else:
@@ -552,12 +554,12 @@ class MSPlotter(MPLPlotter):
         else:
             specs_next_axis = None
 
-        if isinstance(unit, ureg.Unit):
-            unit = unit
+        if isinstance(unit, (ureg.Unit, ureg.Quantity)):
+            unit = unit.u if hasattr(unit, "units") else unit
+            
         elif isinstance(unit, str):
             unit = ureg(unit).u
-        elif isinstance(unit, ureg.Quantity):
-            unit = unit.u
+        
         else:
             unit = ureg.mol / ureg.s if quantified else ureg.A
 

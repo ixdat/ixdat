@@ -1,5 +1,5 @@
 import warnings
-from .base_mpl_plotter import MPLPlotter, ConversionError
+from .base_mpl_plotter import MPLPlotter
 from .ms_plotter import MSPlotter
 from .plotting_tools import color_axis
 from ..data_series import Field
@@ -31,15 +31,16 @@ class TPMSPlotter(MPLPlotter):
         remove_background=None,
         unit=None,
         x_unit=None,
-        TP_units=None,
+        T_unit=None,
+        P_unit=None,
         T_name=None,
         T_names=None,
         P_name=None,
         P_names=None,
         T_color=None,
         P_color=None,
-        logplot=[True, False],
-        logdata=None,
+        logplot=None,
+        logdata=False,
         legend=True,
         emphasis="top",
         use_quantity=True,
@@ -147,13 +148,9 @@ class TPMSPlotter(MPLPlotter):
                 **kwargs,
             )
 
-        T_name = T_name or measurement.T_name
-        P_name = P_name or measurement.P_name
 
-        if not T_names:
-            T_names = [T_name]
-        if not P_names:
-            P_names = [P_name]
+        T_names = T_names or [T_name or measurement.T_name]
+        P_names = P_names or [P_name or measurement.P_name]
 
         for i, TP_list in enumerate([T_names, P_names]):
             # plot dataseries on correct axis
@@ -172,19 +169,14 @@ class TPMSPlotter(MPLPlotter):
                     include_endpoints=False,
                     return_quantity=use_quantity,
                 )
-
-                # y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                #    measurement[TP_name], meta_units=TP_units
-                # )
-
-                # expect always to plot against time on x axis
-                # x_unit_factor, x_unit = _get_unit_factor_and_name(
-                #    new_unit_name=x_unit, from_unit_name="s"
-                # )
-
+                
                 ax.plot(
-                    t,  # * x_unit_factor,
-                    v,  # * y_unit_factor,
+                    t if use_quantity else t * ureg.s,  # ixdat internal time is seconds
+                    v
+                    if use_quantity
+                    else (
+                        v * ureg.bar if TP_name == P_name else v * ureg.degC
+                    ),
                     color=color,
                     label=TP_name,
                     **kwargs,
@@ -193,33 +185,28 @@ class TPMSPlotter(MPLPlotter):
             if (
                 logplot
                 and v.u != ureg.bar
-                and v.check({"[length]": -1, "[mass]": 1, "[time]": -2})
+                and v.check(ureg.mbar)
             ):
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
 
-            if not n:  # Only color the spine is one variable is plotted
+            if not n:  # Only color the spine if one variable is plotted
                 color_axis(ax, color=color, lr=["left", "right"][i])
-        #                ax.yaxis.set_units(ureg(unit).u)
+        
+        for j, unit in enumerate([T_unit, P_unit]):
+            if unit:
+                pint_unit = ureg(unit).units if isinstance(unit, str) else (
+                    unit.units if isinstance(unit, ureg.Quantity) else unit)
+                axes[j * 2 + 1].yaxis.set_units(pint_unit)
 
-        # ax.set_ylabel(f"{y_label} / [{y_unit}]")
-        # ax.set_xlabel(f"time / [{x_unit}]")
         if x_unit:
-            ax.xaxis.set_units(ureg(x_unit).u)
-            # ax.set_xlabel(f"time / [{x_unit}]")
-        if TP_units:
-            try:
-                axes[1].yaxis.set_units(ureg(TP_units["T"]).u)
-            except (AttributeError, ConversionError):
-                print("find a better exception tommorrow, ConversionError")
-            try:
-                axes[3].yaxis.set_units(ureg(TP_units["P"]).u)
-            except (AttributeError, ConversionError):
-                print("find a better exception tommorrow, ConversionError")
-
-            # axes[1].set_ylabel(f"temperature / [{unit}]")
-            # axes[3].set_ylabel(f"pressure / [{unit}]")
+            x_unit = (
+                x_unit
+                if isinstance(x_unit, type(ureg.s))
+                else (ureg(x_unit).u if isinstance(x_unit, str) else x_unit.u)
+            )
+            ax.xaxis.set_units(x_unit)
 
         if not i:  # remove last axis if nothing is plotted on it
             axes[3].remove()
@@ -607,6 +594,15 @@ class TPMSPlotter(MPLPlotter):
 
         return axes
 
+    def _is_unit_pint(
+        self,
+        unit,
+    ):
+        if isinstance(unit, (ureg.Unit, ureg.Quantity)):
+            unit = unit.u if hasattr(unit, "u") else unit       
+        elif isinstance(unit, str):
+            unit = ureg(unit).u
+        return unit
 
 class SpectroTPMSPlotter(MPLPlotter):
     def __init__(self, measurement=None):

@@ -3,7 +3,7 @@
 Important: The only import from pint in ixdat is in this module. This is essential
 for ureg, since units of seperately initiated UnitRegistries cannot be compared.
 """
-from pint import UnitRegistry, UndefinedUnitError
+from pint import UnitRegistry, UndefinedUnitError, DimensionalityError, Quantity
 from pint.util import UnitsContainer
 from pint import formatting
 import warnings
