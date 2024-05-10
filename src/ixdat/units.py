@@ -109,7 +109,8 @@ STANDARD_LABELS_BY_PLOTTER = {
         ("cal. sig.","mol/s"):(ureg.mol / ureg.s).dimensionality,
         ("cal. sig.","mol/s/cm^2"):(ureg.mol / ureg.s / ureg.cm ** 2).dimensionality,
         "time":ureg.s.dimensionality,
-        "temperature":ureg.kelvin.dimensionality,
+        ("temperature", "K"):ureg.kelvin.dimensionality,
+        ("temperature", "inverse"):1/ureg.kelvin.dimensionality,
         "pressure":ureg.bar.dimensionality,
         "mass spec signal":ureg.dimensionless.dimensionality,  # formatter never reaches this due to pints handeling of dimensionless units
     },
