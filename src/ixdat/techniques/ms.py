@@ -100,6 +100,9 @@ class MSMeasurement(Measurement):
         tspan_bg=None,
         include_endpoints=False,
         remove_background=False,
+        unit_name=None,
+        t_unit_name=None,
+        return_quantity=True,
     ):
         """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
 
@@ -120,9 +123,13 @@ class MSMeasurement(Measurement):
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 include_endpoints=include_endpoints,
+                return_quantity=return_quantity,
             )
         time, value = super().grab(
-            item, tspan=tspan, include_endpoints=include_endpoints
+            item,
+            tspan=tspan,
+            include_endpoints=include_endpoints,
+            return_quantity=return_quantity,
         )
         if tspan_bg:
             _, bg = self.grab(item, tspan=tspan_bg)
@@ -135,7 +142,17 @@ class MSMeasurement(Measurement):
                 return time, value - np.average(bg)
         return time, value
 
-    def grab_for_t(self, item, t, tspan_bg=None, remove_background=False):
+    def grab_for_t(
+        self,
+        item,
+        t,
+        tspan_bg=None,
+        remove_background=False,
+        include_endpoints=False,
+        unit_name=None,
+        t_unit_name=None,
+        return_quantity=False,
+    ):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -149,7 +166,13 @@ class MSMeasurement(Measurement):
                 Defaults to False, but in grab_flux it defaults to True.
         """
         t_0, v_0 = self.grab(
-            item, tspan_bg=tspan_bg, remove_background=remove_background
+            item,
+            tspan_bg=tspan_bg,
+            remove_background=remove_background,
+            include_endpoints=include_endpoints,
+            unit_name=unit_name,
+            t_unit_name=t_unit_name,
+            return_quantity=return_quantity,
         )
         v = np.interp(t, t_0, v_0)
         return v
@@ -169,6 +192,7 @@ class MSMeasurement(Measurement):
         remove_background=True,
         removebackground=None,
         include_endpoints=False,
+        return_quantity=True,
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
@@ -202,6 +226,7 @@ class MSMeasurement(Measurement):
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
                 include_endpoints=include_endpoints,
+                return_quantity=return_quantity,
             )
             return t, n_dots[mol]
 
@@ -212,6 +237,7 @@ class MSMeasurement(Measurement):
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,
                 include_endpoints=include_endpoints,
+                return_quantity=return_quantity,
             )
             return t, signal / mol.F
         return self.grab(
@@ -223,10 +249,16 @@ class MSMeasurement(Measurement):
             tspan_bg=tspan_bg,
             remove_background=remove_background,
             include_endpoints=include_endpoints,
+            return_quantity=return_quantity,
         )
 
     def grab_siq_fluxes(
-        self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
+        self,
+        tspan=None,
+        tspan_bg=None,
+        remove_background=False,
+        include_endpoints=False,
+        return_quantity=False,
     ):
         """Return a time vector and a dictionary with all the quantified fluxes
 
@@ -1043,7 +1075,7 @@ class MSCalibration(Calibration):
             n_dot = y / F
             return ValueSeries(
                 name=f"n_dot_{mol}",
-                unit_name="mol/s",
+                unit_name="mol/s",  # FIXME if one is using quantities / units this should be set dynamically
                 data=n_dot,
                 tseries=signal_series.tseries,
             )
@@ -1118,7 +1150,6 @@ class MSCalibration(Calibration):
 
     @classmethod
     def from_siq(cls, siq_calibration):
-
         # A complication is that it can be either a Calibration or a SensitivityList.
         # Either way, the sensitivity factors are in `sf_list`:
         ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]

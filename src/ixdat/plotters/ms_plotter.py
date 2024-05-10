@@ -2,7 +2,8 @@
 import warnings
 from ..data_series import Field
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
+from .base_mpl_plotter import MPLPlotter, ConversionError
+from ..units import ureg, DimensionalityError, Quantity
 
 
 class MSPlotter(MPLPlotter):
@@ -12,6 +13,7 @@ class MSPlotter(MPLPlotter):
         """Initiate the ECMSPlotter with its default Meausurement to plot"""
         super().__init__()
         self.measurement = measurement
+        self.ureg = ureg
 
     def plot_measurement(
         self,
@@ -31,6 +33,7 @@ class MSPlotter(MPLPlotter):
         logplot=True,
         logdata=False,
         legend=True,
+        use_quantity=True,
         **kwargs,
     ):
         """Plot m/z signal vs time (MID) data and return the axis.
@@ -72,12 +75,14 @@ class MSPlotter(MPLPlotter):
             logdata (bool): Whether to plot the natural logarithm of MS data on a
                 linear scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
+            use_quantity (bool): boolean if plotter should plot data according to the
+                units of the dataseries or just the magnitude of the dataseries
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
         if remove_background is None:
             remove_background = not logplot
-
+        
         # Figure out, based on the inputs, whether or not to plot calibrated results
         # (`quantified`), specifications for the axis to plot on now (`specs_this_axis`)
         # and specifications for the next axis to plot on, if any (`specs_next_axis`):
@@ -91,12 +96,14 @@ class MSPlotter(MPLPlotter):
             ax,
             axes,
             measurement,
+            use_quantity,
         )
         ax = specs_this_axis["ax"]
+
         v_list = specs_this_axis["v_list"]
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
-        unit_factor = specs_this_axis["unit_factor"]
+
         for v_or_v_name in v_list:
             if isinstance(v_or_v_name, str):
                 v_name = v_or_v_name
@@ -111,6 +118,7 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
             else:
                 t, v = measurement.grab_signal(
@@ -119,25 +127,69 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
+
+            if ureg("mol / s / cm ** 2").check(unit):
+                if not hasattr(measurement, "A_el"):
+                    warnings.warn(
+                        "Measurement does not have an attribute A_el and cannot "
+                        "calibrate to A_el"
+                    )
+                    continue
+                if isinstance(measurement.A_el, type(Quantity)):
+                    v = v / measurement.A_el
+                else:
+                    v = v / (measurement.A_el * ureg.cm**2)
+                    warnings.warn(
+                        f"You should explicit set the unit of A_el: {measurement.A_el} "
+                        f"before plotting.Falling back to default unit {ureg.cm**2:~P}"
+                    )
+
             if logplot:
-                v[v < MIN_SIGNAL] = MIN_SIGNAL
+                try:
+                    v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
+                except (DimensionalityError, AttributeError):
+                    v[v < MIN_SIGNAL] = MIN_SIGNAL
+
             if logdata:
                 logplot = False
-                # to correctly plot data with corrosponding unit and unit_factor
-                v = np.log(v * unit_factor) * 1 / unit_factor
-                unit = f"ln({unit})"
-            # expect always to plot against time
-            x_unit_factor, x_unit = self._get_x_unit_factor(x_unit, "s")
+                vu = v.to(unit).u if use_quantity else unit
+                v = (
+                    np.log(v.to(unit).m) * ureg.dimensionless
+                    if use_quantity
+                    else np.log(v / (1 * unit).to_base_units().m) * ureg.dimensionless
+                )
+                ylabel = f"{vu:~ixdat_log}"
+
+            if use_quantity and not v.check(unit) and not logdata:
+                vn = f"n_dot_{v_name}" if quantified else f"{v_name}"
+                error_message = (
+                    f"cannot plot {vn} with units {v.u:~P} on axis with units {unit}."
+                    f"If the unit of '{vn}' is wrong you can set the correct unit with "
+                    f"measurement['{vn}'].unit.set_unit('correct_unit_name')"
+                    "Otherwise choose a compatible unit to plot on axis. List of "
+                    f"compatible units to dataseries: {ureg.get_compatible_units(v.u)}"
+                )
+                print(error_message)
+                continue
+
             ax.plot(
-                t * x_unit_factor,
-                v * unit_factor,
+                t if use_quantity else t * ureg.s,  # ixdat internal time is seconds
+                v
+                if use_quantity
+                else (
+                    v * ureg.mol / ureg.s if quantified else v * ureg.A
+                ),  # ixdat internal default is A and mol/s for un/calibrated signals
                 color=color,
                 label=v_name,
                 **kwargs,
             )
-        ax.set_ylabel(f"signal / [{unit}]")
-        ax.set_xlabel(f"time / [{x_unit}]")
+
+        if logdata or (use_quantity and v.check(ureg.dimensionless)):
+            ax.set_ylabel(ylabel) if logdata else ax.set_ylabel("signal / [a.u.]")
+            ax.yaxis.isDefault_label = True
+
         if specs_next_axis:
             self.plot_measurement(
                 measurement=measurement,
@@ -151,6 +203,7 @@ class MSPlotter(MPLPlotter):
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
+                use_quantity=use_quantity,
                 **kwargs,
             )
             axes = [ax, specs_next_axis["ax"]]
@@ -161,6 +214,24 @@ class MSPlotter(MPLPlotter):
             ax.set_yscale("log")
         if legend:
             ax.legend()
+
+        if x_unit:
+            x_unit = (
+                x_unit
+                if isinstance(x_unit, type(ureg.s))
+                else (ureg(x_unit).u if isinstance(x_unit, str) else x_unit.u)
+            )
+            ax.xaxis.set_units(x_unit)
+            
+
+        if unit and not logdata:
+            unit = (
+                unit
+                if isinstance(unit, type(ureg.A))
+                else (ureg(unit).u if isinstance(unit, str) else unit.u)
+            )
+            ax.yaxis.set_units(unit)
+                    
 
         return axes if axes else ax
 
@@ -183,6 +254,7 @@ class MSPlotter(MPLPlotter):
         logplot=True,
         logdata=False,
         legend=True,
+        use_quantity=True,
         **plot_kwargs,
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
@@ -225,6 +297,8 @@ class MSPlotter(MPLPlotter):
             logdata (bool): Whether to plot the natural logarithm of MS data on a
                 linear scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
+            use_quantity (bool): boolean if plotter should plot data according to the
+                units of the dataseries or just the magnitude of the dataseries
             plot_kwargs: additional key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
@@ -242,14 +316,29 @@ class MSPlotter(MPLPlotter):
             ax,
             axes,
             measurement,
+            use_quantity,
         )
         ax = specs_this_axis["ax"]
         v_list = specs_this_axis["v_list"]
         tspan_bg = specs_this_axis["tspan_bg"]
         unit = specs_this_axis["unit"]
-        unit_factor = specs_this_axis["unit_factor"]
+        # unit_factor = specs_this_axis["unit_factor"]
 
-        t, x = measurement.grab(x_name, tspan=tspan, include_endpoints=True)
+        t, x = measurement.grab(
+            x_name, tspan=tspan, include_endpoints=True, return_quantity=use_quantity
+        )
+
+        if use_quantity and x_unit and not x.check(x_unit):
+            error_message = (
+                f"cannot plot {x_name} with units {x.u:~P} on axis with units {x_unit}."
+                f"If the unit of '{x_name}' is wrong you can set the correct unit with "
+                f"measurement['{x_name}'].unit.set_unit('correct_unit_name')"
+                "Otherwise choose a compatible unit to plot on axis. List of "
+                f"compatible units to dataseries: {ureg.get_compatible_units(x.u)}"
+            )
+
+            return print(error_message)
+
         for i, v_name in enumerate(v_list):
             if quantified:
                 t_v, v = measurement.grab_flux(
@@ -258,6 +347,7 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
             else:
                 t_v, v = measurement.grab_signal(
@@ -266,9 +356,53 @@ class MSPlotter(MPLPlotter):
                     tspan_bg=tspan_bg,
                     remove_background=remove_background,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
+
+            if ureg("mol / s / cm ** 2").check(unit):
+                if not hasattr(measurement, "A_el"):
+                    warnings.warn(
+                        "Measurement does not have an attribute A_el and cannot "
+                        "calibrate to A_el"
+                    )
+                    continue
+                if isinstance(measurement.A_el, type(Quantity)):
+                    v = v / measurement.A_el
+                else:
+                    v = v / (measurement.A_el * ureg.cm**2)
+                    warnings.warn(
+                        f"You should explicit set the unit of A_el: {measurement.A_el} "
+                        f"before plotting. Falling back to default unit {ureg.cm**2:~P}"
+                    )
+
+            if use_quantity and not v.check(unit) and not logdata:
+                vn = f"n_dot_{v_name}" if quantified else f"{v_name}"
+                error_message = (
+                    f"cannot plot {vn} with units {v.u:~P} on axis with units {unit}."
+                    f"If the unit of '{vn}' is wrong you can set the correct unit with "
+                    f"measurement['{vn}'].unit.set_unit('correct_unit_name')"
+                    "Otherwise choose a compatible unit to plot on axis. List of "
+                    f"compatible units to dataseries: {ureg.get_compatible_units(v.u)}"
+                )
+                print(error_message)
+                continue
+
             if logplot:
-                v[v < MIN_SIGNAL] = MIN_SIGNAL
+                try:
+                    v.m[v.m < MIN_SIGNAL] = MIN_SIGNAL
+                except (DimensionalityError, AttributeError):
+                    v[v < MIN_SIGNAL] = MIN_SIGNAL
+
+            if logdata:
+                logplot = False
+                vu = v.to(unit).u if use_quantity else unit
+                v = (
+                    np.log(v.to(unit).m) * ureg.dimensionless
+                    if use_quantity
+                    else np.log(v / (1 * unit).to_base_units().m) * ureg.dimensionless
+                )
+                ylabel = f"{vu:~ixdat_log}"
+
             x_mass = np.interp(t_v, t, x)
             plot_kwargs_this_mass = plot_kwargs.copy()
             if "color" not in plot_kwargs:
@@ -276,25 +410,23 @@ class MSPlotter(MPLPlotter):
             if "label" not in plot_kwargs:
                 plot_kwargs_this_mass["label"] = v_name
 
-            x_unit_factor, x_unit = self._get_x_unit_factor(
-                x_unit, measurement[x_name].unit.name
-            )
-            # Used to plot ln(mol) on a linear scale
-            if logdata:
-                logplot = False
-                v = np.log(v * unit_factor) * 1 / unit_factor
-                if not i:  # To avoid looping ln()'s around unit for each mass plotted.
-                    unit = f"ln({unit})"
-
             ax.plot(
-                x_mass * x_unit_factor,
-                v * unit_factor,
+                x_mass if use_quantity else x_mass * ureg.dimensionless,
+                v
+                if use_quantity
+                else (
+                    v * ureg.mol / ureg.s if quantified else v * ureg.A
+                ),  # ixdat internal default is A and mol/s for un/calibrated signals
                 **plot_kwargs_this_mass,
             )
 
-        ax.set_ylabel(f"signal / [{unit}]")
+        if logdata or (use_quantity and v.check(ureg.dimensionless)):
+            ax.set_ylabel(ylabel) if logdata else ax.set_ylabel("signal / [a.u.]")
+            ax.yaxis.isDefault_label = True
 
-        ax.set_xlabel(f"{x_name} / [{x_unit}]")
+        if ax.xaxis.get_units() == ureg.dimensionless:
+            ax.set_xlabel(f"{x_name}")
+            ax.xaxis.isDefault_label = True
 
         if specs_next_axis:
             self.plot_vs(
@@ -321,55 +453,23 @@ class MSPlotter(MPLPlotter):
         if legend:
             ax.legend()
 
-        return axes if axes else ax
+        if x_unit:
+            x_unit = (
+                x_unit
+                if isinstance(x_unit, type(ureg.s))
+                else (ureg(x_unit).u if isinstance(x_unit, str) else x_unit.u)
+            )
+            ax.xaxis.set_units(x_unit)
 
-    def _get_x_unit_factor(
-        self,
-        new_x_unit,
-        original_unit_name,
-    ):
-        if (original_unit_name or new_x_unit) in ["kelvin", "K", "celsius", "C"]:
-            warnings.warn(
-                f"Converting '{original_unit_name}' to '{new_x_unit}' should be done in "
-                f"({self.measurement.__class__.__name__}) prior to plotting using "
-                f"({self.__class__.__name__}). "
-                f"Plotting using '{original_unit_name}'.",
-                stacklevel=2,
+        if unit and not logdata:
+            unit = (
+                unit
+                if isinstance(unit, type(ureg.A))
+                else (ureg(unit).u if isinstance(unit, str) else unit.u)
             )
-            return 1, original_unit_name
-        try:
-            x_unit_factor = {
-                # Time conversion
-                "s": 1,
-                "min": 1 / 60,
-                "minutes": 1 / 60,
-                "h": 1 / 3600,
-                "hr": 1 / 3600,
-                "hour": 1 / 3600,
-                "hours": 1 / 3600,
-                "d": 1 / (3600 * 24),
-                "days": 1 / (3600 * 24),
-                # Pressure conversion
-                "mbar": 1,
-                "bar": 1000,
-                "hPa": 1,
-                "kPa": 0.1,
-                # Temperature conversion
-                # "K": 273.15,
-                # "kelvin": 273.15,
-                # "C": -273.15,
-                # "celsius": -273.15,
-            }[new_x_unit]
-        except KeyError:
-            warnings.warn(
-                f"Can't convert original unit '{original_unit_name}' to new unit "
-                f"'{new_x_unit}'. Plotting using original unit '{new_x_unit}' with "
-                "unit_factor=1 (one).",
-                stacklevel=2,
-            )
-            x_unit_factor = 1
-            new_x_unit = original_unit_name
-        return x_unit_factor, new_x_unit
+            ax.yaxis.set_units(unit)
+
+        return axes if axes else ax
 
     def _parse_overloaded_inputs(
         self,
@@ -382,6 +482,7 @@ class MSPlotter(MPLPlotter):
         ax,
         axes,
         measurement,
+        use_quantity,
     ):
         """From the overloaded function inputs, figure out what the user wants to do.
 
@@ -415,8 +516,11 @@ class MSPlotter(MPLPlotter):
             ax = (
                 axes[0]
                 if axes
-                else self.new_ax(ylabel=f"signal / [{unit}]", xlabel="time / [s]")
+                else self.new_ax()  # ylabel=f"signal / [{DEFAULT_UNIT['signal']}]",
+                # xlabel=f"time / [{DEFAULT_UNIT['time']}]",
+                #             use_quantity=use_quantity)
             )
+
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
         if v_lists:
@@ -434,11 +538,12 @@ class MSPlotter(MPLPlotter):
                 tspan_bg_right = None
             else:
                 tspan_bg = tspan_bg[0]
-            if isinstance(unit, str) or not unit:
-                unit_right = unit
-            else:
+            if isinstance(unit, (list, tuple)):
                 unit_right = unit[1]
                 unit = unit[0]
+            else:
+                unit_right = unit
+
             specs_next_axis = {
                 "ax": ax_right,
                 "unit": unit_right,
@@ -449,33 +554,19 @@ class MSPlotter(MPLPlotter):
         else:
             specs_next_axis = None
 
-        if quantified:
-            unit = unit or "mol/s"
-            unit_factor = {
-                "pmol/s": 1e12,
-                "nmol/s": 1e9,
-                "umol/s": 1e6,
-                "mmol/s": 1e3,
-                "mol/s": 1,  # noqa
-                "pmol/s/cm^2": 1e12,
-                "nmol/s/cm^2": 1e9,
-                "umol/s/cm^2": 1e6,
-                "mmol/s/cm^2": 1e3,
-                "mol/s/cm^2": 1,  # noqa
-            }[unit]
-            if "/cm^2" in unit:
-                unit_factor = unit_factor / measurement.A_el
+        if isinstance(unit, (ureg.Unit, ureg.Quantity)):
+            unit = unit.u if hasattr(unit, "units") else unit
+            
+        elif isinstance(unit, str):
+            unit = ureg(unit).u
+        
         else:
-            unit = unit or "A"
-            unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "mA": 1e3, "A": 1}[unit]
-        # TODO: Real units with a unit module! This should even be able to figure out the
-        #  unit prefix to put stuff in a nice 1-to-1e3 range
+            unit = ureg.mol / ureg.s if quantified else ureg.A
 
         specs_this_axis = {
             "ax": ax,
             "v_list": v_list,
             "unit": unit,
-            "unit_factor": unit_factor,
             "tspan_bg": tspan_bg,
         }
 
@@ -518,6 +609,7 @@ class SpectroMSPlotter(MPLPlotter):
         scanning_mask=None,
         vmin=None,
         vmax=None,
+        use_quantity=True,
         **kwargs,
     ):
         """Plot m/z signal, mass spectra vs time (MID) data and return the axes of a two
@@ -579,6 +671,8 @@ class SpectroMSPlotter(MPLPlotter):
                 in measurement.spectrum_series.
             vmax (int or float): Shift maximum value in color bar. Default highest value
                 in measurement.spectrum_series.
+            use_quantity (bool): boolean if plotter should plot data according to the
+                units of the dataseries or just the magnitude of the dataseries
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
 
@@ -630,6 +724,7 @@ class SpectroMSPlotter(MPLPlotter):
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
+                use_quantity=use_quantity,
                 **kwargs,
             )
 
@@ -679,6 +774,7 @@ class SpectroMSPlotter(MPLPlotter):
         min_threshold=None,
         scanning_mask=None,
         sort_spectra="linear",
+        use_quantity=True,
         **kwargs,
     ):
         """Plot m/z signal and MSSpectra data in a two panel subfigure vs a specified
@@ -773,7 +869,8 @@ class SpectroMSPlotter(MPLPlotter):
                         leads to abrupt looking figures since two non similair spectras
                         are obtained at similair v_name value and hence plotted next to
                         eachother.
-
+            use_quantity (bool): boolean if plotter should plot data according to the
+                units of the dataseries or just the magnitude of the dataseries
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
 
@@ -831,6 +928,7 @@ class SpectroMSPlotter(MPLPlotter):
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
+                use_quantity=use_quantity,
                 **kwargs,
             )
 
@@ -912,7 +1010,6 @@ class SpectroMSPlotter(MPLPlotter):
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
 
         if vspan:
-
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
 
@@ -923,6 +1020,14 @@ class SpectroMSPlotter(MPLPlotter):
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
 # TODO: This should probably be customizeable from a settings file.
+
+DEFAULT_UNIT = {"time": "s", "signal": "A"}
+
+DEFAULT_YLABELS = {
+    "signal": {"[current]": 1},
+    "cal. sig": {"[substance]": 1, "[time]": -1},
+    "time": {"[time]": 1},
+}
 
 STANDARD_COLORS = {
     "M2": "b",

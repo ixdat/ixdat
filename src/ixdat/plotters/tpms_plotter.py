@@ -4,6 +4,7 @@ from .ms_plotter import MSPlotter
 from .plotting_tools import color_axis
 from ..data_series import Field
 import numpy as np
+from ..units import ureg
 
 
 class TPMSPlotter(MPLPlotter):
@@ -14,6 +15,7 @@ class TPMSPlotter(MPLPlotter):
         super().__init__()
         self.measurement = measurement
         self.ms_plotter = MSPlotter(measurement=measurement)
+        self.ureg = ureg
 
     def plot_measurement(
         self,
@@ -29,7 +31,8 @@ class TPMSPlotter(MPLPlotter):
         remove_background=None,
         unit=None,
         x_unit=None,
-        TP_units=None,
+        T_unit=None,
+        P_unit=None,
         T_name=None,
         T_names=None,
         P_name=None,
@@ -37,9 +40,10 @@ class TPMSPlotter(MPLPlotter):
         T_color=None,
         P_color=None,
         logplot=None,
-        logdata=None,
+        logdata=False,
         legend=True,
         emphasis="top",
+        use_quantity=True,
         **kwargs,
     ):
         """Make a two panel plot with mass spec data on top panel and meta data on bottom
@@ -89,12 +93,14 @@ class TPMSPlotter(MPLPlotter):
             P_color (str): Overwrite standard color to plot the variable given by P_name
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
-            logdata (bool): Whether to plot the MS data on a log scale (default True
-                unless mass_lists are given)
+            logdata (list of bool): Whether to plot the MS data on a log scale
+                (default True unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels, "one figure" to plot all in
                 one figure
+           use_quantity (bool): boolean if plotter should plot data according to the
+               units of the dataseries or just the magnitude of the dataseries
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -138,16 +144,13 @@ class TPMSPlotter(MPLPlotter):
                 logplot=logplot,
                 logdata=logdata,
                 legend=legend,
+                use_quantity=use_quantity,
                 **kwargs,
             )
 
-        T_name = T_name or measurement.T_name
-        P_name = P_name or measurement.P_name
 
-        if not T_names:
-            T_names = [T_name]
-        if not P_names:
-            P_names = [P_name]
+        T_names = T_names or [T_name or measurement.T_name]
+        P_names = P_names or [P_name or measurement.P_name]
 
         for i, TP_list in enumerate([T_names, P_names]):
             # plot dataseries on correct axis
@@ -164,35 +167,46 @@ class TPMSPlotter(MPLPlotter):
                     TP_name,
                     tspan=tspan,
                     include_endpoints=False,
+                    return_quantity=use_quantity,
                 )
-
-                y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
-                    measurement[TP_name], meta_units=TP_units
-                )
-
-                # expect always to plot against time on x axis
-                x_unit_factor, x_unit = _get_unit_factor_and_name(
-                    new_unit_name=x_unit, from_unit_name="s"
-                )
-
+                
                 ax.plot(
-                    t * x_unit_factor,
-                    v * y_unit_factor,
+                    t if use_quantity else t * ureg.s,  # ixdat internal time is seconds
+                    v
+                    if use_quantity
+                    else (
+                        v * ureg.bar if TP_name == P_name else v * ureg.degC
+                    ),
                     color=color,
                     label=TP_name,
                     **kwargs,
                 )
 
-            if logplot and y_unit == "mbar":
+            if (
+                logplot
+                and v.u != ureg.bar
+                and v.check(ureg.mbar)
+            ):
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
 
-            if not n:  # Only color the spine is one variable is plotted
+            if not n:  # Only color the spine if one variable is plotted
                 color_axis(ax, color=color, lr=["left", "right"][i])
+        
+        for j, unit in enumerate([T_unit, P_unit]):
+            if unit:
+                pint_unit = ureg(unit).units if isinstance(unit, str) else (
+                    unit.units if isinstance(unit, ureg.Quantity) else unit)
+                axes[j * 2 + 1].yaxis.set_units(pint_unit)
 
-            ax.set_ylabel(f"{y_label} / [{y_unit}]")
-            ax.set_xlabel(f"time / [{x_unit}]")
+        if x_unit:
+            x_unit = (
+                x_unit
+                if isinstance(x_unit, type(ureg.s))
+                else (ureg(x_unit).u if isinstance(x_unit, str) else x_unit.u)
+            )
+            ax.xaxis.set_units(x_unit)
 
         if not i:  # remove last axis if nothing is plotted on it
             axes[3].remove()
@@ -580,6 +594,15 @@ class TPMSPlotter(MPLPlotter):
 
         return axes
 
+    def _is_unit_pint(
+        self,
+        unit,
+    ):
+        if isinstance(unit, (ureg.Unit, ureg.Quantity)):
+            unit = unit.u if hasattr(unit, "u") else unit       
+        elif isinstance(unit, str):
+            unit = ureg(unit).u
+        return unit
 
 class SpectroTPMSPlotter(MPLPlotter):
     def __init__(self, measurement=None):
@@ -991,7 +1014,6 @@ class SpectroTPMSPlotter(MPLPlotter):
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
 
         if vspan:
-
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
 
@@ -1100,6 +1122,8 @@ def _get_unit_factor_and_name(new_unit_name, from_unit_name):
 
 
 #  ----- These are the standard colors for TP-MS plots! ------- #
+
+DEFAULT_UNITS = {"signal": "A", "time": "s", "temperature": "K", "pressure": "mbar"}
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
 # TODO: This should probably be customizeable from a settings file.
