@@ -52,10 +52,10 @@ class ReactorMeasurement(MSMeasurement):
     default_plotter = TPMSPlotter
     essential_series_names = ("temperature", "pressure")
     default_units = {
-        "signal":"A",
-        "pressure":"mbar", 
-        "temperature":"K",
-        }
+        "signal": "A",
+        "pressure": "mbar",
+        "temperature": "K",
+    }
 
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
@@ -76,15 +76,15 @@ class ReactorMeasurement(MSMeasurement):
 
     @property
     def T(self):
-        return self["temperature"].quantity #data
+        return self["temperature"].quantity  # data
 
     @property
     def inverse_T(self):
-        return self["inverse_temperature"].quantity #data
+        return self["inverse_temperature"].quantity  # data
 
     @property
     def P(self):
-        return self["pressure"].quantity #data
+        return self["pressure"].quantity  # data
 
     @property
     def t(self):

@@ -375,9 +375,7 @@ class Measurement(Saveable):
                     # Then we assume that the time and value data have lined up
                     # successfully! :D
                     if sorted:
-                        s_as_dict["data"] = s_as_dict["data"][
-                            sort_indeces[tseries.name]
-                        ]
+                        s_as_dict["data"] = s_as_dict["data"][sort_indeces[tseries.name]]
                     vseries = ValueSeries(
                         name=name,
                         data=s_as_dict["data"],
@@ -800,7 +798,7 @@ class Measurement(Saveable):
             tseries=old_vseries.tseries,
         )
         self.replace_series(value_name, new_vseries)
-        
+
     def inplace_to_unit(self, valueseries_name, new_unit_name):
         """In place updating data and unit of a dataseries
         FIXME: Should this be closer to the data series instead of the measurement?

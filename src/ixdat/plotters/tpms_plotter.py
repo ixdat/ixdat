@@ -1,5 +1,5 @@
 import warnings
-from .base_mpl_plotter import MPLPlotter
+from .base_mpl_plotter import MPLPlotter, ConversionError
 from .ms_plotter import MSPlotter
 from .plotting_tools import color_axis
 from ..data_series import Field
@@ -92,12 +92,14 @@ class TPMSPlotter(MPLPlotter):
             P_color (str): Overwrite standard color to plot the variable given by P_name
             logplot (bool): Whether to plot the MS data on a log scale (default True
                 unless mass_lists are given)
-            logdata (list of bool): Whether to plot the MS data on a log scale (default True
-                unless mass_lists are given)
+            logdata (list of bool): Whether to plot the MS data on a log scale
+                (default True unless mass_lists are given)
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels, "one figure" to plot all in
                 one figure
+           use_quantity (bool): boolean if plotter should plot data according to the
+               units of the dataseries or just the magnitude of the dataseries
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -171,52 +173,53 @@ class TPMSPlotter(MPLPlotter):
                     return_quantity=use_quantity,
                 )
 
-                #y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
+                # y_label, y_unit, y_unit_factor = _get_y_unit_and_label(
                 #    measurement[TP_name], meta_units=TP_units
-                #)
+                # )
 
                 # expect always to plot against time on x axis
-                #x_unit_factor, x_unit = _get_unit_factor_and_name(
+                # x_unit_factor, x_unit = _get_unit_factor_and_name(
                 #    new_unit_name=x_unit, from_unit_name="s"
-                #)
+                # )
 
                 ax.plot(
-                    t,# * x_unit_factor,
-                    v,# * y_unit_factor,
+                    t,  # * x_unit_factor,
+                    v,  # * y_unit_factor,
                     color=color,
                     label=TP_name,
                     **kwargs,
                 )
 
-            if logplot and v.u != ureg.bar and v.check({'[length]': -1, '[mass]': 1, '[time]': -2}):
+            if (
+                logplot
+                and v.u != ureg.bar
+                and v.check({"[length]": -1, "[mass]": 1, "[time]": -2})
+            ):
                 ax.set_yscale("log")
             if legend:
                 ax.legend()
 
             if not n:  # Only color the spine is one variable is plotted
                 color_axis(ax, color=color, lr=["left", "right"][i])
-        #                ax.yaxis.set_units(ureg(unit).u) 
+        #                ax.yaxis.set_units(ureg(unit).u)
 
-                
-            #ax.set_ylabel(f"{y_label} / [{y_unit}]")
-            #ax.set_xlabel(f"time / [{x_unit}]")
+        # ax.set_ylabel(f"{y_label} / [{y_unit}]")
+        # ax.set_xlabel(f"time / [{x_unit}]")
         if x_unit:
             ax.xaxis.set_units(ureg(x_unit).u)
-            #ax.set_xlabel(f"time / [{x_unit}]")
+            # ax.set_xlabel(f"time / [{x_unit}]")
         if TP_units:
             try:
-                axes[1].yaxis.set_units(ureg(TP_units["T"]).u)            
-            except:
+                axes[1].yaxis.set_units(ureg(TP_units["T"]).u)
+            except (AttributeError, ConversionError):
                 print("find a better exception tommorrow, ConversionError")
             try:
-                axes[3].yaxis.set_units(ureg(TP_units["P"]).u)            
-            except:
+                axes[3].yaxis.set_units(ureg(TP_units["P"]).u)
+            except (AttributeError, ConversionError):
                 print("find a better exception tommorrow, ConversionError")
 
-            #axes[1].set_ylabel(f"temperature / [{unit}]")
-            #axes[3].set_ylabel(f"pressure / [{unit}]")            
-
-            
+            # axes[1].set_ylabel(f"temperature / [{unit}]")
+            # axes[3].set_ylabel(f"pressure / [{unit}]")
 
         if not i:  # remove last axis if nothing is plotted on it
             axes[3].remove()
@@ -1015,7 +1018,6 @@ class SpectroTPMSPlotter(MPLPlotter):
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
 
         if vspan:
-
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
 
@@ -1125,12 +1127,7 @@ def _get_unit_factor_and_name(new_unit_name, from_unit_name):
 
 #  ----- These are the standard colors for TP-MS plots! ------- #
 
-DEFAULT_UNITS = {
-    "signal":"A",
-    "time":"s",
-    "temperature":"K",
-    "pressure":"mbar"
-    }
+DEFAULT_UNITS = {"signal": "A", "time": "s", "temperature": "K", "pressure": "mbar"}
 
 MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
 # TODO: This should probably be customizeable from a settings file.

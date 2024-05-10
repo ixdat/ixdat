@@ -4,8 +4,6 @@ from collections import defaultdict
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
-from matplotlib.units import ConversionError
-from ..units import ureg
 
 
 class MPLPlotter:
