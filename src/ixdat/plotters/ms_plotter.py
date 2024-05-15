@@ -272,7 +272,8 @@ class MSPlotter(MPLPlotter):
             x_mass = np.interp(t_v, t, x)
             plot_kwargs_this_mass = plot_kwargs.copy()
             if "color" not in plot_kwargs:
-                plot_kwargs_this_mass["color"] = STANDARD_COLORS.get(v_name, "k")
+                plot_kwargs_this_mass["color"] = STANDARD_COLORS.get(
+                    v_name, "k")
             if "label" not in plot_kwargs:
                 plot_kwargs_this_mass["label"] = v_name
 
@@ -423,7 +424,8 @@ class MSPlotter(MPLPlotter):
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
         if v_lists:
-            axes = axes or [ax, ax.twinx()]  # prepare an axis unless we were given two.
+            # prepare an axis unless we were given two.
+            axes = axes or [ax, ax.twinx()]
             ax_right = axes[-1]
             ax = axes[0]
             v_list = v_lists[0]
@@ -470,7 +472,8 @@ class MSPlotter(MPLPlotter):
                 unit_factor = unit_factor / measurement.A_el
         else:
             unit = unit or "A"
-            unit_factor = {"pA": 1e12, "nA": 1e9, "uA": 1e6, "mA": 1e3, "A": 1}[unit]
+            unit_factor = {"pA": 1e12, "nA": 1e9,
+                           "uA": 1e6, "mA": 1e3, "A": 1}[unit]
         # TODO: Real units with a unit module! This should even be able to figure out the
         #  unit prefix to put stuff in a nice 1-to-1e3 range
 
@@ -889,7 +892,8 @@ class MSSpectroPlotter(MPLPlotter):
                 stacklevel=2,
             )
         # sort field data and x_axis equal
-        new_field_data = _data[sorted_indicies, :] if len(sorted_indicies) > 0 else _data
+        new_field_data = _data[sorted_indicies, :] if len(
+            sorted_indicies) > 0 else _data
         new_x_axis = _v[sorted_indicies] if len(sorted_indicies) > 0 else _v
 
         new_field = Field(
@@ -927,7 +931,8 @@ class MSSpectroPlotter(MPLPlotter):
 
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
-MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
+# So that the bottom half of the plot isn't wasted on log(noise)
+MIN_SIGNAL = 1e-14
 # TODO: This should probably be customizeable from a settings file.
 
 STANDARD_COLORS = {

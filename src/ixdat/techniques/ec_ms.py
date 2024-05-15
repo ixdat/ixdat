@@ -207,12 +207,14 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 selector_list, selector_name, t_steady_pulse
             )
         for tspan in tspan_list:
-            Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
+            Y = self.integrate_signal(
+                mass, tspan=tspan, tspan_bg=tspan_bg, ax=axis_ms)
             # FIXME: plotting current by giving integrate() an axis doesn't work great.
             if (
                 axes_measurement
             ):  # FIXME: need to run twice, once to plot, once to calculate Q
-                self.integrate(axes_measurement_J_name, tspan=tspan, ax=axis_current)
+                self.integrate(axes_measurement_J_name,
+                               tspan=tspan, ax=axis_current)
             Q = self.integrate("raw_current", tspan=tspan)
             Q *= 1e-3  # mC --> [C]
             n = Q / (n_el * FARADAY_CONSTANT) * isotope_factor
@@ -285,9 +287,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             t_steady_pulse = 0
         tspan_list = [
             [
-                self.select_values(**{selector_name: selector_value}).grab("t")[0][t_idx]
+                self.select_values(
+                    **{selector_name: selector_value}).grab("t")[0][t_idx]
                 - t_steady_pulse,
-                self.select_values(**{selector_name: selector_value}).grab("t")[0][-1],
+                self.select_values(
+                    **{selector_name: selector_value}).grab("t")[0][-1],
             ]
             for selector_value in selector_list
         ]
