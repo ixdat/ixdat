@@ -72,7 +72,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         return ecms_cv
 
-    def ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
+    def ecms_calibration(self, mol, mass, n_el, tspan, isotope_factor=1, tspan_bg=None):
         """Calibrate for mol and mass based on one period of steady electrolysis
 
         Args:
@@ -80,6 +80,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            isotope_factor (str): Factor to multiply EC flux by to deconvolute 
+                contribution from different isotopes. Defaults to 1.
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
 
@@ -92,7 +94,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             )
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         Q = self.integrate("raw_current", tspan=tspan) * 1e-3
-        n = Q / (n_el * FARADAY_CONSTANT)
+        n = Q / (n_el * FARADAY_CONSTANT) * isotope_factor
         F = Y / n
         cal = MSCalResult(
             name=f"{mol}@{mass}",
@@ -108,6 +110,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mol,
         mass,
         n_el,
+        isotope_factor=1,
         tspan_list=None,
         selector_name=None,
         selector_list=None,
@@ -126,6 +129,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            isotope_factor (str): Factor to multiply EC flux by to deconvolute 
+                contribution from different isotopes. Defaults to 1.
             tspan_list (list of tspan): The timespans of steady electrolysis
             selector_name (str): Name of selector which identifies the periods
                 of steady electrolysis for automatic selection of timespans of steady
@@ -161,6 +166,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mol=mol,
             mass=mass,
             n_el=n_el,
+            isotope_factor=isotope_factor,
             tspan_list=tspan_list,
             selector_name=selector_name,
             selector_list=selector_list,
@@ -178,6 +184,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mol,
         mass,
         n_el,
+        isotope_factor=1,
         tspan_list=None,
         selector_name=None,
         selector_list=None,
@@ -208,7 +215,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 self.integrate(axes_measurement_J_name, tspan=tspan, ax=axis_current)
             Q = self.integrate("raw_current", tspan=tspan)
             Q *= 1e-3  # mC --> [C]
-            n = Q / (n_el * FARADAY_CONSTANT)
+            n = Q / (n_el * FARADAY_CONSTANT) * isotope_factor
             Y_list.append(Y)
             n_list.append(n)
         n_vec = np.array(n_list)
@@ -287,7 +294,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         print("Following tspans were selected for calibration: " + str(tspan_list))
         return tspan_list
 
-    def siq_ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
+    def siq_ecms_calibration(self, mol, mass, n_el, tspan, isotope_factor=1, tspan_bg=None):
         """Calibrate for mol and mass based on one period of steady electrolysis
 
         Use `spectro_inlets_quantification` package.
@@ -296,6 +303,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            isotope_factor (str): Factor to multiply EC flux by to deconvolute 
+                contribution from different isotopes. Defaults to 1.
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
 
@@ -311,7 +320,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             )
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         Q = self.integrate("raw_current", tspan=tspan) * 1e-3
-        n = Q / (n_el * FARADAY_CONSTANT)
+        n = Q / (n_el * FARADAY_CONSTANT) * isotope_factor
         F = Y / n
         cal = plugins.siq.CalPoint(
             name=f"{mol}@{mass}",
@@ -327,6 +336,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mol,
         mass,
         n_el,
+        isotope_factor=1,
         tspan_list=None,
         selector_name=None,
         selector_list=None,
@@ -347,6 +357,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            isotope_factor (str): Factor to multiply EC flux by to deconvolute 
+                contribution from different isotopes. Defaults to 1.
             tspan_list (list of tspan): The timespans of steady electrolysis
             selector_name (str): Name of selector which identifies the periods
                 of steady electrolysis for automatic selection of timespans of steady
@@ -385,6 +397,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mol=mol,
             mass=mass,
             n_el=n_el,
+            isotope_factor=isotope_factor,
             tspan_list=tspan_list,
             selector_name=selector_name,
             selector_list=selector_list,
