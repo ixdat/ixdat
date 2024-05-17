@@ -1,4 +1,4 @@
-"""Readers for 'qexafs' files exported by Diamond's B18-Core"""
+"""Readers for 'qexafs' and 'TRXRF' files exported by Diamond's B18-Core"""
 
 import pandas as pd
 from .reading_tools import timestamp_string_to_tstamp
@@ -101,7 +101,28 @@ class QexafsDATReader:
 
 
 class B18TRXRFReader:
-    def read(self, path_to_file, cls, seconds_per_x, **kwargs):
+    def read(
+        self,
+        path_to_file,
+        cls,
+        seconds_per_x,
+        **kwargs
+    ):
+        """Read the .dat file exported by Diamond B18-Core, for time-resolved X-ray data 
+                (or fixed exciting enenrgy data).
+
+        Args:
+            path_to_file (str or Path): The path to the .dat file
+            cls (Spectrum subclass): The class to return an object of (if you use this
+                reader via the read() method of a Spectrum sub-class, cls will
+                automatically be that subclass. Defaults to `None`, meaning that the
+                class will be determined by `technique`.
+            seconds_per_x (float): The time that corrresponds to 1 dummy energy 
+                (dummy energy is the x of spec, it could be at an interval of 1, 0.1, 0.001...)  
+                e.g. if the dummy energy is 0.001, 0.002.. but actual time is 1s, 2s..., then
+                seconds_per_x value should be 1000. 
+            **kwargs (dict): Key-word arguments are passed to cls.__init__
+        """
         if issubclass(TRXRFMeasurement, cls):
             cls = TRXRFMeasurement
         qxafs_reader = QexafsDATReader()
