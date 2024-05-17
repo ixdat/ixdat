@@ -12,23 +12,6 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
 
-ixdat 0.2.12
-============
-
-techniques
-^^^^^^^^^^
-
-- Added ``faradaic_efficiency`` to correct the molecule flux as calculated from EC if not 100% FE,
-	also works for isotopes
-
-- Added ``integrate_flux()`` method to techniques\ms.py (analogous to existing integrate_signal(),
-  allows for integration of the calibrated signal)
- 
-
-plotters
-^^^^^^^^
-
-- Added default colors for "H2@M2", "H2@M3", "H2@M4" to ms_plotter.py
 
 
 
