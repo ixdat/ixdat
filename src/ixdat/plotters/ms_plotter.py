@@ -423,7 +423,8 @@ class MSPlotter(MPLPlotter):
         # as the next simplification, if they give two things (v_lists), we pretend we
         #   got one (v_list) but prepare an axis for a recursive call of this function.
         if v_lists:
-            axes = axes or [ax, ax.twinx()]  # prepare an axis unless we were given two.
+            # prepare an axis unless we were given two.
+            axes = axes or [ax, ax.twinx()]
             ax_right = axes[-1]
             ax = axes[0]
             v_list = v_lists[0]
@@ -918,7 +919,6 @@ class MSSpectroPlotter(MPLPlotter):
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
 
         if vspan:
-
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
 
@@ -927,7 +927,8 @@ class MSSpectroPlotter(MPLPlotter):
 
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
-MIN_SIGNAL = 1e-14  # So that the bottom half of the plot isn't wasted on log(noise)
+# So that the bottom half of the plot isn't wasted on log(noise)
+MIN_SIGNAL = 1e-14
 # TODO: This should probably be customizeable from a settings file.
 
 STANDARD_COLORS = {
@@ -978,6 +979,9 @@ STANDARD_COLORS = {
     "CH4": "r",
     "C2H4": "g",
     "NH3": "steelblue",
+    "H2@M2": "b",
+    "H2@M3": "mediumslateblue",
+    "H2@M4": "darkmagenta",
     "O2@M32": "k",
     "O2@M34": "r",
     "O2@M36": "g",

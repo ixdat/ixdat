@@ -203,7 +203,6 @@ class Kernel:
                 impulse reponse is returned.
         """
         if self.type == "functional":
-
             t_kernel = np.arange(0, duration, dt)
             t_kernel[0] = 1e-6
 

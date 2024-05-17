@@ -2,7 +2,9 @@
 
 import re
 import numpy as np
-import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+
+# FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+import json
 import warnings
 
 from ..measurements import Measurement, Calibration
@@ -329,6 +331,32 @@ class MSMeasurement(Measurement):
             if ax == "new":
                 fig, ax = self.plotter.new_ax()
             ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mass], alpha=0.2)
+        return np.trapz(S - S_bg, t)
+
+    def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
+        """Integrate a calibrated ms signal with background subtraction and evt.
+        plotting (copy of integrate_signal method)
+
+        TODO: Should this, like grab_signal does now, have the option of using a
+            background saved in the object rather than calculating a new one?
+        TODO: Ensure fill_between considers the non-standard unit in the figure
+
+        Args:
+            mass (str): The mass for which to integrate the signal
+            tspan (tspan): The timespan over which to integrate
+            tspan_bg (tspan): Timespan at which the signal is at its background value
+            ax (Axis): axis to plot on. Defaults to None
+        """
+        t, S = self.grab_flux(mol, tspan=tspan, include_endpoints=True)
+        if tspan_bg:
+            t_bg, S_bg_0 = self.grab_flux(mol, tspan=tspan_bg, include_endpoints=True)
+            S_bg = np.mean(S_bg_0) * np.ones(t.shape)
+        else:
+            S_bg = np.zeros(t.shape)
+        if ax:
+            if ax == "new":
+                fig, ax = self.plotter.new_ax()
+            ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mol], alpha=0.2)
         return np.trapz(S - S_bg, t)
 
     @property
@@ -1126,7 +1154,6 @@ class MSCalibration(Calibration):
 
     @classmethod
     def from_siq(cls, siq_calibration):
-
         # A complication is that it can be either a Calibration or a SensitivityList.
         # Either way, the sensitivity factors are in `sf_list`:
         ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]
@@ -1280,10 +1307,12 @@ class MSInlet:
                 f"the dynamic viscosity for {gas} at temperature: {T}K",
                 stacklevel=2,
             )
-        _eta_v = DYNAMIC_VISCOSITIES[gas][:, 1]  # list of known eta(T) for 'gas'
+        # list of known eta(T) for 'gas'
+        _eta_v = DYNAMIC_VISCOSITIES[gas][:, 1]
         _eta_T = DYNAMIC_VISCOSITIES[gas][:, 0]  # list of paired Ts for eta(T)
 
-        eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
+        # dynamic viscosity of gas at T in [Pa*s]
+        eta = np.interp(T, _eta_T, _eta_v)
 
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
         m = MOLAR_MASSES[gas] * 1e-3 / AVOGADRO_CONSTANT  # molecule mass in [kg]
@@ -1296,7 +1325,8 @@ class MSInlet:
         # ...from setting mean free path equal to capillary d
         p_t = BOLTZMANN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
         p_2 = 0
-        p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
+        # average pressure in the transitional flow region
+        p_m = (p_1 + p_t) / 2
         v_m = (8 * BOLTZMANN_CONSTANT * T / (pi * m)) ** 0.5
         # a reciprocal velocity used for short-hand:
         nu = (m / (BOLTZMANN_CONSTANT * T)) ** 0.5
