@@ -2,6 +2,7 @@
 
 import re
 import numpy as np
+
 # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
 import json
 import warnings
@@ -322,8 +323,7 @@ class MSMeasurement(Measurement):
         """
         t, S = self.grab_signal(mass, tspan=tspan, include_endpoints=True)
         if tspan_bg:
-            t_bg, S_bg_0 = self.grab_signal(
-                mass, tspan=tspan_bg, include_endpoints=True)
+            t_bg, S_bg_0 = self.grab_signal(mass, tspan=tspan_bg, include_endpoints=True)
             S_bg = np.mean(S_bg_0) * np.ones(t.shape)
         else:
             S_bg = np.zeros(t.shape)
@@ -334,7 +334,7 @@ class MSMeasurement(Measurement):
         return np.trapz(S - S_bg, t)
 
     def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
-        """Integrate a calibrated ms signal with background subtraction and evt. 
+        """Integrate a calibrated ms signal with background subtraction and evt.
         plotting (copy of integrate_signal method)
 
         TODO: Should this, like grab_signal does now, have the option of using a
@@ -349,8 +349,7 @@ class MSMeasurement(Measurement):
         """
         t, S = self.grab_flux(mol, tspan=tspan, include_endpoints=True)
         if tspan_bg:
-            t_bg, S_bg_0 = self.grab_flux(
-                mol, tspan=tspan_bg, include_endpoints=True)
+            t_bg, S_bg_0 = self.grab_flux(mol, tspan=tspan_bg, include_endpoints=True)
             S_bg = np.mean(S_bg_0) * np.ones(t.shape)
         else:
             S_bg = np.zeros(t.shape)
@@ -611,8 +610,7 @@ class MSMeasurement(Measurement):
                     t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5
                 )
             n_dot = (
-                inlet.calc_n_dot_0(
-                    gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
+                inlet.calc_n_dot_0(gas=carrier_mol, p=pressure) * mol_conc_ppm / 10**6
             )
             S_list.append(np.mean(S))
             n_dot_list.append(n_dot)
@@ -838,8 +836,7 @@ class MSMeasurement(Measurement):
         spectrum_vec_list = []
         for mol in mol_list:
             spectrum = chip.gas.mdict[mol].norm_spectrum
-            spectrum_vec = np.array([spectrum.get(mass, 0)
-                                    for mass in mass_list])
+            spectrum_vec = np.array([spectrum.get(mass, 0) for mass in mass_list])
             spectrum_vec_list.append(spectrum_vec)
         spectrum_mat = np.stack(spectrum_vec_list).transpose()
 
@@ -997,8 +994,7 @@ class MSCalResult(Saveable):
 class MSCalibration(Calibration):
     """Class for mass spec calibrations. TODO: replace with powerful external package"""
 
-    extra_linkers = {"ms_calibration_results": (
-        "ms_cal_results", "ms_cal_result_ids")}
+    extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
     # FIXME: signal_bgs are not saved at present. Should they be a separate table
     #   of Saveable objects like ms_cal_results or should they be a single json value?
     child_attrs = [
@@ -1090,12 +1086,10 @@ class MSCalibration(Calibration):
 
     def get_mass_and_F(self, mol):
         """Return the mass and sensitivity factor to use for simple quant. of mol"""
-        cal_list_for_mol = [
-            cal for cal in self if cal.mol == mol or cal.name == mol]
+        cal_list_for_mol = [cal for cal in self if cal.mol == mol or cal.name == mol]
         Fs = [cal.F for cal in cal_list_for_mol]
         if not Fs:
-            raise QuantificationError(
-                f"{self!r} has no sensitivity factor for {mol}")
+            raise QuantificationError(f"{self!r} has no sensitivity factor for {mol}")
         index = np.argmax(np.array(Fs))
 
         the_good_cal = cal_list_for_mol[index]
@@ -1154,8 +1148,7 @@ class MSCalibration(Calibration):
         self_as_dict = self.as_dict()
         # replace the ms_cal_result ids with the dictionaries of the results themselves:
         del self_as_dict["ms_cal_result_ids"]
-        self_as_dict["ms_cal_results"] = [cal.as_dict()
-                                          for cal in self.ms_cal_results]
+        self_as_dict["ms_cal_results"] = [cal.as_dict() for cal in self.ms_cal_results]
         with open(path_to_file, "w") as f:
             json.dump(self_as_dict, f, indent=4)
 
@@ -1164,8 +1157,7 @@ class MSCalibration(Calibration):
 
         # A complication is that it can be either a Calibration or a SensitivityList.
         # Either way, the sensitivity factors are in `sf_list`:
-        ms_cal_results = [MSCalResult.from_siq(
-            cal) for cal in siq_calibration.sf_list]
+        ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]
         # if it's a Calibration, we want the metadata:
         try:
             calibration = cls(
@@ -1251,8 +1243,7 @@ class MSInlet:
             float: Gas specific effective length in [m]
         """
 
-        n_dot_predicted = self.calc_n_dot_0(
-            gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
+        n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
 
         l_cap_gas_specific_eff = self.l_cap * n_dot_predicted / n_dot_measured
         self.l_cap_eff[
@@ -1325,8 +1316,7 @@ class MSInlet:
         eta = np.interp(T, _eta_T, _eta_v)
 
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
-        m = MOLAR_MASSES[gas] * 1e-3 / \
-            AVOGADRO_CONSTANT  # molecule mass in [kg]
+        m = MOLAR_MASSES[gas] * 1e-3 / AVOGADRO_CONSTANT  # molecule mass in [kg]
 
         d = ((w_cap * h_cap) / pi) ** 0.5 * 2
         # d = 4.4e-6  #used in Henriksen2009
@@ -1363,8 +1353,7 @@ class MSInlet:
 
     @deprecate(
         last_supported_release="0.2.5",
-        update_message=(
-            "`gas_flux_calibration` is now a method of `MSMeasurement`"),
+        update_message=("`gas_flux_calibration` is now a method of `MSMeasurement`"),
         hard_deprecation_release="0.3.0",
         remove_release="1.0.0",
     )
