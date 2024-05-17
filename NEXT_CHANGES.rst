@@ -18,7 +18,8 @@ ixdat 0.2.12
 techniques
 ^^^^^^^^^^
 
-- Added ``isotope_factor`` to correct the molecule flux as calculated from EC for different isotopes.
+- Added ``faradaic_efficiency`` to correct the molecule flux as calculated from EC if not 100% FE,
+	also works for isotopes
 
 - Added ``integrate_flux()`` method to techniques\ms.py (analogous to existing integrate_signal(),
   allows for integration of the calibrated signal)
