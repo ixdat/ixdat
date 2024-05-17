@@ -919,7 +919,6 @@ class MSSpectroPlotter(MPLPlotter):
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
 
         if vspan:
-
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
 

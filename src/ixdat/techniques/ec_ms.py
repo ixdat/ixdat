@@ -72,7 +72,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         return ecms_cv
 
-    def ecms_calibration(self, mol, mass, n_el, tspan, faradaic_efficiency=1, tspan_bg=None):
+    def ecms_calibration(
+        self, mol, mass, n_el, tspan, faradaic_efficiency=1, tspan_bg=None
+    ):
         """Calibrate for mol and mass based on one period of steady electrolysis
 
         Args:
@@ -80,8 +82,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
-            faradaic_efficiency (str): Factor to multiply EC flux by to correct if 
-                product is not produced at 100% FE. Also works to deconvolute 
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
                 contribution from different isotopes. Defaults to 1.
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
@@ -130,8 +132,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
-            faradaic_efficiency (str): Factor to multiply EC flux by to correct if 
-                product is not produced at 100% FE. Also works to deconvolute 
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
                 contribution from different isotopes. Defaults to 1.
             tspan_list (list of tspan): The timespans of steady electrolysis
             selector_name (str): Name of selector which identifies the periods
@@ -307,8 +309,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
-            faradaic_efficiency (str): Factor to multiply EC flux by to correct if 
-                product is not produced at 100% FE. Also works to deconvolute 
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
                 contribution from different isotopes. Defaults to 1.
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
@@ -362,8 +364,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
-            faradaic_efficiency (str): Factor to multiply EC flux by to correct if 
-                product is not produced at 100% FE. Also works to deconvolute 
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
                 contribution from different isotopes. Defaults to 1.
             tspan_list (list of tspan): The timespans of steady electrolysis
             selector_name (str): Name of selector which identifies the periods

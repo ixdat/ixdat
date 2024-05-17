@@ -1154,7 +1154,6 @@ class MSCalibration(Calibration):
 
     @classmethod
     def from_siq(cls, siq_calibration):
-
         # A complication is that it can be either a Calibration or a SensitivityList.
         # Either way, the sensitivity factors are in `sf_list`:
         ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]
