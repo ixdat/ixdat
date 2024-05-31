@@ -72,6 +72,41 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         return ecms_cv
 
+    def grab_faradaic_efficiency(
+            self,
+            mol,
+            n_el,
+            J_name="raw_current", # will that choose the default? PROBLEM if calibrated - needs to use raw current by default!
+            tspan=None,
+            tspan_bg=None,
+            remove_background=False,
+            ):
+        """
+        Calculate the faradaic efficiency towards a mol using current and grab_flux_for_t()
+
+        mol (str): Name of the molecule.
+        n_el (): Number of electrons considered for the reaction (negative for reduction!)
+        J_name (str): which current to use to calculate FE
+        tspan (tspan): Timespan for which to grab the FE
+        tspan_bg (tspan): Timespan that corresponds to the background signal.
+            If not given, no background is subtracted.
+        remove_background (bool): Whether to remove a pre-set background if available
+        Returns the FE of the calibrated signal in [%]
+        """
+        # get the current in mA
+        t, J = self.grab(J_name, tspan=tspan, tspan_bg=tspan_bg)
+        print(t, J)
+        # get the mol's signal at those times in mol/s
+        signal = self.grab_flux_for_t(mol=mol, t=t, tspan_bg=tspan_bg,
+                                      remove_background=remove_background,
+                                      )
+        print(signal)
+        # calculate the faradaic efficiency
+        fe = (signal * (n_el * FARADAY_CONSTANT)) / (J / 1000) * 100
+        print(fe)
+
+        return t, fe
+
     def ecms_calibration(
         self, mol, mass, n_el, tspan, faradaic_efficiency=1, tspan_bg=None
     ):
