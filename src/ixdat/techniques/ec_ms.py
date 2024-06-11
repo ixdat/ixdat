@@ -451,20 +451,20 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         # TODO: comments in this method so someone can tell what's going on!
         
         # grab the calibrated data
-        t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
+        t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)        
         # calculate the impulse response
-        kernel = impulse_response.calc_impulse_response_from_params(mol=mol,
+        signal_response = impulse_response.model_impulse_response_from_params(
         dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
-        )  
+        )
         # this seems quite inefficient, to re-calculate the impulse response every time?
         # TODO: store this somehow?
-        kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel)))) # not sure what this does?
+        kernel = np.hstack((signal_response[1], np.zeros(len(v_sig) - len(signal_response[1])))) # adds an series of zeros to the array
         H = fft(kernel)
         # TODO: store this as well.
         partial_current = np.real(
             ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
         )
-        partial_current = partial_current * sum(kernel)
+        partial_current = partial_current * sum(kernel) # what does this do????
         return t_sig, partial_current
 
     def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
