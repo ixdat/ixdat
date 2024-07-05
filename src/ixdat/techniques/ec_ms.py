@@ -451,20 +451,34 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         # TODO: comments in this method so someone can tell what's going on!
         
         # grab the calibrated data
-        t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)        
+        t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)       
         # calculate the impulse response
         signal_response = impulse_response.model_impulse_response_from_params(
         dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
         )
         # this seems quite inefficient, to re-calculate the impulse response every time?
         # TODO: store this somehow?
-        kernel = np.hstack((signal_response[1], np.zeros(len(v_sig) - len(signal_response[1])))) # adds an series of zeros to the array
+       
+        # adds zeros to the array to make it the same length as v_sig - this fails if v_sig is shorter than signal_response
+        # not clear why there is a difference?
+        
+        # make sure signal_response and v_sig are same length for the steps below by adding
+        # zeros to the end of whichever array is shorter
+        if len(v_sig) >= len(signal_response[1]):
+            kernel = np.hstack((signal_response[1], np.zeros(len(v_sig) - len(signal_response[1]))))
+            v_sig_corr = v_sig
+        else:
+            kernel = signal_response[1]
+            v_sig_corr = np.hstack((v_sig, np.zeros(len(signal_response[1]) - len(v_sig))))
         H = fft(kernel)
         # TODO: store this as well.
         partial_current = np.real(
-            ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
+            ifft(fft(v_sig_corr) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
         )
         partial_current = partial_current * sum(kernel) # what does this do????
+        if len(t_sig) < len(partial_current):
+            delta = len(partial_current) - len(t_sig)
+            partial_current = partial_current[:-delta]
         return t_sig, partial_current
 
     def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
