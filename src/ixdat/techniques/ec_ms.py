@@ -1,4 +1,5 @@
 """Module for representation and analysis of EC-MS measurements"""
+
 import numpy as np
 import warnings
 from scipy.optimize import minimize
@@ -433,7 +434,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         self, mol, impulse_response, tspan=None, tspan_bg=None, snr=10
     ):
         """Return the deconvoluted partial current for a given signal using the
-        algorithm developed by Krempl et al. https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+        algorithm developed by Krempl et al.
+        https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
 
         Note, this actually doesnt need the EC data - it is calculated
         from calibrated MS data. It is only meaningful for ECMS measurements
@@ -442,8 +444,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Args:
             mol (str): Name of molecule for which deconvolution is to
                 be carried out.
-            impulse_response (ECMSImpulseResponse): Kernel object which contains the mass transport
-                parameters
+            impulse_response (ECMSImpulseResponse): Kernel object which contains the mass
+                transport parameters
             tspan (list): Timespan for which the partial current is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
@@ -457,13 +459,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
         )
         # this seems quite inefficient, to re-calculate the impulse response every time?
-        # TODO: store this somehow?
-
-        # adds zeros to the array to make it the same length as v_sig - this fails if v_sig is shorter than signal_response
-        # not clear why there is a difference?
-
-        # make sure signal_response and v_sig are same length for the steps below by adding
-        # zeros to the end of whichever array is shorter
+        # TODO: store this somehow
+        # make sure signal_response and v_sig are same length for the steps below by
+        # adding zeros to the end of whichever array is shorter
         if len(v_sig) >= len(signal_response[1]):
             kernel = np.hstack(
                 (signal_response[1], np.zeros(len(v_sig) - len(signal_response[1])))
@@ -487,12 +485,14 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
     def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
         """Extracts an ECMSImpulseResponse object from a measurement using the
-        algorithm developed by Krempl et al. https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+        algorithm developed by Krempl et al.
+        https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
 
         # TODO: add some option of plotting the impulse response together with the data
         # TODO: re-add a possibility to choose cut-off potentials rather
-        than having to specify the tspan to make the existance of this method more meaningful, right now it
-        just returns an array of the calibrated signal of mol normalized to the peak area
+        than having to specify the tspan to make the existance of this method more
+        meaningful, right now it just returns an array of the calibrated signal of mol
+        normalized to the peak area
         Args:
             mol (str): Molecule from which the impulse response is to be extracted.
             tspan(list): Timespan over which which the impulse response is
@@ -523,20 +523,27 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         the given impulse response (from model, but could also be from data) for
         the molecule the impulse resp
 
-        The plots will only be meaningful if the current is calibrated. #TODO: add error message
+        The plots will only be meaningful if the current is calibrated.
+        #TODO: add error message
         Args:
             tspan_list (list): list of tspans to devonvolute data over
-            t_zero_list (list): zero point where the deconvolution starts #TODO:need to understand if this is actually necessary
-            impulse_response (ImpulseResponse): impulse response object from model or data
+            t_zero_list (list): zero point where the deconvolution starts
+                #TODO:need to understand if this is actually necessary
+            impulse_response (ImpulseResponse): impulse response object from model/data
             mol (str): molecule
-            F_mol (CalPoint): spectro_inlets_calibration CalPoint object #TODO: make it work with ixdat native?
+            F_mol (CalPoint): spectro_inlets_calibration CalPoint object
+                #TODO: make it work with ixdat native?
             plot (bool): will return a plot of each tspan
             name (str): str to use for title in figure and saving
-            t_bg (tspan): tspan to be used as background IN RELATION TO t_zero. Will be the same for each tspan. #TODO: add list option?
-            snr (int): signal-to-noise ratio used for Wiener deconvolution (see grab_deconvoluted_current())
-            return_t_v_list (bool): Whether to return list of (time, deconvoluted partial current densisty), Defaults to False
+            t_bg (tspan): tspan to be used as background IN RELATION TO t_zero.
+                Will be the same for each tspan. #TODO: add list option?
+            snr (int): signal-to-noise ratio used for Wiener deconvolution
+                (see grab_deconvoluted_current())
+            return_t_v_list (bool): Whether to return list of (time, deconvoluted
+                partial current densisty), Defaults to False
 
-        Return t_v_list (list): list of tuple of (time, deconvoluted partial current densisty) as returned from grab_deconvoluted_current()
+        Return t_v_list (list): list of tuple of (time, deconvoluted partial current
+                   densisty) as returned from grab_deconvoluted_current()
         """
         from spectro_inlets_quantification import Calibration
 

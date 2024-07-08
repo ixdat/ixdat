@@ -15,23 +15,7 @@ from ..plotters.plotting_tools import calc_linear_background
 
 # FIXME: too much abbreviation in this module.
 # TODO: Implement the PR review here: https://github.com/ixdat/ixdat/pull/4
-#  Perhaps best to merge [master] into [deconvolution], improve the module on the
-#  latter branch, and then reopen the PR.
-
-# changes made by Anna from the original PR by Kevin:
-# *) some syntax fixes to adjust for changes made to ixdat overall (up to 0.2.8)
-# *) remove the class DecoMeasurement and put the related methods directly into
-# the ECMSMeasurement class. I think it's extremely confusing and inconvenient
-# if I have to import my ECMS data in a different way to perform deconvolution.
-# It should be possible to perform this on any ECMS data I have.
-# *) Change the name "Kernel" to "ECMSImpulseResponse". Might be the correct mathematical
-# term, but I found it confusing (especially since Python also has Kernels)
-# *) I don't think there should be a separation in the class whether the object is
-# constructed from measured data or parameters (since the object will be the same, won't it? It's like
-# the sensitivity factor will be the same object whether calculated or measured).
-# instead there should be different methods to construct it.
-
-# *)Would be very useful to have a method to calculate the condition number for
+# TODO: Would be very useful to have a method to calculate the condition number for
 # a certain analyte
 
 
@@ -56,26 +40,27 @@ class ECMSImpulseResponse:
         carrier_gas=None,
         gas_volume=1e-10,
     ):
-        """Initializes a ECMSImpulseResponse object either in functional form by defining the
-        mass transport parameters or in the measured form by passing of EC-MS
-        data.
-
+        """
+        Initializes a ECMSImpulseResponse object either in functional form by defining
+        the mass transport parameters or in the measured form by passing of EC-MS data.
         Args:
             mol: Molecule to calculate the impulse response of
             data: ECMSMeasurement object. Optional. If passed, the impulse response
                 will be calculated based on the measured data, overwriting the parameters
                 passed for a calculated one.
-            working_distance: Working distance between electrode and gas/liq interface in m. Optional,
-                though necessary if no data is provided.
-            A_el: Geometric electrode area in cm2. Optional, though necessary if no data is provided.
+            working_distance: Working distance between electrode and gas/liq interface in
+                m. Optional, though necessary if no data is provided.
+            A_el: Geometric electrode area in cm2. Optional, though necessary if no data
+                is provided.
             diff_const: Diffusion constant in liquid. Optional. Default will check
             diffusion constant in water in Molecule data from siq.
             henry_vola: Dimensionless Henry volatility. Optional. Default will check
-            Henry volatility constant in water in Molecule data from siq. - CURRENTLY WRONG
+            Henry volatility constant in water in Molecule data from siq.-CURRENTLY WRONG
             chip: Optional. Needed to define capillary flow. Default will use
                 SpectroInlets chip from siq.
-            carrier_gas: The carrier gas used to calculate capillary flow. Defaults to He.
-            gas_volume: the volume of the headspace volume in the chip. Default is the volume of the SpectroInlets chip.
+            carrier_gas: The carrier gas used to calculate capillary flow. Defaults to He
+            gas_volume: the volume of the headspace volume in the chip. Default is the
+                volume of the SpectroInlets chip.
         """
         if data is not None:
             self.mol = mol
@@ -84,7 +69,8 @@ class ECMSImpulseResponse:
             print("Generating `ECMSImpulseResponse` from measured data.")
             if working_distance is not None or A_el is not None:
                 raise UserWarning(
-                    "Data was used to generate `ECMSImpulseResponse` ignoring the given working_distance/electrode area."
+                    "Data was used to generate `ECMSImpulseResponse` ignoring the given"
+                    "working_distance/electrode area."
                 )
 
         elif working_distance is not None and A_el is not None:
@@ -92,7 +78,9 @@ class ECMSImpulseResponse:
             self.type = "functional"
             if not plugins.use_siq:
                 raise TechniqueError(
-                    "`ECMSImpulseResponse` will only work properly when using "  # TODO this should be improved.- doesnt need to fully depend on siq integration
+                    "`ECMSImpulseResponse` will only work properly when using "
+                    # TODO this should be improved.- doesnt need to fully depend on siq
+                    # integration
                     "`spectro_inlets_quantification` "
                     "(`ixdat.plugins.activate_siq()`). "
                 )
@@ -110,11 +98,13 @@ class ECMSImpulseResponse:
                 raise TechniqueError("Default diffusion constant not yet implemented")
                 diff_const = (
                     molecule.D
-                )  # TODO double check units and figure out why the siq integration is not working
+                )
+            # TODO double check units and understand why siq integration is not working
                 print(diff_const)
             if henry_vola is None:
                 raise TechniqueError("Default henry volatility not yet implemented")
-                # henry_vola = molecule.H_0 # TODO convert this to the right unit! (dimensionless henry volatility)
+                # henry_vola = molecule.H_0
+                # TODO convert this to the right unit! (dimensionless henry volatility)
             self.params = {
                 "working_distance": working_distance,
                 "A_el": A_el,
@@ -125,7 +115,8 @@ class ECMSImpulseResponse:
             }
         else:
             raise TechniqueError(
-                "Cannot initialize ECMSImpluseResponse without either data or working distance + electrode area being provided."
+                "Cannot initialize ECMSImpluseResponse without either data or working"
+                "distance + electrode area being provided."
             )
 
     def model_impulse_response_from_params(
@@ -193,14 +184,16 @@ class ECMSImpulseResponse:
     ):
         """Calculates impulse response from data.
         TODO: add possibility of subtracting a linear background!!!
-        TODO: add option to plot the implulse response from data/ return an axis to co-plot with the data
+        TODO: add option to plot the implulse response from data/ return an axis to
+            co-plot with the data
         TODO: figure out if it's ok to just get rid of dt and duration (not used here)
         TODO: change the name kernel to something else
 
         Args:
             tspan (list): tspan over which to calculate the impulse response
-            tspan_bg (list): tspan of background to subtract. if list of tspans is passed,
-            will interpolate between the points using calc_linear_background()
+            tspan_bg (list): tspan of background to subtract. if list of tspans is
+                passed, will interpolate between the points using
+                calc_linear_background()
             norm (bool): If true the impulse response is normalized to its
                 area. Default is True.
             matrix (bool): If true the circulant matrix constructed from the
@@ -231,7 +224,8 @@ class ECMSImpulseResponse:
     @np.vectorize
     def get_cond_number(sampling_freq, working_dist):
         """
-        Function to calculate condition number for a given sampling frequency and working distance.
+        Function to calculate condition number for a given sampling frequency
+        and working distance.
         TODO: finish this method
         """
 
