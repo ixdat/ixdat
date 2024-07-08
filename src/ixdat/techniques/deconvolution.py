@@ -205,37 +205,6 @@ class ECMSImpulseResponse():
         else:
             raise TechniqueError("Cannot calculate impulse response without data.")
         return t_kernel, kernel
-    
-    def plot(self, dt=0.1, duration=100, ax=None, norm=True, **kwargs): 
-        
-        """Returns a plot of the kernel/impulse response.
-        
-        TODO: this shouldn't be it's separate function but rather use the ECMS plotter!
-        TODO: maybe shouldnt be in this module?
-        """
-        if ax is None:
-            fig1 = plt.figure()
-            ax = fig1.add_subplot(111)
-
-        if self.type == "functional":
-            t_kernel = np.arange(0, duration, dt)
-            ax.plot(
-                t_kernel,
-                self.model_impulse_response_from_params(dt=dt, duration=duration, norm=norm),
-                **kwargs,
-            )
-
-        elif self.type == "measured":
-            ax.plot(
-                self.grab_flux(mol_list=[self.mol]),
-                self.calc_impulse_response_from_data(dt=dt, duration=duration, norm=norm),
-                **kwargs,
-            )
-
-        else:
-            raise Exception("Nothing to plot with blank kernel")
-
-        return ax
         
     @np.vectorize
     def get_cond_number(sampling_freq, working_dist):

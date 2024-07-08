@@ -498,6 +498,47 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         # grab the calibrated data
         impulse_response = ECMSImpulseResponse(mol=mol, data=self).calc_impulse_response_from_data(tspan=tspan, tspan_bg=tspan_bg)
         return impulse_response
+    
+    def deconvolute_for_tspans(self, tspan_list, t_zero_list, impulse_response, mol, F_mol, plot=True, name=None, t_bg=[-10, -1], snr=7, return_t_v_list =False):
+        """
+        Loops though list of tspans and associated t_zero list to deconvolute using 
+        the given impulse response (from model, but could also be from data) for 
+        the molecule the impulse resp
+        
+        The plots will only be meaningful if the current is calibrated. #TODO: add error message
+        Args:
+            tspan_list (list): list of tspans to devonvolute data over
+            t_zero_list (list): zero point where the deconvolution starts #TODO:need to understand if this is actually necessary
+            impulse_response (ImpulseResponse): impulse response object from model or data
+            mol (str): molecule 
+            F_mol (CalPoint): spectro_inlets_calibration CalPoint object #TODO: make it work with ixdat native?
+            plot (bool): will return a plot of each tspan
+            name (str): str to use for title in figure and saving
+            t_bg (tspan): tspan to be used as background IN RELATION TO t_zero. Will be the same for each tspan. #TODO: add list option?
+            snr (int): signal-to-noise ratio used for Wiener deconvolution (see grab_deconvoluted_current())
+            return_t_v_list (bool): Whether to return list of (time, deconvoluted partial current densisty), Defaults to False
+        
+        Return t_v_list (list): list of tuple of (time, deconvoluted partial current densisty) as returned from grab_deconvoluted_current()
+        """
+        from spectro_inlets_quantification import Calibration
+        
+        t_v_list = []
+        for tspan, t_zero in zip(tspan_list, t_zero_list):
+            print("Now working on tspan {}, starting sequence at t_zero {}s".format(tspan, t_zero))
+            data_snippet = self.cut(tspan=tspan, t_zero=t_zero)
+            data_snippet.set_siq_quantifier(calibration=Calibration(cal_list=[F_mol]), carrier="He")   
+            # now calculate the deconvoluted current based in the signal
+            t_partcurr, v_partcurr = data_snippet.grab_deconvoluted_current(mol=mol, impulse_response=impulse_response , tspan=None, tspan_bg=t_bg, snr=snr)
+            t_v_list.append((t_partcurr, v_partcurr))
+            
+            if plot:
+                axes = data_snippet.plot(mol_list=[mol], logplot=False, tspan_bg=t_bg, alpha=0.5)
+                axes[1].set_alpha(1) # this doesnt work, not sure why
+                axes[3].set_alpha(1) # this doesnt work, not sure why
+                axes[0].plot(t_partcurr, v_partcurr, color=STANDARD_COLORS[mol])
+                axes[0].get_figure().savefig(name + "tstart_" + str(t_zero) + ".png")
+        if return_t_v_list:
+            return t_v_list
 
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
