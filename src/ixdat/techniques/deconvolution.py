@@ -97,7 +97,8 @@ class ECMSImpulseResponse:
             if diff_const is None:
                 raise TechniqueError("Default diffusion constant not yet implemented")
                 diff_const = molecule.D
-                # TODO double check units and understand why siq integration is not working
+                # TODO double check units and understand why siq integration is not
+                # working
                 print(diff_const)
             if henry_vola is None:
                 raise TechniqueError("Default henry volatility not yet implemented")
