@@ -5,7 +5,6 @@ FIXME: Saving and/or loading get quite slow when the number of rows in a table (
   # see https://github.com/ixdat/ixdat/pull/11#discussion_r663468719
 """
 
-
 import json
 import numpy as np
 from .backend_base import BackendBase

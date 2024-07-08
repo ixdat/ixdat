@@ -1,4 +1,5 @@
 """This module contains general purpose tools"""
+
 import datetime
 import inspect
 import time

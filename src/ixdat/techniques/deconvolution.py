@@ -96,10 +96,8 @@ class ECMSImpulseResponse:
             # print(molecule)
             if diff_const is None:
                 raise TechniqueError("Default diffusion constant not yet implemented")
-                diff_const = (
-                    molecule.D
-                )
-            # TODO double check units and understand why siq integration is not working
+                diff_const = molecule.D
+                # TODO double check units and understand why siq integration is not working
                 print(diff_const)
             if henry_vola is None:
                 raise TechniqueError("Default henry volatility not yet implemented")
@@ -249,11 +247,13 @@ class ECMSImpulseResponse:
         return cond
 
     def get_limit_frequency():
-        """Calculate the limiting frequency for deconvolution for a given ImpulseResponse.
+        """Calculate the limiting frequency for deconvolution for a given
+        ECMSImpulseResponse.
         TODO: finish this method"""
 
     def get_limit_time_res():
-        """Calculate the limiting time resolution for deconvolution for a given ImpulseResponse.
+        """Calculate the limiting time resolution for deconvolution for a given
+        ImpulseResponse.
         TODO: finish this method"""
 
     def plot_cond_number_heatmap(cond_number, Z, cc):
