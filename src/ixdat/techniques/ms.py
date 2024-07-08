@@ -325,7 +325,7 @@ class MSMeasurement(Measurement):
                 fig, ax = self.plotter.new_ax()
             ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mass], alpha=0.2)
         return np.trapz(S - S_bg, t)
-    
+
     def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
         """Integrate a calibrated ms signal with background subtraction and evt. plotting
 

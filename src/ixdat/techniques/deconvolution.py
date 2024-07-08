@@ -21,7 +21,7 @@ from ..plotters.plotting_tools import calc_linear_background
 # changes made by Anna from the original PR by Kevin:
 # *) some syntax fixes to adjust for changes made to ixdat overall (up to 0.2.8)
 # *) remove the class DecoMeasurement and put the related methods directly into
-# the ECMSMeasurement class. I think it's extremely confusing and inconvenient 
+# the ECMSMeasurement class. I think it's extremely confusing and inconvenient
 # if I have to import my ECMS data in a different way to perform deconvolution.
 # It should be possible to perform this on any ECMS data I have.
 # *) Change the name "Kernel" to "ECMSImpulseResponse". Might be the correct mathematical
@@ -31,18 +31,19 @@ from ..plotters.plotting_tools import calc_linear_background
 # the sensitivity factor will be the same object whether calculated or measured).
 # instead there should be different methods to construct it.
 
-# *)Would be very useful to have a method to calculate the condition number for 
-# a certain analyte 
+# *)Would be very useful to have a method to calculate the condition number for
+# a certain analyte
 
-class ECMSImpulseResponse():
+
+class ECMSImpulseResponse:
     """
     Class implementing impulse response deconvolution of ECMS data.
-    
+
     # TODO: Make class inherit from Calculator, add properties to store kernel
     # TODO: Reference equations to paper.
-    
+
     """
-    
+
     def __init__(
         self,
         mol,
@@ -53,7 +54,7 @@ class ECMSImpulseResponse():
         henry_vola=None,
         chip=None,
         carrier_gas=None,
-        gas_volume=1e-10
+        gas_volume=1e-10,
     ):
         """Initializes a ECMSImpulseResponse object either in functional form by defining the
         mass transport parameters or in the measured form by passing of EC-MS
@@ -64,9 +65,9 @@ class ECMSImpulseResponse():
             data: ECMSMeasurement object. Optional. If passed, the impulse response
                 will be calculated based on the measured data, overwriting the parameters
                 passed for a calculated one.
-            working_distance: Working distance between electrode and gas/liq interface in m. Optional, 
+            working_distance: Working distance between electrode and gas/liq interface in m. Optional,
                 though necessary if no data is provided.
-            A_el: Geometric electrode area in cm2. Optional, though necessary if no data is provided. 
+            A_el: Geometric electrode area in cm2. Optional, though necessary if no data is provided.
             diff_const: Diffusion constant in liquid. Optional. Default will check
             diffusion constant in water in Molecule data from siq.
             henry_vola: Dimensionless Henry volatility. Optional. Default will check
@@ -75,24 +76,26 @@ class ECMSImpulseResponse():
                 SpectroInlets chip from siq.
             carrier_gas: The carrier gas used to calculate capillary flow. Defaults to He.
             gas_volume: the volume of the headspace volume in the chip. Default is the volume of the SpectroInlets chip.
-        """   
-        if data is not None:            
+        """
+        if data is not None:
             self.mol = mol
             self.data = data
             self.type = "measured"
             print("Generating `ECMSImpulseResponse` from measured data.")
             if working_distance is not None or A_el is not None:
-                raise UserWarning("Data was used to generate `ECMSImpulseResponse` ignoring the given working_distance/electrode area.")
-        
+                raise UserWarning(
+                    "Data was used to generate `ECMSImpulseResponse` ignoring the given working_distance/electrode area."
+                )
+
         elif working_distance is not None and A_el is not None:
             self.mol = mol
             self.type = "functional"
             if not plugins.use_siq:
                 raise TechniqueError(
-                    "`ECMSImpulseResponse` will only work properly when using " # TODO this should be improved.- doesnt need to fully depend on siq integration
+                    "`ECMSImpulseResponse` will only work properly when using "  # TODO this should be improved.- doesnt need to fully depend on siq integration
                     "`spectro_inlets_quantification` "
                     "(`ixdat.plugins.activate_siq()`). "
-                )            
+                )
             # calculate the capillary flow for the specified gas & chip
             Chip = plugins.siq.Chip
             chip = chip or Chip()
@@ -105,24 +108,36 @@ class ECMSImpulseResponse():
             # print(molecule)
             if diff_const is None:
                 raise TechniqueError("Default diffusion constant not yet implemented")
-                diff_const = molecule.D # TODO double check units and figure out why the siq integration is not working
+                diff_const = (
+                    molecule.D
+                )  # TODO double check units and figure out why the siq integration is not working
                 print(diff_const)
             if henry_vola is None:
                 raise TechniqueError("Default henry volatility not yet implemented")
                 # henry_vola = molecule.H_0 # TODO convert this to the right unit! (dimensionless henry volatility)
-            self.params = {"working_distance": working_distance, "A_el": A_el, "diff_const": diff_const,
-                           "henry_vola": henry_vola, "V_dot": V_dot, "gas_volume": gas_volume}      
-        else: 
-            raise TechniqueError("Cannot initialize ECMSImpluseResponse without either data or working distance + electrode area being provided.") 
-       
-    def model_impulse_response_from_params(self, dt=0.1, duration=100, norm=True, matrix=False):
-        """Calculates an impulse response from parameters used to initialize the 
-        ECMSImpulseResponse object. 
+            self.params = {
+                "working_distance": working_distance,
+                "A_el": A_el,
+                "diff_const": diff_const,
+                "henry_vola": henry_vola,
+                "V_dot": V_dot,
+                "gas_volume": gas_volume,
+            }
+        else:
+            raise TechniqueError(
+                "Cannot initialize ECMSImpluseResponse without either data or working distance + electrode area being provided."
+            )
+
+    def model_impulse_response_from_params(
+        self, dt=0.1, duration=100, norm=True, matrix=False
+    ):
+        """Calculates an impulse response from parameters used to initialize the
+        ECMSImpulseResponse object.
         TODO: might make more sense to pass parameters to the method instead?
         Args:
             dt (int): Timestep for which the impulse response is calculated.
                 Has to match the timestep of the measured data for deconvolution.
-                
+
             duration(int): Duration in seconds for which the kernel/impulse response is
                 calculated. Must be long enough to reach zero.
             norm (bool): If true the impulse response is normalized to its
@@ -142,6 +157,7 @@ class ECMSImpulseResponse():
             A_el = self.params["A_el"]
 
             tdiff = t_kernel * diff_const / (work_dist**2)
+
             def fs(s):
                 # See Krempl et al, 2021. Equation 6.
                 #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
@@ -163,16 +179,20 @@ class ECMSImpulseResponse():
             if matrix:
                 kernel = np.tile(kernel, (len(kernel), 1))
                 i = 1
-                while i < len(t_kernel): #TODO: pythonize this?
+                while i < len(t_kernel):  # TODO: pythonize this?
                     kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
                     i = i + 1
         else:
-            raise TechniqueError("Cannot model impulse response if not initialized with parameters.")
+            raise TechniqueError(
+                "Cannot model impulse response if not initialized with parameters."
+            )
         return t_kernel, kernel
-               
-    def calc_impulse_response_from_data(self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False):
+
+    def calc_impulse_response_from_data(
+        self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False
+    ):
         """Calculates impulse response from data.
-        TODO: add possibility of subtracting a linear background!!! 
+        TODO: add possibility of subtracting a linear background!!!
         TODO: add option to plot the implulse response from data/ return an axis to co-plot with the data
         TODO: figure out if it's ok to just get rid of dt and duration (not used here)
         TODO: change the name kernel to something else
@@ -187,8 +207,10 @@ class ECMSImpulseResponse():
                 impulse reponse is returned. Default is False.
         """
         if self.type == "measured":
-            if type(tspan_bg[0]) is not list: 
-                t_kernel, kernel = self.data.grab_flux(mol=self.mol, tspan=tspan, tspan_bg=tspan_bg)
+            if type(tspan_bg[0]) is not list:
+                t_kernel, kernel = self.data.grab_flux(
+                    mol=self.mol, tspan=tspan, tspan_bg=tspan_bg
+                )
             else:
                 t_kernel, kernel_raw = self.data.grab_flux(mol=self.mol, tspan=tspan)
                 bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
@@ -199,20 +221,20 @@ class ECMSImpulseResponse():
             if matrix:
                 kernel = np.tile(kernel, (len(kernel), 1))
                 i = 1
-                while i < len(t_kernel): #TODO: pythonize this?
+                while i < len(t_kernel):  # TODO: pythonize this?
                     kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
                     i = i + 1
         else:
             raise TechniqueError("Cannot calculate impulse response without data.")
         return t_kernel, kernel
-        
+
     @np.vectorize
     def get_cond_number(sampling_freq, working_dist):
         """
         Function to calculate condition number for a given sampling frequency and working distance.
         TODO: finish this method
-        """       
-        
+        """
+
         # Define mass transport parameters.
         params = {
             "diff_const": 5.05e-9,
@@ -221,26 +243,26 @@ class ECMSImpulseResponse():
             "volflow_cap": 1e-10,
             "henry_vola": 52,
         }
-    
-        model_kernel = Kernel(parameters=params)
-    
+
+        model_kernel = ECMSImpulseResponse(parameters=params)
+
         kernel_matrix = model_kernel.calculate_kernel(
             dt=1 / sampling_freq, duration=40, matrix=True
         )
-    
+
         cond = np.linalg.cond(kernel_matrix)
         print(str(cond))
         return cond
-    
+
     def get_limit_frequency():
         """Calculate the limiting frequency for deconvolution for a given ImpulseResponse.
         TODO: finish this method"""
-                
+
     def get_limit_time_res():
         """Calculate the limiting time resolution for deconvolution for a given ImpulseResponse.
         TODO: finish this method"""
-    
-    def plot_cond_number_heatmap(cond_number):
+
+    def plot_cond_number_heatmap(cond_number, Z, cc):
         """
         TODO: finish this method
 
@@ -254,16 +276,16 @@ class ECMSImpulseResponse():
         None.
 
         """
-        
+
         # Create figure
         fig = plt.figure(figsize=(7.5 / 2, 3.5))
         ax = fig.add_subplot(111)
-        
+
         # Construct meshgrid for heatmap
         x_sampling_freq = np.logspace(-1, 1, 100)  # Sampling frequency
         y_working_dist = np.linspace(100, 200, 50)  # Working distance
         X, Y = np.meshgrid(x_sampling_freq, y_working_dist)
-        
+
         # Create and format heatmap plot
         Z[Z > 100] = 100  # can't get `vmax=100` colorbar to work right otherwise.
         cp = plt.contourf(X, Y, Z, 100, cmap=cc.cm.rainbow)
@@ -279,5 +301,3 @@ class ECMSImpulseResponse():
         plt.tight_layout()
         plt.savefig("Plots/heatmap.png")
         # plt.savefig("Plots/heatmap.png", dpi=1000, format="png")
-
-   
