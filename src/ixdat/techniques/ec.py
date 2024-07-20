@@ -188,6 +188,7 @@ class ECMeasurement(Measurement):
     def calculators(self):
         """The list of calculators of the measurement.
 
+        EC calibrations are joined into the first calibration.
         The following is necessary to ensure that all EC Calibration parameters are
         joined in a single calibration when processing. So that "potential" is both
         calibrated to RHE and ohmic drop corrected, even if the two calibration

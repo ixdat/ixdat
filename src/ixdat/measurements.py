@@ -171,8 +171,11 @@ class Measurement(Saveable):
                     out.append("┣━ " + str(value_series))
 
         calc_out = []
-        for calculator in self.calculator_list:
-            calc_out.append(str(calculator))
+        for (n, calculator) in enumerate(self.calculator_list):
+            if n == len(self.calculator_list) - 1:
+                calc_out.append("┗━ " + str(calculator))
+            else:
+                calc_out.append("┣━ " + str(calculator))
 
         return (
             f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} "
@@ -1425,8 +1428,7 @@ class Calculator(Saveable):
 
     def __str__(self):
         rep = (
-            f"{self.__class__.__name__} '{self.name}' providing:\n"
-            + f"--> {self.available_series_names} "
+            f"{self.__class__.__name__} providing: " + f"{self.available_series_names} "
         )
         return rep
 

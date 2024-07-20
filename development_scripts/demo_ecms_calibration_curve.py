@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from ixdat import Measurement, plugins
-from ixdat.techniques.ms import MSCalResult, MSCalibration
+from ixdat.techniques.ec_ms import ECMSCalculator
 
 data_dir = (
     Path.home() / "Dropbox/ixdat_resources/tutorials_data/"
@@ -21,7 +21,8 @@ ecms.tstamp += 9000
 axes = ecms.plot(tspan=[0, 3000])
 
 # this has background subtraction and goes through zero:
-cal_result = ecms.ecms_calibration_curve(
+cal_result = ECMSCalculator.ecms_calibration_curve(
+    ecms,
     mol="H2",
     mass="M2",
     n_el=-2,
@@ -31,7 +32,8 @@ cal_result = ecms.ecms_calibration_curve(
     force_through_zero=True,
 )
 # this is forced through zero but without background subtraction gives the wrong answer:
-cal_result_2 = ecms.ecms_calibration_curve(
+cal_result_2 = ECMSCalculator.ecms_calibration_curve(
+    ecms,
     mol="H2",
     mass="M2",
     n_el=-2,
@@ -39,7 +41,8 @@ cal_result_2 = ecms.ecms_calibration_curve(
     force_through_zero=True,
 )
 # this doesn't go through zero but still gives the right answer:
-cal_result_3 = ecms.ecms_calibration_curve(
+cal_result_3 = ECMSCalculator.ecms_calibration_curve(
+    ecms,
     mol="H2",
     mass="M2",
     n_el=-2,
@@ -47,16 +50,19 @@ cal_result_3 = ecms.ecms_calibration_curve(
 )
 
 plugins.activate_siq()
+siqCalculator = plugins.siq.Calculator
 
 # The following issues a warning and returns an ixdat MSCalResult :)
-cal_1 = ecms.ecms_calibration_curve(
+cal_1 = ECMSCalculator.ecms_calibration_curve(
+    ecms,
     mol="H2",
     mass="M2",
     n_el=-2,
     tspan_list=[[600, 700], [1150, 1250], [1800, 1900], [2350, 2450]],
 )
-# The following returns a siq CalPoint :)
-siq_cal_2 = ecms.siq_ecms_calibration_curve(
+# The following returns a siq Calculator :)
+siq_cal_2 = siqCalculator.ecms_calibration_curve(
+    ecms,
     mol="H2",
     mass="M2",
     n_el=-2,
@@ -69,7 +75,7 @@ siq_cal_2 = ecms.siq_ecms_calibration_curve(
 # siq and native ixdat calibration objects:
 # (this is not a natural workflow, just some code to show that the methods work.)
 
-cal_2 = MSCalResult.from_siq(siq_cal_2)
+cal_2 = ECMSCalculator.from_siq(siq_cal_2)
 print(cal_2)
 
 siq_cal_1 = cal_1.to_siq()
@@ -79,12 +85,16 @@ print(siq_cal_1)
 siq_calibration = cal_1.to_siq() + cal_2.to_siq()
 print(siq_calibration)
 
-# The following dowsn't work because it's a SensitivityList instead of a Calibration :(
-# siq_calibration.plot_as_spectrum()
+# The following works!
+siq_calibration.plot_as_spectrum()
 
-calibration = MSCalibration.from_siq(siq_calibration)
+calibration = ECMSCalculator.from_siq(siq_calibration)
 print(calibration)
 
 siq_calibration_again = calibration.to_siq()
 
 siq_calibration_again.plot_as_spectrum()  # works! :)
+
+# for demonstrating the calculators in the string rep:
+ecms.add_calculator(calibration)
+print(ecms)

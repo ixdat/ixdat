@@ -10,7 +10,7 @@ from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters import MSPlotter, MSSpectroPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..exporters import MSExporter, MSSpectroExporter
-from ..exceptions import QuantificationError
+from ..exceptions import QuantificationError, SeriesNotFoundError
 from ..constants import (
     AVOGADRO_CONSTANT,
     BOLTZMANN_CONSTANT,
@@ -24,27 +24,6 @@ from ..data_series import ValueSeries
 from ..db import Saveable
 from ..tools import deprecate
 from ..config import plugins
-
-
-def _with_siq_quantifier(method):
-    """Decorate a Measurement-copying method to copy the quantifier to the new one.
-
-    This means that the quantifier doesn't need to be re-applied when getting a
-    subset of the measurement.
-
-    Method is a method of a Measurement which returns a Measurement of the same type,
-    such as cut() and multicut() and the methods that use these ones, such as select,
-    and indexing for CyclicVoltammogram objects.
-    """
-
-    def method_with_siq_quantifier(*args, **kwargs):
-        new_measurement = method(*args, **kwargs)
-        old_measurement = args[0]
-        if old_measurement.siq_quantifier:
-            new_measurement.set_siq_quantifier(old_measurement.siq_quantifier)
-        return new_measurement
-
-    return method_with_siq_quantifier
 
 
 class MSMeasurement(Measurement):
@@ -63,7 +42,7 @@ class MSMeasurement(Measurement):
         self._siq_quantifier = None  # Used with external quantification package
 
     @property
-    def ms_calibration(self):
+    def ms_calculator(self):
         ms_cal_list = []
         tspan_bg = None
         signal_bgs = {}
@@ -73,11 +52,20 @@ class MSMeasurement(Measurement):
                 if mass not in signal_bgs:
                     signal_bgs[mass] = bg
             tspan_bg = tspan_bg or getattr(cal, "tspan_bg", None)
-        return MSCalibration(ms_cal_results=ms_cal_list, signal_bgs=signal_bgs)
+        return MSCalculator(ms_cal_results=ms_cal_list, signal_bgs=signal_bgs)
+
+    @property
+    def siq_calculator(self):
+        if not plugins.use_si_quant:
+            raise QuantificationError("siq is not activated.")
+        for calculator in self.calculator_list:
+            if isinstance(calculator, plugins.siq.Calculator):
+                return calculator
+        raise QuantificationError("measurement has no siq Calculator.")
 
     @property
     def signal_bgs(self):
-        return self.ms_calibration.signal_bgs
+        return self.ms_calculator.signal_bgs
 
     def set_bg(self, tspan_bg=None, mass_list=None):
         """Set background values for mass_list to the average signal during tspan_bg."""
@@ -87,7 +75,7 @@ class MSMeasurement(Measurement):
         for mass in mass_list:
             t, v = self.grab(mass, tspan_bg)
             signal_bgs[mass] = np.mean(v)
-        self.add_calculator(MSCalibration(signal_bgs=signal_bgs))
+        self.add_calculator(MSCalculator(signal_bgs=signal_bgs))
 
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
@@ -96,7 +84,7 @@ class MSMeasurement(Measurement):
         for mass in mass_list:
             if mass in self.signal_bgs:
                 new_signal_bgs[mass] = 0
-        self.add_calibration(MSCalibration(signal_bgs=new_signal_bgs))
+        self.add_calibration(MSCalculator(signal_bgs=new_signal_bgs))
 
     def grab(
         self,
@@ -197,19 +185,6 @@ class MSMeasurement(Measurement):
         if removebackground is not None:
             remove_background = removebackground
 
-        if plugins.use_siq:
-            # We have to calculate the fluxes of all the mols and masses in the
-            # quantifier's sensitivity matrix. But this method only returns one.
-            # TODO: The results should therefore be cached. But how to know when they
-            #   need to be recalculated?
-            t, n_dots = self.grab_siq_fluxes(
-                tspan=tspan,
-                tspan_bg=tspan_bg,
-                remove_background=remove_background,
-                include_endpoints=include_endpoints,
-            )
-            return t, n_dots[mol]
-
         if isinstance(mol, MSCalResult):
             t, signal = self.grab(
                 mol.mass,
@@ -229,48 +204,6 @@ class MSMeasurement(Measurement):
             remove_background=remove_background,
             include_endpoints=include_endpoints,
         )
-
-    def grab_siq_fluxes(
-        self, tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
-    ):
-        """Return a time vector and a dictionary with all the quantified fluxes
-
-        Args:
-            tspan (list): Timespan for which the signal is returned.
-            tspan_bg (list): Timespan that corresponds to the background signal.
-                If not given, no background is subtracted.
-            remove_background (bool): Whether to remove a pre-set background if available
-                Defaults to True..
-            include_endpoints (bool): Whether to interpolate for tspan[0] and tspan[-1]
-        """
-        if not plugins.use_siq:
-            raise QuantificationError(
-                "`MSMeasurement.grab_siq_fluxes` only works when using "
-                "`spectro_inlets_quantification` "
-                "(`ixdat.plugins.activate_siq()`). "
-            )
-        sm = self._siq_quantifier.sm
-        signals = {}
-        t = None
-        for mass in sm.mass_list:
-            if t is None:
-                t, S = self.grab(
-                    mass,
-                    tspan=tspan,
-                    tspan_bg=tspan_bg,
-                    remove_background=remove_background,
-                    include_endpoints=include_endpoints,
-                )
-            else:
-                S = self.grab_for_t(
-                    mass,
-                    t=t,
-                    tspan_bg=tspan_bg,
-                    remove_background=remove_background,
-                )
-            signals[mass] = S
-        n_dots = sm.calc_n_dot(signals=signals)
-        return t, n_dots
 
     @deprecate(
         "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
@@ -351,6 +284,181 @@ class MSMeasurement(Measurement):
             return self.as_mass(new_item)
         raise TypeError(f"{self!r} does not recognize '{item}' as a mass.")
 
+    # --- METHODS WHICH HAVE BEEN MOVED TO `Calculator` CLASSES ---- #
+
+    @deprecate(
+        "0.2.13",
+        "Use `MSCalculator.gas_flux_calibration` instead.",
+        "0.3",
+    )
+    def gas_flux_calibration(self, *args, **kwargs):
+        return MSCalculator.gas_flux_calibration(measurement=self, *args, **kwargs)
+
+    @deprecate(
+        "0.2.13",
+        "Use `MSCalculator.gas_flux_calibration_curve` instead.",
+        "0.3",
+    )
+    def gas_flux_calibration_curve(self, *args, **kwargs):
+        return MSCalculator.gas_flux_calibration_curve(measurement=self, *args, **kwargs)
+
+    @deprecate(
+        "0.2.13",
+        "Use `plugins.siq.Calculator.gas_flux_calibration` instead.",
+        "0.3",
+    )
+    def siq_gas_flux_calibration(self, mol, mass, tspan, chip=None):
+        return plugins.siq.Calculator.gas_flux_calibration(
+            measurement=self, mol=mol, mass=mass, tspan=tspan, chip=None
+        )
+
+    @deprecate(
+        "0.2.13",
+        "Use `plugins.siq.Calculator.gas_flux_calibration_curve` instead.",
+        "0.3",
+    )
+    def siq_gas_flux_calibration_curve(
+        self,
+        *args,
+        **kwargs,
+    ):
+        return plugins.siq.Calculator.gas_flux_calibration_curve(
+            measurement=self, *args, **kwargs
+        )
+
+    @deprecate(
+        "0.2.13",
+        "Use `plugins.siq.Calculator.multicomp_gas_flux_calibration` instead.",
+        "0.3",
+    )
+    def siq_multicomp_gas_flux_calibration(self, *args, **kwargs):
+        return plugins.siq.Calculator.siq_multicomp_gas_flux_calibration(
+            measurement=self, *args, **kwargs
+        )
+
+    @deprecate(
+        "0.2.13",
+        "Use `siq_calculator.grab_fluxes` instead.",
+        "0.3",
+    )
+    def grab_siq_fluxes(
+        self,
+        tspan=None,
+        tspan_bg=None,
+        remove_background=False,
+        include_endpoints=False,
+    ):
+        return self.siq_calculator.grab_fluxes(
+            tspan=None, tspan_bg=None, remove_background=False, include_endpoints=False
+        )
+
+
+class MSCalResult(Saveable):
+    """A class for a mass spec ms_calibration result.
+
+    FIXME: I think that something inheriting directly from Saveable does not belong in
+        a technique module.
+    """
+
+    extra_column_attrs = {"name", "mol", "mass", "cal_type", "F"}
+
+    def __init__(
+        self,
+        name=None,
+        mol=None,
+        mass=None,
+        cal_type=None,
+        F=None,
+    ):
+        super().__init__()
+        self.name = name or f"{mol}@{mass}"
+        self.mol = mol
+        self.mass = mass
+        self.cal_type = cal_type
+        self.F = F
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(name={self.name}, mol={self.mol}, "
+            f"mass={self.mass}, F={self.F})"
+        )
+
+    @property
+    def color(self):
+        return STANDARD_COLORS[self.mass]
+
+    @classmethod
+    def from_siq(cls, siq_cal_point):
+        return cls(
+            name=siq_cal_point.mol + "@" + siq_cal_point.mass,
+            mol=siq_cal_point.mol,
+            mass=siq_cal_point.mass,
+            cal_type=siq_cal_point.F_type,
+            F=siq_cal_point.F,
+        )
+
+    def to_siq(self):
+        if not plugins.use_siq:
+            raise QuantificationError(
+                "`MSCalPoint.to_siq` only works when using "
+                "`spectro_inlets_quantification` "
+                "(`ixdat.options.activate_siq()`). "
+                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
+            )
+        return plugins.siq.CalPoint(
+            mol=self.mol,
+            mass=self.mass,
+            F=self.F,
+            F_type=self.cal_type,
+        )
+
+
+class MSCalculator(Calculator):
+    """Class for mass spec calibrations. TODO: replace with powerful external package"""
+
+    extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
+    # FIXME: signal_bgs are not saved at present. Should they be a separate table
+    #   of Saveable objects like ms_cal_results or should they be a single json value?
+    child_attrs = [
+        "ms_cal_results",
+    ]
+
+    def __init__(
+        self,
+        name=None,
+        date=None,
+        tstamp=None,  # FIXME: No need to have both a date and a tstamp?
+        setup=None,
+        ms_cal_results=None,
+        signal_bgs=None,
+        technique="MS",
+        measurement=None,
+    ):
+        """
+        Args:
+            name (str): Name of the ms_calibration
+            date (str): Date of the ms_calibration
+            setup (str): Name of the setup where the ms_calibration is made
+            ms_cal_results (list of MSCalResult): The mass spec calibrations
+            measurement (MSMeasurement): The measurement
+        """
+        if plugins.use_siq:
+            warnings.warn(
+                "spectro_inlets_quantification is active but you are making a native "
+                "ixdat MSCalculator. It's probably best not to mix the two!"
+            )
+        super().__init__(
+            name=name,
+            technique=technique,
+            tstamp=tstamp,
+            measurement=measurement,
+        )
+        self.date = date
+        self.setup = setup
+        self.ms_cal_results = ms_cal_results or []
+        self.signal_bgs = signal_bgs or {}
+
+    @classmethod
     @deprecate(
         "0.2.6",
         "Use `inlet` instead. Or consider using `siq_gas_flux_calibration` "
@@ -359,7 +467,8 @@ class MSMeasurement(Measurement):
         kwarg_name="chip",
     )
     def gas_flux_calibration(
-        self,
+        cls,
+        measurement,
         mol,
         mass,
         inlet=None,
@@ -393,12 +502,7 @@ class MSMeasurement(Measurement):
         Returns MSCalResult: a MS calibration result containing the sensitivity factor
             for mol at mass
         """
-        if plugins.use_siq:
-            warnings.warn(
-                "spectro_inlets_quantification is active but you are using the native "
-                "ixdat version of `MSMeasurement.gas_flux_calibration`"
-            )
-        t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
+        t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         if ax:
             ax.plot(t, S, color=STANDARD_COLORS[mass], linewidth=5)
         if carrier_mol:
@@ -420,16 +524,19 @@ class MSMeasurement(Measurement):
             carrier_mol = mol
         n_dot = inlet.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
         F = np.mean(S) / n_dot
-        return MSCalResult(
+        cal_result = MSCalResult(
             name=f"{mol}@{mass}",
             mol=mol,
             mass=mass,
             cal_type=cal_type,
             F=F,
         )
+        return cls(ms_cal_results=[cal_result], measurement=measurement)
 
+    @classmethod
     def gas_flux_calibration_curve(
-        self,
+        cls,
+        measurement,
         mol,
         mass,
         inlet=None,
@@ -485,52 +592,6 @@ class MSMeasurement(Measurement):
             periods.
         TODO: automatically recognize the pressure from measurement (if available)
         """
-        if plugins.use_siq:
-            warnings.warn(
-                "spectro_inlets_quantification is active but you are using the native "
-                "ixdat version of `MSMeasurement.siq_gas_flux_calibration_curve`"
-            )
-        return self._gas_flux_calibration_curve(
-            mol=mol,
-            mass=mass,
-            inlet=inlet,
-            chip=chip,
-            tspan_list=tspan_list,
-            carrier_mol=carrier_mol,
-            mol_conc_ppm=mol_conc_ppm,
-            p_inlet=p_inlet,
-            tspan_bg=tspan_bg,
-            ax="new",
-            axis_measurement=axis_measurement,
-            remove_bg_on_axis_measurement=remove_bg_on_axis_measurement,
-            return_ax=return_ax,
-        )
-
-    @deprecate(
-        "0.2.6",
-        "Use `inlet` instead. Or consider using `siq_gas_flux_calibration_curve` "
-        "with the `spectro_inlets_quantification` package.",
-        "0.3",
-        kwarg_name="chip",
-    )
-    def _gas_flux_calibration_curve(
-        self,
-        mol,
-        mass,
-        inlet=None,
-        chip=None,
-        tspan_list=None,
-        carrier_mol=None,
-        mol_conc_ppm=None,
-        p_inlet=None,
-        tspan_bg=None,
-        ax="new",
-        axis_measurement=None,
-        remove_bg_on_axis_measurement=True,
-        return_ax=False,
-    ):
-        """Helper function. See gas_flux_calibraiton_curve for argument descriptions."""
-
         # prepare three lists to loop over to determine molecule flux in the
         # different periods of steady gas composition
         if not isinstance(mol_conc_ppm, list):
@@ -572,12 +633,12 @@ class MSMeasurement(Measurement):
             # specify that the gas given as mol is now the carrier_mol
             carrier_mol = mol
         for tspan, mol_conc_ppm, pressure in zip(tspan_list, mol_conc_ppm_list, p_list):
-            t, S = self.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
+            t, S = measurement.grab_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
             if axis_measurement:
                 if remove_bg_on_axis_measurement:
                     t_plot, S_plot = t, S
                 else:
-                    t_plot, S_plot = self.grab_signal(mass, tspan=tspan)
+                    t_plot, S_plot = measurement.grab_signal(mass, tspan=tspan)
                 axis_measurement.plot(
                     t_plot, S_plot, color=STANDARD_COLORS[mass], linewidth=5
                 )
@@ -593,415 +654,21 @@ class MSMeasurement(Measurement):
         if ax:
             color = STANDARD_COLORS[mass]
             if ax == "new":
-                ax = self.plotter.new_ax(
+                ax = measurement.plotter.new_ax(
                     xlabel="molecule flux / [nmol/s]", ylabel="signal / [nA]"
                 )
             ax.plot(n_dot_vec * 1e9, S_vec * 1e9, "o", color=color)
             n_dot_fit = np.array([0, max(n_dot_vec)])
             S_fit = n_dot_fit * pfit[0] + pfit[1]
             ax.plot(n_dot_fit * 1e9, S_fit * 1e9, "--", color=color)
-        cal = MSCalResult(
+        cal_result = MSCalResult(
             name=f"{mol}@{mass}",
             mol=mol,
             mass=mass,
             cal_type=cal_type,
             F=F,
         )
-        if return_ax:
-            return cal, ax
-        return cal
-
-    def siq_gas_flux_calibration(self, mol, mass, tspan, chip=None):
-        """Simple pure-gas flux calibration, using `spectro_inlets_quantification`
-
-        Args:
-            mol (str): Name of molecule to be calibrated (e.g. "He")
-            mass (str): Mass at which to calibrate it (e.g. "M4")
-            tspan (timespan): A timespan during which the pure gas is in the chip
-            chip (Chip, optional): An object defining the capillary inlet, if different
-                than the standard chip assumed by the external package.
-
-        Returns CalPoint: An object from `spectro_inlets_quantification`,
-           representing the calibration result
-        """
-        if not plugins.use_siq:
-            raise QuantificationError(
-                "`MSMeasurement.siq_gas_flux_calibration` only works when using "
-                "`spectro_inlets_quantification` "
-                "(`ixdat.options.activate_siq()`). For native ixdat MS quantification, "
-                "use `gas_flux_calibration` instead."
-            )
-        Chip = plugins.siq.Chip
-        CalPoint = plugins.siq.CalPoint
-
-        chip = chip or Chip()
-        n_dot = chip.calc_n_dot_0(gas=mol)
-        S = self.grab_signal(mass, tspan=tspan)[1].mean()
-        F = S / n_dot
-        return CalPoint(mol=mol, mass=mass, F=F, F_type="capillary", date=self.yyMdd)
-
-    def siq_gas_flux_calibration_curve(
-        self,
-        mol,
-        mass,
-        chip=None,
-        tspan_list=None,
-        carrier_mol=None,
-        mol_conc_ppm=None,
-        p_inlet=None,
-        tspan_bg=None,
-        ax="new",
-        axis_measurement=None,
-        remove_bg_on_axis_measurement=True,
-        return_ax=False,
-    ):
-        """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
-
-        Args:
-            mol (str): Name of the molecule to calibrate
-            mass (str): Name of the mass at which to calibrate
-            tspan_list (list of tspan): The timespans of steady concentration
-                or pressure
-            carrier_mol (str): The name of the molecule of the carrier gas if
-                a dilute analyte is used. Calibration assumes total flux of the
-                capillary is the same as the flux of pure carrier gas. Defaults
-                to None.
-            mol_conc_ppm (float, list): Concentration of the dilute analyte in
-                the carrier gas in ppm. Defaults to None. Accepts float (for pressure
-                calibration) or list for concentration calibration. If list needs
-                to be same length as tspan_list or selector_list.
-            p_inlet (float, list): Pressure at the inlet (Pa). Overwrites the pressure
-                inherent to self (i.e. the MSInlet object). Accepts float (for conc.
-                calibration) or list for pressure calibration. If list, then
-                needs to be same length as tspan_list or selector_list.
-            tspan_bg (tspan): The time to use as a background
-            ax (Axis): The axis on which to plot the ms_calibration curve result.
-                Defaults to a new axis.
-            axis_measurement (Axes): The MS plot axes to highlight the
-                ms_calibration on. Defaults to None. These axes are not returned.
-            remove_bg_on_axis_measurement (bool):
-                Whether the plot on axis_measurement is showing raw data or bg
-                subtracted data. Defaults to True, i.e. plotting data with the
-                same bg subtraction as used for the calibration.
-            return_ax (bool): Whether to return the axis on which the calibration
-                curve is plotted together with the MSCalResult. Defaults to False.
-
-        Returns CalPoint: An object from `spectro_inlets_quantification`,
-           representing the calibration result
-
-        TODO: automatically recognize the pressure from measurement (if available)
-        """
-        if not plugins.use_siq:
-            raise QuantificationError(
-                "`MSMeasurement.siq_gas_flux_calibration` only works when using "
-                "`spectro_inlets_quantification`"
-                "(`ixdat.options.activate_siq()`). "
-                "For native ixdat MS quantification, use `gas_flux_calibration`"
-                "instead."
-            )
-        Chip = plugins.siq.Chip
-
-        chip = chip or Chip()
-
-        cal, ax = self._gas_flux_calibration_curve(
-            inlet=chip,
-            mol=mol,
-            mass=mass,
-            tspan_list=tspan_list,
-            carrier_mol=carrier_mol,
-            mol_conc_ppm=mol_conc_ppm,
-            p_inlet=p_inlet,
-            tspan_bg=tspan_bg,
-            ax=ax,
-            axis_measurement=axis_measurement,
-            remove_bg_on_axis_measurement=remove_bg_on_axis_measurement,
-            return_ax=True,
-        )
-
-        cal = cal.to_siq()
-        if return_ax:
-            return cal, ax
-        return cal
-
-    def siq_multicomp_gas_flux_calibration(
-        self, mol_list, mass_list, gas, tspan, gas_bg=None, tspan_bg=None, chip=None
-    ):
-        """Calibration of multiple components of a calibration gas simultaneously
-
-        Uses a matrix equation and the reference spectra in the molecule data files.
-
-        The results are only as accurate as the reference spectrum used. For this reason,
-        this method is a last resort and it is recommended *not* to use a multicomponent
-        calibration gas. Instead, get a separate calibration gas for each molecule to
-        be calibrated.
-
-        Here is an explanation of the math used in this method:
-
-        The fundamental matrix equation is:
-          S_vec = F_mat @ n_dot_vec
-        Elementwise, this is:
-         S_M = sum_i ( F^i_M * n_dot^i )
-        Rewrite to show that sensitivity factors follow each molecule's spectrum:
-         S_M = sum_i (F_weight_i * spectrum^i_M * n_dot^i)
-        And regroup the parts that only depend on the molecule (^i):
-         S_M = sum_i (spectrum^i_M * (F_weight^i * n_dot^i))
-         S_M = sum_i (spectrum^i_M * sensitivity_flux^i)
-        Change back into a matrix equation, and solve it:
-         S_vec = spectrum_mat @ sensitivity_flux_vec
-         sensitivity_flux_vec = spectrum_mat^-1 @ S_vec   # eq. 1
-        Ungroup the part we grouped before (the "sensitivity_flux"):
-         F_weight^i = sensitivity_flux^i / n_dot^i        # eq. 2
-        And, in the end, each sensitivity factor is:
-         F_M^i = F_weight^i * spectrum^i_M                # eq. 3
-
-        Equations 1, 2, and 3 are implemented in the code of this method.
-
-        Args:
-            mol_list (list of str): List of the names of the molecules to calibrate
-            mass_list (list of str): List of the masses to calibrate
-            gas (Gas, dict, or str): Composition of the calibration gas, e.g.
-               {"Ar": 0.95, "H2": 0.05} for 5% H2 in Ar
-            tspan (Timespan): Timespan during which the calibration gas is in the chip
-            gas_bg (Gas, dict, or str): Composition of the background gas
-            tspan_bg (Timespan): Timespan during which the background gas is in the chip
-            chip (Chip, optional): object describing the MS capillary, if different than
-               the standard chip in the MS quantification package
-
-        Returns Calibration: An object from `spectro_inlets_quantification`,
-           representing all the calibration results from the calibration.
-        """
-        if not plugins.use_siq:
-            raise QuantificationError(
-                "`MSMeasurement.siq_multicomp_gas_flux_calibration` "
-                "only works when using `spectro_inlets_quantification` "
-                "(`ixdat.plugins.activate_siq()`). "
-            )
-        Chip = plugins.siq.Chip
-        CalPoint = plugins.siq.CalPoint
-        Calibration = plugins.siq.Calibration
-
-        chip = chip or Chip()
-        chip.gas = gas
-        flux = chip.calc_n_dot()
-
-        chip_bg = chip or Chip()
-        chip_bg.gas = gas_bg
-        flux_bg = chip_bg.calc_n_dot()
-
-        delta_flux_list = []
-        for mol in mol_list:
-            delta_flux = flux.get(mol, 0) - flux_bg.get(mol, 0)
-            delta_flux_list.append(delta_flux)
-        delta_flux_vec = np.array(delta_flux_list)
-
-        delta_signal_list = []
-        for mass in mass_list:
-            S = self.grab_signal(mass, tspan=tspan)[1].mean()
-            if tspan_bg:
-                S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
-            else:
-                S_bg = 0
-            delta_S = S - S_bg
-            delta_signal_list.append(delta_S)
-        delta_signal_vec = np.array(delta_signal_list)
-
-        spectrum_vec_list = []
-        for mol in mol_list:
-            spectrum = chip.gas.mdict[mol].norm_spectrum
-            spectrum_vec = np.array([spectrum.get(mass, 0) for mass in mass_list])
-            spectrum_vec_list.append(spectrum_vec)
-        spectrum_mat = np.stack(spectrum_vec_list).transpose()
-
-        inverse_spectrum_mat = np.linalg.inv(spectrum_mat)
-        sensitivity_flux_vec = inverse_spectrum_mat @ delta_signal_vec  # eq. 1
-        F_weight_vec = sensitivity_flux_vec / delta_flux_vec  # eq. 2
-
-        cal_list = []
-        for i, mol in enumerate(mol_list):
-            for M, mass in enumerate(mass_list):
-                F = F_weight_vec[i] * spectrum_mat[M, i]  # eq. 3
-                if F:
-                    cal = CalPoint(
-                        mol=mol, mass=mass, F=F, F_type="capillary", date=self.yyMdd
-                    )
-                    cal_list.append(cal)
-
-        return Calibration(cal_list=cal_list)
-
-    def set_siq_quantifier(
-        self,
-        quantifier=None,
-        calibration=None,
-        mol_list=None,
-        mass_list=None,
-        carrier="He",
-    ):
-        """Set the `spectro_inlets_quantification` quantifier.
-
-        The Quantifier is an object with the method `calc_n_dot`, which takes a
-        dictionary of signals or signal vectors in [A] and return a dictionary of
-        molecular fluxes in [mol/s].
-        The quantifier typically does this by solving the linear equations of
-        S_M = sum_i ( F_M^i * n_dot^i )
-        Where n_dot^i is the flux to the vacuum chamber of molecule i in [mol/s], S_M
-        is the signal at mass M in [A], and F_M^i is the *sensitivity factor* of molecule
-        i at mass M.
-        The quantifier thus needs access to a set of sensitivity factors.
-
-        The quantifier can be built in this method (avoiding explicit import of the
-        `spectro_inlets_quantification` package) by providing the sensitivity factors
-        in the form of a `Calibration` (which can be obtained from e.g.
-        MSMeasurement.multicomp_gas_flux_cal) and the specification of which ones to
-        use by `mol_list` and `mass_list`.
-        The quantifier will always use all the masses in `mass_list` to solve for the
-        flux of all the mols in `mol_list`.
-
-        The argument `carrier` is required by some quantifiers but only used if
-        partial pressures before the MS inlet are required (`quantifier.calc_pp`)
-
-        Quantification is only as accurate as your sensitivity factors!
-
-        Args:
-            quantifier (Quantifier): The quantifier, if prepared before method call.
-               No additional arguments needed. Otherwise, the following three are needed:
-            calibration (Calibration): The calibration to build the quantifier with
-            mol_list (list of str): The list of molecules to use in flux calculations.
-               These should all be represented in the Calibration. If not provided,
-               we'll use all the mols in the Calibration.
-            mass_list (list of str): The list of masses to use in flux calculations.
-               These should all be represented in the Calibration. If not provided,
-               we'll use all the masses in the Calibration.
-            carrier (optional, str): The carrier gas in the experiment. Defaults to "He".
-        """
-        if not plugins.use_siq:
-            raise QuantificationError(
-                "`MSMeasurement.set_siq_quantifier` only works when using "
-                "`spectro_inlets_quantification` "
-                "(`ixdat.options.activate_siq()`). "
-                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
-            )
-        Quantifier = plugins.siq.Quantifier
-
-        if quantifier:
-            self._siq_quantifier = quantifier
-        else:
-            mol_list = mol_list or calibration.mol_list
-            mass_list = mass_list or calibration.mass_list
-            self._siq_quantifier = Quantifier(
-                calibration=calibration,
-                mol_list=mol_list,
-                mass_list=mass_list,
-                carrier=carrier,
-            )
-
-    @property
-    def siq_quantifier(self):
-        return self._siq_quantifier
-
-    cut = _with_siq_quantifier(Measurement.cut)
-    multicut = _with_siq_quantifier(Measurement.multicut)
-
-
-class MSCalResult(Saveable):
-    """A class for a mass spec ms_calibration result.
-
-    FIXME: I think that something inheriting directly from Saveable does not belong in
-        a technique module.
-    """
-
-    table_name = "ms_cal_results"
-    column_attrs = {"name", "mol", "mass", "cal_type", "F"}
-
-    def __init__(
-        self,
-        name=None,
-        mol=None,
-        mass=None,
-        cal_type=None,
-        F=None,
-    ):
-        super().__init__()
-        self.name = name or f"{mol}@{mass}"
-        self.mol = mol
-        self.mass = mass
-        self.cal_type = cal_type
-        self.F = F
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(name={self.name}, mol={self.mol}, "
-            f"mass={self.mass}, F={self.F})"
-        )
-
-    @property
-    def color(self):
-        return STANDARD_COLORS[self.mass]
-
-    @classmethod
-    def from_siq(cls, siq_cal_point):
-        return cls(
-            name=siq_cal_point.mol + "@" + siq_cal_point.mass,
-            mol=siq_cal_point.mol,
-            mass=siq_cal_point.mass,
-            cal_type=siq_cal_point.F_type,
-            F=siq_cal_point.F,
-        )
-
-    def to_siq(self):
-        if not plugins.use_siq:
-            raise QuantificationError(
-                "`MSCalPoint.to_siq` only works when using "
-                "`spectro_inlets_quantification` "
-                "(`ixdat.options.activate_siq()`). "
-                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
-            )
-        return plugins.siq.CalPoint(
-            mol=self.mol,
-            mass=self.mass,
-            F=self.F,
-            F_type=self.cal_type,
-        )
-
-
-class MSCalibration(Calculator):
-    """Class for mass spec calibrations. TODO: replace with powerful external package"""
-
-    extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
-    # FIXME: signal_bgs are not saved at present. Should they be a separate table
-    #   of Saveable objects like ms_cal_results or should they be a single json value?
-    child_attrs = [
-        "ms_cal_results",
-    ]
-
-    def __init__(
-        self,
-        name=None,
-        date=None,
-        tstamp=None,  # FIXME: No need to have both a date and a tstamp?
-        setup=None,
-        ms_cal_results=None,
-        signal_bgs=None,
-        technique="MS",
-        measurement=None,
-    ):
-        """
-        Args:
-            name (str): Name of the ms_calibration
-            date (str): Date of the ms_calibration
-            setup (str): Name of the setup where the ms_calibration is made
-            ms_cal_results (list of MSCalResult): The mass spec calibrations
-            measurement (MSMeasurement): The measurement
-        """
-        super().__init__(
-            name=name or f"EC-MS ms_calibration for {setup} on {date}",
-            technique=technique,
-            tstamp=tstamp,
-            measurement=measurement,
-        )
-        self.date = date
-        self.setup = setup
-        self.ms_cal_results = ms_cal_results or []
-        self.signal_bgs = signal_bgs or {}
+        return cls(ms_cal_results=[cal_result], measurement=measurement)
 
     @property
     def ms_cal_result_ids(self):
@@ -1025,6 +692,15 @@ class MSCalibration(Calculator):
     def __iter__(self):
         yield from self.ms_cal_results
 
+    def __getattr__(self, attr):
+        """A MSCalibration with one cal result can be dropped in for that result:"""
+        ms_cal_results = super().__getattr__("ms_cal_results")
+        if len(ms_cal_results) == 1:
+            ms_cal_result = self.ms_cal_results[0]
+            if hasattr(ms_cal_result, attr):
+                return getattr(ms_cal_result, attr)
+        return super().__getattr__(attr)
+
     @property
     def available_series_names(self):
         return set([f"n_dot_{mol}" for mol in self.mol_list])
@@ -1045,9 +721,15 @@ class MSCalibration(Calculator):
             try:
                 mass, F = self.get_mass_and_F(mol)
             except QuantificationError:
-                # Calibrations just return None when they can't get what's requested.
+                # Calculators just return None when they can't get what's requested.
                 return
-            signal_series = measurement[mass]
+            try:
+                signal_series = measurement[mass]
+            except SeriesNotFoundError:
+                # Calculators just return None when they can't get what's requested.
+                # It could be that another calibration contains a sensitivity factor
+                # for the desired mol at an available mass.
+                return
             y = signal_series.data
             if mass in measurement.signal_bgs:
                 # FIXME: How to make this optional to user of MSMeasuremt.grab()?
@@ -1129,17 +811,17 @@ class MSCalibration(Calculator):
             json.dump(self_as_dict, f, indent=4)
 
     @classmethod
-    def from_siq(cls, siq_calibration):
+    def from_siq(cls, siq_calculator):
 
         # A complication is that it can be either a Calibration or a SensitivityList.
         # Either way, the sensitivity factors are in `sf_list`:
-        ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]
+        ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calculator.sf_list]
         # if it's a Calibration, we want the metadata:
         try:
             calibration = cls(
-                name=siq_calibration.name,
-                date=siq_calibration.date,
-                setup=siq_calibration.setup,
+                name=siq_calculator.name,
+                date=siq_calculator.date,
+                setup=siq_calculator.setup,
                 ms_cal_results=ms_cal_results,
             )
         # if not, we just want the data:
@@ -1150,13 +832,12 @@ class MSCalibration(Calculator):
     def to_siq(self):
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSCalPoint.to_siq` only works when using "
+                "`MSCalculator.to_siq` only works when using "
                 "`spectro_inlets_quantification` "
-                "(`ixdat.options.activate_siq()`). "
-                "For native ixdat MS quantification, use `MSMeasurement.calibrate`"
+                "(`ixdat.plugins.activate_siq()`). "
             )
         cal_list = [cal.to_siq() for cal in self.ms_cal_results]
-        return plugins.siq.Calibration(
+        return plugins.siq.Calculator(
             name=self.name,
             date=self.date,
             setup=self.setup,
@@ -1324,38 +1005,23 @@ class MSInlet:
         n_dot = N_dot / AVOGADRO_CONSTANT
         return n_dot
 
+    # --- METHODS WHICH HAVE BEEN MOVED TO `Calculator` CLASSES ---- #
+
     @deprecate(
         last_supported_release="0.2.5",
-        update_message=("`gas_flux_calibration` is now a method of `MSMeasurement`"),
+        update_message=("`gas_flux_calibration` is now a method of `MSCalculator`"),
         hard_deprecation_release="0.3.0",
         remove_release="1.0.0",
     )
-    def gas_flux_calibration(
-        self,
-        measurement,
-        mol,
-        mass,
-        tspan=None,
-        tspan_bg=None,
-        ax=None,
-        carrier_mol=None,
-        mol_conc_ppm=None,
-    ):
-        return measurement.gas_flux_calibration(
-            mol=mol,
-            inlet=self,
-            mass=mass,
-            tspan=tspan,
-            tspan_bg=tspan_bg,
-            ax=ax,
-            carrier_mol=carrier_mol,
-            mol_conc_ppm=mol_conc_ppm,
+    def gas_flux_calibration(self, measurement, mol, mass, *args, **kwargs):
+        return MSCalculator.gas_flux_calibration(
+            measurement=measurement, mol=mol, mass=mass, inlet=self, *args, **kwargs
         )
 
     @deprecate(
         last_supported_release="0.2.5",
         update_message=(
-            "`gas_flux_calibration_curve` is now a method of `MSMeasurement`"
+            "`gas_flux_calibration_curve` is now a method of `MSCalculator`"
         ),
         hard_deprecation_release="0.3.0",
         remove_release="1.0.0",
@@ -1365,27 +1031,11 @@ class MSInlet:
         measurement,
         mol,
         mass,
-        tspan_list=None,
-        carrier_mol=None,
-        mol_conc_ppm=None,
-        p_inlet=None,
-        tspan_bg=None,
-        ax="new",
-        axis_measurement=None,
-        return_ax=False,
+        *args,
+        **kwargs,
     ):
-        return measurement.gas_flux_calibration_curve(
-            mol=mol,
-            inlet=self,
-            mass=mass,
-            tspan_list=tspan_list,
-            tspan_bg=tspan_bg,
-            ax=ax,
-            carrier_mol=carrier_mol,
-            mol_conc_ppm=mol_conc_ppm,
-            p_inlet=p_inlet,
-            axis_measurement=axis_measurement,
-            return_ax=return_ax,
+        return MSCalculator.gas_flux_calibration_curve(
+            measurement=measurement, mol=mol, mass=mass, inlet=self, *args, **kwargs
         )
 
 
@@ -1410,9 +1060,5 @@ class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
     }
     default_plotter = MSSpectroPlotter
     default_exporter = MSSpectroExporter
-
-    # FIXME: this shouldn't be necessary. See #164.
-    cut = _with_siq_quantifier(SpectroMeasurement.cut)
-    multicut = _with_siq_quantifier(SpectroMeasurement.multicut)
 
     # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1486023530
