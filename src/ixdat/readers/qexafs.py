@@ -101,14 +101,8 @@ class QexafsDATReader:
 
 
 class B18TRXRFReader:
-    def read(
-        self,
-        path_to_file,
-        cls,
-        seconds_per_x,
-        **kwargs
-    ):
-        """Read the .dat file exported by Diamond B18-Core, for time-resolved X-ray data 
+    def read(self, path_to_file, cls, seconds_per_x, **kwargs):
+        """Read the .dat file exported by Diamond B18-Core, for time-resolved X-ray data
                 (or fixed exciting enenrgy data).
 
         Args:
@@ -117,10 +111,10 @@ class B18TRXRFReader:
                 reader via the read() method of a Spectrum sub-class, cls will
                 automatically be that subclass. Defaults to `None`, meaning that the
                 class will be determined by `technique`.
-            seconds_per_x (float): The time that corrresponds to 1 dummy energy 
-                (dummy energy is the x of spec, it could be at an interval of 1, 0.1, 0.001...)  
-                e.g. if the dummy energy is 0.001, 0.002.. but actual time is 1s, 2s..., then
-                seconds_per_x value should be 1000. 
+            seconds_per_x (float): The time that corrresponds to 1 dummy energy
+                (dummy energy is the x of spec, it could be at an interval of 1, 0.1,
+                 0.001...) e.g. if the dummy energy is 0.001, 0.002.. but actual time is
+                1s, 2s..., then seconds_per_x value should be 1000.
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
         if issubclass(TRXRFMeasurement, cls):
@@ -132,7 +126,10 @@ class B18TRXRFReader:
         t = multi_spec.x * seconds_per_x
 
         tseries = TimeSeries(
-            name="time from dummy variable", unit_name="s", data=t, tstamp=tstamp,
+            name="time from dummy variable",
+            unit_name="s",
+            data=t,
+            tstamp=tstamp,
         )
         series_list = [tseries]
         for spectrum in multi_spec.spectrum_list:

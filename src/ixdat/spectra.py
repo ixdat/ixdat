@@ -433,7 +433,9 @@ class MultiSpectrum(Saveable):
             return spectrum_list[0]
         elif len(spectrum_list) > 1:
             return self.__class__.from_spectrum_list(
-                spectrum_list, technique=self.technique, metadata=self.metadata,
+                spectrum_list,
+                technique=self.technique,
+                metadata=self.metadata,
             )
 
     @classmethod
