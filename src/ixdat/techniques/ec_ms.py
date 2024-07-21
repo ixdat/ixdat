@@ -4,11 +4,12 @@ import warnings
 from scipy.optimize import minimize
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
-from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
+from .ms import MSMeasurement, MSSpectroMeasurement, MSCalResult, MSCalibration
+from .ms import _with_siq_quantifier  # FIXME: see #164
 from .cv import CyclicVoltammogram
 from ..exceptions import QuantificationError
-from ..exporters.ecms_exporter import ECMSExporter
-from ..plotters.ecms_plotter import ECMSPlotter
+from ..exporters import ECMSExporter
+from ..plotters import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..config import plugins
 
@@ -25,31 +26,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter
-
-    def __init__(self, **kwargs):
-        """FIXME: Passing the right key-word arguments on is a mess"""
-        ec_kwargs = {
-            k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
-        }
-        ms_kwargs = {
-            k: v for k, v in kwargs.items() if k in MSMeasurement.get_all_column_attrs()
-        }
-        # ms_kwargs["ms_calibration"] = self.ms_calibration  # FIXME: This is a mess.
-        # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
-        #  works together with MemoryBackend
-        if "series_list" in kwargs:
-            ec_kwargs.update(series_list=kwargs["series_list"])
-            ms_kwargs.update(series_list=kwargs["series_list"])
-        if "component_measurements" in kwargs:
-            ec_kwargs.update(component_measurements=kwargs["component_measurements"])
-            ms_kwargs.update(component_measurements=kwargs["component_measurements"])
-        if "calibration_list" in kwargs:
-            ec_kwargs.update(calibration_list=kwargs["calibration_list"])
-            ms_kwargs.update(calibration_list=kwargs["calibration_list"])
-        ECMeasurement.__init__(self, **ec_kwargs)
-        MSMeasurement.__init__(self, **ms_kwargs)
-        self._ec_plotter = None
-        self._ms_plotter = None
 
     @property
     def ec_plotter(self):
@@ -96,7 +72,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
 
         return ecms_cv
 
-    def ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
+    def ecms_calibration(
+        self, mol, mass, n_el, tspan, faradaic_efficiency=1, tspan_bg=None
+    ):
         """Calibrate for mol and mass based on one period of steady electrolysis
 
         Args:
@@ -104,6 +82,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
+                contribution from different isotopes. Defaults to 1.
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
 
@@ -116,7 +97,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             )
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         Q = self.integrate("raw_current", tspan=tspan) * 1e-3
-        n = Q / (n_el * FARADAY_CONSTANT)
+        n = Q / (n_el * FARADAY_CONSTANT) * faradaic_efficiency
         F = Y / n
         cal = MSCalResult(
             name=f"{mol}@{mass}",
@@ -132,6 +113,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mol,
         mass,
         n_el,
+        faradaic_efficiency=1,
         tspan_list=None,
         selector_name=None,
         selector_list=None,
@@ -150,6 +132,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
+                contribution from different isotopes. Defaults to 1.
             tspan_list (list of tspan): The timespans of steady electrolysis
             selector_name (str): Name of selector which identifies the periods
                 of steady electrolysis for automatic selection of timespans of steady
@@ -185,6 +170,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mol=mol,
             mass=mass,
             n_el=n_el,
+            faradaic_efficiency=faradaic_efficiency,
             tspan_list=tspan_list,
             selector_name=selector_name,
             selector_list=selector_list,
@@ -202,6 +188,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mol,
         mass,
         n_el,
+        faradaic_efficiency=1,
         tspan_list=None,
         selector_name=None,
         selector_list=None,
@@ -232,7 +219,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 self.integrate(axes_measurement_J_name, tspan=tspan, ax=axis_current)
             Q = self.integrate("raw_current", tspan=tspan)
             Q *= 1e-3  # mC --> [C]
-            n = Q / (n_el * FARADAY_CONSTANT)
+            n = Q / (n_el * FARADAY_CONSTANT) * faradaic_efficiency
             Y_list.append(Y)
             n_list.append(n)
         n_vec = np.array(n_list)
@@ -311,7 +298,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         print("Following tspans were selected for calibration: " + str(tspan_list))
         return tspan_list
 
-    def siq_ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
+    def siq_ecms_calibration(
+        self, mol, mass, n_el, tspan, faradaic_efficiency=1, tspan_bg=None
+    ):
         """Calibrate for mol and mass based on one period of steady electrolysis
 
         Use `spectro_inlets_quantification` package.
@@ -320,6 +309,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
+                contribution from different isotopes. Defaults to 1.
             tspan (tspan): The timespan of steady electrolysis
             tspan_bg (tspan): The time to use as a background
 
@@ -335,7 +327,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             )
         Y = self.integrate_signal(mass, tspan=tspan, tspan_bg=tspan_bg)
         Q = self.integrate("raw_current", tspan=tspan) * 1e-3
-        n = Q / (n_el * FARADAY_CONSTANT)
+        n = Q / (n_el * FARADAY_CONSTANT) * faradaic_efficiency
         F = Y / n
         cal = plugins.siq.CalPoint(
             name=f"{mol}@{mass}",
@@ -351,6 +343,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         mol,
         mass,
         n_el,
+        faradaic_efficiency=1,
         tspan_list=None,
         selector_name=None,
         selector_list=None,
@@ -371,6 +364,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mass (str): Name of the mass at which to calibrate
             n_el (str): Number of electrons passed per molecule produced (remember the
                 sign! e.g. +4 for O2 by OER and -2 for H2 by HER)
+            faradaic_efficiency (str): Factor to multiply EC flux by to correct if
+                product is not produced at 100% FE. Also works to deconvolute
+                contribution from different isotopes. Defaults to 1.
             tspan_list (list of tspan): The timespans of steady electrolysis
             selector_name (str): Name of selector which identifies the periods
                 of steady electrolysis for automatic selection of timespans of steady
@@ -409,6 +405,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mol=mol,
             mass=mass,
             n_el=n_el,
+            faradaic_efficiency=faradaic_efficiency,
             tspan_list=tspan_list,
             selector_name=selector_name,
             selector_list=selector_list,
@@ -493,3 +490,7 @@ class ECMSCalibration(ECCalibration, MSCalibration):
         try_2 = MSCalibration.calibrate_series(self, key, measurement)
         if try_2:
             return try_2
+
+
+class ECMSSpectroMeasurement(ECMSMeasurement, MSSpectroMeasurement):
+    pass

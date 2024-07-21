@@ -25,7 +25,6 @@ if True:  # test reading from directory
     # full_measurement.select_values(loop_number=1, **{"loop_number": 0}).plot()
 
 if True:
-
     ocp_file = data_dir / "01_demo_02_OCV_C01.mpt"
     cv_file = data_dir / "01_demo_03_CVA_C01.mpt"
     cp_file = data_dir / "01_demo_04_CP_C01.mpt"

@@ -38,7 +38,12 @@ from .avantage import AvantageAVGReader
 # xas
 from .qexafs import QexafsDATReader, B18TRXRFReader
 
+# ftir
+from .opus_ftir import OpusFTIRReader
+
+
 # Measruement.read() looks for readers here:
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicReader,
@@ -65,4 +70,5 @@ SPECTRUM_READER_CLASSES = {
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
     "qexafs": QexafsDATReader,
+    "opus_ftir": OpusFTIRReader,
 }
