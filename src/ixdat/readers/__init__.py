@@ -36,7 +36,7 @@ from .xrdml import XRDMLReader
 from .avantage import AvantageAVGReader
 
 # xas
-from .qexafs import QexafsDATReader
+from .qexafs import QexafsDATReader, B18TRXRFReader
 
 # ftir
 from .opus_ftir import OpusFTIRReader
@@ -59,7 +59,7 @@ READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
-    "qexafs": QexafsDATReader,
+    "b18_trxrf": B18TRXRFReader,
 }
 
 
@@ -69,5 +69,6 @@ SPECTRUM_READER_CLASSES = {
     "avantage": AvantageAVGReader,
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
+    "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
 }

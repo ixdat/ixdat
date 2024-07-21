@@ -226,14 +226,15 @@ class Measurement(Saveable):
         except TypeError as e:
             raise TechniqueError(
                 "ixdat ran into an error while trying to set up an object of type "
-                f"{technique_class}. This usually happens when ixdat isn't able "
-                f"to correctly determine the measurement technique.\n"
-                f"The error:\n  {e}\n\n"  # two space are intended
-                "Consider passing the `technique` argument into the read() function.\n"
-                "The available techniques are:\n"
-                f"  {list(TECHNIQUE_CLASSES.keys())}"  # again intended
-            )  # adding `from None` here would avoid repeating the message in `e`...
-            # ...but it can be useful to have the full traceback!
+                f"{technique_class}. This usually happens when ixdat wasn't able"
+                "to correctly determine the measurement technique. Consider"
+                "passing the `technique` argument into the read() function. \n"
+                "For a list of available techniques use: \n "
+                ">>> from ixdat.techniques import TECHNIQUE_CLASSES\n"
+                ">>> print(TECHNIQUE_CLASSES.keys())\n"
+                f"{e}"
+            )
+            raise
 
         return measurement
 

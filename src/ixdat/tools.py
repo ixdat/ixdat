@@ -21,7 +21,8 @@ warnings.simplefilter("default")
 
 def thing_is_close(thing_one, thing_two):
     """Return whether two things are (nearly) equal, looking recursively if necessary"""
-    if not isinstance(thing_two, type(thing_one)):
+
+    if type(thing_one) is not type(thing_two):
         return False
 
     if isinstance(thing_one, list):
@@ -81,7 +82,7 @@ def list_is_close(list_one, list_two):
         return False
 
     for value_one, value_two in zip(list_one, list_two):
-        if not isinstance(value_two, type(value_one)):
+        if type(value_one) is not type(value_two):
             return False
         if not thing_is_close(value_one, value_two):
             return False
