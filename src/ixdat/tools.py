@@ -21,7 +21,7 @@ warnings.simplefilter("default")
 
 def thing_is_close(thing_one, thing_two):
     """Return whether two things are (nearly) equal, looking recursively if necessary"""
-    
+
     if type(thing_one) is not type(thing_two):
         return False
 
