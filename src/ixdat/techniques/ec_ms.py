@@ -2,8 +2,10 @@
 
 import numpy as np
 import warnings
+import pandas as pd
 from scipy.optimize import minimize
 from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
+from pandas import DataFrame
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
@@ -517,8 +519,13 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         t_bg=[-10, -1],
         snr=7,
         return_t_v_list=False,
+        export_data=False,
     ):
         """
+        TODO: change everything that claims to be a partial current density when its
+        actually a deconvoluted signal derived from current (unit is mols/s not mA!)
+        
+        
         Loops though list of tspans and associated t_zero list to deconvolute using
         the given impulse response (from model, but could also be from data) for
         the molecule the impulse resp
@@ -533,7 +540,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             mol (str): molecule
             F_mol (CalPoint): spectro_inlets_calibration CalPoint object
                 #TODO: make it work with ixdat native?
-            plot (bool): will return a plot of each tspan
+            plot (bool): will return a plot of each tspan and save using name
             name (str): str to use for title in figure and saving
             t_bg (tspan): tspan to be used as background IN RELATION TO t_zero.
                 Will be the same for each tspan. #TODO: add list option?
@@ -541,6 +548,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 (see grab_deconvoluted_current())
             return_t_v_list (bool): Whether to return list of (time, deconvoluted
                 partial current densisty), Defaults to False
+            export_data (bool): save raw and deconvoluted data as csv using name
 
         Return t_v_list (list): list of tuple of (time, deconvoluted partial current
                    densisty) as returned from grab_deconvoluted_current()
@@ -576,9 +584,26 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 axes[3].set_alpha(1)  # this doesnt work, not sure why
                 axes[0].plot(t_partcurr, v_partcurr, color=STANDARD_COLORS[mol])
                 axes[0].get_figure().savefig(name + "tstart_" + str(t_zero) + ".png")
+                
+            if export_data:
+                # TODO use the ixdat csv exporter - but how to add the deconvoluted current?
+                # feed data into a pandas dataframe instead and use the pandas csv exporter
+                # function for now
+                # grab current density, potential, calibrated mol data, deconvoluted mol data
+                # fill it all in a dict and then convert dict to df, then export
+                raw_I_t, raw_I = data_snippet.grab("raw_current")
+                i_t, i = data_snippet.grab("J / [mA cm$^{-2}$]")
+                raw_U_t, raw_U  = data_snippet.grab("raw_potential")
+                # also add RHE potential? but what if that doesnt exist?
+                raw_sig_t, raw_sig = data_snippet.grab_flux(mol)
+                export_dict = {"time raw current / s": raw_I_t,"raw current / mA": raw_I, "time J / s": i_t, "J / [mA cm$^{-2}$]": i,
+                                "time potential / s": raw_U_t, "raw_potential / V": raw_U, "time measured " + mol + " flux/ s": raw_sig_t,
+                                "measured " + mol + " flux / mol/s":  raw_sig, " time deconvoluted " + mol + " flux / s": t_partcurr,
+                                "deconvoluted " + mol + " flux / mol/s": v_partcurr}
+                export_df = DataFrame({ key:pd.Series(value) for key, value in export_dict.items()})
+                export_df.to_csv(name + "tstart_" + str(t_zero) + ".csv", index=False)
         if return_t_v_list:
             return t_v_list
-
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, ECMSMeasurement"""
