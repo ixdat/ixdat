@@ -1,6 +1,7 @@
 """Module for deconvolution of mass transport effects."""
 
 import numpy as np
+import warnings
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit  # noqa
 from scipy.interpolate import interp1d  # noqa
@@ -10,113 +11,138 @@ from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 
 from ..exceptions import TechniqueError
 from ..config import plugins
-from ..constants import R
+from ..constants import R, STANDARD_TEMPERATURE, STANDARD_PRESSURE
 from ..plotters.plotting_tools import calc_linear_background
 
-# FIXME: too much abbreviation in this module.
-# TODO: Implement the PR review here: https://github.com/ixdat/ixdat/pull/4
 # TODO: Would be very useful to have a method to calculate the condition number for
 # a certain analyte
 
-
 class ECMSImpulseResponse:
     """
-    Class implementing impulse response deconvolution of ECMS data.
+    Class implementing impulse response deconvolution of ECMS measurement.
+    
+    Extracts an ECMSImpulseResponse object from a measurement using the
+    algorithm developed by Krempl et al. 2021
+    https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+    
+    some args for initializing are optional if a 
+    
+    TODO: add something about the requirements of the ECMSMeasurement. eg t_zero needs to 
+    be where the current starts (does it?), it needs to be quantified data! only one mol at a time
 
     # TODO: Make class inherit from Calculator, add properties to store kernel
     # TODO: Reference equations to paper.
-
     """
 
     def __init__(
         self,
         mol,
-        data=None,
+        measurement=None,
         working_distance=None,
         A_el=None,
-        diff_const=None,
-        henry_vola=None,
-        chip=None,
+        D=None,
+        H_v_cc=None,
+        n_dot=None,
+        T = STANDARD_TEMPERATURE,
+        p = STANDARD_PRESSURE,
         carrier_gas=None,
         gas_volume=1e-10,
     ):
         """
         Initializes a ECMSImpulseResponse object either in functional form by defining
-        the mass transport parameters or in the measured form by passing of EC-MS data.
+        the mass transport parameters or in the measured form by passing of EC-MS measurement.
+        
         Args:
             mol: Molecule to calculate the impulse response of
-            data: ECMSMeasurement object. Optional. If passed, the impulse response
-                will be calculated based on the measured data, overwriting the parameters
+            measurement: ECMSMeasurement object. Optional. If passed, the impulse response
+                will be calculated based on the measurement, overwriting the parameters
                 passed for a calculated one.
             working_distance: Working distance between electrode and gas/liq interface in
                 m. Optional, though necessary if no data is provided.
             A_el: Geometric electrode area in cm2. Optional, though necessary if no data
                 is provided.
-            diff_const: Diffusion constant in liquid. Optional. Default will check
+            D: Diffusion constant in liquid. Optional. Default will check
             diffusion constant in water in Molecule data from siq.
-            henry_vola: Dimensionless Henry volatility. Optional. Default will check
-            Henry volatility constant in water in Molecule data from siq.-CURRENTLY WRONG
-            chip: Optional. Needed to define capillary flow. Default will use
-                SpectroInlets chip from siq.
-            carrier_gas: The carrier gas used to calculate capillary flow. Defaults to He
+            H_v_cc: Dimensionless Henry volatility. Optional. Default will check
+            Henry volatility constant in water in Molecule data from siq.
+            n_dot: Capillary flux in mol/s. Optional if siq is activated.
+            T: Temperature in K. Defaults to STANDARD_TEMPERATURE (298.15 K)
+            p: Pressure (on the high pressure side) in Pa. Defaults to STANDARD_PRESSURE (100000 Pa)
+            carrier_gas: The carrier gas used to calculate capillary flow when using siq. Defaults to He
             gas_volume: the volume of the headspace volume in the chip. Default is the
                 volume of the SpectroInlets chip.
         """
-        if data is not None:
-            self.mol = mol
-            self.data = data
-            self.type = "measured"
-            print("Generating `ECMSImpulseResponse` from measured data.")
-            if working_distance is not None or A_el is not None:
-                raise UserWarning(
-                    "Data was used to generate `ECMSImpulseResponse` ignoring the given"
-                    "working_distance/electrode area."
+        self.mol = mol # Johannes said that might not be needed anymore, assigning all the selfs here?
+        self.measurement = measurement
+        self.working_distance = working_distance
+        self.A_el = A_el
+        self.D = D
+        self.H_v_cc = H_v_cc
+        self.n_dot = n_dot
+        self.T = T
+        self.p = p
+        self.carrier_gas = carrier_gas
+        self.gas_volume = gas_volume
+        
+    @classmethod
+    def from_measurement(cls):
+        "Generate an ECMSImpulseResponse from measurement."
+        cls.type = "measured"
+        print("Generating `ECMSImpulseResponse` from measurement.")
+        if cls.working_distance is not None or cls.A_el is not None:
+            raise warnings.warn(
+                "Measurement was used to generate `ECMSImpulseResponse` ignoring the given"
+                "working_distance/electrode area."
                 )
-
-        elif working_distance is not None and A_el is not None:
-            self.mol = mol
-            self.type = "functional"
-            if not plugins.use_siq:
-                raise TechniqueError(
-                    "`ECMSImpulseResponse` will only work properly when using "
-                    # TODO this should be improved.- doesnt need to fully depend on siq
-                    # integration
-                    "`spectro_inlets_quantification` "
-                    "(`ixdat.plugins.activate_siq()`). "
-                )
+            
+    @classmethod
+    def from_parameters(cls):
+        "Generate an ECMSImpulseResponse from parameters."
+        cls.type = "functional"
+        if plugins.use_siq:
             # calculate the capillary flow for the specified gas & chip
+            # initiate the chip
             Chip = plugins.siq.Chip
-            chip = chip or Chip()
-            n_dot = chip.calc_n_dot_0(gas=carrier_gas)
-            # convert to volumetric flux using T and p given by chip.
-            V_dot = n_dot * R * chip.T / chip.p
+            chip = Chip()
+            # set the T and p of the chip according to the values given
+            chip.T = cls.T
+            chip.p = cls.p
+            n_dot = chip.calc_n_dot_0(gas=cls.carrier_gas)
             # find the other parameters from the siq Molecule files
             Molecule = plugins.siq.Molecule
-            molecule = Molecule(mol)
-            # print(molecule)
-            if diff_const is None:
-                raise TechniqueError("Default diffusion constant not yet implemented")
-                diff_const = molecule.D
+            molecule = Molecule.load(cls.mol)
+            if cls.D is None:
+                D = molecule.D
                 # TODO double check units and understand why siq integration is not
-                # working
-                print(diff_const)
-            if henry_vola is None:
-                raise TechniqueError("Default henry volatility not yet implemented")
-                # henry_vola = molecule.H_0
-                # TODO convert this to the right unit! (dimensionless henry volatility)
-            self.params = {
-                "working_distance": working_distance,
-                "A_el": A_el,
-                "diff_const": diff_const,
-                "henry_vola": henry_vola,
-                "V_dot": V_dot,
-                "gas_volume": gas_volume,
-            }
+                # working - maybe because I initiate the molecule wrongly! 
+                print(D)
+            if cls.H_v_cc is None:
+                H_v_cc = 1 / (R * chip.T * molecule.H_0) * 100
+                print(H_v_cc)
         else:
-            raise TechniqueError(
-                "Cannot initialize ECMSImpluseResponse without either data or working"
-                "distance + electrode area being provided."
-            )
+            if cls.D is None:
+               raise TechniqueError(
+                   "D is required to initialize ECMSImpluseResponse. Alternatively" 
+                   "activate siq as plugin to automatically load D for molecule."
+                   ) 
+            if cls.H_v_cc is None:
+                raise TechniqueError(
+                    "H_v_cc is required to initialize ECMSImpluseResponse. Alternatively" 
+                    "activate siq as plugin to automatically load H_v_cc for molecule."
+                    ) 
+            # convert to volumetric flux using T and p given by chip.
+            V_dot = cls.n_dot * R * cls.T / cls.p
+            # calculate the residence time in the chip headspace
+            residence_t = V_dot / cls.gas_volume                
+                
+            cls.params = {
+                "working_distance": cls.working_distance,
+                "A_el": cls.A_el,
+                "D": cls.D,
+                "H_v_cc": cls.H_v_cc,
+                "residence_t": residence_t,
+                "gas_volume": cls.gas_volume,
+            }
 
     def model_impulse_response_from_params(
         self, dt=0.1, duration=100, norm=True, matrix=False
@@ -126,7 +152,7 @@ class ECMSImpulseResponse:
         TODO: might make more sense to pass parameters to the method instead?
         Args:
             dt (int): Timestep for which the impulse response is calculated.
-                Has to match the timestep of the measured data for deconvolution.
+                Has to match the timestep of the measurement for deconvolution.
 
             duration(int): Duration in seconds for which the kernel/impulse response is
                 calculated. Must be long enough to reach zero.
@@ -134,27 +160,28 @@ class ECMSImpulseResponse:
                 area.
             matrix (bool): If true the circulant matrix constructed from the
                 impulse reponse is returned.
+        Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the modelled impulse response 
         """
         if self.type == "functional":
 
             t_kernel = np.arange(0, duration, dt)
             t_kernel[0] = 1e-6
-            diff_const = self.params["diff_const"]
-            work_dist = self.params["working_distance"]
-            vol_gas = self.params["gas_volume"]
-            volflow_cap = self.params["V_dot"]
-            henry_vola = self.params["henry_vola"]
+            D = self.params["D"]
+            working_distance = self.params["working_distance"]
+            gas_volume = self.params["gas_volume"]
+            residence_t = self.params["residence_t"]
+            H_v_cc = self.params["H_v_cc"]
             A_el = self.params["A_el"]
 
-            tdiff = t_kernel * diff_const / (work_dist**2)
+            tdiff = t_kernel * D / (working_distance**2)
 
             def fs(s):
                 # See Krempl et al, 2021. Equation 6.
                 #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
                 return 1 / (
                     sqrt(s) * sinh(sqrt(s))
-                    + (vol_gas * henry_vola / (A_el * 1e-4 * work_dist))
-                    * (s + volflow_cap / vol_gas * work_dist**2 / diff_const)
+                    + (gas_volume * H_v_cc / (A_el * 1e-4 *  working_distance))
+                    * (s + residence_t *  working_distance**2 / D)
                     * cosh(sqrt(s))
                 )
 
@@ -178,13 +205,13 @@ class ECMSImpulseResponse:
             )
         return t_kernel, kernel
 
-    def calc_impulse_response_from_data(
+    def calc_impulse_response_from_measurement(
         self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False
     ):
-        """Calculates impulse response from data.
+        """Calculates impulse response from measurement.
         TODO: add possibility of subtracting a linear background!!!
-        TODO: add option to plot the implulse response from data/ return an axis to
-            co-plot with the data
+        TODO: add option to plot the implulse response from measurement/ return an axis to
+            co-plot with the measurement
         TODO: figure out if it's ok to just get rid of dt and duration (not used here)
         TODO: change the name kernel to something else
 
@@ -197,14 +224,15 @@ class ECMSImpulseResponse:
                 area. Default is True.
             matrix (bool): If true the circulant matrix constructed from the
                 impulse reponse is returned. Default is False.
+        Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the measured impulse response 
         """
         if self.type == "measured":
             if type(tspan_bg[0]) is not list:
-                t_kernel, kernel = self.data.grab_flux(
+                t_kernel, kernel = self.measurement.grab_flux(
                     mol=self.mol, tspan=tspan, tspan_bg=tspan_bg
                 )
             else:
-                t_kernel, kernel_raw = self.data.grab_flux(mol=self.mol, tspan=tspan)
+                t_kernel, kernel_raw = self.measurement.grab_flux(mol=self.mol, tspan=tspan)
                 bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
                 kernel = kernel_raw - bg
             if norm:
@@ -217,7 +245,7 @@ class ECMSImpulseResponse:
                     kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
                     i = i + 1
         else:
-            raise TechniqueError("Cannot calculate impulse response without data.")
+            raise TechniqueError("Cannot calculate impulse response without measurement.")
         return t_kernel, kernel
 
     @np.vectorize
@@ -230,11 +258,11 @@ class ECMSImpulseResponse:
 
         # Define mass transport parameters.
         params = {
-            "diff_const": 5.05e-9,
+            "D": 5.05e-9,
             "work_dist": working_dist * 1e-6,
             "vol_gas": 1.37e-10,
             "volflow_cap": 1e-10,
-            "henry_vola": 52,
+            "H_v_cc": 52,
         }
 
         model_kernel = ECMSImpulseResponse(parameters=params)
