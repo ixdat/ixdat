@@ -11,7 +11,7 @@ from .ec import ECMeasurement, ECCalibration
 from .ms import MSMeasurement, MSCalResult, MSCalibration, _with_siq_quantifier
 from .cv import CyclicVoltammogram
 from .deconvolution import ECMSImpulseResponse
-from ..exceptions import QuantificationError
+from ..exceptions import QuantificationError, TechniqueError
 from ..exporters.ecms_exporter import ECMSExporter
 from ..plotters.ecms_plotter import ECMSPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
@@ -446,44 +446,73 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Args:
             mol (str): Name of molecule for which deconvolution is to
                 be carried out.
-            impulse_response (ECMSImpulseResponse): Kernel object which contains the mass
-                transport parameters
+            impulse_response: ImpulseResponse Object
+             for ECMSImpulseResponse for details)
             tspan (list): Timespan for which the partial current is returned.
             tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
-        # TODO: comments in this method so someone can tell what's going on!
-
         # grab the calibrated data
         t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
         # calculate the impulse response
-        signal_response = impulse_response.from_parameters( # TODO fix this so it works with the the new ECMSImpulseResponse object with classmethod
-            dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
-        )
-        # this seems quite inefficient, to re-calculate the impulse response every time?
-        # TODO: store this somehow
+        
+        # first check that the impulse reponse passed is from parameters, because
+        # otherwise this might not work for now. Should make this work in the future!
+        # There is no reason why a measured impulse response shouldnt be just as useful
+        # for deconvolution, but only possible if dt and duration are the same as in
+        # the measurement that is to be deconvoluted.
+        if impulse_response.ir_type != "calculated":
+            raise TechniqueError("You need to pass an ECMSImpulseResponse object calculated"
+                                 "from parameters to calculate deconvoluted currents. " 
+                                 "(for now)") #TODO: change this to a CalculatorError?
+                
+        # Check if the one passed already has the correct dt and duration
+        dt =  t_sig[1] - t_sig[0]
+        duration = t_sig[-1] - t_sig[0]
+        
+        if dt == impulse_response.dt and duration == impulse_response.duration:
+            signal_response = impulse_response # no need to recalculate if these parameters fit
+        else:
+            signal_response = ECMSImpulseResponse.from_parameters(
+                mol=mol,
+                measurement=self,
+                working_distance=impulse_response.working_distance,
+                A_el=impulse_response.A_el,
+                D=impulse_response.D,
+                H_v_cc=impulse_response.H_v_cc,
+                n_dot=impulse_response.n_dot,
+                T=impulse_response.T,
+                p=impulse_response.p,
+                carrier_gas=impulse_response.carrier_gas,
+                gas_volume=impulse_response.gas_volume,
+                dt=dt,  # as defined from measurement above
+                duration=duration,  # as defined from measurement above
+            )
         # make sure signal_response and v_sig are same length for the steps below by
         # adding zeros to the end of whichever array is shorter
-        if len(v_sig) >= len(signal_response[1]):
+        if len(v_sig) >= len(signal_response.kernel):
             kernel = np.hstack(
-                (signal_response[1], np.zeros(len(v_sig) - len(signal_response[1])))
+                (signal_response.kernel, np.zeros(len(v_sig) - len(signal_response.kernel)))
             )
             v_sig_corr = v_sig
         else:
-            kernel = signal_response[1]
+            kernel = signal_response.kernel
             v_sig_corr = np.hstack(
-                (v_sig, np.zeros(len(signal_response[1]) - len(v_sig)))
+                (v_sig, np.zeros(len(signal_response.kernel) - len(v_sig)))
             )
-        H = fft(kernel)
-        # TODO: store this as well.
+        # calculate the convolution function from the calculated kernel 
+        H = fft(kernel)  # (see Krempl et al 2019, SI, page S4 bottom)
+        # TODO: cache this somehow as well?
         partial_current = np.real(
             ifft(fft(v_sig_corr) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
-        )
+        )  # see Krempl et al 2019, SI, eq. 26 and paragraph below) - SNR in equ = (1 / snr) ** 2 here?
         partial_current = partial_current * sum(kernel)  # what does this do????
+        # Now finally make sure t_sig and the calculated partial current density are the 
+        # same length (for plotting etc later)
         if len(t_sig) < len(partial_current):
             delta = len(partial_current) - len(t_sig)
             partial_current = partial_current[:-delta]
-        return t_sig, partial_current
+        return t_sig, partial_current # this is NOT the partial current! rename and correct
 
     def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
         """Extracts an ECMSImpulseResponse object from a measurement using the
@@ -501,7 +530,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 extracted.
             tspan_bg (list): Timespan that corresponds to the background signal.
         """
-        # grab the calibrated data
         impulse_response = ECMSImpulseResponse.from_measurement(
             mol=mol, measurement=self, tspan=tspan, tspan_bg=tspan_bg)
         return impulse_response

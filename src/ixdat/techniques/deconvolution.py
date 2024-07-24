@@ -25,18 +25,21 @@ class ECMSImpulseResponse:
     algorithm developed by Krempl et al. 2021
     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
     
-    some args for initializing are optional if a 
+    some args for initializing are optional depending on which classmethod is used 
+    to construct
     
     TODO: add something about the requirements of the ECMSMeasurement. eg t_zero needs to 
     be where the current starts (does it?), it needs to be quantified data! only one mol at a time
 
-    # TODO: Make class inherit from Calculator, add properties to store kernel
+    # TODO: Make class inherit from Calculator
     # TODO: Reference equations to paper.
     """
 
     def __init__(
         self,
         mol,
+        t_kernel,
+        kernel,
         measurement=None,
         working_distance=None,
         A_el=None,
@@ -47,6 +50,9 @@ class ECMSImpulseResponse:
         p = STANDARD_PRESSURE,
         carrier_gas=None,
         gas_volume=1e-10,
+        dt=None,
+        duration=None,
+        ir_type=None,
     ):
         """
         Initializes a ECMSImpulseResponse object either in functional form by defining
@@ -72,7 +78,9 @@ class ECMSImpulseResponse:
             gas_volume: the volume of the headspace volume in the chip. Default is the
                 volume of the SpectroInlets chip.
         """
-        self.mol = mol # Johannes said that might not be needed anymore, assigning all the selfs here?
+        self.mol = mol
+        self.t_kernel = t_kernel
+        self.kernel = kernel
         self.measurement = measurement
         self.working_distance = working_distance
         self.A_el = A_el
@@ -83,19 +91,20 @@ class ECMSImpulseResponse:
         self.p = p
         self.carrier_gas = carrier_gas
         self.gas_volume = gas_volume
+        self.ir_type = ir_type
+        self.dt = dt
+        self.duration = duration
 
     @classmethod
     def from_measurement(
             cls,
             mol,
             measurement=None,
-            A_el=None,
-            T=STANDARD_TEMPERATURE,
-            p=STANDARD_PRESSURE,
             tspan=None,
             tspan_bg=None,
             norm=True,
-            matrix=False
+            matrix=False,
+            **kwargs,
             ):
         """Generate an ECMSImpulseResponse from measurement.
         TODO: add option to plot the implulse response from measurement/ return an axis to
@@ -110,9 +119,10 @@ class ECMSImpulseResponse:
                 area. Default is True.
             matrix (bool): If true the circulant matrix constructed from the
                 impulse reponse is returned. Default is False.
-        Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the measured impulse response 
+                
+            Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
+        Return ECMSImpulseResponse
         """
-        cls.type = "measured"
         print("Generating `ECMSImpulseResponse` from measurement.")
         if type(tspan_bg[0]) is not list:
             t_kernel, kernel = measurement.grab_flux(
@@ -131,14 +141,12 @@ class ECMSImpulseResponse:
             while i < len(t_kernel):  # TODO: pythonize this?
                 kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
                 i = i + 1
-        return t_kernel, kernel # can this return more than just this tuple of arrays? I.e. some meta info as defined in the class?
-    # I want this to return something like the quantification does. Maybe wait for calculators.
+        return cls(mol, t_kernel, kernel, ir_type="measured", **kwargs)
             
     @classmethod
     def from_parameters(
             cls,
             mol,
-            measurement=None,
             working_distance=None,
             A_el=None,
             D=None,
@@ -148,16 +156,18 @@ class ECMSImpulseResponse:
             p = STANDARD_PRESSURE,
             carrier_gas=None,
             gas_volume=1e-10,
-            dt=0.1, # TODO need to think about how to do this when extracting deconvoluted data
-            # as that requires recalculation of this to fit exactly to the length of data. 
-            # some kind of shorthand for an object containing all the info needed except
-            # these two would be really helpful, but this has gotten lost with this classmethod
-            # stuff
+            dt=0.1,
             duration=100,
             norm=True,
-            matrix=False
+            matrix=False,
+            **kwargs,
             ):
         """Generate an ECMSImpulseResponse from parameters.
+        
+            All references to equations refer to the Supporting Information of Krempl et al 2021:
+                https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+                
+        
         Args:
             dt (int): Timestep for which the impulse response is calculated.
                 Has to match the timestep of the measurement for deconvolution.
@@ -168,10 +178,10 @@ class ECMSImpulseResponse:
                 area.
             matrix (bool): If true the circulant matrix constructed from the
                 impulse reponse is returned.
-        Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the modelled impulse response 
-        
+                
+            Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
+         Return ECMSImpulseResponse         
         """
-        cls.type = "functional"
         if plugins.use_siq:
             # calculate the capillary flow for the specified gas & chip
             # initiate the chip
@@ -203,75 +213,43 @@ class ECMSImpulseResponse:
                     "H_v_cc is required to initialize ECMSImpluseResponse. Alternatively" 
                     "activate siq as plugin to automatically load H_v_cc for molecule."
                     ) 
-        # convert to volumetric flux using T and p given by chip.
+        # convert the mol flux to volumetric flux using T and p given by chip.
         V_dot = n_dot * R * T / p
-        # calculate the residence time in the chip headspace
-        residence_t = V_dot / gas_volume                
-        
+
+        # make a time array
         t_kernel = np.arange(0, duration, dt)
         t_kernel[0] = 1e-6
         
-        tdiff = t_kernel * D / (working_distance**2)
-
-        def fs(s):
-            # See Krempl et al, 2021. Equation 6.
-            #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-            return 1 / (
-                sqrt(s) * sinh(sqrt(s))
-                + (gas_volume * H_v_cc / (A_el * 1e-4 *  working_distance))
-                * (s + residence_t *  working_distance**2 / D)
-                * cosh(sqrt(s))
-            )
-
+        tdiff = t_kernel * D / (working_distance**2)  # See Krempl et al, 2021. SI: Equ. (6)
+    
+        def calc_H(s): 
+            # See Krempl et al, 2021. SI: Equ 24 + definitions for kappa and lamda (between Equ 11 and 12)
+            kappa = (A_el * 1e-4 *  working_distance) / gas_volume 
+            
+            lambda_= V_dot / gas_volume *  working_distance**2 / D
+            
+            H = 1 / (H_v_cc * (s + lambda_) / kappa * cosh(sqrt(s)) + sqrt(s) * sinh(sqrt(s))) 
+            return H
+        
+        # now calculate the modelled impulse response: See Krempl et al, 2021. SI, page S4: "calculating the discrete values of the impulse response at a sampling
+        # frequency equal to the sampling frequency of the measured mass spectrometer signal by numerical
+        # inverse Laplace transformation with the Talbot method"
         kernel = np.zeros(len(t_kernel))
         for i in range(len(t_kernel)):
-            kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
+            kernel[i] = invertlaplace(calc_H, tdiff[i], method="talbot")
 
-        if norm:
-            area = np.trapz(kernel, t_kernel)
+        if norm: # normalize the kernel intensity to the total area under the ImpulseResponse
+            area = np.trapezoid(kernel, t_kernel)
             kernel = kernel / area
-        if matrix:
+        if matrix: # not sure what this does? remove it? I think it was used by a method 
+            # to generate Fig 2 in Krempl et al
             kernel = np.tile(kernel, (len(kernel), 1))
             i = 1
             while i < len(t_kernel):  # TODO: pythonize this?
                 kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
                 i = i + 1
             
-        return t_kernel, kernel
+        # return cls(mol, t_kernel, kernel, ir_type="calculated", **kwargs) # the kwargs thing doesnt work somehow
+        return cls(mol, t_kernel, kernel, working_distance=working_distance, A_el=A_el, D=D, H_v_cc=H_v_cc, n_dot=n_dot, T=T, p=p, carrier_gas=carrier_gas, gas_volume=gas_volume, dt=dt, duration=duration, ir_type="calculated", **kwargs)
 
-    @np.vectorize
-    def get_cond_number(sampling_freq, working_dist):
-        """
-        Function to calculate condition number for a given sampling frequency
-        and working distance.
-        TODO: finish this method
-        """
-
-        # Define mass transport parameters.
-        params = {
-            "D": 5.05e-9,
-            "work_dist": working_dist * 1e-6,
-            "vol_gas": 1.37e-10,
-            "volflow_cap": 1e-10,
-            "H_v_cc": 52,
-        }
-
-        model_kernel = ECMSImpulseResponse(parameters=params)
-
-        kernel_matrix = model_kernel.calculate_kernel(
-            dt=1 / sampling_freq, duration=40, matrix=True
-        )
-
-        cond = np.linalg.cond(kernel_matrix)
-        print(str(cond))
-        return cond
-
-    def get_limit_frequency():
-        """Calculate the limiting frequency for deconvolution for a given
-        ECMSImpulseResponse.
-        TODO: finish this method"""
-
-    def get_limit_time_res():
-        """Calculate the limiting time resolution for deconvolution for a given
-        ImpulseResponse.
-        TODO: finish this method"""
+# TODO: other potentially useful methods: https://github.com/ixdat/ixdat/blob/f577a434a966e486cf4cb66253677f7839fe117a/src/ixdat/techniques/deconvolution.py#L242
