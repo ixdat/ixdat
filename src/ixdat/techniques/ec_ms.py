@@ -457,7 +457,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         # grab the calibrated data
         t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
         # calculate the impulse response
-        signal_response = impulse_response.model_impulse_response_from_params(
+        signal_response = impulse_response.from_parameters( # TODO fix this so it works with the the new ECMSImpulseResponse object with classmethod
             dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
         )
         # this seems quite inefficient, to re-calculate the impulse response every time?
@@ -502,9 +502,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             tspan_bg (list): Timespan that corresponds to the background signal.
         """
         # grab the calibrated data
-        impulse_response = ECMSImpulseResponse(
-            mol=mol, data=self
-        ).calc_impulse_response_from_data(tspan=tspan, tspan_bg=tspan_bg)
+        impulse_response = ECMSImpulseResponse.from_measurement(
+            mol=mol, measurement=self, tspan=tspan, tspan_bg=tspan_bg)
         return impulse_response
 
     def deconvolute_for_tspans(

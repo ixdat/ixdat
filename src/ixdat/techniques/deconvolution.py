@@ -83,137 +83,23 @@ class ECMSImpulseResponse:
         self.p = p
         self.carrier_gas = carrier_gas
         self.gas_volume = gas_volume
-        
+
     @classmethod
-    def from_measurement(cls):
-        "Generate an ECMSImpulseResponse from measurement."
-        cls.type = "measured"
-        print("Generating `ECMSImpulseResponse` from measurement.")
-        if cls.working_distance is not None or cls.A_el is not None:
-            raise warnings.warn(
-                "Measurement was used to generate `ECMSImpulseResponse` ignoring the given"
-                "working_distance/electrode area."
-                )
-            
-    @classmethod
-    def from_parameters(cls):
-        "Generate an ECMSImpulseResponse from parameters."
-        cls.type = "functional"
-        if plugins.use_siq:
-            # calculate the capillary flow for the specified gas & chip
-            # initiate the chip
-            Chip = plugins.siq.Chip
-            chip = Chip()
-            # set the T and p of the chip according to the values given
-            chip.T = cls.T
-            chip.p = cls.p
-            n_dot = chip.calc_n_dot_0(gas=cls.carrier_gas)
-            # find the other parameters from the siq Molecule files
-            Molecule = plugins.siq.Molecule
-            molecule = Molecule.load(cls.mol)
-            if cls.D is None:
-                D = molecule.D
-                # TODO double check units and understand why siq integration is not
-                # working - maybe because I initiate the molecule wrongly! 
-                print(D)
-            if cls.H_v_cc is None:
-                H_v_cc = 1 / (R * chip.T * molecule.H_0) * 100
-                print(H_v_cc)
-        else:
-            if cls.D is None:
-               raise TechniqueError(
-                   "D is required to initialize ECMSImpluseResponse. Alternatively" 
-                   "activate siq as plugin to automatically load D for molecule."
-                   ) 
-            if cls.H_v_cc is None:
-                raise TechniqueError(
-                    "H_v_cc is required to initialize ECMSImpluseResponse. Alternatively" 
-                    "activate siq as plugin to automatically load H_v_cc for molecule."
-                    ) 
-            # convert to volumetric flux using T and p given by chip.
-            V_dot = cls.n_dot * R * cls.T / cls.p
-            # calculate the residence time in the chip headspace
-            residence_t = V_dot / cls.gas_volume                
-                
-            cls.params = {
-                "working_distance": cls.working_distance,
-                "A_el": cls.A_el,
-                "D": cls.D,
-                "H_v_cc": cls.H_v_cc,
-                "residence_t": residence_t,
-                "gas_volume": cls.gas_volume,
-            }
-
-    def model_impulse_response_from_params(
-        self, dt=0.1, duration=100, norm=True, matrix=False
-    ):
-        """Calculates an impulse response from parameters used to initialize the
-        ECMSImpulseResponse object.
-        TODO: might make more sense to pass parameters to the method instead?
-        Args:
-            dt (int): Timestep for which the impulse response is calculated.
-                Has to match the timestep of the measurement for deconvolution.
-
-            duration(int): Duration in seconds for which the kernel/impulse response is
-                calculated. Must be long enough to reach zero.
-            norm (bool): If true the impulse response is normalized to its
-                area.
-            matrix (bool): If true the circulant matrix constructed from the
-                impulse reponse is returned.
-        Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the modelled impulse response 
-        """
-        if self.type == "functional":
-
-            t_kernel = np.arange(0, duration, dt)
-            t_kernel[0] = 1e-6
-            D = self.params["D"]
-            working_distance = self.params["working_distance"]
-            gas_volume = self.params["gas_volume"]
-            residence_t = self.params["residence_t"]
-            H_v_cc = self.params["H_v_cc"]
-            A_el = self.params["A_el"]
-
-            tdiff = t_kernel * D / (working_distance**2)
-
-            def fs(s):
-                # See Krempl et al, 2021. Equation 6.
-                #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-                return 1 / (
-                    sqrt(s) * sinh(sqrt(s))
-                    + (gas_volume * H_v_cc / (A_el * 1e-4 *  working_distance))
-                    * (s + residence_t *  working_distance**2 / D)
-                    * cosh(sqrt(s))
-                )
-
-            kernel = np.zeros(len(t_kernel))
-            for i in range(len(t_kernel)):
-                kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
-                # print(tdiff[i])
-                # print(kernel[i])
-            if norm:
-                area = np.trapz(kernel, t_kernel)
-                kernel = kernel / area
-            if matrix:
-                kernel = np.tile(kernel, (len(kernel), 1))
-                i = 1
-                while i < len(t_kernel):  # TODO: pythonize this?
-                    kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
-                    i = i + 1
-        else:
-            raise TechniqueError(
-                "Cannot model impulse response if not initialized with parameters."
-            )
-        return t_kernel, kernel
-
-    def calc_impulse_response_from_measurement(
-        self, dt=0.1, duration=100, tspan=None, tspan_bg=None, norm=True, matrix=False
-    ):
-        """Calculates impulse response from measurement.
-        TODO: add possibility of subtracting a linear background!!!
+    def from_measurement(
+            cls,
+            mol,
+            measurement=None,
+            A_el=None,
+            T=STANDARD_TEMPERATURE,
+            p=STANDARD_PRESSURE,
+            tspan=None,
+            tspan_bg=None,
+            norm=True,
+            matrix=False
+            ):
+        """Generate an ECMSImpulseResponse from measurement.
         TODO: add option to plot the implulse response from measurement/ return an axis to
             co-plot with the measurement
-        TODO: figure out if it's ok to just get rid of dt and duration (not used here)
-        TODO: change the name kernel to something else
 
         Args:
             tspan (list): tspan over which to calculate the impulse response
@@ -226,26 +112,131 @@ class ECMSImpulseResponse:
                 impulse reponse is returned. Default is False.
         Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the measured impulse response 
         """
-        if self.type == "measured":
-            if type(tspan_bg[0]) is not list:
-                t_kernel, kernel = self.measurement.grab_flux(
-                    mol=self.mol, tspan=tspan, tspan_bg=tspan_bg
-                )
-            else:
-                t_kernel, kernel_raw = self.measurement.grab_flux(mol=self.mol, tspan=tspan)
-                bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
-                kernel = kernel_raw - bg
-            if norm:
-                area = np.trapz(kernel, t_kernel)
-                kernel = kernel / area
-            if matrix:
-                kernel = np.tile(kernel, (len(kernel), 1))
-                i = 1
-                while i < len(t_kernel):  # TODO: pythonize this?
-                    kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
-                    i = i + 1
+        cls.type = "measured"
+        print("Generating `ECMSImpulseResponse` from measurement.")
+        if type(tspan_bg[0]) is not list:
+            t_kernel, kernel = measurement.grab_flux(
+                mol=mol, tspan=tspan, tspan_bg=tspan_bg
+            )
         else:
-            raise TechniqueError("Cannot calculate impulse response without measurement.")
+            t_kernel, kernel_raw = measurement.grab_flux(mol=mol, tspan=tspan)
+            bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
+            kernel = kernel_raw - bg
+        if norm:
+            area = np.trapezoid(kernel, t_kernel)
+            kernel = kernel / area
+        if matrix:
+            kernel = np.tile(kernel, (len(kernel), 1))
+            i = 1
+            while i < len(t_kernel):  # TODO: pythonize this?
+                kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
+                i = i + 1
+        return t_kernel, kernel # can this return more than just this tuple of arrays? I.e. some meta info as defined in the class?
+    # I want this to return something like the quantification does. Maybe wait for calculators.
+            
+    @classmethod
+    def from_parameters(
+            cls,
+            mol,
+            measurement=None,
+            working_distance=None,
+            A_el=None,
+            D=None,
+            H_v_cc=None,
+            n_dot=None,
+            T = STANDARD_TEMPERATURE,
+            p = STANDARD_PRESSURE,
+            carrier_gas=None,
+            gas_volume=1e-10,
+            dt=0.1, # TODO need to think about how to do this when extracting deconvoluted data
+            # as that requires recalculation of this to fit exactly to the length of data. 
+            # some kind of shorthand for an object containing all the info needed except
+            # these two would be really helpful, but this has gotten lost with this classmethod
+            # stuff
+            duration=100,
+            norm=True,
+            matrix=False
+            ):
+        """Generate an ECMSImpulseResponse from parameters.
+        Args:
+            dt (int): Timestep for which the impulse response is calculated.
+                Has to match the timestep of the measurement for deconvolution.
+
+            duration(int): Duration in seconds for which the kernel/impulse response is
+                calculated. Must be long enough to reach zero.
+            norm (bool): If true the impulse response is normalized to its
+                area.
+            matrix (bool): If true the circulant matrix constructed from the
+                impulse reponse is returned.
+        Return t_kernel (np.array), kernel (np/.array): tuple of time and value arrays of the modelled impulse response 
+        
+        """
+        cls.type = "functional"
+        if plugins.use_siq:
+            # calculate the capillary flow for the specified gas & chip
+            # initiate the chip
+            Chip = plugins.siq.Chip
+            chip = Chip()
+            # set the T and p of the chip according to the values given
+            chip.T = T
+            chip.p = p
+            n_dot = chip.calc_n_dot_0(gas=carrier_gas)
+            # find the other parameters from the siq Molecule files
+            Molecule = plugins.siq.Molecule
+            molecule = Molecule.load(mol)
+            if D is None:
+                D = molecule.D
+                # TODO double check units and understand why siq integration is not
+                # working - maybe because I initiate the molecule wrongly! 
+                print(D)
+            if H_v_cc is None:
+                H_v_cc = 1 / (R * chip.T * molecule.H_0) * 100
+                print(H_v_cc)
+        else:
+            if D is None:
+               raise TechniqueError(
+                   "D is required to initialize ECMSImpluseResponse. Alternatively" 
+                   "activate siq as plugin to automatically load D for molecule."
+                   ) 
+            if H_v_cc is None:
+                raise TechniqueError(
+                    "H_v_cc is required to initialize ECMSImpluseResponse. Alternatively" 
+                    "activate siq as plugin to automatically load H_v_cc for molecule."
+                    ) 
+        # convert to volumetric flux using T and p given by chip.
+        V_dot = n_dot * R * T / p
+        # calculate the residence time in the chip headspace
+        residence_t = V_dot / gas_volume                
+        
+        t_kernel = np.arange(0, duration, dt)
+        t_kernel[0] = 1e-6
+        
+        tdiff = t_kernel * D / (working_distance**2)
+
+        def fs(s):
+            # See Krempl et al, 2021. Equation 6.
+            #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+            return 1 / (
+                sqrt(s) * sinh(sqrt(s))
+                + (gas_volume * H_v_cc / (A_el * 1e-4 *  working_distance))
+                * (s + residence_t *  working_distance**2 / D)
+                * cosh(sqrt(s))
+            )
+
+        kernel = np.zeros(len(t_kernel))
+        for i in range(len(t_kernel)):
+            kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
+
+        if norm:
+            area = np.trapz(kernel, t_kernel)
+            kernel = kernel / area
+        if matrix:
+            kernel = np.tile(kernel, (len(kernel), 1))
+            i = 1
+            while i < len(t_kernel):  # TODO: pythonize this?
+                kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
+                i = i + 1
+            
         return t_kernel, kernel
 
     @np.vectorize
@@ -284,43 +275,3 @@ class ECMSImpulseResponse:
         """Calculate the limiting time resolution for deconvolution for a given
         ImpulseResponse.
         TODO: finish this method"""
-
-    def plot_cond_number_heatmap(cond_number, Z, cc):
-        """
-        TODO: finish this method
-
-        Parameters
-        ----------
-        cond_number : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        """
-
-        # Create figure
-        fig = plt.figure(figsize=(7.5 / 2, 3.5))
-        ax = fig.add_subplot(111)
-
-        # Construct meshgrid for heatmap
-        x_sampling_freq = np.logspace(-1, 1, 100)  # Sampling frequency
-        y_working_dist = np.linspace(100, 200, 50)  # Working distance
-        X, Y = np.meshgrid(x_sampling_freq, y_working_dist)
-
-        # Create and format heatmap plot
-        Z[Z > 100] = 100  # can't get `vmax=100` colorbar to work right otherwise.
-        cp = plt.contourf(X, Y, Z, 100, cmap=cc.cm.rainbow)
-        # for c in cp.collections:
-        #     c.set_edgecolor("face")
-        cbar = plt.colorbar(cp, ticks=[1, 20, 40, 60, 80, 100])
-        cbar.ax.set_ylim([0, 100])
-        cbar.ax.set_yticklabels([r"$1$", r"$20$", r"$40$", r"$60$", r"$80$", r"$>100$"])
-        plt.xscale("log")
-        ax.set_title("Condition number")
-        ax.set_ylabel(r"Working distance $L$ / [$\mu$m]")
-        ax.set_xlabel(r"Sampling frequency $f$ / [$Hz$]")
-        plt.tight_layout()
-        plt.savefig("Plots/heatmap.png")
-        # plt.savefig("Plots/heatmap.png", dpi=1000, format="png")
