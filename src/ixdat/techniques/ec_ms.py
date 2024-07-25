@@ -446,32 +446,40 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Args:
             mol (str): Name of molecule for which deconvolution is to
                 be carried out.
-            impulse_response (ECMSImpulseResponse): The impulse response must contain all the attribute necessary to calculate a new ECMSImpulseResponse with adjusted time and sample frequency. Therefore currently only CALCULATED ECMSImpulseResponse objects are allowed.
-            tspan (list): Timespan for which the partial current is returned. Needs to contain time zero (for alignment with the model).
+            impulse_response (ECMSImpulseResponse): The impulse response must contain all
+                the attribute necessary to calculate a new ECMSImpulseResponse with
+                adjusted time and sample frequency. Therefore currently only CALCULATED
+                ECMSImpulseResponse objects are allowed.
+            tspan (list): Timespan for which the partial current is returned. Needs to
+                contain time zero (for alignment with the model).
             tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
         # grab the calibrated data
         t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
 
-        
         # first check that the impulse reponse passed is from parameters, because
         # otherwise this might not work for now. Should make this work in the future!
         # There is no reason why a measured impulse response shouldnt be just as useful
         # for deconvolution, but only possible if dt and duration are the same as in
         # the measurement that is to be deconvoluted.
         if impulse_response.ir_type != "calculated":
-            raise TechniqueError("You need to pass an ECMSImpulseResponse object calculated"
-                                 "from parameters to calculate deconvoluted currents. " 
-                                 "(for now)") #TODO: check instead whether the object contains all the necessary attributes
-                
+            raise TechniqueError(
+                "You need to pass an ECMSImpulseResponse object calculated"
+                "from parameters to calculate deconvoluted currents. "
+                "(for now)"
+            )  # TODO: check instead whether the object contains all the necessary
+            # attributes
+
         # Check if the one passed already has the correct dt and duration
-        dt =  t_sig[1] - t_sig[0]
+        dt = t_sig[1] - t_sig[0]
         duration = t_sig[-1] - t_sig[0]
-        
+
         if dt == impulse_response.dt and duration == impulse_response.duration:
-            signal_response = impulse_response # no need to recalculate if these parameters fit
-        else:        
+            signal_response = (
+                impulse_response  # no need to recalculate if these parameters fit
+            )
+        else:
             # re-calculate the impulse response
             signal_response = ECMSImpulseResponse.from_parameters(
                 mol=mol,
@@ -492,7 +500,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         # adding zeros to the end of whichever array is shorter
         if len(v_sig) >= len(signal_response.kernel):
             kernel = np.hstack(
-                (signal_response.kernel, np.zeros(len(v_sig) - len(signal_response.kernel)))
+                (
+                    signal_response.kernel,
+                    np.zeros(len(v_sig) - len(signal_response.kernel)),
+                )
             )
             v_sig_corr = v_sig
         else:
@@ -500,19 +511,24 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             v_sig_corr = np.hstack(
                 (v_sig, np.zeros(len(signal_response.kernel) - len(v_sig)))
             )
-        # calculate the convolution function from the calculated kernel 
+        # calculate the convolution function from the calculated kernel
         H = fft(kernel)  # (see Krempl et al 2019, SI, page S4 bottom)
         # TODO: cache this somehow as well?
         partial_current = np.real(
             ifft(fft(v_sig_corr) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
-        )  # see Krempl et al 2019, SI, eq. 26 and paragraph below) - SNR in equ = (1 / snr) ** 2 here?
+        )
+        # see Krempl et al 2019, SI, eq. 26 and paragraph below) -
+        # SNR in equ = (1 / snr) ** 2 here?
         partial_current = partial_current * sum(kernel)  # what does this do????
-        # Now finally make sure t_sig and the calculated partial current density are the 
+        # Now finally make sure t_sig and the calculated partial current density are the
         # same length (for plotting etc later)
         if len(t_sig) < len(partial_current):
             delta = len(partial_current) - len(t_sig)
             partial_current = partial_current[:-delta]
-        return t_sig, partial_current # this is NOT the partial current! rename and correct
+        return (
+            t_sig,
+            partial_current,
+        )  # this is NOT the partial current! rename and correct
 
     def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
         """Extracts an ECMSImpulseResponse object from a measurement using the
@@ -531,7 +547,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             tspan_bg (list): Timespan that corresponds to the background signal.
         """
         impulse_response = ECMSImpulseResponse.from_measurement(
-            mol=mol, measurement=self, tspan=tspan, tspan_bg=tspan_bg)
+            mol=mol, measurement=self, tspan=tspan, tspan_bg=tspan_bg
+        )
         return impulse_response
 
     def deconvolute_for_tspans(
@@ -551,8 +568,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         """
         TODO: change everything that claims to be a partial current density when its
         actually a deconvoluted signal derived from current (unit is mols/s not mA!)
-        
-        
+
+
         Loops though list of tspans and associated t_zero list to deconvolute using
         the given impulse response (from model, but could also be from data) for
         the molecule the impulse resp
@@ -560,7 +577,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         The plots will only be meaningful if the current is calibrated.
         #TODO: add error message
         Args:
-            tspan_list (list): list of tspans to devonvolute data over. if no t_zero is given needs to include zero.
+            tspan_list (list): list of tspans to devonvolute data over. if no t_zero
+                is given needs to include zero.
             t_zero_list (list): Optional. zero point where the deconvolution start
             impulse_response (ImpulseResponse): impulse response object from model/data
             mol (str): molecule
@@ -612,26 +630,32 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 axes[3].set_alpha(1)  # this doesnt work, not sure why
                 axes[0].plot(t_partcurr, v_partcurr, color=STANDARD_COLORS[mol])
                 axes[0].get_figure().savefig(name + "tstart_" + str(t_zero) + ".png")
-                
+
             if export_data:
-                # TODO use the ixdat csv exporter - but how to add the deconvoluted current?
-                # feed data into a pandas dataframe instead and use the pandas csv exporter
-                # function for now
-                # grab current density, potential, calibrated mol data, deconvoluted mol data
-                # fill it all in a dict and then convert dict to df, then export
+                # TODO use the ixdat csv exporter (after converted to Calculator)
                 raw_I_t, raw_I = data_snippet.grab("raw_current")
                 i_t, i = data_snippet.grab("J / [mA cm$^{-2}$]")
-                raw_U_t, raw_U  = data_snippet.grab("raw_potential")
-                # also add RHE potential? but what if that doesnt exist?
+                raw_U_t, raw_U = data_snippet.grab("raw_potential")
                 raw_sig_t, raw_sig = data_snippet.grab_flux(mol)
-                export_dict = {"time raw current / s": raw_I_t,"raw current / mA": raw_I, "time J / s": i_t, "J / [mA cm$^{-2}$]": i,
-                                "time potential / s": raw_U_t, "raw_potential / V": raw_U, "time measured " + mol + " flux/ s": raw_sig_t,
-                                "measured " + mol + " flux / mol/s":  raw_sig, " time deconvoluted " + mol + " flux / s": t_partcurr,
-                                "deconvoluted " + mol + " flux / mol/s": v_partcurr}
-                export_df = DataFrame({ key:pd.Series(value) for key, value in export_dict.items()})
+                export_dict = {
+                    "time raw current / s": raw_I_t,
+                    "raw current / mA": raw_I,
+                    "time J / s": i_t,
+                    "J / [mA cm$^{-2}$]": i,
+                    "time potential / s": raw_U_t,
+                    "raw_potential / V": raw_U,
+                    "time measured " + mol + " flux/ s": raw_sig_t,
+                    "measured " + mol + " flux / mol/s": raw_sig,
+                    " time deconvoluted " + mol + " flux / s": t_partcurr,
+                    "deconvoluted " + mol + " flux / mol/s": v_partcurr,
+                }
+                export_df = DataFrame(
+                    {key: pd.Series(value) for key, value in export_dict.items()}
+                )
                 export_df.to_csv(name + "tstart_" + str(t_zero) + ".csv", index=False)
         if return_t_v_list:
             return t_v_list
+
 
 class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, ECMSMeasurement"""
