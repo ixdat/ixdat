@@ -446,15 +446,14 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         Args:
             mol (str): Name of molecule for which deconvolution is to
                 be carried out.
-            impulse_response: ImpulseResponse Object
-             for ECMSImpulseResponse for details)
-            tspan (list): Timespan for which the partial current is returned.
+            impulse_response (ECMSImpulseResponse): The impulse response must contain all the attribute necessary to calculate a new ECMSImpulseResponse with adjusted time and sample frequency. Therefore currently only CALCULATED ECMSImpulseResponse objects are allowed.
+            tspan (list): Timespan for which the partial current is returned. Needs to contain time zero (for alignment with the model).
             tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
         """
         # grab the calibrated data
         t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
-        # calculate the impulse response
+
         
         # first check that the impulse reponse passed is from parameters, because
         # otherwise this might not work for now. Should make this work in the future!
@@ -464,7 +463,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         if impulse_response.ir_type != "calculated":
             raise TechniqueError("You need to pass an ECMSImpulseResponse object calculated"
                                  "from parameters to calculate deconvoluted currents. " 
-                                 "(for now)") #TODO: change this to a CalculatorError?
+                                 "(for now)") #TODO: check instead whether the object contains all the necessary attributes
                 
         # Check if the one passed already has the correct dt and duration
         dt =  t_sig[1] - t_sig[0]
@@ -472,7 +471,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         
         if dt == impulse_response.dt and duration == impulse_response.duration:
             signal_response = impulse_response # no need to recalculate if these parameters fit
-        else:
+        else:        
+            # re-calculate the impulse response
             signal_response = ECMSImpulseResponse.from_parameters(
                 mol=mol,
                 measurement=self,
@@ -537,10 +537,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     def deconvolute_for_tspans(
         self,
         tspan_list,
-        t_zero_list,
         impulse_response,
         mol,
         F_mol,
+        t_zero_list=None,
         plot=True,
         name=None,
         t_bg=[-10, -1],
@@ -560,9 +560,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         The plots will only be meaningful if the current is calibrated.
         #TODO: add error message
         Args:
-            tspan_list (list): list of tspans to devonvolute data over
-            t_zero_list (list): zero point where the deconvolution starts
-                #TODO:need to understand if this is actually necessary
+            tspan_list (list): list of tspans to devonvolute data over. if no t_zero is given needs to include zero.
+            t_zero_list (list): Optional. zero point where the deconvolution start
             impulse_response (ImpulseResponse): impulse response object from model/data
             mol (str): molecule
             F_mol (CalPoint): spectro_inlets_calibration CalPoint object
@@ -583,6 +582,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         from spectro_inlets_quantification import Calibration
 
         t_v_list = []
+        if t_zero_list is None:
+            t_zero_list = [None for tspan in tspan_list]
         for tspan, t_zero in zip(tspan_list, t_zero_list):
             print(
                 "Now working on tspan {}, starting sequence at t_zero {}s".format(

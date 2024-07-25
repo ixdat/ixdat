@@ -15,24 +15,21 @@ from ..constants import R, STANDARD_TEMPERATURE, STANDARD_PRESSURE
 from ..plotters.plotting_tools import calc_linear_background
 
 # TODO: Would be very useful to have a method to calculate the condition number for
-# a certain analyte
+# a certain analyte. see Krempl et al. 2021 https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+# for definition of condition number
+
+# TODO: rename kernel to something else
 
 class ECMSImpulseResponse:
     """
-    Class implementing impulse response deconvolution of ECMS measurement.
-    
-    Extracts an ECMSImpulseResponse object from a measurement using the
-    algorithm developed by Krempl et al. 2021
+    Class for signal impulse response for ECMS data for modelling diffusion.
+    see Krempl et al. 2021
     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
     
-    some args for initializing are optional depending on which classmethod is used 
-    to construct
+    This class currently handles only one molecule at a time. If deconvolution of multiple
+    molecules is required this needs to be handled by separate objects.
     
-    TODO: add something about the requirements of the ECMSMeasurement. eg t_zero needs to 
-    be where the current starts (does it?), it needs to be quantified data! only one mol at a time
-
     # TODO: Make class inherit from Calculator
-    # TODO: Reference equations to paper.
     """
 
     def __init__(
@@ -46,10 +43,10 @@ class ECMSImpulseResponse:
         D=None,
         H_v_cc=None,
         n_dot=None,
-        T = STANDARD_TEMPERATURE,
-        p = STANDARD_PRESSURE,
+        T = None,
+        p = None,
         carrier_gas=None,
-        gas_volume=1e-10,
+        gas_volume=None,
         dt=None,
         duration=None,
         ir_type=None,
@@ -59,24 +56,26 @@ class ECMSImpulseResponse:
         the mass transport parameters or in the measured form by passing of EC-MS measurement.
         
         Args:
-            mol: Molecule to calculate the impulse response of
-            measurement: ECMSMeasurement object. Optional. If passed, the impulse response
-                will be calculated based on the measurement, overwriting the parameters
-                passed for a calculated one.
-            working_distance: Working distance between electrode and gas/liq interface in
-                m. Optional, though necessary if no data is provided.
-            A_el: Geometric electrode area in cm2. Optional, though necessary if no data
-                is provided.
-            D: Diffusion constant in liquid. Optional. Default will check
-            diffusion constant in water in Molecule data from siq.
-            H_v_cc: Dimensionless Henry volatility. Optional. Default will check
-            Henry volatility constant in water in Molecule data from siq.
-            n_dot: Capillary flux in mol/s. Optional if siq is activated.
-            T: Temperature in K. Defaults to STANDARD_TEMPERATURE (298.15 K)
-            p: Pressure (on the high pressure side) in Pa. Defaults to STANDARD_PRESSURE (100000 Pa)
-            carrier_gas: The carrier gas used to calculate capillary flow when using siq. Defaults to He
-            gas_volume: the volume of the headspace volume in the chip. Default is the
+            mol (str): Molecule to calculate the impulse response of.
+            t_kernel (array): Impulse response time series
+            kernel (array): Impulse response value series
+            measurement (ECMSMeasurement): Measurement including impulse response measurment. Optional. Will be included if generated
+                from measurement.
+            working_distance (float): Working distance between electrode and gas/liq interface in
+                [m]. Optional.  Will be included if generated from parameters.
+            A_el (float): Geometric electrode area in [cm^2]. Optional. Will automatically be included if generated from parameters.
+            D (float): Diffusion constant in liquid in [m2/s]. Optional. Will automatically be included if generated from parameters.
+            H_v_cc (float): Dimensionless Henry volatility. Optional. Will automatically be included if generated from parameters.
+            n_dot (float): Capillary flux in [mol/s]. Optional. Will automatically be included if generated from parameters.
+            T (float): Temperature in K. Optional. Will automatically be included if generated from parameters.
+            p (float): Pressure (on the high pressure side) in Pa. Optional. Will automatically be included if generated from parameters.
+            carrier_gas: The carrier gas used to calculate capillary flow. Optional. Will automatically be included if generated from parameters AND using siq.
+            gas_volume (float): the volume of the headspace volume in the chip. Default is the
                 volume of the SpectroInlets chip.
+            dt (float): Timestep for which the impulse response is calculated in [s].
+                Has to match the timestep of the measurement for deconvolution.
+            duration (float): Duration in [s] for which the kernel/impulse response is
+                calculated. Must be long enough to reach zero.
         """
         self.mol = mol
         self.t_kernel = t_kernel
@@ -99,22 +98,26 @@ class ECMSImpulseResponse:
     def from_measurement(
             cls,
             mol,
-            measurement=None,
+            measurement,
             tspan=None,
             tspan_bg=None,
             norm=True,
             matrix=False,
             **kwargs,
             ):
-        """Generate an ECMSImpulseResponse from measurement.
-        TODO: add option to plot the implulse response from measurement/ return an axis to
-            co-plot with the measurement
+        """
+        Generate an ECMSImpulseResponse from measurement. 
+
+        TODO: Figure out the requirement of t_zero - does it need to be zero where the current starts? 
+        I think this is only necessary if you want to compared it with a modeled response in the same plot
 
         Args:
+            mol (str): Molecule to calculate the impulse response of
+            measurement (ECMSMeasurement): Measurement including impulse response measurment.
+                Measurement needs to contain calibration data for mol (either using ixdat native ECMSMeasurement.calibrate() or external package (eg siq's "quantifier"))
             tspan (list): tspan over which to calculate the impulse response
-            tspan_bg (list): tspan of background to subtract. if list of tspans is
-                passed, will interpolate between the points using
-                calc_linear_background()
+            tspan_bg (list): tspan of background to subtract. if list of tspans (list of lists) is
+                passed, will interpolate between the points using calc_linear_background()
             norm (bool): If true the impulse response is normalized to its
                 area. Default is True.
             matrix (bool): If true the circulant matrix constructed from the
@@ -147,14 +150,14 @@ class ECMSImpulseResponse:
     def from_parameters(
             cls,
             mol,
-            working_distance=None,
-            A_el=None,
+            working_distance,
+            A_el=1,
             D=None,
             H_v_cc=None,
             n_dot=None,
             T = STANDARD_TEMPERATURE,
             p = STANDARD_PRESSURE,
-            carrier_gas=None,
+            carrier_gas="He",
             gas_volume=1e-10,
             dt=0.1,
             duration=100,
@@ -166,38 +169,49 @@ class ECMSImpulseResponse:
         
             All references to equations refer to the Supporting Information of Krempl et al 2021:
                 https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-                
+            
+            Requires activation of siq for optimal performance.
         
         Args:
-            dt (int): Timestep for which the impulse response is calculated.
+            mol (str): Molecule to calculate the impulse response of.
+            working_distance (float): Working distance between electrode and gas/liq interface in
+                [m].
+            A_el (float): Geometric electrode area in [cm^2]. Defaults to 1. #TODO is that a good idea?
+            D (float): Diffusion constant in liquid in [m2/s]. Optional if using siq, will then be looked up in molecule.yml file
+            H_v_cc (float): Dimensionless Henry volatility. Optional if using siq, will then be looked up in molecule.yml file
+            n_dot (float): Capillary flux in [mol/s]. Optional if using siq, will then be calculated based on the carrier_gas selected.
+            T (float): Temperature in K. Optional. Defaults to STANDARD_TEMPERATURE (298.15K)
+            p (float): Pressure (on the high pressure side) in Pa. Optional. Defaults to STANDARD_PRESSURE (1e5 Pa).
+            carrier_gas (str): The carrier gas used to calculate capillary flow. Only used when using siq. Defaults to He.
+            gas_volume (float): The volume of the headspace volume in the chip in [m3]. Defaults to the
+                volume of the SpectroInlets chip.
+            dt (float): Timestep for which the impulse response is calculated in [s].
                 Has to match the timestep of the measurement for deconvolution.
-
-            duration(int): Duration in seconds for which the kernel/impulse response is
+            duration (float): Duration in [s] for which the kernel/impulse response is
                 calculated. Must be long enough to reach zero.
             norm (bool): If true the impulse response is normalized to its
-                area.
+                area. Default is True.
             matrix (bool): If true the circulant matrix constructed from the
-                impulse reponse is returned.
+                impulse reponse is returned. Default is False.
                 
             Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
          Return ECMSImpulseResponse         
         """
         if plugins.use_siq:
-            # calculate the capillary flow for the specified gas & chip
-            # initiate the chip
-            Chip = plugins.siq.Chip
-            chip = Chip()
-            # set the T and p of the chip according to the values given
-            chip.T = T
-            chip.p = p
-            n_dot = chip.calc_n_dot_0(gas=carrier_gas)
+            if n_dot is None:
+                # calculate the capillary flow for the specified gas & chip
+                # initiate the chip
+                Chip = plugins.siq.Chip
+                chip = Chip()
+                # set the T and p of the chip according to the values given
+                chip.T = T
+                chip.p = p
+                n_dot = chip.calc_n_dot_0(gas=carrier_gas)
             # find the other parameters from the siq Molecule files
             Molecule = plugins.siq.Molecule
             molecule = Molecule.load(mol)
             if D is None:
                 D = molecule.D
-                # TODO double check units and understand why siq integration is not
-                # working - maybe because I initiate the molecule wrongly! 
                 print(D)
             if H_v_cc is None:
                 H_v_cc = 1 / (R * chip.T * molecule.H_0) * 100
