@@ -134,7 +134,26 @@ imp_resp_model = ECMSImpulseResponse.from_parameters(
     gas_volume=1e-10,  # optional if using siq
 )
 
-# now loop through all the data we want to deconvolute
+
+# now let's grab the deconvoluted current for a tspan of interest
+# first, need to calibrate the measurement, we'll use siq here
+ca_dark_day1.set_siq_quantifier(calibration=Calibration(cal_list=[F_o2]), carrier="He")
+# now let's deconvolute
+t_deconvoluted, v_deconvoluted = ca_dark_day1.grab_deconvoluted_signal(
+    mol="O2",
+    impulse_response=imp_resp_model,
+    tspan=[-10, 210],
+    tspan_bg=[-10, -1],
+)
+# and check what we got
+fig3, ax3 = plt.subplots(nrows=1, ncols=1)
+ax3.plot(t_deconvoluted, v_deconvoluted)
+print(type(t_deconvoluted))
+print(type(v_deconvoluted))
+
+
+# Often we have more tspans that are interesting, so let's loop through all the data
+# we want to deconvolute
 tspan_list_1_dark = [[-10, 210], [208, 580]]
 # each tspan needs to include 0 if no t_zero given
 t_zero_list_1_dark = [6.6, 227]
@@ -144,7 +163,7 @@ ca_dark_day1.deconvolute_for_tspans(
     t_zero_list=t_zero_list_1_dark,
     impulse_response=imp_resp_model,
     mol="O2",
-    F_mol=F_o2,
+    F_mol=F_o2, # this will also be used to calibrate the measurement, if not done before
     name="CA_hematite_dark_day1_deconvoluted_180um",  # this will
     # automatically save the plots under this name
     export_data=False,
