@@ -125,14 +125,12 @@ class ECMSImpulseResponse:
                 (either using ixdat native ECMSMeasurement.calibrate() or external
                  package (eg siq's "quantifier"))
             tspan (list): tspan over which to calculate the impulse response. Needs to
-                include zero. #TODO: verify this
-            tspan_bg (list): tspan of background to subtract. if list of tspans
+                include zero.
+            tspan_bg (list): tspan of background to subtract. If list of tspans
                 (list of lists) is passed, will interpolate between the points using
                 calc_linear_background()
             norm (bool): If true the impulse response is normalized to its
                 area. Default is True.
-            matrix (bool): If true the circulant matrix constructed from the
-                impulse reponse is returned. Default is False.
 
             Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
         Return ECMSImpulseResponse
@@ -147,14 +145,8 @@ class ECMSImpulseResponse:
             bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
             kernel = kernel_raw - bg
         if norm:
-            area = np.trapezoid(kernel, t_kernel)
+            area = np.trapz(kernel, t_kernel)
             kernel = kernel / area
-        if matrix:
-            kernel = np.tile(kernel, (len(kernel), 1))
-            i = 1
-            while i < len(t_kernel):  # TODO: pythonize this?
-                kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
-                i = i + 1
         return cls(mol, t_kernel, kernel, ir_type="measured", **kwargs)
 
     @classmethod
@@ -209,8 +201,6 @@ class ECMSImpulseResponse:
                 calculated. Must be long enough to reach zero.
             norm (bool): If true the impulse response is normalized to its
                 area. Default is True.
-            matrix (bool): If true the circulant matrix constructed from the
-                impulse reponse is returned. Default is False.
 
             Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
          Return ECMSImpulseResponse
@@ -279,15 +269,8 @@ class ECMSImpulseResponse:
         if (
             norm
         ):  # normalize the kernel intensity to the total area under the ImpulseResponse
-            area = np.trapezoid(kernel, t_kernel)
+            area = np.trapz(kernel, t_kernel)
             kernel = kernel / area
-        if matrix:  # not sure what this does? remove it? I think it was used by a method
-            # to generate Fig 2 in Krempl et al
-            kernel = np.tile(kernel, (len(kernel), 1))
-            i = 1
-            while i < len(t_kernel):  # TODO: pythonize this?
-                kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
-                i = i + 1
 
         # return cls(mol, t_kernel, kernel, ir_type="calculated", **kwargs)
         # the kwargs thing doesnt work somehow

@@ -431,12 +431,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         else:
             return cal
 
-    # DECONVOLUTION METHODS BELOW
-    def grab_deconvoluted_current(
+    def grab_deconvoluted_signal(
         self, mol, impulse_response, tspan=None, tspan_bg=None, snr=10
     ):
-        """Return the deconvoluted partial current for a given signal using the
-        algorithm developed by Krempl et al.
+        """Return the mass transport deconvoluted MS signal for a given MS signal using
+        the algorithm developed by Krempl et al.
         https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
 
         Note, this actually doesnt need the EC data - it is calculated
@@ -444,16 +443,16 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         at the moment, justifying placement here.
 
         Args:
-            mol (str): Name of molecule for which deconvolution is to
-                be carried out.
+            mol (str): Name of molecule for which deconvolution is to be carried out.
             impulse_response (ECMSImpulseResponse): The impulse response must contain all
                 the attribute necessary to calculate a new ECMSImpulseResponse with
                 adjusted time and sample frequency. Therefore currently only CALCULATED
                 ECMSImpulseResponse objects are allowed.
-            tspan (list): Timespan for which the partial current is returned. Needs to
-                contain time zero (for alignment with the model).
+            tspan (list): Timespan for which the deconvolued signal is returned. Needs
+                          to contain time zero (for alignment with the model).
             tspan_bg (list): Timespan that corresponds to the background signal.
             snr (int): signal-to-noise ratio used for Wiener deconvolution.
+        Returns tuple of (time [s], deconvoluted MS signal [mol/s])
         """
         # grab the calibrated data
         t_sig, v_sig = self.grab_flux(mol, tspan=tspan, tspan_bg=tspan_bg)
@@ -513,43 +512,19 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             )
         # calculate the convolution function from the calculated kernel
         H = fft(kernel)  # (see Krempl et al 2019, SI, page S4 bottom)
-        # TODO: cache this somehow as well?
-        partial_current = np.real(
+        # TODO: cache this somehow
+        decon_signal = np.real(
             ifft(fft(v_sig_corr) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
         )
         # see Krempl et al 2019, SI, eq. 26 and paragraph below) -
         # SNR in equ = (1 / snr) ** 2 here?
-        partial_current = partial_current * sum(kernel)  # what does this do????
-        # Now finally make sure t_sig and the calculated partial current density are the
+        decon_signal = decon_signal * sum(kernel)  # what does this do????
+        # Now finally make sure t_sig and the calculated deconvoluted signal are the
         # same length (for plotting etc later)
-        if len(t_sig) < len(partial_current):
-            delta = len(partial_current) - len(t_sig)
-            partial_current = partial_current[:-delta]
-        return (
-            t_sig,
-            partial_current,
-        )  # this is NOT the partial current! rename and correct
-
-    def extract_impulse_response(self, mol, tspan=None, tspan_bg=None):
-        """Extracts an ECMSImpulseResponse object from a measurement using the
-        algorithm developed by Krempl et al.
-        https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-
-        # TODO: add some option of plotting the impulse response together with the data
-        # TODO: re-add a possibility to choose cut-off potentials rather
-        than having to specify the tspan to make the existance of this method more
-        meaningful, right now it just returns an array of the calibrated signal of mol
-        normalized to the peak area
-        Args:
-            mol (str): Molecule from which the impulse response is to be extracted.
-            tspan(list): Timespan over which which the impulse response is
-                extracted.
-            tspan_bg (list): Timespan that corresponds to the background signal.
-        """
-        impulse_response = ECMSImpulseResponse.from_measurement(
-            mol=mol, measurement=self, tspan=tspan, tspan_bg=tspan_bg
-        )
-        return impulse_response
+        if len(t_sig) < len(decon_signal):
+            delta = len(decon_signal) - len(t_sig)
+            decon_signal = decon_signal[:-delta]
+        return (t_sig, decon_signal)
 
     def deconvolute_for_tspans(
         self,
@@ -566,16 +541,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         export_data=False,
     ):
         """
-        TODO: change everything that claims to be a partial current density when its
-        actually a deconvoluted signal derived from current (unit is mols/s not mA!)
-
-
         Loops though list of tspans and associated t_zero list to deconvolute using
         the given impulse response (from model, but could also be from data) for
         the molecule the impulse resp
-
-        The plots will only be meaningful if the current is calibrated.
-        #TODO: add error message
         Args:
             tspan_list (list): list of tspans to devonvolute data over. if no t_zero
                 is given needs to include zero.
@@ -583,19 +551,21 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             impulse_response (ImpulseResponse): impulse response object from model/data
             mol (str): molecule
             F_mol (CalPoint): spectro_inlets_calibration CalPoint object
-                #TODO: make it work with ixdat native?
-            plot (bool): will return a plot of each tspan and save using name
+                # TODO: change this to a requirement of having the right Calculators
+                # attached once merged with Calculators branch
+            plot (bool): will return a plot of each tspan and save using name.The plots
+                will only be meaningful if the current is calibrated.
             name (str): str to use for title in figure and saving
             t_bg (tspan): tspan to be used as background IN RELATION TO t_zero.
-                Will be the same for each tspan. #TODO: add list option?
+                Will be the same for each tspan. # TODO: add list option
             snr (int): signal-to-noise ratio used for Wiener deconvolution
-                (see grab_deconvoluted_current())
+                (see grab_deconvoluted_signal()). Defaults to 7 (works with test data).
             return_t_v_list (bool): Whether to return list of (time, deconvoluted
-                partial current densisty), Defaults to False
+                MS signal), Defaults to False
             export_data (bool): save raw and deconvoluted data as csv using name
 
-        Return t_v_list (list): list of tuple of (time, deconvoluted partial current
-                   densisty) as returned from grab_deconvoluted_current()
+        Return t_v_list (list): list of tuple of (time [s], deconvoluted MS signal
+                                [mol/s]) as returned from grab_deconvoluted_signal()
         """
         from spectro_inlets_quantification import Calibration
 
@@ -612,8 +582,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
             data_snippet.set_siq_quantifier(
                 calibration=Calibration(cal_list=[F_mol]), carrier="He"
             )
-            # now calculate the deconvoluted current based in the signal
-            t_partcurr, v_partcurr = data_snippet.grab_deconvoluted_current(
+            # now calculate the deconvoluted signal based on signal & mass transp. model
+            t_partcurr, v_partcurr = data_snippet.grab_deconvoluted_signal(
                 mol=mol,
                 impulse_response=impulse_response,
                 tspan=None,
