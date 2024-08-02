@@ -626,8 +626,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 axes = data_snippet.plot(
                     mol_list=[mol], logplot=False, tspan_bg=t_bg, alpha=0.5
                 )
-                axes[1].set_alpha(1)  # this doesnt work, not sure why
-                axes[3].set_alpha(1)  # this doesnt work, not sure why
+                # TODO: find a way to have different hue on the lines of mol and EC data
                 axes[0].plot(t_partcurr, v_partcurr, color=STANDARD_COLORS[mol])
                 axes[0].get_figure().savefig(name + "tstart_" + str(t_zero) + ".png")
 
