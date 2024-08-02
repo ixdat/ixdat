@@ -583,21 +583,21 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                 calibration=Calibration(cal_list=[F_mol]), carrier="He"
             )
             # now calculate the deconvoluted signal based on signal & mass transp. model
-            t_partcurr, v_partcurr = data_snippet.grab_deconvoluted_signal(
+            t_decon_signal, v_decon_signal = data_snippet.grab_deconvoluted_signal(
                 mol=mol,
                 impulse_response=impulse_response,
                 tspan=None,
                 tspan_bg=t_bg,
                 snr=snr,
             )
-            t_v_list.append((t_partcurr, v_partcurr))
+            t_v_list.append((t_decon_signal, v_decon_signal))
 
             if plot:
                 axes = data_snippet.plot(
                     mol_list=[mol], logplot=False, tspan_bg=t_bg, alpha=0.5
                 )
                 # TODO: find a way to have different hue on the lines of mol and EC data
-                axes[0].plot(t_partcurr, v_partcurr, color=STANDARD_COLORS[mol])
+                axes[0].plot(t_decon_signal, v_decon_signal, color=STANDARD_COLORS[mol])
                 axes[0].get_figure().savefig(name + "tstart_" + str(t_zero) + ".png")
 
             if export_data:
@@ -615,8 +615,8 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
                     "raw_potential / V": raw_U,
                     "time measured " + mol + " flux/ s": raw_sig_t,
                     "measured " + mol + " flux / mol/s": raw_sig,
-                    " time deconvoluted " + mol + " flux / s": t_partcurr,
-                    "deconvoluted " + mol + " flux / mol/s": v_partcurr,
+                    " time deconvoluted " + mol + " flux / s": t_decon_signal,
+                    "deconvoluted " + mol + " flux / mol/s": v_decon_signal,
                 }
                 export_df = DataFrame(
                     {key: pd.Series(value) for key, value in export_dict.items()}
