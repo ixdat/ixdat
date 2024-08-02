@@ -29,7 +29,7 @@ F_o2 = F_o2_mscal.to_siq()
 # ------------------ Impulse response fitting of measured data + comparison with model
 # insert your folder here:
 data_folder = Path(
-    r"C:\Users\awiniwar\OneDrive - Imperial College London\Data\photo ECMS\202405 data flurin+daniele\data_demo_script" # noqa
+    r"C:\Users\awiniwar\OneDrive - Imperial College London\Data\photo ECMS\202405 data flurin+daniele\data_demo_script"  # noqa
 )
 # data_folder = Path.home() / "Dropbox/ixdat_resources/test_data/deconvolution"
 data_reg_cell_pulses_o2 = Measurement.read(
@@ -163,7 +163,7 @@ ca_dark_day1.deconvolute_for_tspans(
     t_zero_list=t_zero_list_1_dark,
     impulse_response=imp_resp_model,
     mol="O2",
-    F_mol=F_o2, # this will also be used to calibrate the measurement, if not done before
+    F_mol=F_o2,  # this will also be used to calibrate the measurement, if not done before
     name="CA_hematite_dark_day1_deconvoluted_180um",  # this will
     # automatically save the plots under this name
     export_data=False,
