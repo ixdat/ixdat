@@ -11,15 +11,14 @@ email a.winiwarter@imperial.ac.uk for the data
 
 import matplotlib.pyplot as plt
 import numpy as np
-import ixdat
 
 from pathlib import Path
 from ixdat.techniques.deconvolution import ECMSImpulseResponse
-from ixdat import Measurement
+from ixdat import Measurement, plugins
 from ixdat.techniques.ms import MSCalResult
 from spectro_inlets_quantification import Calibration
 
-ixdat.config.plugins.activate_siq()
+plugins.activate_siq()
 
 # ------------ O2 calibration
 F_o2_mscal = MSCalResult(
@@ -30,8 +29,9 @@ F_o2 = F_o2_mscal.to_siq()
 # ------------------ Impulse response fitting of measured data + comparison with model
 # insert your folder here:
 data_folder = Path(
-    r"C:\Users\awiniwar\OneDrive - Imperial College London\Data\photo ECMS\202405 data flurin+daniele\data_demo_script"
-)  # noqa
+    r"C:\Users\awiniwar\OneDrive - Imperial College London\Data\photo ECMS\202405 data flurin+daniele\data_demo_script" # noqa
+)
+# data_folder = Path.home() / "Dropbox/ixdat_resources/test_data/deconvolution"
 data_reg_cell_pulses_o2 = Measurement.read(
     data_folder / "O2_pulses.csv",
     reader="ixdat",
@@ -46,23 +46,31 @@ fig2, ax2 = plt.subplots(nrows=1, ncols=1)
 ax2.set_xlabel("time / [s]")
 ax2.set_ylabel("norm. intensity")
 
-# pulse length
+# pulse length: duration of the pulse, both for measured and modeled pulse. this is
+# considered when normalzing the area of the pulse to 1
 pulse_length = 100
+# pulse inf: defines the end of the pulse. Needs to be equal or larger than pulse_length.
+# This is considered for the baseline correction and the automatic label generation for
+# the plot. Can be beneficial to be longer than pulse_length if there are signal spikes
+# which impact normalizsation.
 pulse_inf = 100
 dt = 0.1  # (default is 0.1, 0.6 is as measured)
 
-for t_impulse in [18172, 18472, 18772, 19072]:  # list of pulse start times
+for t_impulse in [18172, 18472, 18772, 19072]:  # list of pulse start times. accuracy
+    # to the second seems to be necessary
     # select the data for the above pulse start times
     pulse = data_reg_cell_pulses_o2.cut(tspan=[t_impulse - 10, t_impulse + pulse_inf])
     # shift timestamp so all pulses start at 0
-    pulse.tstamp += 0.9355739 + t_impulse  # the number is from full dataset
+    pulse.tstamp += 0.9355739 + t_impulse  # the number is from the beginning of the
+    # full dataset which has been cut from the sample data to decrease size of file
     # determine the integrated flux during the pulse for automatic labelling
     pulse_int = (
         pulse.integrate_flux(mol="O2", tspan=[0, pulse_inf], tspan_bg=[-5, 0]) * 1e9
     )
     # extract the impulse response from data
-    imp_resp = pulse.extract_impulse_response(
+    imp_resp = ECMSImpulseResponse.from_measurement(
         mol="O2",
+        measurement=pulse,
         tspan=[-5, pulse_length],
         tspan_bg=[[-5, 0], [pulse_inf - 5, pulse_inf]],
     )
@@ -107,12 +115,12 @@ ax2.legend()
 
 # ----------- Deconvolution of ECMS data
 # import data
-CA_dark_day1 = Measurement.read(
+ca_dark_day1 = Measurement.read(
     data_folder / "to_deconvolute_data.csv",
     reader="ixdat",
 )
-CA_dark_day1.calibrate(A_el=0.35**2 * np.pi)
-CA_dark_day1.plot(mass_list=["M32"], logplot=False)
+ca_dark_day1.calibrate(A_el=0.35**2 * np.pi)
+ca_dark_day1.plot(mass_list=["M32"], logplot=False)
 
 # Define model parameters and deconvolute the oxygen signal
 wd = 180e-6  # different working distance as different day and cell
@@ -131,7 +139,7 @@ tspan_list_1_dark = [[-10, 210], [208, 580]]
 # each tspan needs to include 0 if no t_zero given
 t_zero_list_1_dark = [6.6, 227]
 # now deconvolute
-CA_dark_day1.deconvolute_for_tspans(
+ca_dark_day1.deconvolute_for_tspans(
     tspan_list=tspan_list_1_dark,
     t_zero_list=t_zero_list_1_dark,
     impulse_response=imp_resp_model,
@@ -141,3 +149,7 @@ CA_dark_day1.deconvolute_for_tspans(
     # automatically save the plots under this name
     export_data=False,
 )
+
+
+# if only one tspan needs to be deconvoluted: can use grab_deconvoluted_signal directly
+# TODO: add example of that
