@@ -3,9 +3,7 @@
 from pathlib import Path
 from ixdat import Spectrum, Measurement
 
-data_dir = Path(
-    r"C:\Users\scott\Dropbox\WORKSPACES\Caiwu\22E23_beamline_data\constant potential"
-)
+data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/qexafs/constant potential"
 
 if True:
     xas = Spectrum.read(

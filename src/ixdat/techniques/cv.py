@@ -7,8 +7,7 @@ from .analysis_tools import (
     calc_sharp_v_scan,
     find_signed_sections,
 )
-from ..plotters.ec_plotter import CVDiffPlotter
-from ..plotters.plotting_tools import get_color_from_cmap, add_colorbar
+from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
 from ..tools import deprecate
 
 
@@ -358,7 +357,6 @@ class CyclicVoltammogram(ECMeasurement):
 
 
 class CyclicVoltammagram(CyclicVoltammogram):
-
     # FIXME: decorating the class itself doesn't work because the callable returned
     #   by the decorator does not have the class methods. But this works fine.
     @deprecate("0.1", "Use `CyclicVoltammogram` instead ('o' replaces 'a').", "0.3")
@@ -367,7 +365,6 @@ class CyclicVoltammagram(CyclicVoltammogram):
 
 
 class CyclicVoltammogramDiff(CyclicVoltammogram):
-
     default_plotter = CVDiffPlotter
     cv_compare_1 = None
     cv_compare_2 = None

@@ -2,12 +2,16 @@
 
 import re
 import numpy as np
-import json  # FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+
+# FIXME: This is for MSCalibration.export, but shouldn't have to be here.
+import json
 import warnings
 
 from ..measurements import Measurement, Calibration
 from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
-from ..plotters.ms_plotter import MSPlotter, SpectroMSPlotter, STANDARD_COLORS
+from ..plotters import MSPlotter, MSSpectroPlotter
+from ..plotters.ms_plotter import STANDARD_COLORS
+from ..exporters import MSExporter, MSSpectroExporter
 from ..exceptions import QuantificationError
 from ..constants import (
     AVOGADRO_CONSTANT,
@@ -48,8 +52,11 @@ def _with_siq_quantifier(method):
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
+    # FIXME: tspan_bg should be column of a Calculator
+    #   (see https://github.com/ixdat/ixdat/issues/164)
     extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
+    default_exporter = MSExporter
 
     def __init__(self, name, **kwargs):
         tspan_bg = kwargs.pop("tspan_bg", None)
@@ -327,11 +334,13 @@ class MSMeasurement(Measurement):
         return np.trapz(S - S_bg, t)
 
     def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
-        """Integrate a calibrated ms signal with background subtraction and evt. plotting
+      
+        """Integrate a calibrated ms signal with background subtraction and evt.
+        plotting (copy of integrate_signal method)
 
         TODO: Should this, like grab_signal does now, have the option of using a
             background saved in the object rather than calculating a new one?
-        TODO: combine with integrate_signal?
+        TODO: Ensure fill_between considers the non-standard unit in the figure
 
         Args:
             mass (str): The mass for which to integrate the signal
@@ -817,7 +826,10 @@ class MSMeasurement(Measurement):
         delta_signal_list = []
         for mass in mass_list:
             S = self.grab_signal(mass, tspan=tspan)[1].mean()
-            S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            if tspan_bg:
+                S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+            else:
+                S_bg = 0
             delta_S = S - S_bg
             delta_signal_list.append(delta_S)
         delta_signal_vec = np.array(delta_signal_list)
@@ -1143,7 +1155,6 @@ class MSCalibration(Calibration):
 
     @classmethod
     def from_siq(cls, siq_calibration):
-
         # A complication is that it can be either a Calibration or a SensitivityList.
         # Either way, the sensitivity factors are in `sf_list`:
         ms_cal_results = [MSCalResult.from_siq(cal) for cal in siq_calibration.sf_list]
@@ -1296,10 +1307,12 @@ class MSInlet:
                 f"the dynamic viscosity for {gas} at temperature: {T}K",
                 stacklevel=2,
             )
-        _eta_v = DYNAMIC_VISCOSITIES[gas][:, 1]  # list of known eta(T) for 'gas'
+        # list of known eta(T) for 'gas'
+        _eta_v = DYNAMIC_VISCOSITIES[gas][:, 1]
         _eta_T = DYNAMIC_VISCOSITIES[gas][:, 0]  # list of paired Ts for eta(T)
 
-        eta = np.interp(T, _eta_T, _eta_v)  # dynamic viscosity of gas at T in [Pa*s]
+        # dynamic viscosity of gas at T in [Pa*s]
+        eta = np.interp(T, _eta_T, _eta_v)
 
         s = MOLECULAR_DIAMETERS[gas]  # molecule diameter in [m]
         m = MOLAR_MASSES[gas] * 1e-3 / AVOGADRO_CONSTANT  # molecule mass in [kg]
@@ -1312,7 +1325,8 @@ class MSInlet:
         # ...from setting mean free path equal to capillary d
         p_t = BOLTZMANN_CONSTANT * T / (2**0.5 * pi * s**2 * lambda_)
         p_2 = 0
-        p_m = (p_1 + p_t) / 2  # average pressure in the transitional flow region
+        # average pressure in the transitional flow region
+        p_m = (p_1 + p_t) / 2
         v_m = (8 * BOLTZMANN_CONSTANT * T / (pi * m)) ** 0.5
         # a reciprocal velocity used for short-hand:
         nu = (m / (BOLTZMANN_CONSTANT * T)) ** 0.5
@@ -1415,5 +1429,16 @@ class MSSpectrumSeries(SpectrumSeries):
     pass
 
 
-class SpectroMSMeasurement(MSMeasurement, SpectroMeasurement):
-    default_plotter = SpectroMSPlotter
+class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
+    extra_column_attrs = {
+        **MSMeasurement.extra_column_attrs,
+        **SpectroMeasurement.extra_column_attrs,
+    }
+    default_plotter = MSSpectroPlotter
+    default_exporter = MSSpectroExporter
+
+    # FIXME: this shouldn't be necessary. See #164.
+    cut = _with_siq_quantifier(SpectroMeasurement.cut)
+    multicut = _with_siq_quantifier(SpectroMeasurement.multicut)
+
+    # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1486023530

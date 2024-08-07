@@ -12,7 +12,7 @@ from ..techniques import TECHNIQUE_CLASSES
 from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 
 # potentiostats
-from .biologic import BiologicMPTReader
+from .biologic import BiologicReader
 from .autolab import NovaASCIIReader
 from .ivium import IviumDatasetReader
 from .chi import CHInstrumentsTXTReader
@@ -37,12 +37,17 @@ from .xrdml import XRDMLReader
 from .avantage import AvantageAVGReader
 
 # xas
-from .qexafs import QexafsDATReader
+from .qexafs import QexafsDATReader, B18TRXRFReader
+
+# ftir
+from .opus_ftir import OpusFTIRReader
+
 
 # Measruement.read() looks for readers here:
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
-    "biologic": BiologicMPTReader,
+    "biologic": BiologicReader,
     "autolab": NovaASCIIReader,
     "ivium": IviumDatasetReader,
     "chi": CHInstrumentsTXTReader,
@@ -55,7 +60,7 @@ READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
-    "qexafs": QexafsDATReader,
+    "b18_trxrf": B18TRXRFReader,
 }
 
 
@@ -65,4 +70,6 @@ SPECTRUM_READER_CLASSES = {
     "avantage": AvantageAVGReader,
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
+    "qexafs": QexafsDATReader,
+    "opus_ftir": OpusFTIRReader,
 }

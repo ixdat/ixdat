@@ -1,7 +1,5 @@
 import warnings
-from .base_mpl_plotter import MPLPlotter
-from .ms_plotter import MSPlotter
-from .plotting_tools import color_axis
+from . import MPLPlotter, MSPlotter, color_axis
 from ..data_series import Field
 import numpy as np
 
@@ -581,7 +579,7 @@ class TPMSPlotter(MPLPlotter):
         return axes
 
 
-class SpectroTPMSPlotter(MPLPlotter):
+class TPMSSpectroPlotter(MPLPlotter):
     def __init__(self, measurement=None):
         """Initiate the Spectro-TPMSPlotter with its default Measurement to plot"""
         super().__init__()
@@ -991,7 +989,6 @@ class SpectroTPMSPlotter(MPLPlotter):
         axes[ms_spec_axes].set_xlim(axes[ms_axes].get_xlim())
 
         if vspan:
-
             axes[ms_axes].set_xlim([vspan[0], vspan[-1]])
             axes[ms_spec_axes].set_xlim([vspan[0], vspan[-1]])
 

@@ -10,44 +10,28 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 
-`PR #XX <https://github.com/ixdat/ixdat/pulls/XX>`_
+`PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
 
 
-ixdat 0.2.9
-===========
+For ixdat 0.2.13
+===============
 
-readers
-^^^^^^^
+Debugging
+---------
+- Fixed timestamp form in ``QexafsDATReader`` to correctly parse timezone all year.
 
-- Zilien MS spectrum reader fixed.
-  Resolves `Issue #117 <https://github.com/ixdat/ixdat/issues/117>`_
 
-- ``Spectrum.read(reader="zilien")`` rather than ``reader="zilien_spec"`` as
-  before for reading in a zilien spectrum. This is accomplished by different
-  groups of reader for ``Spectrum.read`` and ``Measurement.read``
-  Also, zilien-read spectra now know their duration.
+API changes
+-----------
 
-- ``Measurement.read(..., reader="zilien")`` now returns a ``SpectroMSMeasurement``
-  when the reader can find zilien mass scans taken during the measurement. It
-  looks for the mass scans folder as zilien names it.
-  The default plotter is a ``SpectroMSPlotter`` which includes the MS spectra
-  data in a separate panel. The spectra are accessible by:
+- Time-resolved x-ray flouresence (``technique = "TRXRF"``) implemented in `PR #168 <https://github.com/ixdat/ixdat/pull/168>`_:
 
-    meas = Measurement.read("my_MID_with_spectra.tsv", reader="zilien")
-    meas.spectrum_series[0].plot()
+  - ``B18TRXRFReader`` (reader="b18_trxrf") implemented for reading TRXRF data from the Diamond lightsource beamline B18TRXRFReader
 
-  which plots the first MS spectrum.
-  To leave out the mass scan data, include the argument ``include_spectra=False``
-  in the call to ``read``.
-  This finishes `Issue #117 <https://github.com/ixdat/ixdat/issues/117`_
+  - ``TRXRFMeasurement`` with a series constructor method for the value series of interest, "FF_over_I0", and ``TRXRFPlotter`` for plotting the TRXRF data.
+  
+  - Hyphenation of TRXRF with EC (``technique = "EC-TRXRF"``) implemented (syntax: ``ec_txrf = ec + trxrf``) in ``ECTRXRFMeasurement`` and ``ECTRXRFPlotter``
 
-techniques
-^^^^^^^^^^
-- ECOpticalMeasurement.get_spectrum() now has an option not to interpolate.
-  Passing the argument `interpolate=False` gets it to choose nearest spectrum instead.
-
-- Indexing a ``SpectroMeasurement`` with an integer returns a ``Spectrum``.
-  For example, ``zilien_meas_with_spectra[0].plot()``  plots the first mass scan
 
 - Deconvolution module based on Krempl et al. 2021 https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110 
   is revived. ``ECMSImpulseResponse`` is a class for calculating an impulse response
@@ -58,51 +42,3 @@ techniques
   through a number of tspans for which to deconvolute data with options to plot and export the original + decon-
   voluted data. For examples see deconvolution_demo.py in development_scripts
 
-plotters
-^^^^^^^^
-- ``SpectrumPlotter.heat_plot()`` and methods that rely on it can now plot discrete heat plots, with
-  each spectrum only plotted for its duration, if available. If spectrum durations are not available,
-  it plots each spectrum until the start of the next spectrum, i.e. like the previous (continuous)
-  behaviour but without interpolation.
-  Discrete heat plotting is now the default behavior for ``MSSpectroMeasurement``s read by "zilien"
-  (in which case durations are available).
-  ``ECOpticalMeasurement``s read by "msrh_sec" have an unchanged (continuous) default plot.
-  resolves `Issue #140 <https://github.com/ixdat/ixdat/issues/140
-
-General
-^^^^^^^
-
-- The string representation, which is what is printed if an object is printed, has been
-  changed for ``TimeSeries``, ``ValueSeries`` and ``Measurement``. The data series have
-  changed, so that they will return a helpful summary, displaying the name, min, max and
-  the timestamp for a ``TimeSeries`` as opposed to the class name and ``__init__``
-  argument form, which is normally inherited from ``__repr__``. In short::
-
-    Before: TimeSeries(id=1, name='Potential time [s]')
-    After: TimeSeries: 'Potential time [s]'. Min, max: 699, 1481s @ 21B01 17:44:12
-
-    Before: ValueSeries(id=2, name='Voltage [V]')
-    After: ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
-
-  These new string representations should be helpful on their own, but the main goal of
-  changing them, was to make them useful in the new string representation of
-  ``Measurement``, which is inherited by all measurements. It will now display a summary
-  of all data series in the measurement, along with information about their internal
-  connections, like which ``ValueSeries`` depends on which ``TimeSeries``. For an ECMS
-  measurement the form is::
-
-    ECMSMeasurement '2021-02-01 17_44_12' with 48 series
-
-    Series list:
-    ┏ TimeSeries: 'Potential time [s]'. Min, max: 699, 1481 [s] @ 21B01 17:44:12
-    ┣━ ValueSeries: 'Voltage [V]'. Min, max: 1.4e+00, 5.4e+00 [V]
-    ┣━ ValueSeries: 'Current [mA]'. Min, max: -2.5e-02, 2.5e-02 [mA]
-    ┗━ ValueSeries: 'Cycle [n]'. Min, max: 1.0e+00, 1.0e+00 [n]
-    ┏ TimeSeries: 'Iongauge value time [s]'. Min, max: 1, 3042 [s] @ 21B01 17:44:12
-    ┗━ ValueSeries: 'Iongauge value [mbar]'. Min, max: 6.6e-09, 6.9e-07 [mbar]
-    << SNIP MORE SYSTEM CHANNELS >>
-    ┏ TimeSeries: 'C0M2 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
-    ┗━ ValueSeries: 'M2 [A]'. Min, max: 3.4e-12, 2.0e-11 [A]
-    ┏ TimeSeries: 'C1M4 time [s]'. Min, max: 1, 3041 [s] @ 21B01 17:44:12
-    ┗━ ValueSeries: 'M4 [A]'. Min, max: 1.2e-17, 2.7e-10 [A]
-    << SNIP MORE MASS CHANNELS>>

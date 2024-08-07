@@ -1,7 +1,7 @@
 """Import techniques and build the technique_classes dictionary for direct import
 
 Constants:
-    technique_classes (dict): Dictionary of {technique_name: technique_class} where
+    TECHNIQUE_CLASSES (dict): Dictionary of {technique_name: technique_class} where
         technique_name is the name of the technique (like "EC") and technique_class
         is the technique class (inheriting from Measurement) which implements the
         technique-specific functionality.
@@ -9,19 +9,19 @@ Constants:
 
 from .ec import ECMeasurement, ECCalibration
 from .cv import CyclicVoltammogram, CyclicVoltammagram  # The latter is deprecated.
-from .ms import MSMeasurement, MSCalibration, MSSpectrum, SpectroMSMeasurement
-from .ec_ms import ECMSMeasurement, ECMSCalibration
+from .ms import MSMeasurement, MSCalibration, MSSpectrum, MSSpectroMeasurement
+from .ec_ms import ECMSMeasurement, ECMSCalibration, ECMSSpectroMeasurement
 from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,
 )
-from .reactor import ReactorMeasurement, SpectroReactorMeasurement, ReactorCalibration
-
+from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
+from .reactor import ReactorMeasurement, ReactorSpectroMeasurement, ReactorCalibration
+from .ftir import FTIRSpectrum, ECFTIRMeasurement
 from ..spectra import Spectrum
-from ..measurements import Measurement  # for importing in the technique modules
+from ..measurements import Measurement
 
-# TODO: Is something like DecoMeasurement a Measurement or something else?
 
 TECHNIQUE_CLASSES = {
     "simple": Measurement,
@@ -36,10 +36,15 @@ TECHNIQUE_CLASSES = {
     "SEC": SpectroECMeasurement,
     "EC-Optical": ECOpticalMeasurement,
     "EC-XAS": ECXASMeasurement,
-    "MS-MS_spectra": SpectroMSMeasurement,
+    "MS-MS_spectra": MSSpectroMeasurement,
     "reactor": ReactorMeasurement,
-    "reactor-MS_spectra": SpectroReactorMeasurement,
+    "reactor-MS_spectra": ReactorSpectroMeasurement,
     "S-EC": SpectroECMeasurement,
+    "TRXRF": TRXRFMeasurement,
+    "EC-TRXRF": ECTRXRFMeasurement,
+    "EC-MS-MS_spectra": ECMSSpectroMeasurement,
+    "FTIR": FTIRSpectrum,
+    "EC-FTIR": ECFTIRMeasurement,
 }
 
 CALIBRATION_CLASSES = {

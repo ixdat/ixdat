@@ -1,6 +1,6 @@
 """Classes for plotting measurement data"""
 
-from .base_mpl_plotter import MPLPlotter
+from . import MPLPlotter
 from ..exceptions import SeriesNotFoundError
 
 

@@ -1,8 +1,8 @@
 """Representation and analysis of thermal catalysis (TP) with MS measurements"""
 
-from .ms import MSMeasurement, SpectroMSMeasurement
+from .ms import MSMeasurement, MSSpectroMeasurement
 from ..measurements import Calibration
-from ..plotters.tpms_plotter import TPMSPlotter, SpectroTPMSPlotter
+from ..plotters import TPMSPlotter, TPMSSpectroPlotter
 from ..data_series import ValueSeries
 import warnings
 import numpy as np
@@ -273,8 +273,8 @@ class ReactorMeasurement(MSMeasurement):
         return unit_factor, new_unit
 
 
-class SpectroReactorMeasurement(ReactorMeasurement, SpectroMSMeasurement):
-    default_plotter = SpectroTPMSPlotter
+class ReactorSpectroMeasurement(ReactorMeasurement, MSSpectroMeasurement):
+    default_plotter = TPMSSpectroPlotter
 
 
 class ReactorCalibration(Calibration):

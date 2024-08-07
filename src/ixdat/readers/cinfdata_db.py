@@ -126,7 +126,6 @@ class CinfdataDBReader:
         with plugins.cinfdata(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         ) as cinf_db:
-
             self.group_data = cinf_db.get_data_group(
                 self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
             )
@@ -214,7 +213,6 @@ class CinfdataDBReader:
         with plugins.cinfdata(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         ) as cinf_db:
-
             # return dict with measurements as key containing x,y values in a np.array
             self.group_data = cinf_db.get_data_group(self.token)
 

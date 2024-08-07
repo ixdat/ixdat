@@ -15,6 +15,7 @@ from ixdat.techniques.ec_ms import (
     ECMSMeasurement,
     MSMeasurement,
     ECMeasurement,
+    ECMSSpectroMeasurement,
 )
 
 
@@ -205,12 +206,14 @@ def test_read(cls_or_technique, expected_series):
     if isinstance(cls_or_technique, str):
         expected_measurement_class = TECHNIQUE_NAME_TO_CLASS[cls_or_technique]
         measurement = Measurement.read(
-            PATH_TO_DATAFILE, reader="zilien", technique=cls_or_technique
+            PATH_TO_DATAFILE,
+            reader="zilien",
+            technique=cls_or_technique,
         )
     else:
         measurement = cls_or_technique.read(PATH_TO_DATAFILE, reader="zilien")
         if cls_or_technique is Measurement:
-            expected_measurement_class = ECMSMeasurement
+            expected_measurement_class = ECMSSpectroMeasurement
         else:
             expected_measurement_class = cls_or_technique
 
@@ -255,6 +258,13 @@ class TestZilienIntegrated:
             for mpt_name in mpt.series_names:
                 if mpt_name == "time/s":
                     assert f"Biologic {mpt_name}" in tsv.series_names
+                elif mpt_name.endswith("=0"):
+                    # ConstantValue series with "=0" suffix is created when an
+                    # essential series is not in the parsed dataset.
+                    # This suffix is removed by Zilien when integrating .mpt files,
+                    # so use the actual name without the suffix to check.
+                    mpt_name_no_suffix = mpt.reverse_aliases[mpt_name][0]
+                    assert mpt_name_no_suffix in tsv.series_names
                 else:
                     assert mpt_name in tsv.series_names
 
@@ -299,8 +309,17 @@ class TestZilienIntegrated:
 
         all_mpts = reduce(lambda x, y: x + y, mpts)
 
-        for name in all_mpts.series_names:
-            if name == "time/s":
+        for mpt_name in all_mpts.series_names:
+            if mpt_name == "time/s":
                 continue
+
+            # ConstantValue series with "=0" suffix is created when an
+            # essential series is not in the parsed dataset.
+            # This suffix is removed by Zilien when integrating .mpt files,
+            # so use the actual name without the suffix to check.
+            if mpt_name.endswith("=0"):
+                name = all_mpts.reverse_aliases[mpt_name][0]
+            else:
+                name = mpt_name
 
             assert np.allclose(all_mpts[name].data, tsv[name].data)

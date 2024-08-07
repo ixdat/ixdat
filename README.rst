@@ -87,7 +87,7 @@ designed into every level.
      - Future
      -
 
-Tutorials are described at https://ixdat.readthedocs.io/en/latest/tutorials.html
+Tutorials are provided at https://ixdat.readthedocs.io/en/latest/tutorials/index.html
 
 Installation
 ------------
