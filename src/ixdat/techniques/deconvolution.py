@@ -205,7 +205,7 @@ class ECMSImpulseResponse:
             Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
          Return ECMSImpulseResponse
         """
-        
+
         if plugins.use_siq:
             if n_dot is None:
                 # calculate the capillary flow for the specified gas & chip
