@@ -29,7 +29,7 @@ F_o2 = F_o2_mscal.to_siq()
 # ------------------ Impulse response fitting of measured data + comparison with model
 # insert your folder here:
 data_folder = Path(
-    r"C:\Users\awiniwar\OneDrive - Imperial College London\Data\photo ECMS\202405 data flurin+daniele\data_demo_script"  # noqa
+    r"C:\Users\Søren\Dropbox\ixdat_resources\test_data\deconvolution"  # noqa
 )
 # data_folder = Path.home() / "Dropbox/ixdat_resources/test_data/deconvolution"
 data_reg_cell_pulses_o2 = Measurement.read(
