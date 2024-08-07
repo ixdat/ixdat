@@ -334,6 +334,7 @@ class MSMeasurement(Measurement):
         return np.trapz(S - S_bg, t)
 
     def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
+
         """Integrate a calibrated ms signal with background subtraction and evt.
         plotting (copy of integrate_signal method)
 
@@ -1245,9 +1246,8 @@ class MSInlet:
         n_dot_predicted = self.calc_n_dot_0(gas=gas, w_cap=w_cap, h_cap=h_cap, T=T, p=p)
 
         l_cap_gas_specific_eff = self.l_cap * n_dot_predicted / n_dot_measured
-        self.l_cap_eff[
-            gas
-        ] = l_cap_gas_specific_eff  # add effective l_cap for specific gas
+        # add effective l_cap for specific gas
+        self.l_cap_eff[gas] = l_cap_gas_specific_eff
 
         return l_cap_gas_specific_eff
 

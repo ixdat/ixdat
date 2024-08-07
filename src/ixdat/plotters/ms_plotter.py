@@ -1,4 +1,5 @@
 """Plotter for Mass Spectrometry"""
+
 import warnings
 import numpy as np
 from ..data_series import Field
@@ -618,9 +619,11 @@ class MSSpectroPlotter(MPLPlotter):
             # then we have MS data!
             self.ms_plotter.plot_measurement(
                 measurement=measurement,
-                axes=[axes[ms_axes], axes[2]]
-                if (mass_lists or mol_lists)
-                else [axes[ms_axes]],
+                axes=(
+                    [axes[ms_axes], axes[2]]
+                    if (mass_lists or mol_lists)
+                    else [axes[ms_axes]]
+                ),
                 tspan=tspan,
                 tspan_bg=tspan_bg,
                 remove_background=remove_background,

@@ -1,4 +1,5 @@
 """Module defining direct DB reader connection to Surfcat's cinfdata system"""
+
 import warnings
 from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
