@@ -6,11 +6,13 @@ Created on Thu Aug  8 13:29:09 2024
 """
 from ..measurements import Calculator
 from ..data_series import ValueSeries, TimeSeries
+from ..plotters.ec_plotter import EC_FANCY_NAMES
 
 
 class ECCalibration(Calculator):
     """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
 
+    calculator_type = "EC calibration"
     extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
     # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
 
@@ -99,3 +101,16 @@ class ECCalibration(Calculator):
                 data=J,
                 tseries=raw_current.tseries,
             )
+
+    def __add__(self, other):
+        """Add two ECCalibrations. The second one (`other`) takes priority."""
+        RE_vs_RHE = other.RE_vs_RHE if other.RE_vs_RHE is not None else self.RE_vs_RHE
+        A_el = other.A_el if other.A_el is not None else self.A_el
+        R_Ohm = other.R_Ohm if other.R_Ohm is not None else self.R_Ohm
+        name = self.name + " + " + other.name
+        return ECCalibration(
+            RE_vs_RHE=RE_vs_RHE,
+            A_el=A_el,
+            R_Ohm=R_Ohm,
+            name=name,
+        )

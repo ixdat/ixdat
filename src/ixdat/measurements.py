@@ -130,12 +130,16 @@ class Measurement(Saveable):
         if isinstance(lablog, str):
             lablog = LabLog.load_or_make(lablog)
         self.lablog = lablog
+
         self._series_list = fill_object_list(series_list, s_ids, cls=DataSeries)
         self._component_measurements = fill_object_list(
             component_measurements, m_ids, cls=Measurement
         )
         self._calculator_list = fill_object_list(calculator_list, c_ids, cls=Calculator)
+
         self._temp_calculator_list = None
+        self._calculator_dict = None
+
         self._tstamp = tstamp
 
         self._cached_series = {}
@@ -174,7 +178,7 @@ class Measurement(Saveable):
                     out.append("┣━ " + str(value_series))
 
         calc_out = []
-        for (n, calculator) in enumerate(self.calculator_list):
+        for (n, (name, calculator)) in enumerate(self.calculator_dict.items()):
             if n == len(self.calculator_list) - 1:
                 calc_out.append("┗━ " + str(calculator))
             else:
@@ -504,9 +508,22 @@ class Measurement(Saveable):
         return self._calculator_list
 
     @property
-    def calculators(self):
-        """For overriding: List of calculators with any needed manipulation done."""
-        return self.calculator_list
+    def calculator_dict(self):
+        if self._calculator_dict is None:
+            self.consolidate_calculators()
+        return self._calculator_dict
+
+    def consolidate_calculators(self):
+        """Dictionary of calculators, consolidated if needed to one per type."""
+        calculators = {}
+        for cal in self.calculator_list:
+            name = cal.calculator_type
+            if name in calculators:
+                calculators[name] = calculators[name] + cal
+            else:
+                calculators[name] = cal
+        self._calculator_dict = calculators
+        return self._calculator_dict
 
     @property
     def c_ids(self):
@@ -518,7 +535,15 @@ class Measurement(Saveable):
         return [c.short_identity for c in self.calculator_list]
 
     def add_calculator(self, calculator):
+        print(f"adding calculator {calculator}")
         self._calculator_list = [calculator] + self._calculator_list
+        ctype = calculator.calculator_type
+        if not self._calculator_dict:
+            self.consolidate_calculators()
+        elif ctype in self._calculator_dict:
+            self._calculator_dict[ctype] = self.calculator_dict[ctype] + calculator
+        else:
+            self._calculator_dict[ctype] = calculator
         self.clear_cache()
 
     def calibrate(self, *args, **kwargs):
@@ -530,8 +555,10 @@ class Measurement(Saveable):
         Raises:
             TechniqueError if no calculator class for the measurement's technique
         """
-        self.add_calculator(self.default_calibration(*args, **kwargs))
+        new_calculator = self.default_calibration(*args, **kwargs)
+        self.add_calculator(new_calculator)
         self.clear_cache()
+        return new_calculator
 
     # Note: Not all ´Calculator´s are ´Calibraiton´s There are also, e.g., `Filter`s and
     # `Background`s. One could, for completeness, also implement the methods
@@ -842,7 +869,7 @@ class Measurement(Saveable):
         include_endpoints=False,
         tspan_bg=None,
         remove_background=None,
-        calculator_list=None
+        calculator_list=None,
     ):
         """Return a value vector with the corresponding time vector
 
@@ -886,18 +913,22 @@ class Measurement(Saveable):
             remove_background = True
         else:
             self.clear_cache()
+
         if calculator_list:
             self.clear_cache()
         elif not remove_background:
             calculator_list = self._calculator_list
 
         if not remove_background:
-            calculator_list
-            self._temp_calculator_list = [
+            calculator_list = [
                 cal
                 for cal in calculator_list
                 if not type(cal) in self.background_calculator_types
             ]
+
+        if calculator_list:
+            print(f"setting _temp_calculator_list to {calculator_list}")
+            self._temp_calculator_list = calculator_list
 
         vseries = self[item]
         self._temp_calculator_list = None
@@ -925,8 +956,8 @@ class Measurement(Saveable):
         return t, v
 
     def grab_for_t(
-            self, item, t, tspan_bg=None, remove_background=None, calculator_list=None
-        ):
+        self, item, t, tspan_bg=None, remove_background=None, calculator_list=None
+    ):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -946,7 +977,7 @@ class Measurement(Saveable):
             include_endpoints=True,
             tspan_bg=tspan_bg,
             remove_background=remove_background,
-            calculator_list=calculator_list
+            calculator_list=calculator_list,
         )
         v = np.interp(t, t_0, v_0)
         return v

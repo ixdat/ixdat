@@ -136,10 +136,9 @@ class ECMeasurement(Measurement):
             self.calibrate(RE_vs_RHE, A_el, R_Ohm)
         self.plot_vs_potential = self.plotter.plot_vs_potential
         if not "potential" in self.aliases:
-            self._aliases.update({"potential":["raw_potential"]})
+            self._aliases.update({"potential": ["raw_potential"]})
         if not "current" in self.aliases:
-            self._aliases.update({"current":["raw_current"]})
-
+            self._aliases.update({"current": ["raw_current"]})
 
     @property
     def E_name(self):

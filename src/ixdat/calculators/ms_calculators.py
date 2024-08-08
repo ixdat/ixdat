@@ -56,7 +56,7 @@ class MSConstantBackground(Saveable):
 
 
 class MSBackgroundSet(Calculator):
-    calculator_name = "MS background"
+    calculator_type = "MS background"
 
     extra_linkers = {
         "ms_background_constants": ("ms_constant_backgrounds", "ms_constant_bg_ids")
@@ -204,7 +204,7 @@ class MSCalibration(Calculator):
     Consider using the more powerful spectro_inlets_quantification package instead.
     """
 
-    calculator_name = "MS calibration"
+    calculator_type = "MS calibration"
 
     extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
     child_attrs = [
@@ -490,12 +490,11 @@ class MSCalibration(Calculator):
 
     def __getattr__(self, attr):
         """A MSCalibration with one cal result can be dropped in for that result:"""
-        ms_cal_results = super().__getattr__("ms_cal_results")
-        if len(ms_cal_results) == 1:
+        if len(self.ms_cal_results) == 1:
             ms_cal_result = self.ms_cal_results[0]
             if hasattr(ms_cal_result, attr):
                 return getattr(ms_cal_result, attr)
-        return super().__getattr__(attr)
+        raise AttributeError
 
     @property
     def available_series_names(self):

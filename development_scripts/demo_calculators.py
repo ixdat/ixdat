@@ -68,6 +68,6 @@ cal2 = ecms.calibrate(R_Ohm=100)
 U_corr = ecms.grab_for_t("potential", t=t)
 
 # The "-raw" suffix ensures that no calculators are applied:
-U_raw_again = ecms.grab("potential-raw")
+U_raw_again = ecms.grab_for_t("potential-raw", t=t)
 
 U_again = ecms.grab_for_t("potential", calculator_list=[cal1a], t=t)
