@@ -7,6 +7,7 @@ Created on Thu Aug  8 13:29:09 2024
 from ..measurements import Calculator
 from ..data_series import ValueSeries, TimeSeries
 from ..plotters.ec_plotter import EC_FANCY_NAMES
+from .scan_rate_tools import calc_sharp_v_scan
 
 
 class ECCalibration(Calculator):
@@ -114,3 +115,22 @@ class ECCalibration(Calculator):
             R_Ohm=R_Ohm,
             name=name,
         )
+
+
+class ScanRateCalculator:
+    calculator_type = "scan_rate_calculator"
+    available_series_names = {"scan_rate"}
+
+    def calculate_series(self, key, measurement, res_points=10):
+        """The scan rate as a ValueSeries"""
+        if not key == "scan_rate":
+            return
+        t, v = measurement.grab("potential")
+        scan_rate_vec = calc_sharp_v_scan(t, v, res_points=res_points)
+        scan_rate_series = ValueSeries(
+            name="scan_rate",
+            unit_name="V/s",  # TODO: unit = potential.unit / potential.tseries.unit
+            data=scan_rate_vec,
+            tseries=measurement.potential.tseries,
+        )
+        return scan_rate_series

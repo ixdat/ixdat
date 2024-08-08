@@ -61,17 +61,12 @@ class Measurement(Saveable):
     """Name of the default selector"""
     selection_series_names = ("file_number",)
     """Name of the default things to use to construct the selector"""
-    series_constructors = {
-        "file_number": "_build_file_number_series",
-        "selector": "_build_selector_series",
-    }
-    """Series which should be constructed from other series by the specified method
-    and cached the first time they are looked up"""
     essential_series_names = None
     """Series which should always be present"""
     default_plotter = ValuePlotter
     default_exporter = CSVExporter
     default_calibration = None
+    built_in_calculator_types = ["indexer"]
     background_calculator_types = []
 
     def __init__(
@@ -139,6 +134,7 @@ class Measurement(Saveable):
 
         self._temp_calculator_list = None
         self._calculator_dict = None
+        self._built_in_calculators = None
 
         self._tstamp = tstamp
 
@@ -189,7 +185,7 @@ class Measurement(Saveable):
             "series\n\n"
             "Series list:\n"
             + "\n".join(out)
-            + "\n\nCalculator list:\n"
+            + "\n\nCalculators:\n"
             + "\n".join(calc_out)
         )
 
@@ -515,7 +511,7 @@ class Measurement(Saveable):
 
     def consolidate_calculators(self):
         """Dictionary of calculators, consolidated if needed to one per type."""
-        calculators = {}
+        calculators = self.built_in_calculators
         for cal in self.calculator_list:
             name = cal.calculator_type
             if name in calculators:
@@ -524,6 +520,16 @@ class Measurement(Saveable):
                 calculators[name] = cal
         self._calculator_dict = calculators
         return self._calculator_dict
+
+    @property
+    def built_in_calculators(self):
+        if not self._built_in_calculators:
+            from .calculators import CALCULATOR_CLASSES
+
+            self._built_in_calculators = {
+                key: CALCULATOR_CLASSES[key]() for key in self.built_in_calculator_types
+            }
+        return self._built_in_calculators
 
     @property
     def c_ids(self):
@@ -535,7 +541,6 @@ class Measurement(Saveable):
         return [c.short_identity for c in self.calculator_list]
 
     def add_calculator(self, calculator):
-        print(f"adding calculator {calculator}")
         self._calculator_list = [calculator] + self._calculator_list
         ctype = calculator.calculator_type
         if not self._calculator_dict:
@@ -559,6 +564,17 @@ class Measurement(Saveable):
         self.add_calculator(new_calculator)
         self.clear_cache()
         return new_calculator
+
+    def rebuild_selector(self, selector_name=None, columns=None, extra_columns=None):
+        from .calculators import CALCULATOR_CLASSES
+
+        indexer = CALCULATOR_CLASSES["indexer"](
+            measurement=self,
+            selector_name=selector_name,
+            columns=columns,
+            extra_columns=extra_columns,
+        )
+        self.add_calculator(indexer)
 
     # Note: Not all ´Calculator´s are ´Calibraiton´s There are also, e.g., `Filter`s and
     # `Background`s. One could, for completeness, also implement the methods
@@ -746,10 +762,10 @@ class Measurement(Saveable):
         # looking up the series name raises a SeriesNotFoundError. To avoid this
         # problematic situation, we check if it can be looked up, and if not,
         # add it a second time to the cached_series, now under `series.name`
-        # try:
-        #     _ = self[series.name]
-        # except SeriesNotFoundError:
-        #     self._cached_series[series.name] = series
+        try:
+            _ = self[series.name]
+        except SeriesNotFoundError:
+            self._cached_series[series.name] = series
 
     def get_series(self, key):
         """Find or build the data series corresponding to key without direct cache'ing
@@ -767,15 +783,12 @@ class Measurement(Saveable):
         Returns DataSeries: the data series corresponding to key
         Raises SeriesNotFoundError if no series found for key
         """
-        # A
-        if key in self.series_constructors:
-            return getattr(self, self.series_constructors[key])()
         # B
         if key.endswith("-raw"):
             # A "-raw" suffix means to skip the calculators
             key = key.removesuffix("-raw")
         else:
-            for calculator in self.calculators:
+            for calculator in self.calculator_dict.values():
                 if key in calculator.available_series_names:
                     series = calculator.calculate_series(key, measurement=self)
                     if series:
@@ -927,7 +940,6 @@ class Measurement(Saveable):
             ]
 
         if calculator_list:
-            print(f"setting _temp_calculator_list to {calculator_list}")
             self._temp_calculator_list = calculator_list
 
         vseries = self[item]
@@ -1004,103 +1016,6 @@ class Measurement(Saveable):
     @property
     def t_name(self):
         return self[self.control_series_name].tseries.name
-
-    def _build_file_number_series(self):
-        """Build a `file_number` series based on component measurements times."""
-        series_to_append = []
-        for i, m in enumerate(self.component_measurements or [self]):
-            if (
-                self.control_technique_name
-                and not m.technique == self.control_technique_name
-            ):
-                continue
-            if not self.control_series_name:
-                tseries = m.time_series[0]
-            else:
-                try:
-                    tseries = m[self.control_series_name].tseries
-                except SeriesNotFoundError:
-                    continue
-            series_to_append.append(
-                ConstantValue(name="file_number", unit_name="", data=i, tseries=tseries)
-            )
-        return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
-
-    def _build_selector_series(
-        self, selector_string=None, columns=None, extra_columns=None
-    ):
-        """Build a `selector` series which demarcates the data.
-
-        The `selector` is a series which can be used to conveniently and powerfully
-        grab sections of the data. It is built up from less powerful demarcation series
-        in the raw data (like `cycle_number`, `step_number`, `loop_number`, etc) and
-        `file_number` by counting the cumulative changes in those series.
-        See slide 3 of:
-        https://www.dropbox.com/s/sjxzr52fw8yml5k/21E18_DWS3_cont.pptx?dl=0
-
-        Args:
-            selector_string (str): The name to use for the selector series
-            columns (list): The list of demarcation series. The demarcation series have
-                to have equal-length tseries, which should be the one pointed to by the
-                meausrement's `control_series_name`.
-            extra_columns (list): Extra demarcation series to include if needed.
-        """
-        # the name of the selector series:
-        selector_string = selector_string or self.selector_name
-        # a vector that will be True at the points where a series changes:
-        changes = np.tile(False, self.t.shape)
-        # the names of the series which help demarcate the data
-        columns = columns or self.selection_series_names
-        if extra_columns:
-            columns += extra_columns
-        for col in columns:
-            try:
-                vseries = self[col]
-            except SeriesNotFoundError:
-                continue
-            values = vseries.data
-            if len(values) == 0:
-                warnings.warn("WARNING: " + col + " is empty")
-                continue
-            elif not len(values) == len(changes):
-                warnings.warn("WARNING: " + col + " has an unexpected length")
-                continue
-            # a vector which is shifted one.
-            last_value = np.append(values[0], values[:-1])
-            # comparing value and last_value shows where in the vector changes occur:
-            changes = np.logical_or(changes, last_value != values)
-        # taking the cumsum makes a vector that increases 1 each time one of the
-        #   original demarcation vector changes
-        selector_data = np.cumsum(changes)
-        selector_series = ValueSeries(
-            name=selector_string,
-            unit_name="",
-            data=selector_data,
-            tseries=self[self.control_series_name].tseries,
-        )
-        return selector_series
-
-    def rebuild_selector(self, selector_string=None, columns=None, extra_columns=None):
-        """Build a new selector series for the measurement and cache it.
-
-        This can be useful if a user wants to change how their measurement counts
-        sections (for example, only count sections when technique or file number changes)
-
-        Args:
-            selector_string (str): The name to use for the selector series
-            columns (list): The list of demarcation series. The demarcation series have
-                to have the same tseries, which should be the one pointed to by the
-                meausrement's `control_series_name`.
-            extra_columns (list): Extra demarcation series to include if needed.
-        """
-        selector_string = selector_string or self.selector_name
-        selector_series = self._build_selector_series(
-            selector_string=selector_string,
-            columns=columns,
-            extra_columns=extra_columns,
-        )
-        self._cache_series(selector_string, selector_series)
-        return selector_series
 
     @property
     def selector(self):
@@ -1559,6 +1474,13 @@ class Calculator(Saveable):
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
         raise NotImplementedError
+
+    def __add__(self, other):
+        warnings.warn(
+            f"Addition is not implemented for {type(self)}. Adding a second to a"
+            " measurement causes the first to be ignored."
+        )
+        return other
 
 
 def get_combined_technique(technique_1, technique_2):

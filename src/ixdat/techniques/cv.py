@@ -25,8 +25,9 @@ class CyclicVoltammogram(ECMeasurement):
     essential_series_names = ("t", "raw_potential", "raw_current", "cycle")
     selector_name = "cycle"
 
-    series_constructors = ECMeasurement.series_constructors
-    series_constructors["scan_rate"] = "_build_scan_rate"
+    built_in_calculator_types = ECMeasurement.built_in_calculator_types + [
+        "scan_rate_calculator"
+    ]
 
     """Name of the default selector"""
 
@@ -157,18 +158,6 @@ class CyclicVoltammogram(ECMeasurement):
                 vspan=vspan, t_i=tspan[0] if tspan else None
             ).integrate(item, ax=ax)
         return super().integrate(item, tspan, ax=ax)
-
-    def _build_scan_rate(self, res_points=10):
-        """The scan rate as a ValueSeries"""
-        t, v = self.grab("potential")
-        scan_rate_vec = calc_sharp_v_scan(t, v, res_points=res_points)
-        scan_rate_series = ValueSeries(
-            name="scan rate",
-            unit_name="V/s",  # TODO: unit = potential.unit / potential.tseries.unit
-            data=scan_rate_vec,
-            tseries=self.potential.tseries,
-        )
-        return scan_rate_series
 
     @property
     @deprecate("0.1", "Use a look-up, i.e. `ec_meas['scan_rate']`, instead.", "0.3")
