@@ -15,7 +15,7 @@ path_to_ec_file_start = (
     Path.home() / "Dropbox/ixdat_resources/test_data/cinfdata/Trimarco2018_fig3/09_fig4"
 )
 ec_meas = Measurement.read_set(path_to_ec_file_start, reader="biologic")
-ec_meas.calibrate(RE_vs_RHE=0.65, A_el=0.196)
+# ec_meas.calibrate(RE_vs_RHE=0.65, A_el=0.196)
 ec_meas.plot_measurement()
 
 ecms_meas = ec_meas + ms_meas
@@ -48,3 +48,6 @@ axes_cv = cv[1].plot(
     logplot=False,
 )
 axes_cv[0].get_figure().savefig("Trimarco2018_ixdat.png")
+
+
+ecms_meas.export("trimarco2018_fig3_data.csv", tspan=[0, 600])

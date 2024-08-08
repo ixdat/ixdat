@@ -71,6 +71,7 @@ class Measurement(Saveable):
     """Series which should always be present"""
     default_plotter = ValuePlotter
     default_exporter = CSVExporter
+    background_calculator_types = []
 
     def __init__(
         self,
@@ -133,6 +134,7 @@ class Measurement(Saveable):
             component_measurements, m_ids, cls=Measurement
         )
         self._calculator_list = fill_object_list(calculator_list, c_ids, cls=Calculator)
+        self._temp_calculator_list = None
         self._tstamp = tstamp
 
         self._cached_series = {}
@@ -496,6 +498,9 @@ class Measurement(Saveable):
             if isinstance(c, PlaceHolderObject):
                 # This is where we find objects from a Backend including MemoryBackend:
                 self._calculator_list[i] = c.get_object()
+        if self._temp_calculator_list:
+            print(f"using temp calculator list: {self._temp_calculator_list}")
+            return self._temp_calculator_list
         return self._calculator_list
 
     @property
@@ -633,6 +638,8 @@ class Measurement(Saveable):
             B. Check if the `calculator`'s `calculate_series` returns a data series
                 for `key` given the data in this measurement. (Note that the
                 `calculator` will typically start with raw data looked C, below.)
+               If the key has the suffix "-raw", skip the calculator lookup; instead
+               remove the suffix and continue to C.
             C. Generate a list of data series and append them:
                 i. Check if `key` is in `aliases`. If so, append all the data series
                     returned for each key in `aliases[key]`.
@@ -708,6 +715,7 @@ class Measurement(Saveable):
                 )
             raise TypeError(message)
 
+        print(f"looking up {key}")
         # step 1
         if key in self._cached_series:
             return self._cached_series[key]
@@ -725,10 +733,10 @@ class Measurement(Saveable):
         # looking up the series name raises a SeriesNotFoundError. To avoid this
         # problematic situation, we check if it can be looked up, and if not,
         # add it a second time to the cached_series, now under `series.name`
-        try:
-            _ = self[series.name]
-        except SeriesNotFoundError:
-            self._cached_series[series.name] = series
+        # try:
+        #     _ = self[series.name]
+        # except SeriesNotFoundError:
+        #     self._cached_series[series.name] = series
 
     def get_series(self, key):
         """Find or build the data series corresponding to key without direct cache'ing
@@ -746,20 +754,26 @@ class Measurement(Saveable):
         Returns DataSeries: the data series corresponding to key
         Raises SeriesNotFoundError if no series found for key
         """
+        print(f"getting series {key}")
         # A
         if key in self.series_constructors:
             return getattr(self, self.series_constructors[key])()
         # B
-        for calculator in self.calculators:
-            if key in calculator.available_series_names:
-                series = calculator.calculate_series(key, measurement=self)
-                if series:
-                    return series
-                warnings.warn(
-                    f"The Calulator {calculator} inscludes {key} in its"
-                    f" `available_series_names`, yet returns `None` when asked to"
-                    " calculate it."
-                )
+        if key.endswith("-raw"):
+            # A "-raw" suffix means to skip the calculators
+            key = key.removesuffix("-raw")
+        else:
+            for calculator in self.calculators:
+                print(f"checking for series in {calculator}")
+                if key in calculator.available_series_names:
+                    series = calculator.calculate_series(key, measurement=self)
+                    if series:
+                        return series
+                    warnings.warn(
+                        f"The Calulator {calculator} inscludes {key} in its"
+                        f" `available_series_names`, yet returns `None` when asked to"
+                        " calculate it."
+                    )
         # C
         series_to_append = []
         if key in self.series_names:  # ii
@@ -837,7 +851,14 @@ class Measurement(Saveable):
         )
         self.replace_series(value_name, new_vseries)
 
-    def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
+    def grab(
+        self,
+        item,
+        tspan=None,
+        include_endpoints=False,
+        tspan_bg=None,
+        remove_background=None,
+    ):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -864,8 +885,24 @@ class Measurement(Saveable):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from the values returned.
+            remove_background (boolean): Whether to subtract a pre-set background, if
+                available. This is True by default. If set to False, it suppresses
+                background calculators, taken to be those specified by the class
+                attribute `background_calculator_types`
         """
+        if remove_background is None:
+            remove_background = True
+        else:
+            self.clear_cache()
+        if not remove_background:
+            self._temp_calculator_list = [
+                cal
+                for cal in self._calculator_list
+                if not type(cal) in self.background_calculator_types
+            ]
         vseries = self[item]
+        self._temp_calculator_list = None
+
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
@@ -886,7 +923,7 @@ class Measurement(Saveable):
             v = v - np.mean(v_bg)
         return t, v
 
-    def grab_for_t(self, item, t, tspan_bg=None):
+    def grab_for_t(self, item, t, tspan_bg=None, remove_background=None):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -895,14 +932,31 @@ class Measurement(Saveable):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from what is returned.
+            remove_background (boolean): Whether to subtract a pre-set background, if
+                available. This is True by default. If set to False, it suppresses
+                background calculators, taken to be those specified by the class
+                attribute `background_calculator_types`
         """
+        if remove_background is None:
+            remove_background = True
+        else:
+            self.clear_cache()
+        if not remove_background:
+            self._temp_calculator_list = [
+                cal
+                for cal in self._calculator_list
+                if not type(cal) in self.background_calculator_types
+            ]
         vseries = self[item]
+        self._temp_calculator_list = None
         tseries = vseries.tseries
         v_0 = vseries.data
         t_0 = tseries.data + tseries.tstamp - self.tstamp
         v = np.interp(t, t_0, v_0)
         if tspan_bg:
-            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            t_bg, v_bg = self.grab(
+                item, tspan=tspan_bg, remove_background=remove_background
+            )
             v = v - np.mean(v_bg)
         return v
 
@@ -1421,7 +1475,7 @@ class Calculator(Saveable):
         """
         super().__init__()
         # NOTE: The :r syntax in f-strings doesn't work on None
-        self.name = name or f"{self.__class__.__name__}({repr(measurement)})"
+        self.name = name or f"{self.__class__.__name__}()"
         self.technique = technique
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement

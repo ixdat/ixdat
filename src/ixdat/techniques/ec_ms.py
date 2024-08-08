@@ -4,8 +4,9 @@ import warnings
 from scipy.optimize import minimize
 from ..constants import FARADAY_CONSTANT
 from .ec import ECMeasurement, ECCalibration
-from .ms import MSMeasurement, MSSpectroMeasurement, MSCalResult, MSCalculator
+from .ms import MSMeasurement, MSSpectroMeasurement, MSCalResult, MSCalibration
 from .cv import CyclicVoltammogram
+from ..measurements import Calculator
 from ..exceptions import QuantificationError
 from ..exporters import ECMSExporter
 from ..plotters import ECMSPlotter
@@ -36,23 +37,6 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     def ms_plotter(self):
         """A plotter for just plotting the ms data"""
         return self.plotter.ms_plotter  # the MSPlotter of the measurement's ECMSPlotter
-
-    @classmethod
-    def from_dict(cls, obj_as_dict):
-        """Initiate an ECMSMeasurement from a dictionary representation.
-
-        This unpacks the ECMSCalibration from its own nested dictionary
-        TODO: Figure out a way for that to happen automatically.
-        """
-
-        if "calibration" in obj_as_dict:
-            if isinstance(obj_as_dict["calibration"], dict):
-                # FIXME: This is a mess
-                obj_as_dict["calibration"] = ECMSCalculator.from_dict(
-                    obj_as_dict["calibration"]
-                )
-        obj = super(ECMSMeasurement, cls).from_dict(obj_as_dict)
-        return obj
 
     @property
     def tspan(self):
@@ -119,7 +103,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         "0.3",
     )
     def ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
-        return ECMSCalculator.ecms_calibration(
+        return ECMSCalibration.ecms_calibration(
             measurement=self,
             mol=mol,
             mass=mass,
@@ -134,7 +118,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         "0.3",
     )
     def ecms_calibration_curve(self, mol, mass, n_el, *args, **kwargs):
-        return ECMSCalculator.ecms_calibration_curve(
+        return ECMSCalibration.ecms_calibration_curve(
             measurement=self, mol=mol, mass=mass, n_el=n_el, *args, **kwargs
         )
 
@@ -175,61 +159,11 @@ class ECMSCyclicVoltammogram(CyclicVoltammogram, ECMSMeasurement):
     """Class for raw EC-MS functionality. Parents: CyclicVoltammogram, ECMSMeasurement"""
 
 
-class ECMSCalculator(ECCalibration, MSCalculator):
-    """Class for calibrations useful for ECMSMeasurements"""
+class ECMSCalibration(Calculator):
+    """Class for calibrations done using ECMSMeasurements
 
-    extra_column_attrs = {
-        "ecms_calibrations": {"date", "setup", "RE_vs_RHE", "A_el", "L"}
-    }
-    # FIXME: The above should be covered by the parent classes. Needs metaprogramming!
-    # NOTE: technique, name, and tstamp in column_attrs are inherited from Calibration
-    # NOTE: ms_results_ids in extra_linkers is inherited from MSCalibration.
-    # NOTE: signal_bgs is left out
-
-    def __init__(
-        self,
-        name=None,
-        measurement=None,
-        date=None,
-        tstamp=None,
-        setup=None,
-        ms_cal_results=None,
-        signal_bgs=None,
-        RE_vs_RHE=None,
-        A_el=None,
-        R_Ohm=None,
-        L=None,
-        technique="EC-MS",
-    ):
-        """
-        Args:
-            name (str): Name of the ms_calibration
-            date (str): Date of the ms_calibration
-            setup (str): Name of the setup where the ms_calibration is made
-            ms_cal_results (list of MSCalResult): The mass spec calibrations
-            RE_vs_RHE (float): the RE potential in [V]
-            A_el (float): The geometric electrode area in [cm^2]
-            R_Ohm (float): The Ohmic drop in [Ohm]
-            L (float): The working distance in [m]
-        """
-        ECCalibration.__init__(
-            self,
-            A_el=A_el,
-            RE_vs_RHE=RE_vs_RHE,
-            R_Ohm=R_Ohm,
-        )
-        MSCalculator.__init__(
-            self,
-            name=name,
-            date=date,
-            tstamp=tstamp,
-            measurement=measurement,
-            setup=setup,
-            ms_cal_results=ms_cal_results,
-            signal_bgs=signal_bgs,
-        )
-        self.technique = technique
-        self.L = L
+    Its classmethods return MSCalibration objects.
+    """
 
     @classmethod
     def ecms_calibration(cls, measurement, mol, mass, n_el, tspan, tspan_bg=None):
@@ -262,7 +196,7 @@ class ECMSCalculator(ECCalibration, MSCalculator):
             cal_type="ecms_calibration",
             F=F,
         )
-        return cls(ms_cal_results=[cal], measurement=measurement)
+        return MSCalibration(ms_cal_results=[cal], measurement=measurement)
 
     @classmethod
     def ecms_calibration_curve(
@@ -373,23 +307,7 @@ class ECMSCalculator(ECCalibration, MSCalculator):
             cal_type="ecms_calibration_curve",
             F=F,
         )
-        return cls(ms_cal_results=[cal], measurement=measurement)
-
-    @property
-    def available_series_names(self):
-        names = set([f"n_dot_{mol}" for mol in self.mol_list])
-        names.add("potential")
-        names.add("current")
-        return names
-
-    def calculate_series(self, key, measurement=None):
-        measurement = measurement or self.measurement
-        try_1 = ECCalibration.calculate_series(self, key, measurement)
-        if try_1:
-            return try_1
-        try_2 = MSCalculator.calculate_series(self, key, measurement)
-        if try_2:
-            return try_2
+        return MSCalibration(ms_cal_results=[cal], measurement=measurement)
 
 
 class ECMSSpectroMeasurement(ECMSMeasurement, MSSpectroMeasurement):

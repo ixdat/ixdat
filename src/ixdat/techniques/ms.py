@@ -42,17 +42,14 @@ class MSMeasurement(Measurement):
         self._siq_quantifier = None  # Used with external quantification package
 
     @property
-    def ms_calculator(self):
-        ms_cal_list = []
-        tspan_bg = None
-        signal_bgs = {}
-        for cal in self.calculator_list:
-            ms_cal_list = ms_cal_list + getattr(cal, "ms_cal_list", [])
-            for mass, bg in getattr(cal, "signal_bgs", {}).items():
-                if mass not in signal_bgs:
-                    signal_bgs[mass] = bg
-            tspan_bg = tspan_bg or getattr(cal, "tspan_bg", None)
-        return MSCalculator(ms_cal_results=ms_cal_list, signal_bgs=signal_bgs)
+    def ms_calibration(self):
+        return self.calculators["MS calibration"]
+
+    @property
+    def background_calculator_types(self):
+        # FIXME: This should be a static class attribute, but the problem is that
+        #    it is defined below.
+        return [MSBackgroundSet]
 
     @property
     def siq_calculator(self):
@@ -65,87 +62,19 @@ class MSMeasurement(Measurement):
 
     @property
     def signal_bgs(self):
-        return self.ms_calculator.signal_bgs
+        return self.calculators["MS background"]
 
-    def set_bg(self, tspan_bg=None, mass_list=None):
+    def set_bg(self, tspan=None, tspan_bg=None, mass_list=None):
         """Set background values for mass_list to the average signal during tspan_bg."""
-        mass_list = mass_list or self.mass_list
-        tspan_bg = tspan_bg or self.tspan_bg
-        signal_bgs = {}
-        for mass in mass_list:
-            t, v = self.grab(mass, tspan_bg)
-            signal_bgs[mass] = np.mean(v)
-        self.add_calculator(MSCalculator(signal_bgs=signal_bgs))
+        tspan = tspan or tspan_bg
+        background = MSBackgroundSet.from_measurement_point(
+            measurement=self, tspan=tspan_bg, mass_list=mass_list
+        )
+        self.add_calculator(background)
 
     def reset_bg(self, mass_list=None):
         """Reset background values for the masses in mass_list"""
-        mass_list = mass_list or self.mass_list
-        new_signal_bgs = {}
-        for mass in mass_list:
-            if mass in self.signal_bgs:
-                new_signal_bgs[mass] = 0
-        self.add_calibration(MSCalculator(signal_bgs=new_signal_bgs))
-
-    def grab(
-        self,
-        item,
-        tspan=None,
-        tspan_bg=None,
-        include_endpoints=False,
-        remove_background=False,
-    ):
-        """Returns t, S where S is raw signal in [A] for a given signal name (ie mass)
-
-        Args:
-            item (str): Name of the signal. If `item` has the form f"n_dot_{mol}", then
-                grab_flux(mol) is returned.
-            tspan (list): Timespan for which the signal is returned.
-            tspan_bg (list): Timespan that corresponds to the background signal.
-                If not given, no background is subtracted.
-            remove_background (bool): Whether to remove a pre-set background if
-                available. This is special to MSMeasurement.
-                Defaults to False, but in grab_flux it defaults to True.
-            include_endpoints (bool): Whether to ensure tspan[0] and tspan[-1] are in t
-        """
-        if plugins.use_siq and item.startswith("n_dot_"):
-            return self.grab_flux(
-                item.removeprefix("n_dot_"),
-                tspan=tspan,
-                tspan_bg=tspan_bg,
-                include_endpoints=include_endpoints,
-            )
-        time, value = super().grab(
-            item, tspan=tspan, include_endpoints=include_endpoints
-        )
-        if tspan_bg:
-            _, bg = self.grab(item, tspan=tspan_bg)
-            return time, value - np.average(bg)
-        elif remove_background:
-            if item in self.signal_bgs:
-                return time, value - self.signal_bgs[item]
-            elif self.tspan_bg:
-                _, bg = self.grab(item, tspan=self.tspan_bg)
-                return time, value - np.average(bg)
-        return time, value
-
-    def grab_for_t(self, item, t, tspan_bg=None, remove_background=False):
-        """Return a numpy array with the value of item interpolated to time t
-
-        Args:
-            item (str): The name of the value to grab
-            t (np array): The time vector to grab the value for
-            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
-                baseline level. The average value of `item` in this interval will be
-                subtracted from what is returned.
-            remove_background (bool): Whether to remove a pre-set background if
-                available. This is special to MSMeasurement.
-                Defaults to False, but in grab_flux it defaults to True.
-        """
-        t_0, v_0 = self.grab(
-            item, tspan_bg=tspan_bg, remove_background=remove_background
-        )
-        v = np.interp(t, t_0, v_0)
-        return v
+        raise NotImplementedError
 
     def grab_signal(self, *args, **kwargs):
         """Alias for grab()"""
@@ -288,19 +217,21 @@ class MSMeasurement(Measurement):
 
     @deprecate(
         "0.2.13",
-        "Use `MSCalculator.gas_flux_calibration` instead.",
+        "Use `MSCalibration.gas_flux_calibration` instead.",
         "0.3",
     )
     def gas_flux_calibration(self, *args, **kwargs):
-        return MSCalculator.gas_flux_calibration(measurement=self, *args, **kwargs)
+        return MSCalibration.gas_flux_calibration(measurement=self, *args, **kwargs)
 
     @deprecate(
         "0.2.13",
-        "Use `MSCalculator.gas_flux_calibration_curve` instead.",
+        "Use `MSCalibration.gas_flux_calibration_curve` instead.",
         "0.3",
     )
     def gas_flux_calibration_curve(self, *args, **kwargs):
-        return MSCalculator.gas_flux_calibration_curve(measurement=self, *args, **kwargs)
+        return MSCalibration.gas_flux_calibration_curve(
+            measurement=self, *args, **kwargs
+        )
 
     @deprecate(
         "0.2.13",
@@ -353,22 +284,133 @@ class MSMeasurement(Measurement):
         )
 
 
-class MSCalResult(Saveable):
-    """A class for a mass spec ms_calibration result.
+class MSConstantBackground(Saveable):
+    """A small Saveable wrapper around a constant MS background
 
-    FIXME: I think that something inheriting directly from Saveable does not belong in
-        a technique module.
+    FIXME: There's nothing about this data structure unique to MS. Should there be a
+    general ConstantBackground class for all Measurement types?
     """
 
-    extra_column_attrs = {"name", "mol", "mass", "cal_type", "F"}
+    table_name = "ms_constant_backgrounds"
+    column_attrs = {"mass", "bg"}
+
+    def __init__(
+        self,
+        mass,
+        bg,
+        name=None,
+    ):
+        self.mass = mass
+        self.bg = bg
+        self.name = name or f"{mass} bg"
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(name={self.name}, mol={self.mol}, bg={self.bg})"
+        )
+
+    def get_bg_for_t(self, t):
+        return self.bg
+
+
+class MSBackgroundSet(Calculator):
+    calculator_name = "MS background"
+
+    extra_linkers = {
+        "ms_background_constants": ("ms_constant_backgrounds", "ms_constant_bg_ids")
+        # Additional types of backgrounds would go here
+    }
+    child_attrs = [
+        "constant_bg_list",
+        # FIXME: This repeats info in extra_linkers. Should be possible to combine. #75.
+    ]
 
     def __init__(
         self,
         name=None,
-        mol=None,
-        mass=None,
+        date=None,
+        bg_list=None,
+        technique="MS",
+        tstamp=None,
+        measurement=None,
+    ):
+        super().__init__(
+            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+        )
+        self.constant_bg_list = []
+        for bg in bg_list:
+            if type(bg) is MSConstantBackground:
+                self.constant_bg_list.append(bg)
+            # elif type(bg) is OtherBackgroundClassWhenItIsReady:
+            #   self.other_bacground_list.append(bg)
+            else:
+                warnings.warn(
+                    f"Initiating an MSBackgoundSet with a background list including {bg}"
+                    ", which is not a recognized MS background type. Skipping that one."
+                )
+
+    @classmethod
+    def from_measurement_point(cls, measurement, tspan, mass_list=None):
+        mass_list = mass_list or measurement.mass_list
+        bg_list = []
+        for mass in mass_list:
+            _, S = measurement.grab(mass, remove_background=False, tspan=tspan)
+            bg_list.append(MSConstantBackground(mass=mass, bg=np.mean(S)))
+        return cls(bg_list=bg_list, measurement=measurement)
+
+    @property
+    def ms_constant_bg_ids(self):
+        return [cal.id for cal in self.constant_bg_list]
+
+    @property
+    def bg_list(self):
+        return self.constant_bg_list  # + self.other_bg_lists_when_they_are_here
+
+    @property
+    def mass_list(self):
+        return list({bg.mass for bg in self.bg_list})
+
+    @property
+    def available_series_names(self):
+        return set([f"{mass}" for mass in self.mass_list])
+
+    def calculate_series(self, mass, measurement=None):
+        """Return a calibrated series for `key` if possible.
+
+        If key starts with "n_", it is interpreted as a molecule flux. This method then
+        searches the calibration for a sensitivity factor for that molecule uses it to
+        divide the relevant mass signal from the measurement. Example acceptable keys:
+        "n_H2", "n_dot_H2".
+        If the key does not start with "n_", or the calibration can't find a relevant
+        sensitivity factor and mass signal, this method returns None.
+        """
+        measurement = measurement or self.measurement
+
+        raw_series = measurement[mass + "-raw"]
+        bg_object = next(obj for obj in self.bg_list if obj.mass == mass)
+        bg = bg_object.get_bg_for_t(raw_series.t)
+
+        return ValueSeries(
+            name=mass + "_bg_corrected",
+            unit_name="mol/s",
+            data=raw_series.data - bg,
+            tseries=raw_series.tseries,
+        )
+
+
+class MSCalResult(Saveable):
+    """A small saveable wrapper around an MS calibration."""
+
+    table_name = "ms_cal_results"
+    column_attrs = {"name", "mol", "mass", "cal_type", "F"}
+
+    def __init__(
+        self,
+        mol,
+        mass,
+        F,
+        name=None,
         cal_type=None,
-        F=None,
     ):
         super().__init__()
         self.name = name or f"{mol}@{mass}"
@@ -413,24 +455,30 @@ class MSCalResult(Saveable):
         )
 
 
-class MSCalculator(Calculator):
-    """Class for mass spec calibrations. TODO: replace with powerful external package"""
+class MSCalibration(Calculator):
+    """Class for mass spec calibrations.
+
+    This is a simple version, just implementing sensitivity facotrs.
+    Consider using the more powerful spectro_inlets_quantification package instead.
+    """
+
+    calculator_name = "MS calibration"
 
     extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
-    # FIXME: signal_bgs are not saved at present. Should they be a separate table
-    #   of Saveable objects like ms_cal_results or should they be a single json value?
     child_attrs = [
         "ms_cal_results",
     ]
 
     def __init__(
         self,
+        mol=None,
+        mass=None,
+        F=None,
         name=None,
         date=None,
         tstamp=None,  # FIXME: No need to have both a date and a tstamp?
         setup=None,
         ms_cal_results=None,
-        signal_bgs=None,
         technique="MS",
         measurement=None,
     ):
@@ -440,12 +488,12 @@ class MSCalculator(Calculator):
             date (str): Date of the ms_calibration
             setup (str): Name of the setup where the ms_calibration is made
             ms_cal_results (list of MSCalResult): The mass spec calibrations
-            measurement (MSMeasurement): The measurement
+            measurement (MSMeasurement): The measurement used to make the calibration
         """
         if plugins.use_siq:
             warnings.warn(
                 "spectro_inlets_quantification is active but you are making a native "
-                "ixdat MSCalculator. It's probably best not to mix the two!"
+                "ixdat MSCalibration. It's probably best not to mix the two!"
             )
         super().__init__(
             name=name,
@@ -453,10 +501,16 @@ class MSCalculator(Calculator):
             tstamp=tstamp,
             measurement=measurement,
         )
+        if mol and mass and (F is not None):
+            if ms_cal_results:
+                raise QuantificationError(
+                    "Attempt to initiate MSCalibration with both"
+                    "mol, mass, and F, *and* a ms_cal_results list. Choose one."
+                )
+            ms_cal_results = [MSCalResult(mol, mass, F)]
         self.date = date
         self.setup = setup
         self.ms_cal_results = ms_cal_results or []
-        self.signal_bgs = signal_bgs or {}
 
     @classmethod
     @deprecate(
@@ -731,9 +785,6 @@ class MSCalculator(Calculator):
                 # for the desired mol at an available mass.
                 return
             y = signal_series.data
-            if mass in measurement.signal_bgs:
-                # FIXME: How to make this optional to user of MSMeasuremt.grab()?
-                y = y - measurement.signal_bgs[mass]
             n_dot = y / F
             return ValueSeries(
                 name=f"n_dot_{mol}",
@@ -832,7 +883,7 @@ class MSCalculator(Calculator):
     def to_siq(self):
         if not plugins.use_siq:
             raise QuantificationError(
-                "`MSCalculator.to_siq` only works when using "
+                "`MSCalibration.to_siq` only works when using "
                 "`spectro_inlets_quantification` "
                 "(`ixdat.plugins.activate_siq()`). "
             )
@@ -1009,19 +1060,19 @@ class MSInlet:
 
     @deprecate(
         last_supported_release="0.2.5",
-        update_message=("`gas_flux_calibration` is now a method of `MSCalculator`"),
+        update_message=("`gas_flux_calibration` is now a method of `MSCalibration`"),
         hard_deprecation_release="0.3.0",
         remove_release="1.0.0",
     )
     def gas_flux_calibration(self, measurement, mol, mass, *args, **kwargs):
-        return MSCalculator.gas_flux_calibration(
+        return MSCalibration.gas_flux_calibration(
             measurement=measurement, mol=mol, mass=mass, inlet=self, *args, **kwargs
         )
 
     @deprecate(
         last_supported_release="0.2.5",
         update_message=(
-            "`gas_flux_calibration_curve` is now a method of `MSCalculator`"
+            "`gas_flux_calibration_curve` is now a method of `MSCalibration`"
         ),
         hard_deprecation_release="0.3.0",
         remove_release="1.0.0",
@@ -1034,7 +1085,7 @@ class MSInlet:
         *args,
         **kwargs,
     ):
-        return MSCalculator.gas_flux_calibration_curve(
+        return MSCalibration.gas_flux_calibration_curve(
             measurement=measurement, mol=mol, mass=mass, inlet=self, *args, **kwargs
         )
 
