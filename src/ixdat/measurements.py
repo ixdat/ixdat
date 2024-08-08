@@ -842,6 +842,7 @@ class Measurement(Saveable):
         include_endpoints=False,
         tspan_bg=None,
         remove_background=None,
+        calculator_list=None
     ):
         """Return a value vector with the corresponding time vector
 
@@ -873,17 +874,31 @@ class Measurement(Saveable):
                 available. This is True by default. If set to False, it suppresses
                 background calculators, taken to be those specified by the class
                 attribute `background_calculator_types`
+            calculator_list (list of Calculators): A list of ixdat.Calculator instances
+                to apply in place of the measurement's existing calculator_list. These
+                calculators are given a chance, starting from the front of the list,
+                to calculate a `DataSeries` for `item`.
+
+        Returns: tuple of np.Array. The first array is time, and the second array is the
+            corresponding (calculated) values of the requested item.
         """
         if remove_background is None:
             remove_background = True
         else:
             self.clear_cache()
+        if calculator_list:
+            self.clear_cache()
+        elif not remove_background:
+            calculator_list = self._calculator_list
+
         if not remove_background:
+            calculator_list
             self._temp_calculator_list = [
                 cal
-                for cal in self._calculator_list
+                for cal in calculator_list
                 if not type(cal) in self.background_calculator_types
             ]
+
         vseries = self[item]
         self._temp_calculator_list = None
 
@@ -903,11 +918,15 @@ class Measurement(Saveable):
             mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
             t, v = t[mask], v[mask]
         if tspan_bg:
-            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            t_bg, v_bg = self.grab(
+                item, tspan=tspan_bg, remove_background=remove_background
+            )
             v = v - np.mean(v_bg)
         return t, v
 
-    def grab_for_t(self, item, t, tspan_bg=None, remove_background=None):
+    def grab_for_t(
+            self, item, t, tspan_bg=None, remove_background=None, calculator_list=None
+        ):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -921,27 +940,15 @@ class Measurement(Saveable):
                 background calculators, taken to be those specified by the class
                 attribute `background_calculator_types`
         """
-        if remove_background is None:
-            remove_background = True
-        else:
-            self.clear_cache()
-        if not remove_background:
-            self._temp_calculator_list = [
-                cal
-                for cal in self._calculator_list
-                if not type(cal) in self.background_calculator_types
-            ]
-        vseries = self[item]
-        self._temp_calculator_list = None
-        tseries = vseries.tseries
-        v_0 = vseries.data
-        t_0 = tseries.data + tseries.tstamp - self.tstamp
+        t_0, v_0 = self.grab(
+            item,
+            tspan=[t[0], t[-1]],
+            include_endpoints=True,
+            tspan_bg=tspan_bg,
+            remove_background=remove_background,
+            calculator_list=calculator_list
+        )
         v = np.interp(t, t_0, v_0)
-        if tspan_bg:
-            t_bg, v_bg = self.grab(
-                item, tspan=tspan_bg, remove_background=remove_background
-            )
-            v = v - np.mean(v_bg)
         return v
 
     def integrate(self, item, tspan=None, ax=None):
