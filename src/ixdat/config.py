@@ -193,8 +193,8 @@ class _SIQ:
         from spectro_inlets_quantification.quantifier import Quantifier
         from .measurements import Calculator
         from .data_series import TimeSeries, ValueSeries
-        from .techniques.ms import MSCalculator
-        from .techniques.ec_ms import ECMSCalculator
+        from .techniques.ms import MSCalibration
+        from .techniques.ec_ms import ECMSCalibration
         from .exceptions import QuantificationError
 
         self.quant_config = Config()
@@ -286,14 +286,14 @@ class _SIQ:
                 return set([f"n_dot_{mol}" for mol in self.quantifier.mol_list])
 
             gas_flux_calibration = native_to_siq_method(
-                MSCalculator.gas_flux_calibration
+                MSCalibration.gas_flux_calibration
             )
             gas_flux_calibration_curve = native_to_siq_method(
-                MSCalculator.gas_flux_calibration_curve
+                MSCalibration.gas_flux_calibration_curve
             )
-            ecms_calibration = native_to_siq_method(ECMSCalculator.ecms_calibration)
+            ecms_calibration = native_to_siq_method(ECMSCalibration.ecms_calibration)
             ecms_calibration_curve = native_to_siq_method(
-                ECMSCalculator.ecms_calibration_curve
+                ECMSCalibration.ecms_calibration_curve
             )
 
             @classmethod

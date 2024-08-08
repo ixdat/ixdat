@@ -1,8 +1,12 @@
 """For use in development of the cinfdata reader. Requires access to sample data."""
 
 from pathlib import Path
+from matplotlib import pyplot as plt
 from ixdat import Measurement, plugins
-from ixdat.techniques.ec_ms import ECMSCalculator
+from ixdat.techniques.ec_ms import ECMSCalibration
+
+
+plt.close("all")
 
 data_dir = (
     Path.home() / "Dropbox/ixdat_resources/tutorials_data/"
@@ -21,7 +25,7 @@ ecms.tstamp += 9000
 axes = ecms.plot(tspan=[0, 3000])
 
 # this has background subtraction and goes through zero:
-cal_result = ECMSCalculator.ecms_calibration_curve(
+cal_result = ECMSCalibration.ecms_calibration_curve(
     ecms,
     mol="H2",
     mass="M2",
@@ -32,7 +36,7 @@ cal_result = ECMSCalculator.ecms_calibration_curve(
     force_through_zero=True,
 )
 # this is forced through zero but without background subtraction gives the wrong answer:
-cal_result_2 = ECMSCalculator.ecms_calibration_curve(
+cal_result_2 = ECMSCalibration.ecms_calibration_curve(
     ecms,
     mol="H2",
     mass="M2",
@@ -41,7 +45,7 @@ cal_result_2 = ECMSCalculator.ecms_calibration_curve(
     force_through_zero=True,
 )
 # this doesn't go through zero but still gives the right answer:
-cal_result_3 = ECMSCalculator.ecms_calibration_curve(
+cal_result_3 = ECMSCalibration.ecms_calibration_curve(
     ecms,
     mol="H2",
     mass="M2",
@@ -53,7 +57,7 @@ plugins.activate_siq()
 siqCalculator = plugins.siq.Calculator
 
 # The following issues a warning and returns an ixdat MSCalResult :)
-cal_1 = ECMSCalculator.ecms_calibration_curve(
+cal_1 = ECMSCalibration.ecms_calibration_curve(
     ecms,
     mol="H2",
     mass="M2",
@@ -75,7 +79,7 @@ siq_cal_2 = siqCalculator.ecms_calibration_curve(
 # siq and native ixdat calibration objects:
 # (this is not a natural workflow, just some code to show that the methods work.)
 
-cal_2 = ECMSCalculator.from_siq(siq_cal_2)
+cal_2 = ECMSCalibration.from_siq(siq_cal_2)
 print(cal_2)
 
 siq_cal_1 = cal_1.to_siq()
@@ -88,7 +92,7 @@ print(siq_calibration)
 # The following works!
 siq_calibration.plot_as_spectrum()
 
-calibration = ECMSCalculator.from_siq(siq_calibration)
+calibration = ECMSCalibration.from_siq(siq_calibration)
 print(calibration)
 
 siq_calibration_again = calibration.to_siq()
