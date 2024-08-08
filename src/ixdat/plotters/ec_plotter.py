@@ -7,6 +7,15 @@ from ..tools import deprecate
 from ..exceptions import SeriesNotFoundError
 
 
+EC_FANCY_NAMES = {
+    "t": "time / [s]",
+    "raw_potential": "raw potential / [V]",
+    "potential": "$U_{RHE}$ / [V]",
+    "raw_current": "raw current / [mA]",
+    "current": "J / [mA cm$^{-2}$]",
+}
+
+
 class ECPlotter(MPLPlotter):
     """A matplotlib plotter specialized in electrochemistry measurements."""
 

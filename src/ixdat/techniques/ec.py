@@ -3,16 +3,9 @@
 from ..measurements import Measurement, Calculator
 from ..data_series import ValueSeries
 from ..exporters import ECExporter
-from ..plotters import ECPlotter
+from ..plotters.ec_plotter import ECPlotter, EC_FANCY_NAMES
 from ..tools import deprecate
-
-EC_FANCY_NAMES = {
-    "t": "time / [s]",
-    "raw_potential": "raw potential / [V]",
-    "potential": "$U_{RHE}$ / [V]",
-    "raw_current": "raw current / [mA]",
-    "current": "J / [mA cm$^{-2}$]",
-}
+from ..calculators.ec_calculators import ECCalibration
 
 
 class ECMeasurement(Measurement):
@@ -96,6 +89,7 @@ class ECMeasurement(Measurement):
     selection_series_names = ("file_number", "loop_number", "cycle number", "Ns")
     default_exporter = ECExporter
     default_plotter = ECPlotter
+    default_calibration = ECCalibration
 
     def __init__(
         self,

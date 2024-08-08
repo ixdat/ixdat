@@ -71,6 +71,7 @@ class Measurement(Saveable):
     """Series which should always be present"""
     default_plotter = ValuePlotter
     default_exporter = CSVExporter
+    default_calibration = None
     background_calculator_types = []
 
     def __init__(
@@ -529,20 +530,7 @@ class Measurement(Saveable):
         Raises:
             TechniqueError if no calculator class for the measurement's technique
         """
-
-        from .techniques import CALCULATOR_CLASSES
-
-        if self.technique in CALCULATOR_CLASSES:
-            calculator_class = CALCULATOR_CLASSES[self.technique]
-        else:
-            raise TechniqueError(
-                f"{self!r} is of technique '{self.technique}, for which there is not an "
-                "available default calculator. Instead, import one of the following "
-                "classes to initiate a calculator, and then use `add_calculator`. "
-                f"\nOptions: \n{CALCULATOR_CLASSES}"
-            )
-
-        self.add_calculator(calculator_class(*args, **kwargs))
+        self.add_calculator(self.default_calibration(*args, **kwargs))
         self.clear_cache()
 
     # Note: Not all ´Calculator´s are ´Calibraiton´s There are also, e.g., `Filter`s and

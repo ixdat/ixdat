@@ -2,7 +2,7 @@ import numpy as np
 from .ec import ECMeasurement
 from ..data_series import ValueSeries, TimeSeries
 from ..exceptions import BuildError, SeriesNotFoundError
-from .analysis_tools import (
+from ..calculators.scan_rate_tools import (
     tspan_passing_through,
     calc_sharp_v_scan,
     find_signed_sections,

@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Aug  8 13:29:09 2024
+
+@author: Søren
+"""
+from ..measurements import Calculator
+from ..data_series import ValueSeries, TimeSeries
+
+
+class ECCalibration(Calculator):
+    """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
+
+    extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
+    # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
+
+    def __init__(
+        self,
+        name=None,
+        technique="EC",
+        tstamp=None,
+        measurement=None,
+        RE_vs_RHE=None,
+        A_el=None,
+        R_Ohm=None,
+    ):
+        """Initiate a Calibration
+
+        Args:
+            name (str): The name of the calibration
+            technique (str): The technique of the calibration
+            tstamp (float): The time at which the calibration took place or is valid
+            measurement (ECMeasurement): Optional. A measurement to calibrate by default
+            RE_vs_RHE (float): The reference electrode potential on the RHE scale in [V]
+            A_el (float): The electrode area in [cm^2]
+            R_Ohm (float): The ohmic drop resistance in [Ohm]
+        """
+        super().__init__(
+            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+        )
+        self.RE_vs_RHE = RE_vs_RHE
+        self.A_el = A_el
+        self.R_Ohm = R_Ohm
+
+    def __repr__(self):
+        # TODO: make __repr__'s consistent throught ixdat
+        return (
+            f"{self.__class__.__name__}"
+            f"(RE_vs_RHE={self.RE_vs_RHE}, A_el={self.A_el}, R_Ohm={self.R_Ohm})"
+        )
+
+    available_series_names = {"potential", "current"}
+    # This is a constant class attribute rather than a property because an
+    # ECCalibration always returns potential and current, as correctly as possible.
+
+    def calculate_series(self, key, measurement=None):
+        """Return a calibrated series for key based on the raw data in the measurement.
+
+        Key should be "potential" or "current". Anything else will return None.
+
+        - "potential": the calibration looks up "raw_potential" in the measurement,
+        shifts it to the RHE potential if RE_vs_RHE is available, corrects it for
+        Ohmic drop if R_Ohm is available, and then returns a calibrated potential
+        series with a name indicative of the corrections done.
+        - "current": The calibration looks up "raw_current" in the measurement,
+        normalizes it to the electrode area if A_el is available, and returns a
+        calibrated current series with a name indicative of whether the normalization
+        was done.
+        """
+        measurement = measurement or self.measurement
+        if key == "potential":
+            raw_potential = measurement["raw_potential"]
+            name = raw_potential.name
+            U = raw_potential.data
+            if self.RE_vs_RHE is not None:
+                U = U + self.RE_vs_RHE
+                name = EC_FANCY_NAMES["potential"]
+            if self.R_Ohm is not None:
+                I_mA = measurement.grab_for_t("raw_current", t=raw_potential.t)
+                U = U - self.R_Ohm * I_mA * 1e-3  # [V] = [Ohm*mA*(A/mA)]
+                name = name + " $_{ohm. corr.}$"
+            return ValueSeries(
+                name=name,
+                unit_name=raw_potential.unit_name,
+                data=U,
+                tseries=raw_potential.tseries,
+            )
+
+        if key == "current":
+            raw_current = measurement["raw_current"]
+            name = raw_current.name
+            J = raw_current.data
+            if self.A_el is not None:
+                J = J / self.A_el
+                name = EC_FANCY_NAMES["current"]
+            return ValueSeries(
+                name=name,
+                unit_name=raw_current.unit_name,
+                data=J,
+                tseries=raw_current.tseries,
+            )
