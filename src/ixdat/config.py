@@ -228,6 +228,7 @@ class _SIQ:
         class siqCalculator(Calibration, Calculator):
             """A class to function as an ixdat calculator with siq functionality"""
 
+            # FIXME: Should this somehow be in calclators/ms_calculators.py
             # FIXME: Should this be defined within the siq package?
 
             def __init__(self, *args, **kwargs):

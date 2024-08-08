@@ -499,7 +499,6 @@ class Measurement(Saveable):
                 # This is where we find objects from a Backend including MemoryBackend:
                 self._calculator_list[i] = c.get_object()
         if self._temp_calculator_list:
-            print(f"using temp calculator list: {self._temp_calculator_list}")
             return self._temp_calculator_list
         return self._calculator_list
 
@@ -715,7 +714,6 @@ class Measurement(Saveable):
                 )
             raise TypeError(message)
 
-        print(f"looking up {key}")
         # step 1
         if key in self._cached_series:
             return self._cached_series[key]
@@ -754,7 +752,6 @@ class Measurement(Saveable):
         Returns DataSeries: the data series corresponding to key
         Raises SeriesNotFoundError if no series found for key
         """
-        print(f"getting series {key}")
         # A
         if key in self.series_constructors:
             return getattr(self, self.series_constructors[key])()
@@ -764,7 +761,6 @@ class Measurement(Saveable):
             key = key.removesuffix("-raw")
         else:
             for calculator in self.calculators:
-                print(f"checking for series in {calculator}")
                 if key in calculator.available_series_names:
                     series = calculator.calculate_series(key, measurement=self)
                     if series:
@@ -1038,10 +1034,10 @@ class Measurement(Saveable):
                 continue
             values = vseries.data
             if len(values) == 0:
-                print("WARNING: " + col + " is empty")
+                warnings.warn("WARNING: " + col + " is empty")
                 continue
             elif not len(values) == len(changes):
-                print("WARNING: " + col + " has an unexpected length")
+                warnings.warn("WARNING: " + col + " has an unexpected length")
                 continue
             # a vector which is shifted one.
             last_value = np.append(values[0], values[:-1])
