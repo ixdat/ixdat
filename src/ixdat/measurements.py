@@ -511,7 +511,7 @@ class Measurement(Saveable):
 
     def consolidate_calculators(self):
         """Dictionary of calculators, consolidated if needed to one per type."""
-        calculators = self.built_in_calculators
+        calculators = self.built_in_calculators.copy()  # <-- result of a tough debug :)
         for cal in self.calculator_list:
             name = cal.calculator_type
             if name in calculators:
@@ -761,11 +761,11 @@ class Measurement(Saveable):
         # If the name of the series is not `key`, we can get in a situation where
         # looking up the series name raises a SeriesNotFoundError. To avoid this
         # problematic situation, we check if it can be looked up, and if not,
-        # add it a second time to the cached_series, now under `series.name`
+        # add it also to aliases, now under `series.name`
         try:
             _ = self[series.name]
         except SeriesNotFoundError:
-            self._cached_series[series.name] = series
+            self._aliases[series.name] = [key]
 
     def get_series(self, key):
         """Find or build the data series corresponding to key without direct cache'ing
@@ -922,28 +922,27 @@ class Measurement(Saveable):
         Returns: tuple of np.Array. The first array is time, and the second array is the
             corresponding (calculated) values of the requested item.
         """
-        if remove_background is None:
-            remove_background = True
-        else:
+        if (calculator_list is not None) or (remove_background is not None):
             self.clear_cache()
 
-        if calculator_list:
-            self.clear_cache()
-        elif not remove_background:
-            calculator_list = self._calculator_list
-
-        if not remove_background:
+        if remove_background is False:
+            if calculator_list is None:
+                calculator_list = self._calculator_list
             calculator_list = [
                 cal
                 for cal in calculator_list
                 if not type(cal) in self.background_calculator_types
             ]
 
-        if calculator_list:
+        if calculator_list is not None:
+            # this will now be the case if either (i) a calculator_list was given, or
+            # (ii) remove_background was set to False.
             self._temp_calculator_list = calculator_list
+            self.consolidate_calculators()
 
         vseries = self[item]
         self._temp_calculator_list = None
+        self.consolidate_calculators()
 
         tseries = vseries.tseries
         v = vseries.data

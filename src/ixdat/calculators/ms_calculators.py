@@ -47,9 +47,7 @@ class MSConstantBackground(Saveable):
         self.name = name or f"{mass} bg"
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(name={self.name}, mol={self.mol}, bg={self.bg})"
-        )
+        return f"{self.__class__.__name__}(name={self.name}, bg={self.bg})"
 
     def get_bg_for_t(self, t):
         return self.bg

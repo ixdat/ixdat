@@ -10,6 +10,9 @@ from ixdat import Measurement
 from ixdat.exceptions import SeriesNotFoundError
 from ixdat.techniques.ms import MSCalibration
 
+
+plt.close("all")
+
 data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/ixdat_exports"
 
 ecms = Measurement.read(data_dir / "trimarco2018_fig3_data.csv", reader="ixdat")
@@ -47,7 +50,7 @@ M2_bg_removed = ecms.grab_for_t("M2", t=t, remove_background=True)
 M2_raw = ecms.grab_for_t("M2", t=t, remove_background=False)
 
 F_bg_implied = (M2_raw - M2_bg_removed) / (n_dot_H2_raw - n_dot_H2_bg_removed)
-print(F_bg_implied)
+assert F_bg_implied[0] == 0.21
 
 
 t, U_raw = ecms.grab("potential")
@@ -61,13 +64,18 @@ cal1a = ecms.calibrate(RE_vs_RHE=0.715)
 
 # This raises a Warning because it makes a third calculator responding to "potential":
 U = ecms.grab_for_t("potential", t=t)
-
+print()
 # ECMeasurement.calibrate() adds R_Ohm to the last
 cal2 = ecms.calibrate(R_Ohm=100)
-
+print()
 U_corr = ecms.grab_for_t("potential", t=t)
-
+print()
 # The "-raw" suffix ensures that no calculators are applied:
 U_raw_again = ecms.grab_for_t("potential-raw", t=t)
-
+print()
 U_again = ecms.grab_for_t("potential", calculator_list=[cal1a], t=t)
+
+assert max(U_again) == max(U)
+assert max(U_corr) != max(U)
+assert max(U_raw_again) == max(U_raw)
+assert max(U_raw) != max(U)
