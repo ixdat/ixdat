@@ -1,249 +1,300 @@
 """Module for deconvolution of mass transport effects."""
 
-from .ec_ms import ECMSMeasurement
+import numpy as np
 from scipy.optimize import curve_fit  # noqa
 from scipy.interpolate import interp1d  # noqa
 from scipy import signal  # noqa
 from mpmath import invertlaplace, sinh, cosh, sqrt, exp, erfc, pi, tanh, coth  # noqa
-import matplotlib.pyplot as plt
 from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
-import numpy as np
 
-# FIXME: too much abbreviation in this module.
-# TODO: Implement the PR review here: https://github.com/ixdat/ixdat/pull/4
-#  Perhaps best to merge [master] into [deconvolution], improve the module on the
-#  latter branch, and then reopen the PR.
+from ..exceptions import TechniqueError
+from ..config import plugins
+from ..constants import R, STANDARD_TEMPERATURE, STANDARD_PRESSURE
+from ..plotters.plotting_tools import calc_linear_background
 
+# TODO: Would be very useful to have a method to calculate the condition number for
+# a certain analyte. see Krempl et al. 2021
+# https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+# for definition of condition number
 
-class DecoMeasurement(ECMSMeasurement):
-    """Class implementing deconvolution of EC-MS data"""
-
-    def __init__(self, name, **kwargs):
-        """Initialize a deconvolution EC-MS measurement
-
-        Args:
-            name (str): The name of the measurement"""
-        super().__init__(name, **kwargs)
-
-    def grab_partial_current(
-        self, signal_name, kernel_obj, tspan=None, tspan_bg=None, snr=10
-    ):
-        """Return the deconvoluted partial current for a given signal
-
-        Args:
-            signal_name (str): Name of signal for which deconvolution is to
-                be carried out.
-            kernel_obj (Kernel): Kernel object which contains the mass transport
-                parameters
-            tspan (list): Timespan for which the partial current is returned.
-            tspan_bg (list): Timespan that corresponds to the background signal.
-            snr (int): signal-to-noise ratio used for Wiener deconvolution.
-        """
-        # TODO: comments in this method so someone can tell what's going on!
-
-        t_sig, v_sig = self.grab_cal_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
-
-        kernel = kernel_obj.calculate_kernel(
-            dt=t_sig[1] - t_sig[0], duration=t_sig[-1] - t_sig[0]
-        )
-        kernel = np.hstack((kernel, np.zeros(len(v_sig) - len(kernel))))
-        H = fft(kernel)
-        # TODO: store this as well.
-        partial_current = np.real(
-            ifft(fft(v_sig) * np.conj(H) / (H * np.conj(H) + (1 / snr) ** 2))
-        )
-        partial_current = partial_current * sum(kernel)
-        return t_sig, partial_current
-
-    def extract_kernel(self, signal_name, cutoff_pot=0, tspan=None, tspan_bg=None):
-        """Extracts a Kernel object from a measurement.
-
-        Args:
-            signal_name (str): Signal name from which the kernel/impule
-                response is to be extracted.
-            cutoff_pot (int): Potential which the defines the onset of the
-                impulse. Must be larger than the resting potential before the
-                impulse.
-            tspan(list): Timespan from which the kernel/impulse response is
-                extracted.
-            tspan_bg (list): Timespan that corresponds to the background signal.
-        """
-        x_curr, y_curr = self.grab_current(tspan=tspan)
-        x_pot, y_pot = self.grab_potential(tspan=tspan)
-        x_sig, y_sig = self.grab_signal(signal_name, tspan=tspan, tspan_bg=tspan_bg)
-
-        if signal_name == "M32":
-            t0 = x_curr[np.argmax(y_pot > cutoff_pot)]  # time of impulse
-        elif signal_name == "M2" or signal_name == "M17":
-            t0 = x_curr[np.argmax(y_pot < cutoff_pot)]
-        else:
-            print("mass not found")
-
-        x_sig = x_sig - t0
-
-        y_sig = y_sig[x_sig > 0]
-        x_sig = x_sig[x_sig > 0]
-
-        y_curr = y_curr[x_curr > t0]
-        x_curr = x_curr[x_curr > t0]
-        y_pot = y_pot[x_pot > t0]
-        x_pot = x_pot[x_pot > t0]
-
-        kernel = Kernel(
-            MS_data=np.array([x_sig, y_sig]),
-            EC_data=np.array([x_curr, y_curr, x_pot, y_pot]),
-        )
-
-        return kernel
+# TODO: rename kernel to something else
 
 
-class Kernel:
-    """Kernel class implementing datatreatment of kernel/impulse response data."""
+class ECMSImpulseResponse:
+    """
+    Class for signal impulse response for ECMS data for modelling diffusion.
+    see Krempl et al. 2021
+    https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
 
-    # TODO: Make class inherit from Measurement, add properties to store kernel
-    # TODO: Reference equations to paper.
+    This class currently handles only one molecule at a time. If deconvolution of
+    multiple molecules is required this needs to be handled by separate objects.
+
+    # TODO: Make class inherit from Calculator
+    """
+
     def __init__(
         self,
-        parameters={},  # FIXME: no mutable default arguments!
-        MS_data=None,
-        EC_data=None,
+        mol,
+        t_kernel,
+        kernel,
+        measurement=None,
+        working_distance=None,
+        A_el=None,
+        D=None,
+        H_v_cc=None,
+        n_dot=None,
+        T=None,
+        p=None,
+        carrier_gas=None,
+        gas_volume=None,
+        dt=None,
+        duration=None,
+        ir_type=None,
     ):
-        """Initializes a Kernel object either in functional form by defining the
-        mass transport parameters or in the measured form by passing of EC-MS
-        data.
-
-        Args:
-            parameters (dict): Dictionary containing the mass transport
-                parameters with the following keys:
-                    diff_const: Diffusion constant in liquid
-                    work_dist: Working distance between electrode and gas/liq interface
-                    vol_gas: Gas sampling volume of the chip
-                    volflow_cap: Volumetric capillary flow
-                    henry_vola: Dimensionless Henry volatility
-                MS_data (list): List of numpy arrays containing the MS signal
-                    data.
-                EC_data (list): List of numpy arrays containing the EC (time,
-                    current, potential).
         """
-
-        if MS_data and parameters:  # TODO: Make two different classes
-            raise Exception(
-                "Kernel can only be initialized with data OR parameters, not both"
-            )
-        if EC_data and MS_data:
-            print("Generating kernel from measured data")
-            self.type = "measured"
-        elif parameters:
-            print("Generating kernel from parameters")
-            self.type = "functional"
-        else:
-            print("Generating blank kernel")
-            self.type = None
-
-        self.params = parameters
-        self.MS_data = MS_data
-        self.EC_data = EC_data  # x_curr, y_curr, x_pot, y_pot
-
-    @property
-    def sig_area(self):
-        """Integrates a measured impulse response and returns the area."""
-        delta_sig = self.MS_data[1] - self.MS_data[1][-1]
-        sig_area = np.trapz(delta_sig, self.MS_data[0])
-
-        return sig_area
-
-    @property
-    def charge(self):
-        """Integrates the measured current over the time."""
-        y_curr = self.EC_data[1]
-
-        mask = np.isclose(y_curr, y_curr[0], rtol=1e-1)
-
-        Q = np.trapz(y_curr[mask], self.EC_data[0][mask])
-
-        return Q
-
-    def plot(self, dt=0.1, duration=100, ax=None, norm=True, **kwargs):
-        """Returns a plot of the kernel/impulse response."""
-        if ax is None:
-            fig1 = plt.figure()
-            ax = fig1.add_subplot(111)
-
-        if self.type == "functional":
-            t_kernel = np.arange(0, duration, dt)
-            ax.plot(
-                t_kernel,
-                self.calculate_kernel(dt=dt, duration=duration, norm=norm),
-                **kwargs,
-            )
-
-        elif self.type == "measured":
-            ax.plot(
-                self.MS_data[0],
-                self.calculate_kernel(dt=dt, duration=duration, norm=norm),
-                **kwargs,
-            )
-
-        else:
-            raise Exception("Nothing to plot with blank kernel")
-
-        return ax
-
-    def calculate_kernel(self, dt=0.1, duration=100, norm=True, matrix=False):
-        """Calculates a kernel/impulse response.
+        Initializes a ECMSImpulseResponse object either in functional form by defining
+        the mass transport parameters or in the measured form by passing of EC-MS
+        measurement.
 
         Args:
-            dt (int): Timestep for which the kernel/impulse response is calculated.
-                Has to match the timestep of the measured data for deconvolution.
-            duration(int): Duration in seconds for which the kernel/impulse response is
+            mol (str): Molecule to calculate the impulse response of.
+            t_kernel (array): Impulse response time series
+            kernel (array): Impulse response value series
+            measurement (ECMSMeasurement): Measurement including impulse response
+                measurment. Optional. Will be included if generated from measurement.
+            working_distance (float): Working distance between electrode and gas/liq
+                interface in [m]. Optional.  Will be included if generated from
+                parameters.
+            A_el (float): Geometric electrode area in [cm^2]. Optional. Will
+                automatically be included if generated from parameters.
+            D (float): Diffusion constant in liquid in [m2/s]. Optional. Will
+                automatically be included if generated from parameters.
+            H_v_cc (float): Dimensionless Henry volatility. Optional. Will automatically
+                be included if generated from parameters.
+            n_dot (float): Capillary flux in [mol/s]. Optional. Will automatically be
+                included if generated from parameters.
+            T (float): Temperature in K. Optional. Will automatically be included if
+                generated from parameters.
+            p (float): Pressure (on the high pressure side) in Pa. Optional. Will
+                automatically be included if generated from parameters.
+            carrier_gas: The carrier gas used to calculate capillary flow. Optional.
+                Will automatically be included if generated from parameters AND using
+                siq.
+            gas_volume (float): the volume of the headspace volume in the chip. Default
+                is the volume of the SpectroInlets chip.
+            dt (float): Timestep for which the impulse response is calculated in [s].
+                Has to match the timestep of the measurement for deconvolution.
+            duration (float): Duration in [s] for which the kernel/impulse response is
                 calculated. Must be long enough to reach zero.
-            norm (bool): If true the kernel/impulse response is normalized to its
-                area.
-            matrix (bool): If true the circulant matrix constructed from the kernel/
-                impulse reponse is returned.
         """
-        if self.type == "functional":
+        self.mol = mol
+        self.t_kernel = t_kernel
+        self.kernel = kernel
+        self.measurement = measurement
+        self.working_distance = working_distance
+        self.A_el = A_el
+        self.D = D
+        self.H_v_cc = H_v_cc
+        self.n_dot = n_dot
+        self.T = T
+        self.p = p
+        self.carrier_gas = carrier_gas
+        self.gas_volume = gas_volume
+        self.ir_type = ir_type
+        self.dt = dt
+        self.duration = duration
 
-            t_kernel = np.arange(0, duration, dt)
-            t_kernel[0] = 1e-6
+    @classmethod
+    def from_measurement(
+        cls,
+        mol,
+        measurement,
+        tspan=None,
+        tspan_bg=None,
+        norm=True,
+        matrix=False,
+        **kwargs,
+    ):
+        """
+        Generate an ECMSImpulseResponse from measurement.
 
-            diff_const = self.params["diff_const"]
-            work_dist = self.params["work_dist"]
-            vol_gas = self.params["vol_gas"]
-            volflow_cap = self.params["volflow_cap"]
-            henry_vola = self.params["henry_vola"]
+        Args:
+            mol (str): Molecule to calculate the impulse response of
+            measurement (ECMSMeasurement): Measurement including impulse response
+                measurment. Measurement needs to contain calibration data for mol
+                (either using ixdat native ECMSMeasurement.calibrate() or external
+                 package (eg siq's "quantifier"))
+            tspan (list): tspan over which to calculate the impulse response. Needs to
+                include zero.
+            tspan_bg (list): tspan of background to subtract. If list of tspans
+                (list of lists) is passed, will interpolate between the points using
+                calc_linear_background()
+            norm (bool): If true the impulse response is normalized to its
+                area. Default is True.
 
-            tdiff = t_kernel * diff_const / (work_dist**2)
-
-            def fs(s):
-                # See Krempl et al, 2021. Equation 6.
-                #     https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
-                return 1 / (
-                    sqrt(s) * sinh(sqrt(s))
-                    + (vol_gas * henry_vola / 0.196e-4 / work_dist)
-                    * (s + volflow_cap / vol_gas * work_dist**2 / diff_const)
-                    * cosh(sqrt(s))
-                )
-
-            kernel = np.zeros(len(t_kernel))
-            for i in range(len(t_kernel)):
-                kernel[i] = invertlaplace(fs, tdiff[i], method="talbot")
-                print(tdiff[i])
-                print(kernel[i])
-
-        elif self.type == "measured":
-            kernel = self.MS_data[1]
-            t_kernel = self.MS_data[0]
-
+            Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
+        Return ECMSImpulseResponse
+        """
+        print("Generating `ECMSImpulseResponse` from measurement.")
+        if type(tspan_bg[0]) is not list:
+            t_kernel, kernel = measurement.grab_flux(
+                mol=mol, tspan=tspan, tspan_bg=tspan_bg
+            )
+        else:
+            t_kernel, kernel_raw = measurement.grab_flux(mol=mol, tspan=tspan)
+            bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
+            kernel = kernel_raw - bg
         if norm:
             area = np.trapz(kernel, t_kernel)
             kernel = kernel / area
+        return cls(mol, t_kernel, kernel, ir_type="measured", **kwargs)
 
-        if matrix:
-            kernel = np.tile(kernel, (len(kernel), 1))
-            i = 1
-            while i < len(t_kernel):
-                kernel[i] = np.concatenate((kernel[0][i:], kernel[0][:i]))
-                i = i + 1
+    @classmethod
+    def from_parameters(
+        cls,
+        mol,
+        working_distance,
+        A_el=1,
+        D=None,
+        H_v_cc=None,
+        n_dot=None,
+        T=STANDARD_TEMPERATURE,
+        p=STANDARD_PRESSURE,
+        carrier_gas="He",
+        gas_volume=1e-10,
+        dt=0.1,
+        duration=100,
+        norm=True,
+        matrix=False,
+        **kwargs,
+    ):
+        """Generate an ECMSImpulseResponse from parameters.
 
-        return kernel
+            All references to equations refer to the Supporting Information of Krempl
+            et al 2021: https://pubs.acs.org/doi/abs/10.1021/acs.analchem.1c00110
+
+            Requires activation of siq for optimal performance.
+
+        Args:
+            mol (str): Molecule to calculate the impulse response of.
+            working_distance (float): Working distance between electrode and gas/liq
+                interface in [m].
+            A_el (float): Geometric electrode area in [cm^2]. Defaults to 1.
+                #TODO is that a good idea?
+            D (float): Diffusion constant in liquid in [m2/s]. Optional if using siq,
+                will then be looked up in molecule.yml file
+            H_v_cc (float): Dimensionless Henry volatility. Optional if using siq, will
+                then be looked up in molecule.yml file
+            n_dot (float): Capillary flux in [mol/s]. Optional if using siq, will then
+                be calculated based on the carrier_gas selected.
+            T (float): Temperature in K. Optional. Defaults to STANDARD_TEMPERATURE
+                (298.15K)
+            p (float): Pressure (on the high pressure side) in Pa. Optional. Defaults to
+                STANDARD_PRESSURE (1e5 Pa).
+            carrier_gas (str): The carrier gas used to calculate capillary flow. Only
+                used when using siq. Defaults to He.
+            gas_volume (float): The volume of the headspace volume in the chip in [m3].
+                Defaults to the volume of the SpectroInlets chip.
+            dt (float): Timestep for which the impulse response is calculated in [s].
+                Has to match the timestep of the measurement for deconvolution.
+            duration (float): Duration in [s] for which the kernel/impulse response is
+                calculated. Must be long enough to reach zero.
+            norm (bool): If true the impulse response is normalized to its
+                area. Default is True.
+
+            Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
+         Return ECMSImpulseResponse
+        """
+
+        if plugins.use_siq:
+            if n_dot is None:
+                # calculate the capillary flow for the specified gas & chip
+                # initiate the chip
+                Chip = plugins.siq.Chip
+                chip = Chip()
+                # set the T and p of the chip according to the values given
+                chip.T = T
+                chip.p = p
+                n_dot = chip.calc_n_dot_0(gas=carrier_gas)
+            # find the other parameters from the siq Molecule files
+            Molecule = plugins.siq.Molecule
+            molecule = Molecule.load(mol)
+            if D is None:
+                D = molecule.D
+                print(D)
+            if H_v_cc is None:
+                H_v_cc = 1 / (R * chip.T * molecule.H_0) * 100
+                print(H_v_cc)
+        else:
+            if D is None:
+                raise TechniqueError(
+                    "D is required to initialize ECMSImpluseResponse. Alternatively"
+                    "activate siq as plugin to automatically load D for molecule."
+                )
+            if H_v_cc is None:
+                raise TechniqueError(
+                    "H_v_cc is required to initialize ECMSImpluseResponse. Alternatively"
+                    "activate siq as plugin to automatically load H_v_cc for molecule."
+                )
+        # convert the mol flux to volumetric flux using T and p given by chip.
+        V_dot = n_dot * R * T / p
+
+        # make a time array
+        t_kernel = np.arange(0, duration, dt)
+        t_kernel[0] = 1e-6
+
+        tdiff = (
+            t_kernel * D / (working_distance**2)
+        )  # See Krempl et al, 2021. SI: Equ. (6)
+
+        def calc_H(s):
+            # See Krempl et al, 2021. SI: Equ 24 + definitions for kappa and lamda
+            # (between Equ 11 and 12)
+            kappa = (A_el * 1e-4 * working_distance) / gas_volume
+
+            lambda_ = V_dot / gas_volume * working_distance**2 / D
+
+            H = 1 / (
+                H_v_cc * (s + lambda_) / kappa * cosh(sqrt(s)) + sqrt(s) * sinh(sqrt(s))
+            )
+            return H
+
+        # now calculate the modelled impulse response: See Krempl et al, 2021. SI, page
+        # S4: "calculating the discrete values of the impulse response at a sampling
+        # frequency equal to the sampling frequency of the measured mass spectrometer
+        # signal by numerical inverse Laplace transformation with the Talbot method"
+        kernel = np.zeros(len(t_kernel))
+        for i in range(len(t_kernel)):
+            kernel[i] = invertlaplace(calc_H, tdiff[i], method="talbot")
+
+        if (
+            norm
+        ):  # normalize the kernel intensity to the total area under the ImpulseResponse
+            area = np.trapz(kernel, t_kernel)
+            kernel = kernel / area
+
+        # return cls(mol, t_kernel, kernel, ir_type="calculated", **kwargs)
+        # the kwargs thing doesnt work somehow
+        return cls(
+            mol,
+            t_kernel,
+            kernel,
+            working_distance=working_distance,
+            A_el=A_el,
+            D=D,
+            H_v_cc=H_v_cc,
+            n_dot=n_dot,
+            T=T,
+            p=p,
+            carrier_gas=carrier_gas,
+            gas_volume=gas_volume,
+            dt=dt,
+            duration=duration,
+            ir_type="calculated",
+            **kwargs,
+        )
+
+
+# TODO: other potentially useful methods:
+# https://github.com/ixdat/ixdat/blob/f577a434a966e486cf4cb66253677f7839fe117a/src/
+# ixdat/techniques/deconvolution.py#L242

@@ -1,4 +1,5 @@
 """Classes for exporting measurement data"""
+
 from pathlib import Path
 import json
 import numpy as np

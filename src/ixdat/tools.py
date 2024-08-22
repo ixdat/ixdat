@@ -1,4 +1,5 @@
 """This module contains general purpose tools"""
+
 import datetime
 import inspect
 import time
@@ -21,7 +22,8 @@ warnings.simplefilter("default")
 
 def thing_is_close(thing_one, thing_two):
     """Return whether two things are (nearly) equal, looking recursively if necessary"""
-    if type(thing_one) != type(thing_two):
+
+    if type(thing_one) is not type(thing_two):
         return False
 
     if isinstance(thing_one, list):
@@ -81,7 +83,7 @@ def list_is_close(list_one, list_two):
         return False
 
     for value_one, value_two in zip(list_one, list_two):
-        if type(value_one) != type(value_two):
+        if type(value_one) is not type(value_two):
             return False
         if not thing_is_close(value_one, value_two):
             return False

@@ -346,7 +346,6 @@ class CyclicVoltammogram(ECMeasurement):
 
 
 class CyclicVoltammagram(CyclicVoltammogram):
-
     # FIXME: decorating the class itself doesn't work because the callable returned
     #   by the decorator does not have the class methods. But this works fine.
     @deprecate("0.1", "Use `CyclicVoltammogram` instead ('o' replaces 'a').", "0.3")
@@ -355,7 +354,6 @@ class CyclicVoltammagram(CyclicVoltammogram):
 
 
 class CyclicVoltammogramDiff(CyclicVoltammogram):
-
     default_plotter = CVDiffPlotter
     cv_compare_1 = None
     cv_compare_2 = None

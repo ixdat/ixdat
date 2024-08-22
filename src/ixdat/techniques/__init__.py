@@ -18,6 +18,8 @@ from .spectroelectrochemistry import (
 )
 
 from .reactor import ReactorMeasurement, ReactorSpectroMeasurement
+from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
+from .reactor import ReactorMeasurement, ReactorSpectroMeasurement, ReactorCalibration
 from .ftir import FTIRSpectrum, ECFTIRMeasurement
 from ..spectra import Spectrum
 from ..measurements import Measurement

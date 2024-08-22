@@ -9,6 +9,7 @@ A Measurement will typically be accompanied by one or more Calculator. This modu
 also defines the base class for Calculator, while technique-specific Calculator
 classes will be defined in the corresponding module in ./techniques/
 """
+
 import warnings
 import json
 import numpy as np
@@ -17,7 +18,6 @@ from .data_series import (
     DataSeries,
     TimeSeries,
     ValueSeries,
-    ConstantValue,
     append_series,
     time_shifted,
     get_tspans_from_mask,
@@ -27,7 +27,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
-from .tools import deprecate, tstamp_to_string
+from .tools import tstamp_to_string
 
 
 class Measurement(Saveable):
@@ -238,14 +238,15 @@ class Measurement(Saveable):
         except TypeError as e:
             raise TechniqueError(
                 "ixdat ran into an error while trying to set up an object of type "
-                f"{technique_class}. This usually happens when ixdat isn't able "
-                f"to correctly determine the measurement technique.\n"
-                f"The error:\n  {e}\n\n"  # two space are intended
-                "Consider passing the `technique` argument into the read() function.\n"
-                "The available techniques are:\n"
-                f"  {list(TECHNIQUE_CLASSES.keys())}"  # again intended
-            )  # adding `from None` here would avoid repeating the message in `e`...
-            # ...but it can be useful to have the full traceback!
+                f"{technique_class}. This usually happens when ixdat wasn't able"
+                "to correctly determine the measurement technique. Consider"
+                "passing the `technique` argument into the read() function. \n"
+                "For a list of available techniques use: \n "
+                ">>> from ixdat.techniques import TECHNIQUE_CLASSES\n"
+                ">>> print(TECHNIQUE_CLASSES.keys())\n"
+                f"{e}"
+            )
+            raise
 
         return measurement
 

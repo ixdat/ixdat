@@ -1,4 +1,5 @@
 """Representation and analysis of thermal catalysis (TP) with MS measurements"""
+
 from .ms import MSMeasurement, MSSpectroMeasurement
 from ..measurements import Calculator
 from ..plotters.tpms_plotter import TPMSPlotter, TPMSSpectroPlotter

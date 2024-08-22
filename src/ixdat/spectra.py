@@ -410,6 +410,11 @@ class MultiSpectrum(Saveable):
         return self._xseries
 
     @property
+    def x(self):
+        """The x data is the data attribute of the xseries"""
+        return self.xseries.data
+
+    @property
     def spectrum_list(self):
         """The spectra of the multi-spectrum as a list of Spectrum objects."""
         if not self._spectrum_list:
