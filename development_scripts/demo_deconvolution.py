@@ -13,10 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pathlib import Path
-from ixdat.techniques.deconvolution import ECMSImpulseResponse
-from ixdat import Measurement, plugins
-from ixdat.techniques.ms import MSCalResult
-from spectro_inlets_quantification import Calibration
+from ixdat.calculators.ecms_calculators import MSCalResult, ECMSImpulseResponse
+from ixdat import Measurement
+from ixdat import plugins
 
 plugins.activate_siq()
 
@@ -37,9 +36,9 @@ data_reg_cell_pulses_o2 = Measurement.read(
     reader="ixdat",
 )
 data_reg_cell_pulses_o2.plot_measurement()
-data_reg_cell_pulses_o2.set_siq_quantifier(
-    calibration=Calibration(cal_list=[F_o2]), carrier="He"
-)
+calibration = plugins.siq.Calculator(cal_list=[F_o2])
+calibration.set_quantifier(mol_list=["O2"], mass_list=["M32"], carrier="He")
+data_reg_cell_pulses_o2.add_calculator(calibration)
 
 # prepare a figure to co-plot the measured and modelled data
 fig2, ax2 = plt.subplots(nrows=1, ncols=1)
@@ -137,11 +136,11 @@ imp_resp_model = ECMSImpulseResponse.from_parameters(
 
 # now let's grab the deconvoluted current for a tspan of interest
 # first, need to calibrate the measurement, we'll use siq here
-ca_dark_day1.set_siq_quantifier(calibration=Calibration(cal_list=[F_o2]), carrier="He")
+ca_dark_day1.add_calculator(calibration)
 # now let's deconvolute
-t_deconvoluted, v_deconvoluted = ca_dark_day1.grab_deconvoluted_signal(
+t_deconvoluted, v_deconvoluted = imp_resp_model.grab_deconvoluted_signal(
     mol="O2",
-    impulse_response=imp_resp_model,
+    measurement=ca_dark_day1,
     tspan=[-10, 210],
     tspan_bg=[-10, -1],
 )
@@ -158,17 +157,24 @@ tspan_list_1_dark = [[-10, 210], [208, 580]]
 # each tspan needs to include 0 if no t_zero given
 t_zero_list_1_dark = [6.6, 227]
 # now deconvolute
-ca_dark_day1.deconvolute_for_tspans(
+imp_resp_model.deconvolute_for_tspans(
     tspan_list=tspan_list_1_dark,
     t_zero_list=t_zero_list_1_dark,
-    impulse_response=imp_resp_model,
+    measurement=ca_dark_day1,
     mol="O2",
-    F_mol=F_o2,  # this will also be used to calibrate the measurement, if not done before
     name="CA_hematite_dark_day1_deconvoluted_180um",  # this will
     # automatically save the plots under this name
     export_data=False,
 )
 
+# Using the impulse response model as an attached calculator:
+ca_dark_day1.add_calculator(imp_resp_model)
+
+t, n_dot_O2_decon = ca_dark_day1.grab("n_dot_O2-deconvoluted", tspan_bg=[0, 10])
+
+axes = ca_dark_day1.plot(mol_list=["O2"], tspan_bg=[0, 10], logplot=False)
+axes[0].plot(t, n_dot_O2_decon, color="0.5", label="O2 deconvoluted")
+axes[0].legend()
 
 # if only one tspan needs to be deconvoluted: can use grab_deconvoluted_signal directly
 # TODO: add example of that

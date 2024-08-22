@@ -231,9 +231,11 @@ class _SIQ:
 
             # FIXME: Should this somehow be in calclators/ms_calculators.py
             # FIXME: Should this be defined within the siq package?
+            calculator_type = "siq"
 
             def __init__(self, *args, **kwargs):
                 self.measurement = kwargs.pop("measurement", None)
+                Calculator.__init__(self, measurement=kwargs.pop("measurement", None))
                 Calibration.__init__(self, *args, **kwargs)
                 self.quantifier = None
 
@@ -463,19 +465,21 @@ class _SIQ:
                             remove_background=remove_background,
                         )
                     signals[mass] = S
-                return sm.calc_n_dot(signals=signals)
+                return t, sm.calc_n_dot(signals=signals)
 
             def calculate_series(self, key, measurement=None):
                 measurement = measurement or self.measurement
 
-                t, n_dots = self.grab_siq_fluxes()
+                mol = key.removeprefix("n_dot_")
+
+                t, n_dots = self.grab_fluxes(measurement=measurement)
 
                 return ValueSeries(
                     name="n_dot_{key}",
-                    data=n_dots[key],
-                    unit="mol/s",
+                    data=n_dots[mol],
+                    unit_name="mol/s",
                     tseries=TimeSeries(
-                        name="t", data=t, unit="s", tstamp=measurement.tstamp
+                        name="t", data=t, unit_name="s", tstamp=measurement.tstamp
                     ),
                 )
 
