@@ -5,7 +5,7 @@ Created on Thu Aug  8 13:29:09 2024
 @author: Søren
 """
 from ..measurements import Calculator
-from ..data_series import ValueSeries, TimeSeries
+from ..data_series import ValueSeries
 from ..plotters.ec_plotter import EC_FANCY_NAMES
 from .scan_rate_tools import calc_sharp_v_scan
 

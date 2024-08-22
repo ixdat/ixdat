@@ -217,7 +217,7 @@ def test_read(cls_or_technique, expected_series):
         else:
             expected_measurement_class = cls_or_technique
 
-    assert type(measurement) == expected_measurement_class
+    assert type(measurement) is expected_measurement_class
 
     # Check series_names and timestamp
     assert measurement.series_names == expected_series

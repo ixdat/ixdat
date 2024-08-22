@@ -1,9 +1,8 @@
 """Module for representation and analysis of EC measurements"""
 
-from ..measurements import Measurement, Calculator
-from ..data_series import ValueSeries
+from ..measurements import Measurement
 from ..exporters import ECExporter
-from ..plotters.ec_plotter import ECPlotter, EC_FANCY_NAMES
+from ..plotters.ec_plotter import ECPlotter
 from ..tools import deprecate
 from ..calculators.ec_calculators import ECCalibration
 
@@ -135,9 +134,9 @@ class ECMeasurement(Measurement):
         if RE_vs_RHE is not None or A_el is not None or R_Ohm is not None:
             self.calibrate(RE_vs_RHE, A_el, R_Ohm)
         self.plot_vs_potential = self.plotter.plot_vs_potential
-        if not "potential" in self.aliases:
+        if "potential" not in self.aliases:
             self._aliases.update({"potential": ["raw_potential"]})
-        if not "current" in self.aliases:
+        if "current" not in self.aliases:
             self._aliases.update({"current": ["raw_current"]})
 
     @property

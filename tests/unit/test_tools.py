@@ -64,8 +64,8 @@ class TestDeprecate:
         current_release,
         decorate_kwarg,
     ):
-        """Test all permutations of the callable to decorate, decorate kwarg or not and hard
-        deprecate or not
+        """Test all permutations of the callable to decorate, decorate kwarg or not and
+        hard deprecate or not
 
         Args:
             callable_name (str): The name of the kind of callable to test

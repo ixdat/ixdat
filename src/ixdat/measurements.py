@@ -1394,11 +1394,8 @@ class Calculator(Saveable):
     """Base class for calculators."""
 
     table_name = "calculator"
-    column_attrs = {
-        "name",
-        "technique",
-        "tstamp",
-    }
+    calculator_type = None  # to be overwritten
+    column_attrs = {"name", "technique", "tstamp", "calculator_type"}
 
     def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):
         """Initiate a Calculator
@@ -1434,10 +1431,11 @@ class Calculator(Saveable):
         """
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
-        from .techniques import CALCULATOR_CLASSES
+        from .calculators import CALCULATOR_CLASSES
 
-        if obj_as_dict["technique"] in CALCULATOR_CLASSES:
-            calculator_class = CALCULATOR_CLASSES[obj_as_dict["technique"]]
+        calculator_type = obj_as_dict.pop("calculator_type")
+        if calculator_type in CALCULATOR_CLASSES:
+            calculator_class = CALCULATOR_CLASSES[calculator_type]
         else:
             calculator_class = cls
         try:

@@ -245,18 +245,18 @@ class _SIQ:
                 molecular fluxes in [mol/s].
                 The quantifier typically does this by solving the linear equations of
                 S_M = sum_i ( F_M^i * n_dot^i )
-                Where n_dot^i is the flux to the vacuum chamber of molecule i in [mol/s], S_M
-                is the signal at mass M in [A], and F_M^i is the *sensitivity factor* of molecule
-                i at mass M.
+                Where n_dot^i is the flux to the vacuum chamber of molecule i in [mol/s],
+                S_M is the signal at mass M in [A], and F_M^i is the *sensitivity factor*
+                of molecule i at mass M.
                 The quantifier thus needs access to a set of sensitivity factors.
 
-                The quantifier can be built in this method (avoiding explicit import of the
-                `spectro_inlets_quantification` package) by providing the sensitivity factors
-                in the form of a `siqCalculator` (which can be obtained from e.g.
-                plugins.siq.Calculator.multicomp_gas_flux_cal) and the specification of which ones to
-                use by `mol_list` and `mass_list`.
-                The quantifier will always use all the masses in `mass_list` to solve for the
-                flux of all the mols in `mol_list`.
+                The quantifier can be built in this method (avoiding explicit import of
+                the `spectro_inlets_quantification` package) by providing the sensitivity
+                factors in the form of a `siqCalculator` (which can be obtained from e.g.
+                plugins.siq.Calculator.multicomp_gas_flux_cal) and the specification of
+                which ones to use by `mol_list` and `mass_list`. The quantifier will
+                always use all the masses in `mass_list` to solve for the flux of all the
+                mols in `mol_list`.
 
                 The argument `carrier` is required by some quantifiers but only used if
                 partial pressures before the MS inlet are required (`quantifier.calc_pp`)
@@ -264,13 +264,14 @@ class _SIQ:
                 Quantification is only as accurate as your sensitivity factors!
 
                 Args:
-                    mol_list (list of str): The list of molecules to use in flux calculations.
-                       These should all be represented in the Calibration. If not provided,
-                       we'll use all the mols in the Calibration.
-                    mass_list (list of str): The list of masses to use in flux calculations.
-                       These should all be represented in the Calibration. If not provided,
-                       we'll use all the masses in the Calibration.
-                    carrier (optional, str): The carrier gas in the experiment. Defaults to "He".
+                    mol_list (list of str): The list of molecules to use in flux
+                        calculations. These should all be represented in the Calibration.
+                        If not provided, we'll use all the mols in the Calibration.
+                    mass_list (list of str): The list of masses to use in flux
+                        calculations. These should all be represented in the Calibration.
+                        If not provided, we'll use all the masses in the Calibration.
+                    carrier (optional, str): The carrier gas in the experiment. Defaults
+                        to "He".
 
                 See `help(plugins.siq.quantifier.__init__` for other keyword args
                 """
@@ -311,12 +312,13 @@ class _SIQ:
             ):
                 """Calibration of multiple components of a calibration gas simultaneously
 
-                Uses a matrix equation and the reference spectra in the molecule data files.
+                Uses a matrix equation and the reference spectra in the molecule data
+                files.
 
-                The results are only as accurate as the reference spectrum used. For this reason,
-                this method is a last resort and it is recommended *not* to use a multicomponent
-                calibration gas. Instead, get a separate calibration gas for each molecule to
-                be calibrated.
+                The results are only as accurate as the reference spectrum used. For
+                this reason, this method is a last resort and it is recommended *not*
+                to use a multicomponent calibration gas. Instead, get a separate
+                calibration gas for each molecule to be calibrated.
 
                 Here is an explanation of the math used in this method:
 
@@ -340,15 +342,17 @@ class _SIQ:
                 Equations 1, 2, and 3 are implemented in the code of this method.
 
                 Args:
-                    mol_list (list of str): List of the names of the molecules to calibrate
-                    mass_list (list of str): List of the masses to calibrate
+                    mol_list (list of str): List of the names of the molecules to
+                        calibrate mass_list (list of str): List of the masses to
+                        calibrate
                     gas (Gas, dict, or str): Composition of the calibration gas, e.g.
                        {"Ar": 0.95, "H2": 0.05} for 5% H2 in Ar
-                    tspan (Timespan): Timespan during which the calibration gas is in the chip
-                    gas_bg (Gas, dict, or str): Composition of the background gas
-                    tspan_bg (Timespan): Timespan during which the background gas is in the chip
-                    chip (Chip, optional): object describing the MS capillary, if different than
-                       the standard chip in the MS quantification package
+                    tspan (Timespan): Timespan during which the calibration gas is in the
+                         chip gas_bg (Gas, dict, or str): Composition of the background
+                         gas
+                    tspan_bg (Timespan): Timespan during which the background gas is in
+                        the chip (Chip, optional): object describing the MS capillary, if
+                        different from the standard chip in the MS quantification package
 
                 Returns Calibration: An object from `spectro_inlets_quantification`,
                    representing all the calibration results from the calibration.

@@ -8,7 +8,6 @@ from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters import MSPlotter, MSSpectroPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..exporters import MSExporter, MSSpectroExporter
-from ..exceptions import QuantificationError
 from ..tools import deprecate
 from ..config import plugins
 from ..calculators.ms_calculators import MSCalResult, MSBackgroundSet, MSCalibration
