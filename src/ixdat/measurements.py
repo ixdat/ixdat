@@ -1464,7 +1464,9 @@ class Calculator(Saveable):
 
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"class {type(self)} does not implement available_series_names"
+        )
 
     def calculate_series(self, key, measurement=None):
         """This should be overwritten in real Calculator classes.

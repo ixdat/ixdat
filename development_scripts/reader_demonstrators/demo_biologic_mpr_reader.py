@@ -13,7 +13,7 @@ for data_dir in [
             continue
         meas = Measurement.read(file, reader="biologic")
         print(meas)
-        print("... was read successfully!")
+        print("... was read successfully!\n\n")
         meas.plot()
         if combined_meas:
             combined_meas = combined_meas + meas

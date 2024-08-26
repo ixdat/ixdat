@@ -162,8 +162,8 @@ class CSVExporter:
             aliases_line = f"aliases = {json.dumps(self.aliases)}\n"
             header_lines.append(aliases_line)
         if self.time_step:
-            aliases_line = f"time_step = {self.time_step}\n"
-            header_lines.append(aliases_line)
+            time_step_line = f"time_step = {self.time_step}\n"
+            header_lines.append(time_step_line)
 
         self.header_lines = header_lines
         self.s_list = s_list

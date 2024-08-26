@@ -13,7 +13,6 @@ ixdat.config.plugins.use_si_quant = True  # use the spectro_inlets_quantificatio
 
 See `help(ixdat.options.plugins)` for information.
 """
-
 import datetime
 import warnings
 from pathlib import Path
@@ -210,18 +209,28 @@ class _SIQ:
             """A decorator easing the writing of the siqCalculator class"""
 
             def siq_method(*args, **kwargs):
+                plugins.deactivate_siq()  # to suppress warning
                 # `chip`s go by the more general name `inlet`s in native ixdat. (The
                 # two are usually interchangable as the primary method is in both cases
                 # called `calc_n_dot`.
                 # Make sure to actually initiate and use a siq Chip if you want to
                 # benifit from the more powerful capillary flux calculator in
                 # the calibration methods.
-                chip = kwargs.pop("chip", None)
-                if chip:
-                    kwargs["inlet"] = chip
-                plugins.deactivate_siq()  # to suppress warning
-                result = native_method(*args, **kwargs)
+                # FIXME: what ixdat calls `inlet` and requires, siq calls `chip` and
+                #  doesn't require, as it uses the spectro inlets chip as a default
+                #  inlet. I've tried doing something clever with `inspect.getfullargspec`
+                #  to figure out if a chip is needed but without success - it seems
+                #  not to work properly on classmethods. Thus this ugly try-except:
+                try:
+                    result = native_method(*args, **kwargs)
+                except AttributeError:  # The error if the
+                    if not kwargs.get("inlet", None):
+                        kwargs["inlet"] = kwargs.pop("chip", None) or Chip()
+                    else:
+                        raise
+                    result = native_method(*args, **kwargs)
                 plugins.activate_siq()
+
                 return result.to_siq()
 
             return siq_method

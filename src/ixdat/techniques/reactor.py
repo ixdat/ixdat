@@ -280,12 +280,9 @@ class ReactorSpectroMeasurement(ReactorMeasurement, MSSpectroMeasurement):
 class ReactorCalibration(Calculator):
     """A reactor calibration to calibrate inverse of meta_series"""
 
-    def __repr__(self):
-        # TODO: make __repr__'s consistent throught ixdat
-        return (
-            f"{self.__class__.__name__}"
-            f"(Calibration={self.name} for setup={self.setup} on date={self.date})"
-        )
+    # FIXME: Is this calculator really necessary?
+
+    available_series_names = {"inverse_T"}
 
     def calculate_series(self, key, measurement=None):
         """Return a calibrated series for key based on the raw data in the measurement.

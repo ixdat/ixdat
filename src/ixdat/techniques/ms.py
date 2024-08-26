@@ -10,7 +10,12 @@ from ..plotters.ms_plotter import STANDARD_COLORS
 from ..exporters import MSExporter, MSSpectroExporter
 from ..tools import deprecate
 from ..config import plugins
-from ..calculators.ms_calculators import MSCalResult, MSBackgroundSet, MSCalibration
+from ..calculators.ms_calculators import (
+    MSCalResult,
+    MSBackgroundSet,
+    MSCalibration,
+    MSConstantBackground,
+)
 
 
 class MSMeasurement(Measurement):
@@ -45,13 +50,26 @@ class MSMeasurement(Measurement):
         """Set background values for mass_list to the average signal during tspan_bg."""
         tspan = tspan or tspan_bg
         background = MSBackgroundSet.from_measurement_point(
-            measurement=self, tspan=tspan_bg, mass_list=mass_list
+            measurement=self, tspan=tspan, mass_list=mass_list
         )
         self.add_calculator(background)
 
     def reset_bg(self, mass_list=None):
-        """Reset background values for the masses in mass_list"""
-        raise NotImplementedError
+        """Reset background values for all masses or the masses in mass_list"""
+        if mass_list is None:
+            new_calculator_list = [
+                cal
+                for cal in self.calculator_list
+                if type(cal) not in self.background_calculator_types
+            ]
+            self._calculator_list = new_calculator_list
+            self.consolidate_calculators()
+        else:
+            self.add_calculator(
+                MSBackgroundSet(
+                    bg_list=[MSConstantBackground(mass=mass, bg=0) for mass in mass_list]
+                )
+            )
 
     def grab_signal(self, *args, **kwargs):
         """Alias for grab()"""

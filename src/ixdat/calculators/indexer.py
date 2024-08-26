@@ -43,7 +43,7 @@ class Indexer(Calculator):
     def _build_file_number_series(self, measurement):
         """Build a `file_number` series based on component measurements times."""
         series_to_append = []
-        for i, m in enumerate(measurement.component_measurements or [self]):
+        for i, m in enumerate(measurement.component_measurements or [measurement]):
             if (
                 measurement.control_technique_name
                 and not m.technique == measurement.control_technique_name

@@ -39,5 +39,12 @@ class ECExporter(CSVExporter):
                     and name_in_measurement != name
                 ):
                     aliases[name] = (name_in_measurement,)
+                    # This is needed to avoid a potential circular lookup:
+                    if name_in_measurement in aliases:
+                        # This name_in_measurement might have been a needed alias in
+                        # the measurement, if a series was cached with a name other
+                        # than its own. But it's not necessary now since
+                        # name_in_measurement is the column name in the exported file.
+                        aliases.pop(name_in_measurement)
                     break
         return aliases
