@@ -36,6 +36,7 @@ if True:
     cp_meas = Measurement.read(cp_file, reader="biologic", name="Pt_demo_cp")
     print("read cp file!")
     if False:
+        # This can take some time (will hopefully be solved with #75
         ocp_id = ocp_meas.save()
         cv_id = cv_meas.save()
         cp_id = cp_meas.save()

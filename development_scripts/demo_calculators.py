@@ -3,6 +3,9 @@
 Created on Mon Aug  5 18:16:13 2024
 
 @author: Søren
+
+This script demonstrates that the challenges of chaining calculators have been solved.
+See https://github.com/ixdat/ixdat/issues/183
 """
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -54,6 +57,7 @@ assert F_bg_implied[0] == 0.21
 
 
 t, U_raw = ecms.grab("potential")
+print(f"max(U_raw) = {max(U_raw)}")
 # Finds no calculators,
 # but finds that "potential" can be an alias for "raw_potential"
 
@@ -64,15 +68,15 @@ cal1a = ecms.calibrate(RE_vs_RHE=0.715)
 
 # This raises a Warning because it makes a third calculator responding to "potential":
 U = ecms.grab_for_t("potential", t=t)
-print()
+print(f"max(U) = {max(U)}")
 # ECMeasurement.calibrate() adds R_Ohm to the last
 cal2 = ecms.calibrate(R_Ohm=100)
-print()
+print(f"max(U) = {max(U)}")
 U_corr = ecms.grab_for_t("potential", t=t)
-print()
+print(f"max(U_corr) = {max(U_corr)}")
 # The "-raw" suffix ensures that no calculators are applied:
 U_raw_again = ecms.grab_for_t("potential-raw", t=t)
-print()
+print(f"max(U_raw_again) = {max(U_raw_again)}")
 U_again = ecms.grab_for_t("potential", calculator_list=[cal1a], t=t)
 
 assert max(U_again) == max(U)

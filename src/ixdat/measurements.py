@@ -175,7 +175,7 @@ class Measurement(Saveable):
 
         calc_out = []
         for (n, (name, calculator)) in enumerate(self.calculator_dict.items()):
-            if n == len(self.calculator_list) - 1:
+            if n == len(self.calculator_dict) - 1:
                 calc_out.append("┗━ " + str(calculator))
             else:
                 calc_out.append("┣━ " + str(calculator))
@@ -542,6 +542,15 @@ class Measurement(Saveable):
         return [c.short_identity for c in self.calculator_list]
 
     def add_calculator(self, calculator):
+        redundants = calculator.available_series_names.intersection(
+            self.available_calculated_series
+        )
+        if redundants:
+            warnings.warn(
+                f"adding {calculator} to {self!r} "
+                f"results in redundant calculators for: {redundants}"
+            )
+
         self._calculator_list = [calculator] + self._calculator_list
         ctype = calculator.calculator_type
         if not self._calculator_dict:
@@ -551,6 +560,15 @@ class Measurement(Saveable):
         else:
             self._calculator_dict[ctype] = calculator
         self.clear_cache()
+
+    @property
+    def available_calculated_series(self):
+        calculated_series_names = set([])
+        for ctype, cal in self.calculator_dict.items():
+            calculated_series_names = calculated_series_names.union(
+                cal.available_series_names
+            )
+        return calculated_series_names
 
     def calibrate(self, *args, **kwargs):
         """Add a calculator of the Measurement's default calculator type

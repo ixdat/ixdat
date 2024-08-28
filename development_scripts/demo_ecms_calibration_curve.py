@@ -13,7 +13,9 @@ data_dir = (
     "23J02_ec_ms_quantification/Zenodo_8400063"
 )
 ms = Measurement.read(
-    data_dir / "2022-07-19 10_02_32 HER_OER_calibration.tsv", reader="zilien"
+    data_dir / "2022-07-19 10_02_32 HER_OER_calibration.tsv",
+    reader="zilien",
+    technique="MS",  # to avoid including the EC data, which we read from .mpt's below
 )
 # ms_meas.plot_measurement()
 ec = Measurement.read_set(data_dir / "HER_OER", suffix=".mpt")
@@ -83,6 +85,8 @@ cal_2 = ECMSCalibration.from_siq(siq_cal_2)
 print(cal_2)
 
 siq_cal_1 = cal_1.to_siq()
+# This raises a warning because the siqCalculator does not have its quantifier set,
+#  so doesn't know which calculated series it can provide:
 print(siq_cal_1)
 
 # You can't directly add MSCalResults, but that operation *is* implemented in siq :)
@@ -92,13 +96,20 @@ print(siq_calibration)
 # The following works!
 siq_calibration.plot_as_spectrum()
 
+# You can also turn it back into native ixdat
 calibration = ECMSCalibration.from_siq(siq_calibration)
 print(calibration)
 
 siq_calibration_again = calibration.to_siq()
 
-siq_calibration_again.plot_as_spectrum()  # works! :)
+siq_calibration_again.plot_as_spectrum()  # still works! :)
 
-# for demonstrating the calculators in the string rep:
+# For demonstrating the calculator in the string rep:
 ecms.add_calculator(calibration)
+print(ecms)
+
+siq_calibration.set_quantifier(mol_list=["H2"], mass_list=["M2"], carrier="He")
+
+# This raises a warning because now there's two calculators providing n_dot_H2:
+ecms.add_calculator(siq_calibration)
 print(ecms)

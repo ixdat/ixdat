@@ -19,12 +19,6 @@ from ixdat import plugins
 
 plugins.activate_siq()
 
-# ------------ O2 calibration
-F_o2_mscal = MSCalResult(
-    name="O2", mol="O2", mass="M32", cal_type="ECMS calibration", F=0.11755
-)
-F_o2 = F_o2_mscal.to_siq()
-
 # ------------------ Impulse response fitting of measured data + comparison with model
 # insert your folder here:
 data_folder = Path(
@@ -35,12 +29,25 @@ data_reg_cell_pulses_o2 = Measurement.read(
     data_folder / "O2_pulses.csv",
     reader="ixdat",
 )
-data_reg_cell_pulses_o2.plot_measurement()
-calibration = plugins.siq.Calculator(cal_list=[F_o2])
-calibration.set_quantifier(mol_list=["O2"], mass_list=["M32"], carrier="He")
-data_reg_cell_pulses_o2.add_calculator(calibration)
 
-# prepare a figure to co-plot the measured and modelled data
+data_reg_cell_pulses_o2.plot_measurement()
+
+
+# ------------ O2 calibration
+# First, we mannually make a siq calibration point:
+F_o2 = MSCalResult(
+    name="O2", mol="O2", mass="M32", cal_type="ECMS calibration", F=0.11755
+).to_siq()
+# Then put it in a siq Calculator:
+calibration = plugins.siq.Calculator(cal_list=[F_o2])
+# And get the calculator ready to use on measurements:
+calibration.set_quantifier(mol_list=["O2"], mass_list=["M32"], carrier="He")
+
+# Add the siq Calculator it to the measurement:
+data_reg_cell_pulses_o2.add_calculator(calibration)
+# This makes the flux of O2 available as `"n_dot_O2"`.
+
+# prepare a figure to co-plot the measured and modelled data:
 fig2, ax2 = plt.subplots(nrows=1, ncols=1)
 ax2.set_xlabel("time / [s]")
 ax2.set_ylabel("norm. intensity")
@@ -166,15 +173,18 @@ imp_resp_model.deconvolute_for_tspans(
     # automatically save the plots under this name
     export_data=False,
 )
+# if only one tspan needs to be deconvoluted: can use grab_deconvoluted_signal directly
+# TODO: add example of that
 
-# Using the impulse response model as an attached calculator:
+# Another way to use the deconvolution is to attach it to the measurement as
+# as a calculator. This makes the deconvoluted flux of the deconvolution's molecule
+# ´mol´ available to grab or look up with the key `f"n_dot_{mol}-deconvoluted"`
 ca_dark_day1.add_calculator(imp_resp_model)
 
+# look up the deconovluted signal:
 t, n_dot_O2_decon = ca_dark_day1.grab("n_dot_O2-deconvoluted", tspan_bg=[0, 10])
 
+# plot it together with raw signal:
 axes = ca_dark_day1.plot(mol_list=["O2"], tspan_bg=[0, 10], logplot=False)
 axes[0].plot(t, n_dot_O2_decon, color="0.5", label="O2 deconvoluted")
 axes[0].legend()
-
-# if only one tspan needs to be deconvoluted: can use grab_deconvoluted_signal directly
-# TODO: add example of that

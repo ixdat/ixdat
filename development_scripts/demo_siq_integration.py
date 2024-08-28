@@ -16,10 +16,16 @@ ms = Measurement.read(
 print(ixdat.config.plugins.use_siq)  # False
 
 
+# FIXME: now, accessing a siq class through ixdat.config.plugins.siq gives `None` if
+#   siq has not been activated. An error message would be more appropriate.
 try:
-    siqCalculator = ixdat.config.plugins.siq.Calculator  # gives an error
+    siqCalculator0 = ixdat.config.plugins.siq.Calculator
 except Exception as e:
-    print(e)  # explains that native ixdat requires an MSInlet to be specifically defined
+    print(e)  # should explain that siq has not been activated.
+else:
+    print("siqCalculator0 = " + str(siqCalculator0))
+    print("No error when getting a siq Calculator class despite not activating siq!")
+
 
 # ---- Native calibration ----- #
 native_cal = MSCalibration.gas_flux_calibration(
@@ -38,7 +44,11 @@ siqCalculator = ixdat.config.plugins.siq.Calculator
 quant_cal = siqCalculator.gas_flux_calibration(
     measurement=ms, mol="He", mass="M4", tspan=[100, 200]
 )
+# siqCalculator objects require their method `set_quantifier` to be called before
+# they provide
 quant_cal.set_quantifier(carrier="He", mol_list=["He"], mass_list=["M4"])
 print(quant_cal)  # A CalPoint object of the external package
 
+# The following works but the calculator that results from adding quant_cal to itself
+# does not provide any series because it has not yet had a quantifier set
 print(quant_cal + quant_cal)
