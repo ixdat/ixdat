@@ -17,7 +17,7 @@ from ..constants import FARADAY_CONSTANT, R, STANDARD_TEMPERATURE, STANDARD_PRES
 from .ms_calculators import MSCalibration, MSCalResult
 from ..measurements import Calculator
 from ..data_series import ValueSeries, TimeSeries
-from ..exceptions import TechniqueError
+from ..exceptions import TechniqueError, QuantificationError
 from ..config import plugins
 from ..plotters.plotting_tools import calc_linear_background
 
@@ -183,8 +183,6 @@ class ECMSImpulseResponse(Calculator):
 
     This class currently handles only one molecule at a time. If deconvolution of
     multiple molecules is required this needs to be handled by separate objects.
-
-    # TODO: Make class inherit from Calculator
     """
 
     calculator_type = "ecms_deconvolution"
@@ -272,7 +270,6 @@ class ECMSImpulseResponse(Calculator):
         tspan=None,
         tspan_bg=None,
         norm=True,
-        matrix=False,
         **kwargs,
     ):
         """
@@ -314,6 +311,7 @@ class ECMSImpulseResponse(Calculator):
         cls,
         mol,
         working_distance,
+        name=None,
         A_el=1,
         D=None,
         H_v_cc=None,
@@ -325,8 +323,6 @@ class ECMSImpulseResponse(Calculator):
         dt=0.1,
         duration=100,
         norm=True,
-        matrix=False,
-        **kwargs,
     ):
         """Generate an ECMSImpulseResponse from parameters.
 
@@ -339,6 +335,7 @@ class ECMSImpulseResponse(Calculator):
             mol (str): Molecule to calculate the impulse response of.
             working_distance (float): Working distance between electrode and gas/liq
                 interface in [m].
+            name (str): Name of the calculator instance. Optional.
             A_el (float): Geometric electrode area in [cm^2]. Defaults to 1.
                 #TODO is that a good idea?
             D (float): Diffusion constant in liquid in [m2/s]. Optional if using siq,
@@ -432,13 +429,11 @@ class ECMSImpulseResponse(Calculator):
         ):  # normalize the kernel intensity to the total area under the ImpulseResponse
             area = np.trapz(kernel, t_kernel)
             kernel = kernel / area
-
-        # return cls(mol, t_kernel, kernel, ir_type="calculated", **kwargs)
-        # the kwargs thing doesnt work somehow
         return cls(
             mol,
             t_kernel,
             kernel,
+            name=name,
             working_distance=working_distance,
             A_el=A_el,
             D=D,
@@ -451,10 +446,9 @@ class ECMSImpulseResponse(Calculator):
             dt=dt,
             duration=duration,
             ir_type="calculated",
-            **kwargs,
         )
 
-    def grab_deconvoluted_signal(
+    def calc_deconvoluted_signal(
         self, mol, measurement=None, tspan=None, tspan_bg=None, snr=10
     ):
         """Return the mass transport deconvoluted MS signal for a given MS signal using
@@ -491,8 +485,9 @@ class ECMSImpulseResponse(Calculator):
                 "You need to pass an ECMSImpulseResponse object calculated"
                 "from parameters to calculate deconvoluted currents. "
                 "(for now)"
-            )  # TODO: check instead whether the object contains all the necessary
-            # attributes
+            )
+            # TODO: check instead whether the object contains all the necessary
+            #   attributes
 
         # Check if the one passed already has the correct dt and duration
         dt = t_sig[1] - t_sig[0]
@@ -599,7 +594,7 @@ class ECMSImpulseResponse(Calculator):
                 )
             )
             data_snippet = measurement.cut(tspan=tspan, t_zero=t_zero)
-            t_decon_signal, v_decon_signal = self.grab_deconvoluted_signal(
+            t_decon_signal, v_decon_signal = self.calc_deconvoluted_signal(
                 mol=mol,
                 measurement=data_snippet,
                 tspan=None,
@@ -653,13 +648,11 @@ class ECMSImpulseResponse(Calculator):
     def calculate_series(self, key, measurement=None):
         mol = key.removesuffix("-deconvoluted").removeprefix("n_dot_")
         if mol != self.mol:
-            print(
-                "Warning: tried (and failed) to look up "
-                f"{key} in a deconvolution for {self.mol}"
+            raise QuantificationError(
+                f"Can not calculate {key} for a deconvolution for {self.mol}"
             )
-            return
 
-        t, n_dot_decon = self.grab_deconvoluted_signal(measurement=measurement, mol=mol)
+        t, n_dot_decon = self.calc_deconvoluted_signal(measurement=measurement, mol=mol)
         return ValueSeries(
             name=key,
             data=n_dot_decon,

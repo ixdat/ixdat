@@ -7,6 +7,7 @@ Created on Thu Aug  8 13:29:09 2024
 from ..measurements import Calculator
 from ..data_series import ValueSeries
 from ..plotters.ec_plotter import EC_FANCY_NAMES
+from ..exceptions import QuantificationError
 from .scan_rate_tools import calc_sharp_v_scan
 
 
@@ -103,8 +104,16 @@ class ECCalibration(Calculator):
                 tseries=raw_current.tseries,
             )
 
+        raise QuantificationError(f"{self} can not calculate {key}")
+
     def __add__(self, other):
-        """Add two ECCalibrations. The second one (`other`) takes priority."""
+        """Add two ECCalibrations. The second one (`other`) takes priority.
+
+        In other words, if both `ec_cal_1` and `ec_cal_2` have their own value of
+        `RE_vs_RHE`, then `(ec_cal_1 + ec_cal_2).RE_vs_RHE` will be the same as
+        `ec_cal_2.RE_vs_RHE`. This ensures that the values in the`ECCalibration` most
+        recently added to a measurement (e.g. to update a value) is used over older ones.
+        """
         RE_vs_RHE = other.RE_vs_RHE if other.RE_vs_RHE is not None else self.RE_vs_RHE
         A_el = other.A_el if other.A_el is not None else self.A_el
         R_Ohm = other.R_Ohm if other.R_Ohm is not None else self.R_Ohm
@@ -124,7 +133,7 @@ class ScanRateCalculator:
     def calculate_series(self, key, measurement, res_points=10):
         """The scan rate as a ValueSeries"""
         if not key == "scan_rate":
-            return
+            raise QuantificationError(f"{self} can not calculate {key}")
         t, v = measurement.grab("potential")
         scan_rate_vec = calc_sharp_v_scan(t, v, res_points=res_points)
         scan_rate_series = ValueSeries(

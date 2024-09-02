@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 from ..measurements import Calculator
 from ..data_series import ValueSeries, ConstantValue, append_series
-from ..exceptions import SeriesNotFoundError
+from ..exceptions import SeriesNotFoundError, QuantificationError
 
 
 class Indexer(Calculator):
@@ -39,6 +39,7 @@ class Indexer(Calculator):
             return self._build_file_number_series(measurement=measurement)
         elif key == "selector":
             return self._build_selector_series(measurement=measurement)
+        raise QuantificationError(f"{self} cannot calculate {key}")
 
     def _build_file_number_series(self, measurement):
         """Build a `file_number` series based on component measurements times."""

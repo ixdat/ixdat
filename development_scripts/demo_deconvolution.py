@@ -145,7 +145,7 @@ imp_resp_model = ECMSImpulseResponse.from_parameters(
 # first, need to calibrate the measurement, we'll use siq here
 ca_dark_day1.add_calculator(calibration)
 # now let's deconvolute
-t_deconvoluted, v_deconvoluted = imp_resp_model.grab_deconvoluted_signal(
+t_deconvoluted, v_deconvoluted = imp_resp_model.calc_deconvoluted_signal(
     mol="O2",
     measurement=ca_dark_day1,
     tspan=[-10, 210],
@@ -173,8 +173,6 @@ imp_resp_model.deconvolute_for_tspans(
     # automatically save the plots under this name
     export_data=False,
 )
-# if only one tspan needs to be deconvoluted: can use grab_deconvoluted_signal directly
-# TODO: add example of that
 
 # Another way to use the deconvolution is to attach it to the measurement as
 # as a calculator. This makes the deconvoluted flux of the deconvolution's molecule

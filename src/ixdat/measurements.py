@@ -542,6 +542,7 @@ class Measurement(Saveable):
         return [c.short_identity for c in self.calculator_list]
 
     def add_calculator(self, calculator):
+        """append calculator to calculator_list, warning about redundant series"""
         redundants = calculator.available_series_names.intersection(
             self.available_calculated_series
         )
@@ -551,7 +552,12 @@ class Measurement(Saveable):
                 f"results in redundant calculators for: {redundants}"
             )
 
-        self._calculator_list = [calculator] + self._calculator_list
+        self._calculator_list.append(calculator)
+        # Note that addition of calculators should keep the parameters in the latter
+        # calculator, so that when the calculator dict is consolidated, the parameters
+        # in this calculator, being appended to the end of the list, get priority over
+        # older calculators of the same type.
+
         ctype = calculator.calculator_type
         if not self._calculator_dict:
             self.consolidate_calculators()
@@ -584,6 +590,14 @@ class Measurement(Saveable):
         self.clear_cache()
         return new_calculator
 
+    # Note: Not all ´Calculator´s are ´Calibraiton´s There are also, e.g., `Filter`s and
+    # `Background`s. One could, for completeness, also implement the methods
+    # `Measurement.background_correct` and `Measurement.filter` which, like the above,
+    # just add an object of some default calculator class to the measurement's
+    # `calculator_list`. However, perhaps one global default way to add a calculator to
+    # a measurement's calculator list is enough, and `calibrate` is a more natural
+    # and broad English verb than the others.
+
     def rebuild_selector(self, selector_name=None, columns=None, extra_columns=None):
         from .calculators import CALCULATOR_CLASSES
 
@@ -594,14 +608,6 @@ class Measurement(Saveable):
             extra_columns=extra_columns,
         )
         self.add_calculator(indexer)
-
-    # Note: Not all ´Calculator´s are ´Calibraiton´s There are also, e.g., `Filter`s and
-    # `Background`s. One could, for completeness, also implement the methods
-    # `Measurement.background_correct` and `Measurement.filter` which, like the above,
-    # just add an object of some default calculator class to the measurement's
-    # `calculator_list`. However, perhaps one global default way to add a calculator to
-    # a measurement's calculator list is enough, and `calibrate` is a more natural
-    # and broad English verb than the others.
 
     @property
     def series_list(self):

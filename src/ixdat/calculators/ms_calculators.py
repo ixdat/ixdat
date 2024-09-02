@@ -62,18 +62,28 @@ class MSBackgroundSet(Calculator):
     }
     child_attrs = [
         "constant_bg_list",
+        # Additional background types would go here.
         # FIXME: This repeats info in extra_linkers. Should be possible to combine. #75.
     ]
 
     def __init__(
         self,
         name=None,
-        date=None,
         bg_list=None,
         technique="MS",
         tstamp=None,
         measurement=None,
     ):
+        """Initiate a MSBackgroundSet
+
+        Args:
+            name (str): Optional name of the instance
+            bg_list (list of Saveable background objects): The backgrounds. Max one per
+                mass.
+            tstamp (float, optional): Absolute time at which the backgrounds were taken
+            measurement (Measurement, optional): Measurement from which the backgorunds
+                were calculated.
+        """
         super().__init__(
             name=name, technique=technique, tstamp=tstamp, measurement=measurement
         )
@@ -91,12 +101,20 @@ class MSBackgroundSet(Calculator):
 
     @classmethod
     def from_measurement_point(cls, measurement, tspan, mass_list=None):
+        """Use the values during a timespan as background.
+
+        Args:
+            measurement (MSMeasurement): The data to read the background values form
+            tspan (timespan): The timespan to define as background
+            mass_list: The masses at their background value during that timespan
+        """
         mass_list = mass_list or measurement.mass_list
         bg_list = []
         for mass in mass_list:
             _, S = measurement.grab(mass, remove_background=False, tspan=tspan)
             bg_list.append(MSConstantBackground(mass=mass, bg=np.mean(S)))
-        return cls(bg_list=bg_list, measurement=measurement)
+        tstamp = measurement.tstamp + np.mean(tspan)
+        return cls(bg_list=bg_list, tstamp=tstamp, measurement=measurement)
 
     @property
     def ms_constant_bg_ids(self):
@@ -111,31 +129,60 @@ class MSBackgroundSet(Calculator):
         return list({bg.mass for bg in self.bg_list})
 
     @property
+    def bg_dict(self):
+        bgs = {}
+        for bg_obj in self.bg_list:
+            if bg_obj.mass in bgs:
+                warnings.warn(
+                    f"duplicate background for {bg_obj.mass} in {self}. Using last one."
+                )
+            bgs[bg_obj.mass] = bg_obj
+        return bgs
+
+    @property
     def available_series_names(self):
-        return set([f"{mass}" for mass in self.mass_list])
+        return set(self.mass_list)
 
-    def calculate_series(self, mass, measurement=None):
-        """Return a calibrated series for `key` if possible.
+    def calculate_series(self, key, measurement=None):
+        """Return a background-subtracted series for a given key
 
-        If key starts with "n_", it is interpreted as a molecule flux. This method then
-        searches the calibration for a sensitivity factor for that molecule uses it to
-        divide the relevant mass signal from the measurement. Example acceptable keys:
-        "n_H2", "n_dot_H2".
-        If the key does not start with "n_", or the calibration can't find a relevant
-        sensitivity factor and mass signal, this method returns None.
+        Raises a KeyError if a bg for key is not available.
+
+        Args:
+            key (str): The name of the value to be background-subtracted
+            measurement (Measurement): The measurement to get the raw data from.
         """
         measurement = measurement or self.measurement
 
-        raw_series = measurement[mass + "-raw"]
-        bg_object = next(obj for obj in self.bg_list if obj.mass == mass)
+        raw_series = measurement[key + "-raw"]
+        try:
+            bg_object = self.bg_dict[key]
+        except KeyError:
+            raise QuantificationError(
+                f"{self} cannot return {key}. Only {self.available_series_names}."
+            )
         bg = bg_object.get_bg_for_t(raw_series.t)
 
         return ValueSeries(
-            name=mass + "_bg_corrected",
-            unit_name="mol/s",
+            name=key + "_bg_corrected",
+            unit_name=raw_series.unit_name,
             data=raw_series.data - bg,
             tseries=raw_series.tseries,
         )
+
+    def __add__(self, other):
+        """Add two background sets. Warn and keep the latter value for duplicates"""
+        bgs = self.bg_dict
+        for mass, bg_obj in other.bg_dict.items():
+            if mass in bgs:
+                warnings.warn(
+                    f"duplicate background for {mass} encountered when adding"
+                    f"{self} + {other}. Using the value from the latter."
+                )
+            bgs[bg_obj.mass] = bg_obj
+        bg_list = list(bgs.values())
+        name = self.name + other.name
+        return self.__class__(name=name, bg_list=bg_list, technique=self.technique)
 
 
 class MSCalResult(Saveable):
@@ -152,6 +199,16 @@ class MSCalResult(Saveable):
         name=None,
         cal_type=None,
     ):
+        """Initiate a MSCalResult, i.e. a sensitivity factor for a molecule at a mass
+
+        Args:
+            mol (str): The name of the molecule (e.g. "O2")
+            mass (str): The name of the mass: "M" followed by a number (e.g. "M32")
+            F (float): The sensitivity factor in [A / (mol/s)] = [C/mol]
+            name (str, optional): The name of the sensitivity factor
+            cal_type (str, optional): The type of calibration experiment used to
+                determine this sensitivity factor
+        """
         super().__init__()
         self.name = name or f"{mol}@{mass}"
         self.mol = mol
@@ -171,6 +228,7 @@ class MSCalResult(Saveable):
 
     @classmethod
     def from_siq(cls, siq_cal_point):
+        """Convert a spectro_inlets_quantification CalPoint to an ixdat MSCalResult"""
         return cls(
             name=siq_cal_point.mol + "@" + siq_cal_point.mass,
             mol=siq_cal_point.mol,
@@ -180,6 +238,7 @@ class MSCalResult(Saveable):
         )
 
     def to_siq(self):
+        """Convert an ixdat MSCalResult to a spectro_inlets_quantification CalPoint"""
         if not plugins.use_siq:
             raise QuantificationError(
                 "`MSCalPoint.to_siq` only works when using "
@@ -198,7 +257,7 @@ class MSCalResult(Saveable):
 class MSCalibration(Calculator):
     """Class for mass spec calibrations.
 
-    This is a simple version, just implementing sensitivity facotrs.
+    This is a simple version, just implementing sensitivity factors.
     Consider using the more powerful spectro_inlets_quantification package instead.
     """
 
@@ -222,13 +281,30 @@ class MSCalibration(Calculator):
         technique="MS",
         measurement=None,
     ):
-        """
+        """Initiate with either a single sensitivity factor or with a list of them.
+
+        A MSCalibration can be initiated in one of two ways:
+        1. Either the same way as a MSCalResult, with `mol`, `mass`, and `F`,
+          representing a single sensitivity factor, or
+        2. With a list of sensitivity factors as `MSCalResult`s in`ms_cal_results`
+
+        One of the above are required. All other arguments are optional.
+
+        In the first case a `MSCalResult` is initiated and stored as the only item in
+        the `MSCalibration` object's `ms_cal_results` list. A `MSCalibration` object with
+        a single item in its `ms_cal_results` list grants direct access to its `mol`,
+        `mass`, and `F` as attributes.
+
         Args:
-            name (str): Name of the ms_calibration
-            date (str): Date of the ms_calibration
-            setup (str): Name of the setup where the ms_calibration is made
-            ms_cal_results (list of MSCalResult): The mass spec calibrations
-            measurement (MSMeasurement): The measurement used to make the calibration
+            mol (str): Molecule name, for a single sensitivity factor calibration
+            mass (str): Mass name, for a single sensitivity factor calibration
+            F (float): Sensitivity factor, for a single sensitivity factor calibration
+            ms_cal_results (list of MSCalResult): The mass spec calibrations, required
+               unless mol, mass and F are given.
+            name (str): Name of the ms_calibration. Optional.
+            date (str): Date of the ms_calibration. Optional.
+            setup (str): Name of the setup where the ms_calibration is made. Optional.
+            measurement (MSMeasurement): The measurement used to calibrate. Optional.
         """
         if plugins.use_siq:
             warnings.warn(
@@ -501,36 +577,38 @@ class MSCalibration(Calculator):
     def calculate_series(self, key, measurement=None):
         """Return a calibrated series for `key` if possible.
 
-        If key starts with "n_", it is interpreted as a molecule flux. This method then
-        searches the calibration for a sensitivity factor for that molecule uses it to
-        divide the relevant mass signal from the measurement. Example acceptable keys:
-        "n_H2", "n_dot_H2".
+        If key starts with "n_", it is interpreted as a molecule flux (e.g. "n_dot_H2").
+        This method then searches the calibration for a sensitivity factor for that
+        molecule, grabs the corresponding mass signal from the measurement, and divides
+        it by the sensitivity factor.
         If the key does not start with "n_", or the calibration can't find a relevant
-        sensitivity factor and mass signal, this method returns None.
+        sensitivity factor and mass signal, this method raises a QuantificationError
         """
         measurement = measurement or self.measurement
-        if key.startswith("n_"):  # it's a flux!
-            mol = key.split("_")[-1]
-            try:
-                mass, F = self.get_mass_and_F(mol)
-            except QuantificationError:
-                # Calculators just return None when they can't get what's requested.
-                return
-            try:
-                signal_series = measurement[mass]
-            except SeriesNotFoundError:
-                # Calculators just return None when they can't get what's requested.
-                # It could be that another calibration contains a sensitivity factor
-                # for the desired mol at an available mass.
-                return
-            y = signal_series.data
-            n_dot = y / F
-            return ValueSeries(
-                name=f"n_dot_{mol}",
-                unit_name="mol/s",
-                data=n_dot,
-                tseries=signal_series.tseries,
+        if not key.startswith("n_"):
+            raise QuantificationError(
+                f"{self} can only calculate the series {self.available_series_names}"
             )
+
+        mol = key.split("_")[-1]
+        # The following raises a QuantificationError if the mol is not available:
+        mass, F = self.get_mass_and_F(mol)
+
+        try:
+            signal_series = measurement[mass]
+        except SeriesNotFoundError:
+            # Calculators just return None when they can't get what's requested.
+            # It could be that another calibration contains a sensitivity factor
+            # for the desired mol at an available mass.
+            return
+        y = signal_series.data
+        n_dot = y / F
+        return ValueSeries(
+            name=f"n_dot_{mol}",
+            unit_name="mol/s",
+            data=n_dot,
+            tseries=signal_series.tseries,
+        )
 
     def get_mass_and_F(self, mol):
         """Return the mass and sensitivity factor to use for simple quant. of mol"""

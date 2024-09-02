@@ -323,6 +323,7 @@ class BiologicReader:
         """
         # read the .mpr file to get the series list using a function which calls
         # an external package.
+        path_to_file = path_to_file or self.path_to_file
         warnings.warn(
             "Reading .mpr files is discouraged.\n"
             "We suggest to use the .mpt file if you can.\n"
