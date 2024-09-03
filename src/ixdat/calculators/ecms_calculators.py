@@ -77,7 +77,6 @@ class ECMSCalibration(Calculator):
         ax="new",
         axes_measurement=None,
         axes_measurement_J_name="raw_current",
-        return_ax=False,
     ):
         """Fit mol's sensitivity at mass based on steady periods of EC production.
 
@@ -106,8 +105,6 @@ class ECMSCalibration(Calculator):
                 its J_name. Defaults to "raw_current". IMPORTANT: the method still uses
                 "raw_current" to calculate the sensitivity factor, this J_name is only
                 used for plotting.
-            return_ax (bool): Whether to return the axis on which the calibration curve
-                is plotted together with the MSCalResult. Defaults to False.
 
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
             curve axis if requested) based on integration of selected time periods.
@@ -501,7 +498,6 @@ class ECMSImpulseResponse(Calculator):
             # FIXME: There must be a better way!
             signal_response = ECMSImpulseResponse.from_parameters(
                 mol=mol,
-                measurement=self,
                 working_distance=self.working_distance,
                 A_el=self.A_el,
                 D=self.D,

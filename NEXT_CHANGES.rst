@@ -122,6 +122,10 @@ As of now, the following are included:
   structure is similar to ``MSCalibration`` in that a ``MSBackgroundSet`` contains
   a set of saveable ``MSBackground`` objects, each for a single m/z. So far, only
   one type of background is implemented, the ``MSConstantBackground``.
+  - available_series_names: mass_list.
+  - Note that The available series names have the same names as the corresponding
+    raw data series before background subtraction. To get the raw series, grab or
+    look up ``f"{mass}-raw"`` or ``grab`` with ``remove_background=False``.
 
 - ``ecms_calculators.ECMSCalibration`` is not a real calculator in the sense that
   it doesn't do *quantification*. Instead, it does *calibrtion*, and its calibration
@@ -134,7 +138,8 @@ As of now, the following are included:
 
 - ``ecms_calculators.ECMSImpulseResponse``, moved from **deconvolution.py**, is the
   deconvolution calculator. An ``ECMSImpulseResponse`` object (``imp_resp``)
-  describes the response of one ``mol``.
+  describes the response of one ``mol``. It's demonstrated in
+  **deconvolution_demo.py**.
   - available_series_names: "n_dot_{mol}-deconvoluted". Getting this from an
     ``MSMeasurement`` with ``imp_resp`` attached requires that there is also another
     calculator which provides "n_dot_{mol}".
@@ -163,8 +168,7 @@ will likely move.
 
   Constructor methods:
   - ``gas_flux_calibration``, formerly ``MSMeasurement.siq_gas_flux_calibration``.
-  - ``gas_flux_calibration_curve``, formerly a method of
-    ``MSMeasurement.siq_gas_flux_calibration_curve``.
+  - ``gas_flux_calibration_curve``, formerly ``MSMeasurement.siq_gas_flux_calibration_curve``.
   - ``ecms_calibration``, formerly ``ECMSMeasurement.siq_ecms_calibration``
   - ``ecms_calibration_curve``, formerly ``ECMSMeasurement.siq_ecms_calibration_curve``
   Useage:

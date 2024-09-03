@@ -76,7 +76,7 @@ class MSMeasurement(Measurement):
         return self.grab(*args, **kwargs)
 
     @deprecate(
-        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+        "0.1", "Use `remove_background` instead.", "0.3.1", kwarg_name="removebackground"
     )
     def grab_flux(
         self,
@@ -130,7 +130,7 @@ class MSMeasurement(Measurement):
         )
 
     @deprecate(
-        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+        "0.1", "Use `remove_background` instead.", "0.3.1", kwarg_name="removebackground"
     )
     def grab_flux_for_t(
         self,
@@ -240,7 +240,7 @@ class MSMeasurement(Measurement):
     @deprecate(
         "0.2.13",
         "Use `MSCalibration.gas_flux_calibration` instead.",
-        "0.3",
+        "0.3.1",
     )
     def gas_flux_calibration(self, *args, **kwargs):
         return MSCalibration.gas_flux_calibration(measurement=self, *args, **kwargs)
@@ -248,7 +248,7 @@ class MSMeasurement(Measurement):
     @deprecate(
         "0.2.13",
         "Use `MSCalibration.gas_flux_calibration_curve` instead.",
-        "0.3",
+        "0.3.1",
     )
     def gas_flux_calibration_curve(self, *args, **kwargs):
         return MSCalibration.gas_flux_calibration_curve(
@@ -258,7 +258,7 @@ class MSMeasurement(Measurement):
     @deprecate(
         "0.2.13",
         "Use `plugins.siq.Calculator.gas_flux_calibration` instead.",
-        "0.3",
+        "0.3.1",
     )
     def siq_gas_flux_calibration(self, mol, mass, tspan, chip=None):
         return plugins.siq.Calculator.gas_flux_calibration(
@@ -268,7 +268,7 @@ class MSMeasurement(Measurement):
     @deprecate(
         "0.2.13",
         "Use `plugins.siq.Calculator.gas_flux_calibration_curve` instead.",
-        "0.3",
+        "0.3.1",
     )
     def siq_gas_flux_calibration_curve(
         self,
@@ -282,7 +282,7 @@ class MSMeasurement(Measurement):
     @deprecate(
         "0.2.13",
         "Use `plugins.siq.Calculator.multicomp_gas_flux_calibration` instead.",
-        "0.3",
+        "0.3.1",
     )
     def siq_multicomp_gas_flux_calibration(self, *args, **kwargs):
         return plugins.siq.Calculator.siq_multicomp_gas_flux_calibration(
@@ -292,7 +292,7 @@ class MSMeasurement(Measurement):
     @deprecate(
         "0.2.13",
         "Use `siq_calculator.grab_fluxes` instead.",
-        "0.3",
+        "0.3.1",
     )
     def grab_siq_fluxes(
         self,

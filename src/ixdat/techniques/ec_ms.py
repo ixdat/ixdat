@@ -94,7 +94,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     @deprecate(
         "0.2.13",
         "Use `ECMSCalulator.ecms_calibration` instead.",
-        "0.3",
+        "0.3.1",
     )
     def ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
         return ECMSCalibration.ecms_calibration(
@@ -109,7 +109,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     @deprecate(
         "0.2.13",
         "Use `ECMSCalulator.ecms_calibration_curve` instead.",
-        "0.3",
+        "0.3.1",
     )
     def ecms_calibration_curve(self, mol, mass, n_el, *args, **kwargs):
         return ECMSCalibration.ecms_calibration_curve(
@@ -119,7 +119,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     @deprecate(
         "0.2.13",
         "Use `plugins.siq.Calculator.ecms_calibration` instead.",
-        "0.3",
+        "0.3.1",
     )
     def siq_ecms_calibration(self, mol, mass, n_el, tspan, tspan_bg=None):
         return plugins.siq.Calculator.ecms_calibration(
@@ -134,7 +134,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     @deprecate(
         "0.2.13",
         "Use `plugins.siq.Calculator.ecms_calibration_curve` instead.",
-        "0.3",
+        "0.3.1",
     )
     def siq_ecms_calibration_curve(
         self,

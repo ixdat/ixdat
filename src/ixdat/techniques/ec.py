@@ -14,7 +14,7 @@ class ECMeasurement(Measurement):
       so that e.g. current can be seamlessly normalized to mass OR area.
 
     The main job of this class is making sure that the ValueSeries most essential for
-    visualizing and normal electrochemistry measurements (i.e. excluding impedance
+    visualizing any normal electrochemistry measurements (i.e. excluding impedance
     spec., RRDE, etc, which would need new classes) are always available in the
     correct form as the measurement is added with others, reduced to a selection,
     calibrated and normalized, etc. These most important ValueSeries are:
@@ -156,22 +156,22 @@ class ECMeasurement(Measurement):
         return self.current.name
 
     @property
-    @deprecate("0.1", "Use `E_name` instead.", "0.3")
+    @deprecate("0.1", "Use `E_name` instead.", "0.3.1")
     def E_str(self):
         return self.E_name
 
     @property
-    @deprecate("0.1", "Use `I_name` instead.", "0.3")
+    @deprecate("0.1", "Use `I_name` instead.", "0.3.1")
     def I_str(self):
         return self.I_name
 
     @property
-    @deprecate("0.1", "Use `U_name` instead.", "0.3")
+    @deprecate("0.1", "Use `U_name` instead.", "0.3.1")
     def V_str(self):
         return self.U_name
 
     @property
-    @deprecate("0.1", "Use `J_name` instead.", "0.3")
+    @deprecate("0.1", "Use `J_name` instead.", "0.3.1")
     def J_str(self):
         return self.J_name
 
@@ -259,12 +259,14 @@ class ECMeasurement(Measurement):
         return self["current"]
 
     @property
-    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_potential']`, instead.", "0.3")
+    @deprecate(
+        "0.1", "Use a look-up, i.e. `ec_meas['raw_potential']`, instead.", "0.3.1"
+    )
     def raw_potential(self):
         return self["raw_potential"]
 
     @property
-    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_current']`, instead.", "0.3")
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['raw_current']`, instead.", "0.3.1")
     def raw_current(self):
         return self["raw_current"]
 
@@ -279,13 +281,13 @@ class ECMeasurement(Measurement):
         return self.current.data.copy()
 
     @property
-    @deprecate("0.1", "Use `U` instead.", "0.3")
+    @deprecate("0.1", "Use `U` instead.", "0.3.1")
     def v(self):
         """The potential [V] numpy array of the measurement"""
         return self.potential.data.copy()
 
     @property
-    @deprecate("0.1", "Use `J` instead.", "0.3")
+    @deprecate("0.1", "Use `J` instead.", "0.3.1")
     def j(self):
         """The current ([mA] or [mA/cm^2]) numpy array of the measurement"""
         return self.current.data.copy()

@@ -223,7 +223,8 @@ class _SIQ:
                 #  not to work properly on classmethods. Thus this ugly try-except:
                 try:
                     result = native_method(*args, **kwargs)
-                except AttributeError:  # The error if the
+                except AttributeError:
+                    # The error if native_method takes an "inlet" but a "chip" was given.
                     if not kwargs.get("inlet", None):
                         kwargs["inlet"] = kwargs.pop("chip", None) or Chip()
                     else:

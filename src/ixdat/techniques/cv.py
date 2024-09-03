@@ -159,7 +159,7 @@ class CyclicVoltammogram(ECMeasurement):
         return super().integrate(item, tspan, ax=ax)
 
     @property
-    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['scan_rate']`, instead.", "0.3")
+    @deprecate("0.1", "Use a look-up, i.e. `ec_meas['scan_rate']`, instead.", "0.3.1")
     def scan_rate(self):
         return self["scan_rate"]
 
@@ -347,7 +347,7 @@ class CyclicVoltammogram(ECMeasurement):
 class CyclicVoltammagram(CyclicVoltammogram):
     # FIXME: decorating the class itself doesn't work because the callable returned
     #   by the decorator does not have the class methods. But this works fine.
-    @deprecate("0.1", "Use `CyclicVoltammogram` instead ('o' replaces 'a').", "0.3")
+    @deprecate("0.1", "Use `CyclicVoltammogram` instead ('o' replaces 'a').", "0.3.1")
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

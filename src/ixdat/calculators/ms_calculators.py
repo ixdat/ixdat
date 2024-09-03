@@ -333,7 +333,7 @@ class MSCalibration(Calculator):
         "0.2.6",
         "Use `inlet` instead. Or consider using `siq_gas_flux_calibration` "
         "with the `spectro_inlets_quantification` package.",
-        "0.3",
+        "0.3.1",
         kwarg_name="chip",
     )
     def gas_flux_calibration(
@@ -404,6 +404,13 @@ class MSCalibration(Calculator):
         return cls(ms_cal_results=[cal_result], measurement=measurement)
 
     @classmethod
+    @deprecate(
+        "0.2.6",
+        "Use `inlet` instead. Or consider using `siq_gas_flux_calibration` "
+        "with the `spectro_inlets_quantification` package.",
+        "0.3.1",
+        kwarg_name="chip",
+    )
     def gas_flux_calibration_curve(
         cls,
         measurement,
@@ -419,7 +426,6 @@ class MSCalibration(Calculator):
         ax="new",
         axis_measurement=None,
         remove_bg_on_axis_measurement=True,
-        return_ax=False,
     ):
         """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
 
@@ -454,8 +460,6 @@ class MSCalibration(Calculator):
                 Whether the plot on axis_measurement is showing raw data or bg
                 subtracted data. Defaults to True, i.e. plotting data with the
                 same bg subtraction as used for the calibration.
-            return_ax (bool): Whether to return the axis on which the calibration
-                curve is plotted together with the MSCalResult. Defaults to False.
 
         Return MSCalResult(, Axis): The result of the MS calibration (and calibration
             curve axis if requested) based on flux calculation during selected time
@@ -878,7 +882,7 @@ class MSInlet:
     @deprecate(
         last_supported_release="0.2.5",
         update_message=("`gas_flux_calibration` is now a method of `MSCalibration`"),
-        hard_deprecation_release="0.3.0",
+        hard_deprecation_release="0.3.1",
         remove_release="1.0.0",
     )
     def gas_flux_calibration(self, measurement, mol, mass, *args, **kwargs):
@@ -891,7 +895,7 @@ class MSInlet:
         update_message=(
             "`gas_flux_calibration_curve` is now a method of `MSCalibration`"
         ),
-        hard_deprecation_release="0.3.0",
+        hard_deprecation_release="0.3.1",
         remove_release="1.0.0",
     )
     def gas_flux_calibration_curve(
