@@ -9,7 +9,6 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 (replace XX):
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
-
 `PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
 
 
