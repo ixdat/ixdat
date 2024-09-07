@@ -5,7 +5,7 @@ from .ms import MSMeasurement, MSSpectroMeasurement
 from .cv import CyclicVoltammogram
 from ..exporters import ECMSExporter
 from ..plotters import ECMSPlotter
-from ..config import plugins
+from ..plugins import plugins
 from ..tools import deprecate
 from ..calculators.ecms_calculators import ECMSCalibration
 

@@ -21,7 +21,7 @@ from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
 from .reactor import ReactorMeasurement, ReactorSpectroMeasurement, ReactorCalibration
 from .ftir import FTIRSpectrum, ECFTIRMeasurement
 from ..spectra import Spectrum
-from ..measurements import Measurement
+from ..measurement_base import Measurement
 
 
 TECHNIQUE_CLASSES = {

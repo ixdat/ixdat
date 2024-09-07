@@ -8,11 +8,11 @@ Created on Thu Aug  8 10:43:10 2024
 import warnings
 import json
 import numpy as np
-from ..config import plugins
+from ..plugins import plugins
 from ..tools import deprecate
 from ..db import Saveable
 from ..data_series import ValueSeries
-from ..measurements import Calculator
+from ..measurement_base import Calculator
 from ..exceptions import QuantificationError, SeriesNotFoundError
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..constants import (
@@ -42,6 +42,7 @@ class MSConstantBackground(Saveable):
         bg,
         name=None,
     ):
+        super().__init__()
         self.mass = mass
         self.bg = bg
         self.name = name or f"{mass} bg"

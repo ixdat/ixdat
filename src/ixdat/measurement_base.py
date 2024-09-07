@@ -174,8 +174,8 @@ class Measurement(Saveable):
                     out.append("┣━ " + str(value_series))
 
         calc_out = []
-        for (n, (name, calculator)) in enumerate(self.calculator_dict.items()):
-            if n == len(self.calculator_dict) - 1:
+        for (n, (name, calculator)) in enumerate(self.calculators.items()):
+            if n == len(self.calculators) - 1:
                 calc_out.append("┗━ " + str(calculator))
             else:
                 calc_out.append("┣━ " + str(calculator))
@@ -517,7 +517,7 @@ class Measurement(Saveable):
         return cals
 
     @property
-    def calculator_dict(self):
+    def calculators(self):
         if self._calculator_dict is None:
             self.consolidate_calculators()
         return self._calculator_dict
@@ -574,7 +574,7 @@ class Measurement(Saveable):
         if not self._calculator_dict:
             self.consolidate_calculators()
         elif ctype in self._calculator_dict:
-            self._calculator_dict[ctype] = self.calculator_dict[ctype] + calculator
+            self._calculator_dict[ctype] = self.calculators[ctype] + calculator
         else:
             self._calculator_dict[ctype] = calculator
         self.clear_cache()
@@ -590,7 +590,7 @@ class Measurement(Saveable):
     @property
     def available_calculated_series(self):
         calculated_series_names = set([])
-        for ctype, cal in self.calculator_dict.items():
+        for ctype, cal in self.calculators.items():
             calculated_series_names = calculated_series_names.union(
                 cal.available_series_names
             )
@@ -833,7 +833,7 @@ class Measurement(Saveable):
             # A "-raw" suffix means to skip the calculators
             key = key.removesuffix("-raw")
         else:
-            for calculator in self.calculator_dict.values():
+            for calculator in self.calculators.values():
                 if key in calculator.available_series_names:
                     series = calculator.calculate_series(key, measurement=self)
                     if series:

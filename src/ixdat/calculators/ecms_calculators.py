@@ -17,10 +17,10 @@ from ..plotters.ms_plotter import STANDARD_COLORS
 from ..constants import FARADAY_CONSTANT, R, STANDARD_TEMPERATURE, STANDARD_PRESSURE
 from .ms_calculators import MSCalibration, MSCalResult
 from .ec_calculators import ECCalibration
-from ..measurements import Calculator
+from ..measurement_base import Calculator
 from ..data_series import ValueSeries, TimeSeries
 from ..exceptions import TechniqueError, QuantificationError
-from ..config import plugins
+from ..plugins import plugins
 from ..plotters.plotting_tools import calc_linear_background
 from ..tools import deprecate
 

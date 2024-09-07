@@ -127,7 +127,7 @@ As of now, the following are included:
     look up ``f"{mass}-raw"`` or ``grab`` with ``remove_background=False``.
 
 - ``ecms_calculators.ECMSCalibration`` is not a real calculator in the sense that
-  it doesn't do *quantification*. Instead, it does *calibrtion*, and its calibration
+  it doesn't do *quantification*. Instead, it does *calibration*, and its calibration
   methods, listed below, all return ``MSCalibration`` objects. This is consistent
   with the fact that an EC-MS calibration experiment can be used to obtain sensitivity
   factors for a setup which is then used without electrochemistry (e.g. for thermal
@@ -156,8 +156,7 @@ As of now, the following are included:
 
 
 One ``Calculator``, the ``siqCalculator`` for advanced MS and EC-MS calibration,
-is implemented as a plugin. At present, this is in **src/ixdat/config.py** but it
-will likely move.
+is implemented as a plugin. At present, this is in **src/ixdat/plugins/siq_plugin.py**.
 
 - ``siqCalculator`` implements all the calibration and quantification methods that
   make use of the external ``spectro_inlets_quantification`` package. The calibration

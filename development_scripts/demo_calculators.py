@@ -53,6 +53,8 @@ M2_bg_removed = ecms.grab_for_t("M2", t=t, remove_background=True)
 M2_raw = ecms.grab_for_t("M2", t=t, remove_background=False)
 
 F_bg_implied = (M2_raw - M2_bg_removed) / (n_dot_H2_raw - n_dot_H2_bg_removed)
+
+# The following raises an error if it's wrong. For using the script as a code test:
 assert F_bg_implied[0] == 0.21
 
 
@@ -66,19 +68,20 @@ cal1 = ecms.calibrate(RE_vs_RHE=0.72)
 # ECMeasurement.calibrate() raises a warning and implements the last RE_vs_RHE:
 cal1a = ecms.calibrate(RE_vs_RHE=0.715)
 
-# This raises a Warning because it makes a third calculator responding to "potential":
+
 U = ecms.grab_for_t("potential", t=t)
 print(f"max(U) = {max(U)}")
 # ECMeasurement.calibrate() adds R_Ohm to the last
 cal2 = ecms.calibrate(R_Ohm=100)
-print(f"max(U) = {max(U)}")
 U_corr = ecms.grab_for_t("potential", t=t)
 print(f"max(U_corr) = {max(U_corr)}")
 # The "-raw" suffix ensures that no calculators are applied:
 U_raw_again = ecms.grab_for_t("potential-raw", t=t)
 print(f"max(U_raw_again) = {max(U_raw_again)}")
 U_again = ecms.grab_for_t("potential", calculator_list=[cal1a], t=t)
+print(f"max(U_again) = {max(U_again)}")
 
+# The following raises an error if it's wrong. For using the script as a code test:
 assert max(U_again) == max(U)
 assert max(U_corr) != max(U)
 assert max(U_raw_again) == max(U_raw)

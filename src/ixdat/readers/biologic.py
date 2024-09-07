@@ -9,8 +9,8 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from . import TECHNIQUE_CLASSES
 from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
+from ..techniques import TECHNIQUE_CLASSES
 from ..data_series import TimeSeries, ValueSeries, ConstantValue
 from ..exceptions import ReadError, SeriesNotFoundError
 
@@ -549,7 +549,7 @@ if __name__ == "__main__":
     """
 
     from matplotlib import pyplot as plt
-    from ixdat.measurements import Measurement
+    from ixdat.measurement_base import Measurement
 
     test_data_dir = Path(__file__).parent.parent.parent.parent / "test_data/biologic"
 

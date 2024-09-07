@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Module for representation and analysis of TRXRF measurements"""
 
-from ..measurements import Measurement
+from ..measurement_base import Measurement
 from ..calculators.xrf_calculators import TRXRFCalculator
 from ..plotters.xrf_plotter import TRXRFPlotter, ECTRXRFPlotter
 from .ec import ECMeasurement

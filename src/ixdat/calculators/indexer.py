@@ -6,7 +6,7 @@ Created on Thu Aug  8 21:13:50 2024
 """
 import warnings
 import numpy as np
-from ..measurements import Calculator
+from ..measurement_base import Calculator
 from ..data_series import ValueSeries, ConstantValue, append_series
 from ..exceptions import SeriesNotFoundError, QuantificationError
 

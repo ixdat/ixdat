@@ -1,6 +1,6 @@
 """Module for representation and analysis of EC measurements"""
 
-from ..measurements import Measurement
+from ..measurement_base import Measurement
 from ..exporters import ECExporter
 from ..plotters.ec_plotter import ECPlotter
 from ..tools import deprecate
@@ -182,28 +182,9 @@ class ECMeasurement(Measurement):
         return a
 
     @property
-    def calculators(self):
-        """The list of calculators of the measurement.
-
-        EC calibrations are joined into the first calibration.
-        The following is necessary to ensure that all EC Calibration parameters are
-        joined in a single calibration when processing. So that "potential" is both
-        calibrated to RHE and ohmic drop corrected, even if the two calibration
-        parameters were added separately.
-        """
-        full_calculator_list = self.calculator_list
-        good_calculator_list = [self.ec_calibration]
-        for calculator in full_calculator_list:
-            if calculator.__class__ is ECCalibration:
-                # Then we have all we need from it
-                continue
-            good_calculator_list.append(calculator)
-        return good_calculator_list
-
-    @property
     def ec_calibration(self):
         """A calibration joining the first RE_vs_RHE, A_el, and R_Ohm"""
-        return ECCalibration(RE_vs_RHE=self.RE_vs_RHE, A_el=self.A_el, R_Ohm=self.R_Ohm)
+        return self.calculators["EC calibration"]
 
     @property
     def RE_vs_RHE(self):

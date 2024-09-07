@@ -5,9 +5,6 @@ Constants:
         reader_name is the name of the backend (like "directory") and ReaderClass
         is the reader class for parsing files.
 """
-
-from ..techniques import TECHNIQUE_CLASSES
-
 # ixdat
 from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 

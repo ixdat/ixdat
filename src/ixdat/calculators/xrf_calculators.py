@@ -1,5 +1,5 @@
 from ..exceptions import QuantificationError
-from ..measurements import Calculator
+from ..measurement_base import Calculator
 from ..data_series import ValueSeries
 
 

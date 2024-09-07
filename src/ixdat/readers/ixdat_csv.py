@@ -5,9 +5,9 @@ import json
 import numpy as np
 import re
 import pandas as pd
+from .. import Measurement
 from ..exceptions import ReadError
 from ..data_series import ValueSeries, TimeSeries, DataSeries, Field
-from ..measurements import Measurement
 from ..spectra import Spectrum, SpectrumSeries
 from ..techniques import TECHNIQUE_CLASSES
 

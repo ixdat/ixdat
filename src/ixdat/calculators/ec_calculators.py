@@ -4,7 +4,7 @@ Created on Thu Aug  8 13:29:09 2024
 
 @author: Søren
 """
-from ..measurements import Calculator
+from ..measurement_base import Calculator
 from ..data_series import ValueSeries
 from ..plotters.ec_plotter import EC_FANCY_NAMES
 from ..exceptions import QuantificationError

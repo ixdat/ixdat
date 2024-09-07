@@ -3,13 +3,13 @@
 import re
 import numpy as np
 
-from ..measurements import Measurement
+from ..measurement_base import Measurement
 from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters import MSPlotter, MSSpectroPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..exporters import MSExporter, MSSpectroExporter
 from ..tools import deprecate
-from ..config import plugins
+from ..plugins import plugins
 from ..calculators.ms_calculators import (
     MSCalResult,
     MSBackgroundSet,
@@ -24,9 +24,6 @@ from ..calculators.ms_calculators import MSInlet  # noqa: F401
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""
 
-    # FIXME: tspan_bg should be column of a Calculator
-    #   (see https://github.com/ixdat/ixdat/issues/164)
-    extra_column_attrs = {"ms_measurement": ("tspan_bg",)}
     default_plotter = MSPlotter
     default_exporter = MSExporter
     background_calculator_types = [MSBackgroundSet]
@@ -324,10 +321,7 @@ class MSSpectrumSeries(SpectrumSeries):
 
 
 class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
-    extra_column_attrs = {
-        **MSMeasurement.extra_column_attrs,
-        **SpectroMeasurement.extra_column_attrs,
-    }
+    extra_column_attrs = SpectroMeasurement.extra_column_attrs
     default_plotter = MSSpectroPlotter
     default_exporter = MSSpectroExporter
 

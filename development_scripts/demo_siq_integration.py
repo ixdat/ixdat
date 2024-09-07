@@ -13,13 +13,13 @@ ms = Measurement.read(
 # ms.plot()
 
 # ---- Spectro Inlets calibration inaccessible without activating siq ----- #
-print(ixdat.config.plugins.use_siq)  # False
+print(ixdat.plugins.use_siq)  # False
 
 
 # FIXME: now, accessing a siq class through ixdat.config.plugins.siq gives `None` if
 #   siq has not been activated. An error message would be more appropriate.
 try:
-    siqCalculator0 = ixdat.config.plugins.siq.Calculator
+    siqCalculator0 = ixdat.plugins.siq.Calculator
 except Exception as e:
     print(e)  # should explain that siq has not been activated.
 else:
@@ -38,8 +38,8 @@ native_cal = MSCalibration.gas_flux_calibration(
 print(native_cal)  # An ixdat MSCalResult object
 
 # ---- Spectro Inlets calibration ----- #
-ixdat.config.plugins.activate_siq()
-siqCalculator = ixdat.config.plugins.siq.Calculator
+ixdat.plugins.activate_siq()
+siqCalculator = ixdat.plugins.siq.Calculator
 
 quant_cal = siqCalculator.gas_flux_calibration(
     measurement=ms, mol="He", mass="M4", tspan=[100, 200]
