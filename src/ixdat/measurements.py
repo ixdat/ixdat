@@ -27,7 +27,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
-from .tools import tstamp_to_string
+from .tools import tstamp_to_string, deprecate
 
 
 class Measurement(Saveable):
@@ -505,6 +505,18 @@ class Measurement(Saveable):
         return self._calculator_list
 
     @property
+    @deprecate(
+        "0.2.13",
+        "`calibration_list` has been renamed `calculator_list`, with order"
+        "reversed: in `calculator_list`, the newest `Calculator` is listed last.",
+        "0.3.1",
+    )
+    def calibration_list(self):
+        cals = self.calculator_list.copy()
+        cals.reverse()
+        return cals
+
+    @property
     def calculator_dict(self):
         if self._calculator_dict is None:
             self.consolidate_calculators()
@@ -566,6 +578,14 @@ class Measurement(Saveable):
         else:
             self._calculator_dict[ctype] = calculator
         self.clear_cache()
+
+    @deprecate(
+        "0.2.13",
+        "Calibrations are now Calculators. Use `add_calculator` instead.",
+        "0.3.1",
+    )
+    def add_calibration(self, cal):
+        return self.add_calculator(cal)
 
     @property
     def available_calculated_series(self):

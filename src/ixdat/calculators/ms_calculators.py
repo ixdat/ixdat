@@ -324,6 +324,20 @@ class MSCalibration(Calculator):
                     "mol, mass, and F, *and* a ms_cal_results list. Choose one."
                 )
             ms_cal_results = [MSCalResult(mol, mass, F)]
+        for i, cal in enumerate(ms_cal_results):
+            if isinstance(cal, MSCalibration):
+                warnings.warn(
+                    "An `MSCalibration` was included in `ms_cal_results` which should be"
+                    "a list of `MSCalResult` objects. This useage is DEPRECATED "
+                    "and will give an error in 0.3.1.\n"
+                    "If you have two `MSCalibration`s, just add them directly. i.e., "
+                    "rather than:\n"
+                    "`calibration = MSCalibration(ms_cal_results=[cal1, cal2]) # no!`\n"
+                    "do:\n"
+                    "`calibration = cal1 + cal2 # yes!`"
+                )
+                ms_cal_results[i] = cal.ms_cal_results[0]
+
         self.date = date
         self.setup = setup
         self.ms_cal_results = ms_cal_results or []
@@ -411,6 +425,12 @@ class MSCalibration(Calculator):
         "0.3.1",
         kwarg_name="chip",
     )
+    @deprecate(
+        "0.2.13",
+        "If you need the axis object, make it yourself and provide it as `ax`.",
+        "0.3.1",
+        kwarg_name="return_ax",
+    )
     def gas_flux_calibration_curve(
         cls,
         measurement,
@@ -426,6 +446,7 @@ class MSCalibration(Calculator):
         ax="new",
         axis_measurement=None,
         remove_bg_on_axis_measurement=True,
+        return_ax=False,
     ):
         """Fit mol's sensitivity at mass from 2+ periods of steady gas composition.
 
@@ -542,7 +563,10 @@ class MSCalibration(Calculator):
             cal_type=cal_type,
             F=F,
         )
-        return cls(ms_cal_results=[cal_result], measurement=measurement)
+        cal = cls(ms_cal_results=[cal_result], measurement=measurement)
+        if return_ax:
+            return cal, ax
+        return cal
 
     @property
     def ms_cal_result_ids(self):

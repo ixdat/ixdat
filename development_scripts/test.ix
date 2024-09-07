@@ -1,0 +1,15 @@
+{
+    "tstamp": null,
+    "calculator_type": "MS calibration",
+    "technique": "MS",
+    "name": "MSCalibration()",
+    "ms_cal_results": [
+        {
+            "mass": "M2",
+            "F": 0.31939348803458883,
+            "name": "H2@M2",
+            "cal_type": "ecms_calibration_curve",
+            "mol": "H2"
+        }
+    ]
+}

@@ -89,7 +89,17 @@ siq_cal_1 = cal_1.to_siq()
 #  so doesn't know which calculated series it can provide:
 print(siq_cal_1)
 
-# You can't directly add MSCalResults, but that operation *is* implemented in siq :)
+# You can now directly add MSCalibration objects:
+calibration = cal_1 + cal_2
+print(calibration)
+
+# Saving and loading should work:
+calibration.export("test.ix")
+loaded = ECMSCalibration.read("test.ix")
+print("loaded:")
+print(loaded)
+
+# You can also do so with siqCalculator objects:
 siq_calibration = cal_1.to_siq() + cal_2.to_siq()
 print(siq_calibration)
 
@@ -97,7 +107,7 @@ print(siq_calibration)
 siq_calibration.plot_as_spectrum()
 
 # You can also turn it back into native ixdat
-calibration = ECMSCalibration.from_siq(siq_calibration)
+reconverted = ECMSCalibration.from_siq(siq_calibration)
 print(calibration)
 
 siq_calibration_again = calibration.to_siq()

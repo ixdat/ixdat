@@ -1,4 +1,5 @@
 """Module for representation and analysis of EC-MS measurements"""
+import warnings
 from .ec import ECMeasurement
 from .ms import MSMeasurement, MSSpectroMeasurement
 from .cv import CyclicVoltammogram
@@ -90,6 +91,28 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         ]
         print("Following tspans were selected for calibration: " + str(tspan_list))
         return tspan_list
+
+    @deprecate(
+        "0.2.13",
+        "Use `ECMSCalulator.ecms_calibration` instead.",
+        "0.3.1",
+        kwarg_name="ms_cal_results",
+    )
+    def calibrate(self, *args, **kwargs):
+        ms_cal_results = kwargs.pop("ms_cal_results", None)
+        if ms_cal_results:
+            from ..calculators.ms_calculators import MSCalibration
+
+            warnings.warn(
+                "Giving `ms_cal_results` to `ECMSMeasurement.calibrate` is DEPRECATED"
+                "and will give an error in 0.3.1. Use instead:\n"
+                "`ecms.add_calculator(MSCalculator(ms_cal_results=ms_cal_results))`"
+            )
+            cal = MSCalibration(ms_cal_results=ms_cal_results)
+            self.add_calculator(cal)
+            return cal
+
+        return super().calibrate(*args, **kwargs)
 
     @deprecate(
         "0.2.13",

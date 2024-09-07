@@ -17,6 +17,9 @@ from ..calculators.ms_calculators import (
     MSConstantBackground,
 )
 
+# and, for back-compatibility until 0.3.1:
+from ..calculators.ms_calculators import MSInlet  # noqa: F401
+
 
 class MSMeasurement(Measurement):
     """Class implementing raw MS functionality"""

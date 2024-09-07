@@ -7,6 +7,7 @@ Created on Thu Aug  8 20:48:06 2024
 import warnings
 import numpy as np
 import pandas as pd
+import json
 from scipy.optimize import curve_fit, minimize  # noqa
 from scipy.interpolate import interp1d  # noqa
 from scipy import signal  # noqa
@@ -15,11 +16,13 @@ from numpy.fft import fft, ifft, ifftshift, fftfreq  # noqa
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..constants import FARADAY_CONSTANT, R, STANDARD_TEMPERATURE, STANDARD_PRESSURE
 from .ms_calculators import MSCalibration, MSCalResult
+from .ec_calculators import ECCalibration
 from ..measurements import Calculator
 from ..data_series import ValueSeries, TimeSeries
 from ..exceptions import TechniqueError, QuantificationError
 from ..config import plugins
 from ..plotters.plotting_tools import calc_linear_background
+from ..tools import deprecate
 
 
 class ECMSCalibration(Calculator):
@@ -62,6 +65,12 @@ class ECMSCalibration(Calculator):
         return MSCalibration(ms_cal_results=[cal], measurement=measurement)
 
     @classmethod
+    @deprecate(
+        "0.2.9",
+        "If you need the axis object, make it yourself and provide it as `ax`.",
+        "0.3.1",
+        kwarg_name="return_ax",
+    )
     def ecms_calibration_curve(
         cls,
         measurement,
@@ -77,6 +86,7 @@ class ECMSCalibration(Calculator):
         ax="new",
         axes_measurement=None,
         axes_measurement_J_name="raw_current",
+        return_ax=False,
     ):
         """Fit mol's sensitivity at mass based on steady periods of EC production.
 
@@ -105,6 +115,7 @@ class ECMSCalibration(Calculator):
                 its J_name. Defaults to "raw_current". IMPORTANT: the method still uses
                 "raw_current" to calculate the sensitivity factor, this J_name is only
                 used for plotting.
+            return_ax: DEPRECATED
 
         Return MSCalResult(, Axis): The result of the ms_calibration (and calibration
             curve axis if requested) based on integration of selected time periods.
@@ -167,9 +178,112 @@ class ECMSCalibration(Calculator):
             cal_type="ecms_calibration_curve",
             F=F,
         )
-        return MSCalibration(ms_cal_results=[cal], measurement=measurement)
+        cal = MSCalibration(ms_cal_results=[cal], measurement=measurement)
+        if return_ax:
+            return cal, ax
+        return cal
 
     from_siq = MSCalibration.from_siq
+
+    @deprecate(
+        "0.2.13",
+        "Don't initiate an ECMSCalibration any more. "
+        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "0.3.1",
+    )
+    def __init__(self, *args, RE_vs_RHE=None, A_el=None, R_Ohm=None, **kwargs):
+        self.calculator_type = "EC-MS Calibration"
+        kwargs.pop("calculator_type", None)
+        super().__init__(
+            name=kwargs.pop("name", None),
+            technique=kwargs.pop("technique", None),
+            tstamp=kwargs.pop("tstamp", None),
+            measurement=kwargs.pop("measurement", None),
+        )
+        self.ec_cal = ECCalibration(RE_vs_RHE=RE_vs_RHE, A_el=A_el, R_Ohm=R_Ohm)
+        self.ms_cal = MSCalibration(*args, **kwargs)
+
+    @classmethod
+    @deprecate(
+        "0.2.13",
+        "Don't save and read an ECMSCalibration any more. Save and read an"
+        "MSCalibration and an ECCalibration and add them to the measurement separately.",
+        "0.3.1",
+    )
+    def read(cls, path_to_file):
+        """Read an MSCalibration from a json-formatted text file"""
+        with open(path_to_file) as f:
+            obj_as_dict = json.load(f)
+        # put the MSCalResults (exported as dicts) into objects:
+        obj_as_dict["ms_cal_results"] = [
+            MSCalResult.from_dict(ms_cal_as_dict)
+            for ms_cal_as_dict in obj_as_dict["ms_cal_results"]
+        ]
+        return ECMSCalibration(**obj_as_dict)
+
+    @property
+    @deprecate(
+        "0.2.13",
+        "Don't initiate an ECMSCalibration any more. "
+        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "0.3.1",
+    )
+    def available_series_names(self):
+        return self.ec_cal.available_series_names.union(
+            self.ms_cal.available_series_names
+        )
+
+    @property
+    @deprecate(
+        "0.2.13",
+        "Don't initiate an ECMSCalibration any more. "
+        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "0.3.1",
+    )
+    def A_el(self):
+        return self.ec_cal.A_el
+
+    @property
+    @deprecate(
+        "0.2.13",
+        "Don't initiate an ECMSCalibration any more. "
+        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "0.3.1",
+    )
+    def ms_cal_results(self):
+        return self.ms_cal.ms_cal_results
+
+    @deprecate(
+        "0.2.13",
+        "Don't calculate series with ECMSCalibration any more. "
+        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "0.3.1",
+    )
+    def calculate_series(self, key, measurement):
+        if key in self.ec_cal.available_series_names:
+            return self.ec_cal.calculate_series(key, measurement=measurement)
+        if key in self.ms_cal.available_series_names:
+            return self.ms_cal.calculate_series(key, measurement=measurement)
+
+    @deprecate(
+        "0.2.13",
+        "Don't calculate series with ECMSCalibration any more. "
+        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "0.3.1",
+    )
+    def export(self, path_to_file=None):
+        """Export an ECMSCalibration as a json-formatted text file"""
+        path_to_file = path_to_file or (self.name + ".ix")
+        self_as_dict = self.as_dict()
+        self_as_dict.update(self.ms_cal.as_dict())
+        self_as_dict.update(self.ec_cal.as_dict())
+        # replace the ms_cal_result ids with the dictionaries of the results themselves:
+        del self_as_dict["ms_cal_result_ids"]
+        self_as_dict["ms_cal_results"] = [
+            cal.as_dict() for cal in self.ms_cal.ms_cal_results
+        ]
+        with open(path_to_file, "w") as f:
+            json.dump(self_as_dict, f, indent=4)
 
 
 class ECMSImpulseResponse(Calculator):
