@@ -260,6 +260,9 @@ class MSCalibration(Calculator):
 
     This is a simple version, just implementing sensitivity factors.
     Consider using the more powerful spectro_inlets_quantification package instead.
+
+    Addition of two `MSCalibration` objects results in a new `MSCalibration` object with
+    all of the sensitivity factors from both of the original ones.
     """
 
     calculator_type = "MS calibration"
@@ -335,7 +338,8 @@ class MSCalibration(Calculator):
                     "rather than:\n"
                     "`calibration = MSCalibration(ms_cal_results=[cal1, cal2]) # no!`\n"
                     "do:\n"
-                    "`calibration = cal1 + cal2 # yes!`"
+                    "`calibration = cal1 + cal2 # yes!`\n"
+                    "Where `calibration` is an `MSCalibration`."
                 )
                 ms_cal_results[i] = cal.ms_cal_results[0]
 
@@ -407,6 +411,7 @@ class MSCalibration(Calculator):
             cal_type = "gas_flux_calibration"
             mol_conc_ppm = 10**6
             carrier_mol = mol
+        inlet = inlet or chip
         n_dot = inlet.calc_n_dot_0(gas=carrier_mol) * mol_conc_ppm / 10**6
         F = np.mean(S) / n_dot
         cal_result = MSCalResult(

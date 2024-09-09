@@ -70,6 +70,9 @@ class ECMSCalibration(Calculator):
         "If you need the axis object, make it yourself and provide it as `ax`.",
         "0.3.1",
         kwarg_name="return_ax",
+        # FIXME: The method should probably not make a plot by default, but either do
+        #   that only when provided an ax, or instead save the necessary info in the
+        #   returned object to make the plot in another method. See #
     )
     def ecms_calibration_curve(
         cls,
@@ -187,8 +190,8 @@ class ECMSCalibration(Calculator):
 
     @deprecate(
         "0.2.13",
-        "Don't initiate an ECMSCalibration any more. "
-        "Initiate an MSCalibration and ECCalibration and add them separately.",
+        "Don't initiate an ECMSCalibration any more. Initiate an "
+        "MSCalibration and an ECCalibration and add them to the measurement separately.",
         "0.3.1",
     )
     def __init__(self, *args, RE_vs_RHE=None, A_el=None, R_Ohm=None, **kwargs):
