@@ -12,7 +12,7 @@ plt.close("all")
 
 
 data_dir = (
-    Path.home() / "Dropbox/WORKSPACES/ICL people/Matthew/opus_ftir/DPT files for Soren"
+    Path.home() / "Dropbox/WORKSPACES/PEOPLE_ICL/Matthew/opus_ftir/DPT files for Soren"
 )
 
 

@@ -1,8 +1,8 @@
 """Representation and analysis of thermal catalysis (TP) with MS measurements"""
 
 from .ms import MSMeasurement, MSSpectroMeasurement
-from ..measurements import Calibration
-from ..plotters import TPMSPlotter, TPMSSpectroPlotter
+from ..measurement_base import Calculator
+from ..plotters.tpms_plotter import TPMSPlotter, TPMSSpectroPlotter
 from ..data_series import ValueSeries
 import warnings
 import numpy as np
@@ -55,7 +55,7 @@ class ReactorMeasurement(MSMeasurement):
 
     def __init__(self, name, **kwargs):
         super().__init__(name, **kwargs)
-        self.add_calibration(ReactorCalibration(name="inverse_calibration"))
+        self.add_calculator(ReactorCalibration(name="inverse_calibration"))
         self.activation_energy = {}
 
     @property
@@ -277,17 +277,14 @@ class ReactorSpectroMeasurement(ReactorMeasurement, MSSpectroMeasurement):
     default_plotter = TPMSSpectroPlotter
 
 
-class ReactorCalibration(Calibration):
+class ReactorCalibration(Calculator):
     """A reactor calibration to calibrate inverse of meta_series"""
 
-    def __repr__(self):
-        # TODO: make __repr__'s consistent throught ixdat
-        return (
-            f"{self.__class__.__name__}"
-            f"(Calibration={self.name} for setup={self.setup} on date={self.date})"
-        )
+    # FIXME: Is this calculator really necessary?
 
-    def calibrate_series(self, key, measurement=None):
+    available_series_names = {"inverse_T"}
+
+    def calculate_series(self, key, measurement=None):
         """Return a calibrated series for key based on the raw data in the measurement.
 
         Key should start with "inverse". Anything else will return None.

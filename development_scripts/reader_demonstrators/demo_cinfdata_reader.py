@@ -48,3 +48,6 @@ axes_cv = cv[1].plot(
     logplot=False,
 )
 axes_cv[0].get_figure().savefig("Trimarco2018_ixdat.png")
+
+
+ecms_meas.export("trimarco2018_fig3_data.csv", tspan=[0, 600])

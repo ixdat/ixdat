@@ -5,7 +5,7 @@ from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
 from ..techniques.ms import MSSpectrum
 from ..spectra import Spectrum, SpectrumSeries
-from ..config import plugins
+from ..plugins import plugins
 
 SCALE_TIME_TO_SECONDS = 1e-3
 

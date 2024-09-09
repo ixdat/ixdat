@@ -19,7 +19,7 @@ from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_ser
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
 from .exporters.spectrum_exporter import SpectrumExporter
-from .measurements import Measurement, get_combined_technique
+from .measurement_base import Measurement, get_combined_technique
 
 
 class Spectrum(Saveable):

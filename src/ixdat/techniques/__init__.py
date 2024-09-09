@@ -7,20 +7,21 @@ Constants:
         technique-specific functionality.
 """
 
-from .ec import ECMeasurement, ECCalibration
+from .ec import ECMeasurement
 from .cv import CyclicVoltammogram, CyclicVoltammagram  # The latter is deprecated.
-from .ms import MSMeasurement, MSCalibration, MSSpectrum, MSSpectroMeasurement
-from .ec_ms import ECMSMeasurement, ECMSCalibration, ECMSSpectroMeasurement
+from .ms import MSMeasurement, MSSpectrum, MSSpectrumSeries, MSSpectroMeasurement
+from .ec_ms import ECMSMeasurement, ECMSSpectroMeasurement
 from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,
 )
+
 from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
 from .reactor import ReactorMeasurement, ReactorSpectroMeasurement, ReactorCalibration
 from .ftir import FTIRSpectrum, ECFTIRMeasurement
 from ..spectra import Spectrum
-from ..measurements import Measurement
+from ..measurement_base import Measurement
 
 
 TECHNIQUE_CLASSES = {
@@ -32,7 +33,8 @@ TECHNIQUE_CLASSES = {
     "XRD": Spectrum,
     "XPS": Spectrum,
     "XAS": Spectrum,
-    "MS_spectra": MSSpectrum,
+    "MS_spectrum": MSSpectrum,
+    "MS_spectra": MSSpectrumSeries,
     "SEC": SpectroECMeasurement,
     "EC-Optical": ECOpticalMeasurement,
     "EC-XAS": ECXASMeasurement,
@@ -40,17 +42,7 @@ TECHNIQUE_CLASSES = {
     "reactor": ReactorMeasurement,
     "reactor-MS_spectra": ReactorSpectroMeasurement,
     "S-EC": SpectroECMeasurement,
-    "TRXRF": TRXRFMeasurement,
-    "EC-TRXRF": ECTRXRFMeasurement,
     "EC-MS-MS_spectra": ECMSSpectroMeasurement,
     "FTIR": FTIRSpectrum,
     "EC-FTIR": ECFTIRMeasurement,
-}
-
-CALIBRATION_CLASSES = {
-    "EC": ECCalibration,
-    "CV": ECCalibration,
-    "MS": MSCalibration,
-    "EC-MS": ECMSCalibration,
-    "reactor": ReactorCalibration,
 }

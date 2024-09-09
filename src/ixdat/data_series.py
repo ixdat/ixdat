@@ -85,9 +85,11 @@ class TimeSeries(DataSeries):
     def __str__(self):
         """Return TimeSeries string representation"""
         # On the form: TimeSeries: 'NAME'. Min, max: 12, 4000 [s] @ 22E18 14:34:55
+        min_str = f"{min(self.data):.0f}" if len(self.data) > 1 else "None"
+        max_str = f"{max(self.data):.0f}" if len(self.data) > 1 else "None"
         return (
             f"{self.__class__.__name__}: '{self.name}'. "
-            f"Min, max: {min(self.data):.0f}, {max(self.data):.0f} [{self.unit.name}] "
+            f"Min, max: {min_str}, {max_str} [{self.unit.name}] "
             f"@ {tstamp_to_string(self.tstamp)}"
         )
 
@@ -238,9 +240,11 @@ class ValueSeries(Field):
         """Return string representation"""
         # Return a string representation on the form:
         # ValueSeries: 'NAME'. Min, max: -1.23, 4.56 [V]
+        min_str = f"{min(self.data):.1e}" if len(self.data) > 1 else "None"
+        max_str = f"{max(self.data):.1e}" if len(self.data) > 1 else "None"
         return (
             f"{self.__class__.__name__}: '{self.name}'. "
-            f"Min, max: {min(self.data):.1e}, {max(self.data):.1e} [{self.unit.name}]"
+            f"Min, max: {min_str}, {max_str} [{self.unit.name}]"
         )
 
     @property
