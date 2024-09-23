@@ -172,7 +172,7 @@ class SIQ_Plugin:
             )
 
             @classmethod
-            def siq_multicomp_gas_flux_calibration(
+            def multicomp_gas_flux_calibration(
                 cls,
                 measurement,
                 mol_list,
@@ -253,9 +253,9 @@ class SIQ_Plugin:
 
                 delta_signal_list = []
                 for mass in mass_list:
-                    S = self.grab_signal(mass, tspan=tspan)[1].mean()
+                    S = measurement.grab_signal(mass, tspan=tspan)[1].mean()
                     if tspan_bg:
-                        S_bg = self.grab_signal(mass, tspan=tspan_bg)[1].mean()
+                        S_bg = measurement.grab_signal(mass, tspan=tspan_bg)[1].mean()
                     else:
                         S_bg = 0
                     delta_S = S - S_bg
@@ -285,7 +285,7 @@ class SIQ_Plugin:
                                 mass=mass,
                                 F=F,
                                 F_type="capillary",
-                                date=self.yyMdd,
+                                date=measurement.yyMdd,
                             )
                             cal_list.append(cal)
 
