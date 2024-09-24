@@ -167,6 +167,7 @@ is implemented as a plugin. At present, this is in **src/ixdat/plugins/siq_plugi
   Constructor methods:
   - ``gas_flux_calibration``, formerly ``MSMeasurement.siq_gas_flux_calibration``.
   - ``gas_flux_calibration_curve``, formerly ``MSMeasurement.siq_gas_flux_calibration_curve``.
+  - ``multicomp_gas_flux_calibration``, formerly ``MSMeasurement.siq_multicomp_gas_flux_calibration``
   - ``ecms_calibration``, formerly ``ECMSMeasurement.siq_ecms_calibration``
   - ``ecms_calibration_curve``, formerly ``ECMSMeasurement.siq_ecms_calibration_curve``
   Useage:
