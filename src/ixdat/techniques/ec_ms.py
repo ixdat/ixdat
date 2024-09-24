@@ -13,13 +13,6 @@ from ..calculators.ecms_calculators import ECMSCalibration
 class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
-    extra_column_attrs = {
-        "ecms_meaurements": {"ec_technique", "tspan_bg"},
-    }
-    # FIXME: It would be much more elegant if this carried over automatically from
-    #  *both* parents, by appending the table columns...
-    #  We'll see how the problem changes with the metaprogramming work.
-
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter
 

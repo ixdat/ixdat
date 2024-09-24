@@ -7,6 +7,7 @@ from ..spectra import Spectrum, SpectroMeasurement
 from ..data_series import Field, ValueSeries
 from ..exporters import SECExporter
 from ..plotters import SECPlotter, ECOpticalPlotter
+from ..tools import deprecate
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
@@ -14,32 +15,6 @@ class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
 
     default_exporter = SECExporter
     default_plotter = SECPlotter
-
-    def __init__(self, **kwargs):
-        """FIXME: Passing the right key-word arguments on is a mess"""
-        ec_kwargs = {
-            k: v for k, v in kwargs.items() if k in ECMeasurement.get_all_column_attrs()
-        }
-        spec_kwargs = {
-            k: v
-            for k, v in kwargs.items()
-            if k in SpectroMeasurement.get_all_column_attrs()
-        }
-        # FIXME: I think the lines below could be avoided with a PlaceHolderObject that
-        #  works together with MemoryBackend
-        if "series_list" in kwargs:
-            ec_kwargs.update(series_list=kwargs["series_list"])
-            spec_kwargs.update(series_list=kwargs["series_list"])
-        if "component_measurements" in kwargs:
-            ec_kwargs.update(component_measurements=kwargs["component_measurements"])
-            spec_kwargs.update(component_measurements=kwargs["component_measurements"])
-        if "calibration_list" in kwargs:
-            ec_kwargs.update(calibration_list=kwargs["calibration_list"])
-            spec_kwargs.update(calibration_list=kwargs["calibration_list"])
-        if "spectrum_series" in kwargs:
-            spec_kwargs.update(spectrum_series=kwargs["spectrum_series"])
-        SpectroMeasurement.__init__(self, **spec_kwargs)
-        ECMeasurement.__init__(self, **ec_kwargs)
 
 
 class ECXASMeasurement(SpectroECMeasurement):
@@ -242,6 +217,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         )
         return Spectrum.from_field(field)
 
+    @deprecate("0.2.9", "use `Surfer.track_x() instead.", "0.3.1")
     def track_wavelength(self, wl, width=10, V_ref=None, t_ref=None, index_ref=None):
         """Return and cache a ValueSeries for the dOD for a specific wavelength.
 

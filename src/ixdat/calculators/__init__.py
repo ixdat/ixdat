@@ -4,6 +4,7 @@ from .indexer import Indexer
 from .ec_calculators import ECCalibration, ScanRateCalculator
 from .ms_calculators import MSBackgroundSet, MSCalibration
 from .ecms_calculators import ECMSCalibration
+from .spectral_calculators import Surfer, DeltaODCalculator
 
 
 CALCULATOR_CLASSES = {
@@ -14,5 +15,7 @@ CALCULATOR_CLASSES = {
         ScanRateCalculator,
         MSBackgroundSet,
         MSCalibration,
+        DeltaODCalc,
+        Surfer
     ]
 }

@@ -11,7 +11,7 @@ from .ec import ECMeasurement
 from .cv import CyclicVoltammogram, CyclicVoltammagram  # The latter is deprecated.
 from .ms import MSMeasurement, MSSpectrum, MSSpectrumSeries, MSSpectroMeasurement
 from .ec_ms import ECMSMeasurement, ECMSSpectroMeasurement
-from .spectroelectrochemistry import (
+from .sec import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,

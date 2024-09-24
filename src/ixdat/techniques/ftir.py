@@ -6,7 +6,7 @@ Created on Thu Dec  7 17:59:53 2023
 """
 
 from ..spectra import Spectrum, SpectrumSeries
-from .spectroelectrochemistry import SpectroECMeasurement
+from .sec import SpectroECMeasurement
 from ..plotters.spectrum_plotter import SpectrumSeriesPlotter
 from ..plotters.sec_plotter import SECPlotter
 

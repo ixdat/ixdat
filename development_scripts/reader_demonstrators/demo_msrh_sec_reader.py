@@ -22,12 +22,36 @@ sec_meas = Measurement.read(
 sec_meas.calibrate_RE(RE_vs_RHE=0.26)  # provide RE potential in [V] vs RHE
 sec_meas.normalize_current(A_el=1)  # provide electrode area in [cm^2]
 
-sec_meas.set_reference_spectrum(V_ref=0.66)
-ax = sec_meas.get_dOD_spectrum(V=1.0, V_ref=0.66).plot(color="b", label="species 1")
-sec_meas.get_dOD_spectrum(V=1.4, V_ref=1.0).plot(color="g", label="species 2", ax=ax)
-sec_meas.get_dOD_spectrum(V=1.7, V_ref=1.4).plot(color="r", label="species 3", ax=ax)
-ax.legend()
+# This plotting makes use of a built-in DeltaODCalculator:
+sec_meas.set_reference_spectrum(V_ref=0.4)
 
+axes = sec_meas.plot_measurement(
+    cmap_name="jet",
+    make_colorbar=True,
+)
+ax = sec_meas.plot_waterfall()
+ax.get_figure().savefig("sec_waterfall.png")
+
+if False:  # This makes use of a built-in DeltaODCalculator
+
+    spec1 = sec_meas.calc_dOD_spectrum(V=1.0, V_ref=0.66)
+    spec2 = sec_meas.calc_dOD_spectrum(V=1.4, V_ref=1.0)
+    spec3 = sec_meas.calc_dOD_spectrum(V=1.7, V_ref=1.4)
+
+else:  # another way to do the above, explicitly using the calculator instead
+    from ixdat.calculators import DeltaODCalculator
+
+
+    calc = DeltaODCalculator(measurement=sec_meas)
+
+    spec1 = calc.spectrum(V=1.0, V_ref=0.66)
+    spec2 = calc.spectrum(V=1.4, V_ref=1.0)
+    spec3 = calc.spectrum(V=1.7, V_ref=1.4)
+
+ax = spec1.plot(color="b", label="redox 1")
+spec2.plot(color="g", label="redox 2", ax=ax)
+spec3.plot(color="r", label="redox 3", ax=ax)
+ax.legend()
 
 if True:  # test export and reload
     # Suggestion: command-line switching for development scripts.
@@ -40,29 +64,27 @@ if True:  # test export and reload
     sec_reloaded.continuous = False
     sec_reloaded.plot_vs_potential(cmap_name="jet")
 
-axes = sec_meas.plot_measurement(
-    V_ref=0.4,
-    cmap_name="jet",
-    make_colorbar=True,
-)
+
 
 ax = sec_meas.plot_waterfall(
     V_ref=0.4,
     cmap_name="jet",
     make_colorbar=True,
 )
-ax.get_figure().savefig("sec_waterfall.png")
 
 axes2 = sec_meas.plot_vs_potential(V_ref=0.66, cmap_name="jet", make_colorbar=False)
 axes2 = sec_meas.plot_vs_potential(
     V_ref=0.66, vspan=[1.0, 1.5], wlspan=[500, 700], cmap_name="jet", make_colorbar=False
 )
 
-ax = sec_meas.get_dOD_spectrum(V_ref=0.66, V=1.0).plot(color="b", label="species 1")
-sec_meas.get_dOD_spectrum(V_ref=1.0, V=1.45).plot(color="g", ax=ax, label="species 2")
-sec_meas.get_dOD_spectrum(V_ref=1.45, V=1.75).plot(color="r", ax=ax, label="species 3")
 
-axes = sec_meas.plot_wavelengths_vs_potential(wavelengths=["w460", "w600", "w850"])
+from ixdat.calculators import Surfer
+# a Surfer is a calculator that makes a ValueSeries by following a specific value of x
+#  in a SpectrumSeries.
+
+
+sec.add_calculator(Surfer(xs={"w450": 460, "w600": 600, "w850": 850}))
+axes = sec_meas.plot_xs_vs_potential(["w460", "w600", "w850"])
 axes[0].set_ylabel("intense!")
 
 ax.legend()
