@@ -78,7 +78,7 @@ def calc_linear_background(t, y, tspans):
     """Return a copy of the vector `y` that interpolates linearly between tspans
 
     The vector `y - calc_linear_background(t, y, tspans)` will go to zero at the times
-    on `t` specified by `tspan
+    on `t` specified by `tspans`
 
     Args:
         t (numpy Array): time
@@ -94,3 +94,46 @@ def calc_linear_background(t, y, tspans):
         t_bg_list.append(t[mask].mean())
         y_bg_list.append(y[mask].mean())
     return np.interp(t, t_bg_list, y_bg_list)
+
+
+def get_indeces_and_times(
+    t_vec,
+    dt=None,
+    t_list=None,
+    dn=None,
+    index_list=None,
+):
+    """Given a time vector, find the indeces and times of a desired subset
+
+    Specify one of dt, t_list, dn, or index_list
+
+    Args:
+        t_vec (numpy array): The time vector
+        dt (float): time interval between spectra to plot, [s]. The
+            first spectrum and those taken at times closest to each
+            integer multiple of dt after are plotted.
+        t_list (list of float): List of times for which to plot the
+            spectrum, [s]. The closest spectrum to each time in the
+            list is plotted.
+        dn (int): number of spectra between plotted spectra
+        index_list (list of int): List of indeces of spectra to plot
+    Returns Tuple:
+        list of int: The indeces of the desired points
+        list of float: the times of the desired points
+
+    """
+    if not dt and not t_list and not dn and not index_list:
+        raise ValueError("must specify one of: dt, t_list, dn, index_list")
+    if dt or t_list:
+        if dt:
+            num = int((t_vec[-1] - t_vec[0]) / dt)
+            t_list = [t_vec[0] + n * dt for n in range(num)]
+        index_list = []
+        for t in t_list:
+            index = int(np.argmin(np.abs(t_vec - t)))
+            index_list.append(index)
+    elif dn:
+        index_list = list(range(0, len(t_vec), dn))
+    if not t_list:
+        t_list = [t_vec[i] for i in index_list]
+    return index_list, t_list

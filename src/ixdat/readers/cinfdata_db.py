@@ -1,10 +1,11 @@
 """Module defining direct DB reader connection to Surfcat's cinfdata system"""
+
 import warnings
 from .. import Measurement
 from ..data_series import DataSeries, ValueSeries, TimeSeries, Field
 from ..techniques.ms import MSSpectrum
 from ..spectra import Spectrum, SpectrumSeries
-from ..config import plugins
+from ..plugins import plugins
 
 SCALE_TIME_TO_SECONDS = 1e-3
 
@@ -125,7 +126,6 @@ class CinfdataDBReader:
         with plugins.cinfdata(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         ) as cinf_db:
-
             self.group_data = cinf_db.get_data_group(
                 self.token, scaling_factors=(SCALE_TIME_TO_SECONDS, None)
             )
@@ -213,7 +213,6 @@ class CinfdataDBReader:
         with plugins.cinfdata(
             setup_name=self.setup_name, grouping_column=self.grouping_column
         ) as cinf_db:
-
             # return dict with measurements as key containing x,y values in a np.array
             self.group_data = cinf_db.get_data_group(self.token)
 

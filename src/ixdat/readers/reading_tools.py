@@ -5,7 +5,7 @@ import time
 import urllib.request
 from ..config import config
 from ..exceptions import ReadError
-from ..measurements import TimeSeries, ValueSeries, ConstantValue
+from ..data_series import TimeSeries, ValueSeries, ConstantValue
 
 
 STANDARD_TIMESTAMP_FORM = "%d/%m/%Y %H:%M:%S"  # like '31/12/2020 23:59:59'

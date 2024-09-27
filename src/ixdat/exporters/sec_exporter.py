@@ -1,12 +1,11 @@
-from .ec_exporter import ECExporter
-from .spectrum_exporter import SpectrumExporter, SpectrumSeriesExporter
+from . import ECExporter, SpectrumExporter, SpectrumSeriesExporter
 
 
 class SECExporter(ECExporter):
     """Adds to CSVExporter the export of the Field with the SEC spectra"""
 
-    def __init__(self, measurement, delim=","):
-        super().__init__(measurement, delim=delim)
+    def __init__(self, measurement):
+        super().__init__(measurement)
         # FIXME: The lines below don't work because this __init__ gets called before
         #   the measurement's __init__ is finished.
         # self.reference_exporter = SpectrumExporter(measurement.reference_spectrum)
@@ -54,7 +53,6 @@ class SECExporter(ECExporter):
         path_to_spectra_file = self.path_to_file.parent / (
             self.path_to_file.stem + "_spectra.csv"
         )
-        measurement = measurement or self.measurement
         self.header_lines.append(
             f"'spectrum_series' in file: '{path_to_spectra_file.name}'\n"
         )

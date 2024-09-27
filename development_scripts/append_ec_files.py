@@ -25,7 +25,6 @@ if True:  # test reading from directory
     # full_measurement.select_values(loop_number=1, **{"loop_number": 0}).plot()
 
 if True:
-
     ocp_file = data_dir / "01_demo_02_OCV_C01.mpt"
     cv_file = data_dir / "01_demo_03_CVA_C01.mpt"
     cp_file = data_dir / "01_demo_04_CP_C01.mpt"
@@ -36,10 +35,11 @@ if True:
     print("read cv file!")
     cp_meas = Measurement.read(cp_file, reader="biologic", name="Pt_demo_cp")
     print("read cp file!")
-
-    ocp_id = ocp_meas.save()
-    cv_id = cv_meas.save()
-    cp_id = cp_meas.save()
+    if False:
+        # This can take some time (will hopefully be solved with #75
+        ocp_id = ocp_meas.save()
+        cv_id = cv_meas.save()
+        cp_id = cp_meas.save()
 else:
     ocp_meas = Measurement.get(1)
     cv_meas = Measurement.get(2)

@@ -19,7 +19,7 @@ from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_ser
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
 from .exporters.spectrum_exporter import SpectrumExporter
-from .measurements import Measurement, get_combined_technique
+from .measurement_base import Measurement, get_combined_technique
 
 
 class Spectrum(Saveable):
@@ -49,6 +49,7 @@ class Spectrum(Saveable):
         "field_id",
     }
     child_attrs = ["fields"]
+    essential_series_names = []
 
     def __init__(
         self,
@@ -409,6 +410,11 @@ class MultiSpectrum(Saveable):
         return self._xseries
 
     @property
+    def x(self):
+        """The x data is the data attribute of the xseries"""
+        return self.xseries.data
+
+    @property
     def spectrum_list(self):
         """The spectra of the multi-spectrum as a list of Spectrum objects."""
         if not self._spectrum_list:
@@ -556,7 +562,8 @@ class SpectrumSeries(Spectrum):
         """
         if isinstance(self._field, PlaceHolderObject):
             self._field = self._field.get_object()
-
+        if len(self) == 0:  # this is the case when self._field is empty
+            return self._field
         if abs(self._field.axes_series[0].tstamp - self.tstamp) > self.t_tolerance:
             # self.t_tolerance is the resolution on the time axis of the spectra.
             # If the t=0 of the SpectrumSeries differs from the tstamp of the field
@@ -605,9 +612,12 @@ class SpectrumSeries(Spectrum):
         """The name of the time variable of the spectrum series"""
         return self.tseries.name
 
+    def __len__(self):
+        return len(self._field.axes_series[0].t)
+
     @property
     def t_tolerance(self):
-        if self._t_tolerance is None:
+        if self._t_tolerance is None and len(self) > 0:
             # Note, accessing `self.t` here would lead to infinite recursion
             #   due to `t_tolerance`'s use in the `field` property.
             try:
@@ -669,10 +679,20 @@ class SpectrumSeries(Spectrum):
                 axes_series=[self.xseries],
             )
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
-            if self.durations:
+            if self.durations is not None and len(self.durations) > 0:
                 spectrum_as_dict["duration"] = self.durations[key]
             return cls.from_dict(spectrum_as_dict)
-        raise KeyError
+
+        elif isinstance(key, slice):
+            # Convert the slice to a list of integers, get the spectra with the code
+            # above, and recombined them:
+            indeces = list(range(key.stop)[key])
+            spectrum_list = []
+            for i in indeces:
+                spectrum_list.append(self[i])
+            return SpectrumSeries.from_spectrum_list(spectrum_list)
+
+        raise KeyError(f"SpectrumSeries indexing uses int or slice. Got {type(key)}")
 
     def cut(self, tspan, t_zero=None):
         """Return a subset with the spectrums falling in a specified timespan
@@ -720,26 +740,28 @@ class SpectrumSeries(Spectrum):
         if type(other) is type(self):  # Then we are appending!
             obj_as_dict = self.as_dict()
             new_y_name = self.y_name
-            if not self.y_name == other.y_name:
+            if self.y_name != other.y_name:
                 new_y_name = self.y_name + "AND" + other.y_name
                 warnings.warn(
                     "Appending spectra with different names: \n"
                     f"{new_y_name}.\n"
                     "Result might not be meaningful."
                 )
-            new_x_name = self.x_name
             new_xseries = self.xseries
-            if not self.xseries.shape == other.xseries.shape:
+            if self.xseries.shape != other.xseries.shape:
                 raise TypeError(
-                    "Cannot append SpectrumSeries with different shapes "
-                    "of their x series!"
+                    f"Tried to append a spectrum with x={self.xseries.name} "
+                    f"of length ({self.xseries.shape[0]} to a spectrum with "
+                    f"{other.xseries.name} of length {other.xseries.shape[0]}. "
+                    f"However, spectrum series can only be appended if they have "
+                    "the same number of points on their x axis."
                 )
-            if not self.xseries.unit_name == other.xseries.unit_name:
+            if self.xseries.unit_name != other.xseries.unit_name:
                 raise TypeError(
                     "Cannot append SpectrumSeries with different units "
                     "of their x series!"
                 )
-            if not self.x_name == other.x_name:
+            if self.x_name != other.x_name:
                 new_x_name = self.x_name + "OR" + other.x_name
                 warnings.warn(
                     "Appending spectra with different names: \n"
@@ -809,6 +831,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
+    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 
@@ -861,6 +884,10 @@ class SpectroMeasurement(Measurement):
     @property
     def continuous(self):
         return self.spectrum_series.continuous
+
+    @continuous.setter
+    def continuous(self, continuous):
+        self.spectrum_series.continuous = continuous
 
     @Measurement.tstamp.setter
     def tstamp(self, tstamp):

@@ -8,8 +8,8 @@ class MSExporter(CSVExporter):
 
 
 class MSSpectroExporter(MSExporter):
-    def __init__(self, measurement, delim=","):
-        super().__init__(measurement, delim=delim)
+    def __init__(self, measurement):
+        super().__init__(measurement)
         # self.spectra_exporter = SpectrumSeriesExporter(measurement.spectrum_series)
         # FIXME: Have to do a property because this __int__ gets called before the
         #    measurement's __init__ is finished...
@@ -30,7 +30,7 @@ class MSSpectroExporter(MSExporter):
             - export the MSSpectrumSeries
             - add a line to the main file header pointing to the spectra file
 
-        Args and Kwargs: see :meth:`ECExporter.prepare_header_and_data`
+        Args and Kwargs: "see CSVExporter.prepare_header_and_data
         """
         super().prepare_header_and_data(measurement, columns, tspan, time_step=time_step)
         path_to_spectra_file = self.path_to_file.parent / (

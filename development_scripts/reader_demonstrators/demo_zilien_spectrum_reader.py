@@ -21,7 +21,7 @@ spec = Spectrum.read(
 spec.plot(color="k")
 
 
-if True:  # test Spectrum saving and loading.
+if False:  # test Spectrum saving and loading.
     # Works!
     s_id = spec.save()
     loaded = Spectrum.get(s_id)
@@ -29,14 +29,21 @@ if True:  # test Spectrum saving and loading.
     ax.set_yscale("log")
 
 if True:  # test Spectrum exporting and re-reading
-    # FIXME: Doesn't work yet. MSSpectrum has no default exporter.
+    # Works!
     spec.export("./my_spectrum.csv")
     loaded_spec = Spectrum.read("./my_spectrum.csv", reader="ixdat")
     ax = loaded_spec.plot(color="g")
     ax.set_yscale("log")
 
 
-meas = Measurement.read(path_to_meas, reader="zilien", technique="MS-MS_spectra")
+meas = Measurement.read(
+    path_to_meas,
+    reader="zilien",
+    technique="MS-MS_spectra",  # include MS spectra
+    # technique="MS",  # do not include MS spectra by default
+    # include_mass_scans=True,  # include spectra! (overrides technique)
+    # include_mass_scans=False,  # don't include spectra! (overrides technique)
+)
 meas.plot(
     mass_list=["M40", "M18"],
 )
@@ -49,7 +56,7 @@ if False:  # test SpectroMSMeasurement saving and loading.
     loaded = Measurement.get(m_id)
     ax = loaded.plot(mass_list=["M2", "M18", "M32", "M40"])
 
-if True:  # test SpectroMSMeasurement exporting and re-reading. Works! :)
+if False:  # test SpectroMSMeasurement exporting and re-reading. Works! :)
     meas.export("./my_spectro_ms_measurement.csv")
     loaded_meas = Measurement.read("./my_spectro_ms_measurement.csv", reader="ixdat")
     ax = loaded_meas.plot(mass_list=["M2", "M18", "M28", "M32", "M40"])
@@ -83,3 +90,11 @@ meas_joined_p2_no_spec.plot()
 
 meas_joined_p1_no_spec = meas_p1_no_spec + meas_p2
 meas_joined_p1_no_spec.plot()
+
+meas_p3 = meas.cut(tspan=[4500, 5000])  # no spectra here!
+meas_p3.plot()  # bottom panel is empty
+print(len(meas_p3.spectrum_series))  # 0
+
+meas_joined = meas_p1 + meas_p2 + meas_p3  # order doesn't matter!
+print(len(meas_joined.spectrum_series))  # 4
+meas_joined.plot()

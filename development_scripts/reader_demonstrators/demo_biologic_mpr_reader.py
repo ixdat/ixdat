@@ -6,7 +6,6 @@ for data_dir in [
     Path.home() / "Dropbox/ixdat_resources/test_data/biologic/22I27_London",
     Path.home() / "Dropbox/ixdat_resources/test_data/biologic/22K14_Tempo",
 ]:
-
     combined_meas = None
 
     for file in data_dir.iterdir():
@@ -14,7 +13,7 @@ for data_dir in [
             continue
         meas = Measurement.read(file, reader="biologic")
         print(meas)
-        print("... was read successfully!")
+        print("... was read successfully!\n\n")
         meas.plot()
         if combined_meas:
             combined_meas = combined_meas + meas

@@ -1,8 +1,6 @@
 """Plotter for Electrochemistry - Mass Spectrometry"""
 
-from .base_mpl_plotter import MPLPlotter
-from .ec_plotter import ECPlotter
-from .ms_plotter import MSPlotter
+from . import MPLPlotter, ECPlotter, MSPlotter
 from ..tools import deprecate
 
 
@@ -16,11 +14,11 @@ class ECMSPlotter(MPLPlotter):
         self.ec_plotter = ECPlotter(measurement=measurement)
         self.ms_plotter = MSPlotter(measurement=measurement)
 
-    @deprecate("0.1", "Use `U_name` instead.", "0.3", kwarg_name="V_str")
-    @deprecate("0.1", "Use `J_name` instead.", "0.3", kwarg_name="J_str")
-    @deprecate("0.1", "Use `U_color` instead.", "0.3", kwarg_name="V_color")
+    @deprecate("0.1", "Use `U_name` instead.", "0.3.1", kwarg_name="V_str")
+    @deprecate("0.1", "Use `J_name` instead.", "0.3.1", kwarg_name="J_str")
+    @deprecate("0.1", "Use `U_color` instead.", "0.3.1", kwarg_name="V_color")
     @deprecate(
-        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+        "0.1", "Use `remove_background` instead.", "0.3.1", kwarg_name="removebackground"
     )
     def plot_measurement(
         self,
@@ -168,7 +166,7 @@ class ECMSPlotter(MPLPlotter):
         return axes
 
     @deprecate(
-        "0.1", "Use `remove_background` instead.", "0.3", kwarg_name="removebackground"
+        "0.1", "Use `remove_background` instead.", "0.3.1", kwarg_name="removebackground"
     )
     def plot_vs_potential(
         self,

@@ -5,8 +5,8 @@ from .ec import ECMeasurement
 from ..db import PlaceHolderObject
 from ..spectra import Spectrum, SpectroMeasurement
 from ..data_series import Field, ValueSeries
-from ..exporters.sec_exporter import SECExporter
-from ..plotters.sec_plotter import SECPlotter, ECOpticalPlotter
+from ..exporters import SECExporter
+from ..plotters import SECPlotter, ECOpticalPlotter
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):

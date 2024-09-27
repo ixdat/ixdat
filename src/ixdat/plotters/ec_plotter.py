@@ -2,10 +2,18 @@
 
 import warnings
 import numpy as np
-from .base_mpl_plotter import MPLPlotter
-from .plotting_tools import color_axis
+from . import MPLPlotter, color_axis
 from ..tools import deprecate
 from ..exceptions import SeriesNotFoundError
+
+
+EC_FANCY_NAMES = {
+    "t": "time / [s]",
+    "raw_potential": "raw potential / [V]",
+    "potential": "$U_{RHE}$ / [V]",
+    "raw_current": "raw current / [mA]",
+    "current": "J / [mA cm$^{-2}$]",
+}
 
 
 class ECPlotter(MPLPlotter):
@@ -16,9 +24,9 @@ class ECPlotter(MPLPlotter):
         super().__init__()
         self.measurement = measurement
 
-    @deprecate("0.1", "Use `U_name` instead.", "0.3", kwarg_name="V_str")
-    @deprecate("0.1", "Use `J_name` instead.", "0.3", kwarg_name="J_str")
-    @deprecate("0.1", "Use `U_color` instead.", "0.3", kwarg_name="V_color")
+    @deprecate("0.1", "Use `U_name` instead.", "0.3.1", kwarg_name="V_str")
+    @deprecate("0.1", "Use `J_name` instead.", "0.3.1", kwarg_name="J_str")
+    @deprecate("0.1", "Use `U_color` instead.", "0.3.1", kwarg_name="V_color")
     def plot_measurement(
         self,
         *,

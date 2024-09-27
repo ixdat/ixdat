@@ -1,8 +1,8 @@
 from pathlib import Path
-from . import TECHNIQUE_CLASSES
 import pickle
+from .. import Measurement
+from ..techniques import TECHNIQUE_CLASSES
 from ..data_series import TimeSeries, ValueSeries
-from ..measurements import Measurement
 from .biologic import BIOLOGIC_COLUMN_NAMES, get_column_unit_name
 
 

@@ -5,10 +5,12 @@ to combine them, i.e. "build" the combined dataset. It has a number of general m
 to visualize and analyze the combined dataset. Measurement is also the base class for a
 number of technique-specific Measurement-derived classes.
 
-A Measurement will typically be accompanied by one or more Calibration. This module
-also defines the base class for Calibration, while technique-specific Calibration
+A Measurement will typically be accompanied by one or more Calculator. This module
+also defines the base class for Calculator, while technique-specific Calculator
 classes will be defined in the corresponding module in ./techniques/
 """
+
+import warnings
 import json
 import numpy as np
 from .db import Saveable, PlaceHolderObject, fill_object_list
@@ -16,7 +18,6 @@ from .data_series import (
     DataSeries,
     TimeSeries,
     ValueSeries,
-    ConstantValue,
     append_series,
     time_shifted,
     get_tspans_from_mask,
@@ -26,7 +27,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
-from .tools import deprecate, tstamp_to_string
+from .tools import tstamp_to_string, deprecate
 
 
 class Measurement(Saveable):
@@ -44,10 +45,10 @@ class Measurement(Saveable):
     }
     extra_linkers = {
         "component_measurements": ("measurements", "m_ids"),
-        "measurement_calibrations": ("calibrations", "c_ids"),
+        "measurement_calculators": ("calculators", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
-    child_attrs = ["component_measurements", "calibration_list", "series_list"]
+    child_attrs = ["component_measurements", "calculator_list", "series_list"]
     # TODO: child_attrs should be derivable from extra_linkers?
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
@@ -60,16 +61,13 @@ class Measurement(Saveable):
     """Name of the default selector"""
     selection_series_names = ("file_number",)
     """Name of the default things to use to construct the selector"""
-    series_constructors = {
-        "file_number": "_build_file_number_series",
-        "selector": "_build_selector_series",
-    }
-    """Series which should be constructed from other series by the specified method
-    and cached the first time they are looked up"""
     essential_series_names = None
     """Series which should always be present"""
     default_plotter = ValuePlotter
     default_exporter = CSVExporter
+    default_calibration = None
+    built_in_calculator_types = ["indexer"]
+    background_calculator_types = []
 
     def __init__(
         self,
@@ -79,7 +77,7 @@ class Measurement(Saveable):
         s_ids=None,
         series_list=None,
         c_ids=None,
-        calibration_list=None,
+        calculator_list=None,
         m_ids=None,
         component_measurements=None,
         aliases=None,
@@ -99,9 +97,9 @@ class Measurement(Saveable):
             s_ids (list of int): The id's of the measurement's DataSeries, if
                 to be loaded (instead of given directly in series_list)
             series_list (list of DataSeries): The measurement's DataSeries
-            c_ids (list of int): The id's of the measurement's Calibrations, if
-                to be loaded (instead of given directly in calibration_list)
-            calibration_list: The measurement's Calibrations
+            c_ids (list of int): The id's of the measurement's calculators, if
+                to be loaded (instead of given directly in calculator_list)
+            calculator_list: The measurement's calculators
             m_ids (list of int): The id's of the component measurements, if to be
                 loaded. None unless this is a combined measurement (typically
                 corresponding to more than one file).
@@ -127,13 +125,17 @@ class Measurement(Saveable):
         if isinstance(lablog, str):
             lablog = LabLog.load_or_make(lablog)
         self.lablog = lablog
+
         self._series_list = fill_object_list(series_list, s_ids, cls=DataSeries)
         self._component_measurements = fill_object_list(
             component_measurements, m_ids, cls=Measurement
         )
-        self._calibration_list = fill_object_list(
-            calibration_list, c_ids, cls=Calibration
-        )
+        self._calculator_list = fill_object_list(calculator_list, c_ids, cls=Calculator)
+
+        self._temp_calculator_list = None
+        self._calculator_dict = None
+        self._built_in_calculators = None
+
         self._tstamp = tstamp
 
         self._cached_series = {}
@@ -171,10 +173,20 @@ class Measurement(Saveable):
                 else:
                     out.append("┣━ " + str(value_series))
 
+        calc_out = []
+        for (n, (name, calculator)) in enumerate(self.calculators.items()):
+            if n == len(self.calculators) - 1:
+                calc_out.append("┗━ " + str(calculator))
+            else:
+                calc_out.append("┣━ " + str(calculator))
+
         return (
             f"{self.__class__.__name__} '{self.name}' with {len(self.series_list)} "
             "series\n\n"
-            "Series list:\n" + "\n".join(out)
+            "Series list:\n"
+            + "\n".join(out)
+            + "\n\nCalculators:\n"
+            + "\n".join(calc_out)
         )
 
     @classmethod
@@ -225,14 +237,17 @@ class Measurement(Saveable):
             measurement = technique_class(**obj_as_dict)
         except TypeError as e:
             raise TechniqueError(
-                "ixdat ran into an error while trying to set up an object of type\n"
-                f"  {technique_class}. This usually happens when ixdat wasn't able\n"
-                f"  to correctly determine the measurement technique. Error: \n{e}\n\n"
-                "Consider passing the `technique` argument into the read() function.\n"
+                "ixdat ran into an error while trying to set up an object of type "
+                f"{technique_class}. This usually happens when ixdat wasn't able"
+                "to correctly determine the measurement technique. Consider"
+                "passing the `technique` argument into the read() function. \n"
                 "For a list of available techniques use: \n "
                 ">>> from ixdat.techniques import TECHNIQUE_CLASSES\n"
                 ">>> print(TECHNIQUE_CLASSES.keys())\n"
+                f"{e}"
             )
+            raise
+
         return measurement
 
     @classmethod
@@ -479,81 +494,140 @@ class Measurement(Saveable):
         return [m.short_identity for m in self.component_measurements]
 
     @property
-    def calibration_list(self):
-        """List of calibrations (with placeholders filled)"""
-        for i, c in enumerate(self._calibration_list):
+    def calculator_list(self):
+        """List of calculators (with placeholders filled)"""
+        for i, c in enumerate(self._calculator_list):
             if isinstance(c, PlaceHolderObject):
                 # This is where we find objects from a Backend including MemoryBackend:
-                self._calibration_list[i] = c.get_object()
-        return self._calibration_list
+                self._calculator_list[i] = c.get_object()
+        if self._temp_calculator_list:
+            return self._temp_calculator_list
+        return self._calculator_list
 
     @property
-    def calibrations(self):
-        """For overriding: List of calibrations with any needed manipulation done."""
-        return self.calibration_list
+    @deprecate(
+        "0.2.13",
+        "`calibration_list` has been renamed `calculator_list`, with order"
+        "reversed: in `calculator_list`, the newest `Calculator` is listed last.",
+        "0.3.1",
+    )
+    def calibration_list(self):
+        cals = self.calculator_list.copy()
+        cals.reverse()
+        return cals
+
+    @property
+    def calculators(self):
+        if self._calculator_dict is None:
+            self.consolidate_calculators()
+        return self._calculator_dict
+
+    def consolidate_calculators(self):
+        """Dictionary of calculators, consolidated if needed to one per type."""
+        calculators = self.built_in_calculators.copy()  # <-- result of a tough debug :)
+        for cal in self.calculator_list:
+            name = cal.calculator_type
+            if name in calculators:
+                calculators[name] = calculators[name] + cal
+            else:
+                calculators[name] = cal
+        self._calculator_dict = calculators
+        return self._calculator_dict
+
+    @property
+    def built_in_calculators(self):
+        if not self._built_in_calculators:
+            from .calculators import CALCULATOR_CLASSES
+
+            self._built_in_calculators = {
+                key: CALCULATOR_CLASSES[key]() for key in self.built_in_calculator_types
+            }
+        return self._built_in_calculators
 
     @property
     def c_ids(self):
-        """List of the id's of the measurement's Calibrations
+        """List of the id's of the measurement's calculators
         FIXME: c.id can be (backend, id) if it's not on the active backend.
             This is as of now necessary to find it if you're only given self.as_dict()
              see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
-        return [c.short_identity for c in self.calibration_list]
+        return [c.short_identity for c in self.calculator_list]
 
-    def add_calibration(self, calibration):
-        self._calibration_list = [calibration] + self._calibration_list
-        self.clear_cache()
-
-    def calibrate(self, *args, **kwargs):
-        """Add a calibration of the Measurement's default calibration type
-
-        The calibration class is determined by the measurement's `technique`.
-        *args and **kwargs are passed to the calibration class's `__init__`.
-
-        Raises:
-            TechniqueError if no calibration class for the measurement's technique
-        """
-
-        from .techniques import CALIBRATION_CLASSES
-
-        if self.technique in CALIBRATION_CLASSES:
-            calibration_class = CALIBRATION_CLASSES[self.technique]
-        else:
-            raise TechniqueError(
-                f"{self!r} is of technique '{self.technique}, for which there is not an "
-                "available default calibration. Instead, import one of the following "
-                "classes to initiate a calibration, and then use `add_calibration`. "
-                f"\nOptions: \n{CALIBRATION_CLASSES}"
+    def add_calculator(self, calculator):
+        """append calculator to calculator_list, warning about redundant series"""
+        redundants = calculator.available_series_names.intersection(
+            self.available_calculated_series
+        )
+        if redundants:
+            warnings.warn(
+                f"adding {calculator} to {self!r} "
+                f"results in redundant calculators for: {redundants}"
             )
 
-        self.add_calibration(calibration_class(*args, **kwargs))
+        self._calculator_list.append(calculator)
+        # Note that addition of calculators should keep the parameters in the latter
+        # calculator, so that when the calculator dict is consolidated, the parameters
+        # in this calculator, being appended to the end of the list, get priority over
+        # older calculators of the same type.
+
+        ctype = calculator.calculator_type
+        if not self._calculator_dict:
+            self.consolidate_calculators()
+        elif ctype in self._calculator_dict:
+            self._calculator_dict[ctype] = self.calculators[ctype] + calculator
+        else:
+            self._calculator_dict[ctype] = calculator
         self.clear_cache()
 
-    @property
     @deprecate(
-        last_supported_release="0.1",
-        update_message=(
-            "At present, ixdat measurements have a `calibration_list` but no compound "
-            "`calibration`, and this property just returns the first from the list."
-        ),
-        hard_deprecation_release=None,
+        "0.2.13",
+        "Calibrations are now Calculators. Use `add_calculator` instead.",
+        "0.3.1",
     )
-    def calibration(self):
-        return self.calibration_list[0]
+    def add_calibration(self, cal):
+        return self.add_calculator(cal)
 
-    @calibration.setter
-    @deprecate(
-        last_supported_release="0.1",
-        update_message=(
-            "Setting `calibration` is deprecated. For now it clears `calibration_list` "
-            "and replaces it with a single calibration. "
-            "Use `add_calibration()` instead."
-        ),
-        hard_deprecation_release="0.3",
-    )
-    def calibration(self, calibration):
-        self._calibration_list = [calibration]
+    @property
+    def available_calculated_series(self):
+        calculated_series_names = set([])
+        for ctype, cal in self.calculators.items():
+            calculated_series_names = calculated_series_names.union(
+                cal.available_series_names
+            )
+        return calculated_series_names
+
+    def calibrate(self, *args, **kwargs):
+        """Add a calculator of the Measurement's default calculator type
+
+        The calculator class is determined by the measurement's `technique`.
+        *args and **kwargs are passed to the calculator class's `__init__`.
+
+        Raises:
+            TechniqueError if no calculator class for the measurement's technique
+        """
+        new_calculator = self.default_calibration(*args, **kwargs)
+        self.add_calculator(new_calculator)
+        self.clear_cache()
+        return new_calculator
+
+    # Note: Not all ´Calculator´s are ´Calibraiton´s There are also, e.g., `Filter`s and
+    # `Background`s. One could, for completeness, also implement the methods
+    # `Measurement.background_correct` and `Measurement.filter` which, like the above,
+    # just add an object of some default calculator class to the measurement's
+    # `calculator_list`. However, perhaps one global default way to add a calculator to
+    # a measurement's calculator list is enough, and `calibrate` is a more natural
+    # and broad English verb than the others.
+
+    def rebuild_selector(self, selector_name=None, columns=None, extra_columns=None):
+        from .calculators import CALCULATOR_CLASSES
+
+        indexer = CALCULATOR_CLASSES["indexer"](
+            measurement=self,
+            selector_name=selector_name,
+            columns=columns,
+            extra_columns=extra_columns,
+        )
+        self.add_calculator(indexer)
 
     @property
     def series_list(self):
@@ -602,7 +676,7 @@ class Measurement(Saveable):
     def aliases(self):
         """Dictionary of {key: series_names} pointing to where desired raw data is
 
-        TODO: get the possible aliases based on calibrations, etc, in here.
+        TODO: get the possible aliases based on calculators, etc, in here.
         """
         return self._aliases.copy()
 
@@ -629,13 +703,18 @@ class Measurement(Saveable):
         """Return the built measurement DataSeries with its name specified by key
 
         This method does the following:
+        0. Check that the key is a string. If a technique supports lookup of other
+           types, the technique class should implement that in its `__getitem__`
+           before calling `super().__getitem__`.
         1. check if `key` is in in the cache. If so return the cached data series
         2. find or build the desired data series by the first possible of:
             A. Check if `key` corresponds to a method in `series_constructors`. If
                 so, build the data series with that method.
-            B. Check if the `calibration`'s `calibrate_series` returns a data series
+            B. Check if the `calculator`'s `calculate_series` returns a data series
                 for `key` given the data in this measurement. (Note that the
-                `calibration` will typically start with raw data looked C, below.)
+                `calculator` will typically start with raw data looked C, below.)
+               If the key has the suffix "-raw", skip the calculator lookup; instead
+               remove the suffix and continue to C.
             C. Generate a list of data series and append them:
                 i. Check if `key` is in `aliases`. If so, append all the data series
                     returned for each key in `aliases[key]`.
@@ -664,11 +743,11 @@ class Measurement(Saveable):
 
         - The first lookup, with `key="raw_potential"`, (1) checks for
         "raw_potential" in the cache, doesn't find it; then (2A) checks in
-        `series_constructors`, doesn't find it; (2B) asks the calibration for
+        `series_constructors`, doesn't find it; (2B) asks the calculator for
         "raw_potential" and doesn't get anything back; and finally (2Ci) checks
         `aliases` for raw potential where it finds that "raw_potential" is called
         "Ewe/V". Then it looks up again, this time with `key="Ewe/V"`, which it doesn't
-        find in (1) the cache, (2A) `series_consturctors`, (2B) the calibration, or
+        find in (1) the cache, (2A) `series_consturctors`, (2B) the calculator, or
         (2Ci) `aliases`, but does find in (2Cii) `series_list`. There is only one
         data series named "Ewe/V" so no appending is necessary, but it does ensure that
         the series has the measurement's `tstamp` before cache'ing and returning it.
@@ -677,13 +756,13 @@ class Measurement(Saveable):
         returns it.
         - The second lookup, with `key="potential"`, (1) checks for "potential" in
         the cache, doesn't find it; then (2A) checks in `series_constructors`,
-        doesn't find it; and then (2B) asks the calibration for "potential". The
-        calibration knows that when asked for "potential" it should look for
+        doesn't find it; and then (2B) asks the calculator for "potential". The
+        calculator knows that when asked for "potential" it should look for
         "raw_potential" and add `RE_vs_RHE`. So it does a lookup with
-        `key="raw_potential"` and (1) finds it in the cache. The calibration does
-        the math and returns a new data series for the calibrated potential, bringing
+        `key="raw_potential"` and (1) finds it in the cache. The calculator does
+        the math and returns a new data series for the calculated potential, bringing
         us back to the original lookup. The data series returned by the
-        calibration is then (3) cached and returned to the user.
+        calculator is then (3) cached and returned to the user.
 
         Note that, if the user had not looked up "raw_potential" before looking up
         "potential", "raw_potential" would not have been in the cache and the first
@@ -696,8 +775,21 @@ class Measurement(Saveable):
         Side-effects:
             if key is not already in the cache, it gets added
         Returns:
-            The (calibrated) (appended) dataseries for key with the right t=0.
+            The (calculated) (appended) dataseries for key with the right t=0.
         """
+        # step 0
+        if not isinstance(key, str):
+            message = f"Invalid lookup for {type(self)} object: {key}."
+            message += f" The key type was {type(key)}. Expected a string."
+            if isinstance(key, int):
+                message += (
+                    " Note: Integer lookup is possible for SpectroMeasurement and"
+                    " CyclicVoltammogram objects. If you expected a measurement"
+                    " containing spectra or index-able cycles,"
+                    " please check your file reading."
+                )
+            raise TypeError(message)
+
         # step 1
         if key in self._cached_series:
             return self._cached_series[key]
@@ -714,18 +806,18 @@ class Measurement(Saveable):
         # If the name of the series is not `key`, we can get in a situation where
         # looking up the series name raises a SeriesNotFoundError. To avoid this
         # problematic situation, we check if it can be looked up, and if not,
-        # add it a second time to the cached_series, now under `series.name`
+        # add it also to aliases, now under `series.name`
         try:
             _ = self[series.name]
         except SeriesNotFoundError:
-            self._cached_series[series.name] = series
+            self._aliases[series.name] = [key]
 
     def get_series(self, key):
         """Find or build the data series corresponding to key without direct cache'ing
 
         See more detailed documentation under `__getitem__`, for which this is a
         helper method. This method (A) looks for a method for `key` in the measurement's
-        `series_constructors`; (B) requests its `calibration` for `key`; and if those
+        `series_constructors`; (B) requests its `calculator` for `key`; and if those
         fail appends the data series that either (Ci) are returned by looking up the
         key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
         user was using a key with a suffix.
@@ -736,17 +828,21 @@ class Measurement(Saveable):
         Returns DataSeries: the data series corresponding to key
         Raises SeriesNotFoundError if no series found for key
         """
-        # A
-        if key in self.series_constructors:
-            return getattr(self, self.series_constructors[key])()
         # B
-        for calibration in self.calibrations:
-            series = calibration.calibrate_series(key, measurement=self)
-            # ^ the calibration will call __getitem__ with the name of the
-            #   corresponding raw data and return a new series with calibrated data
-            #   if possible. Otherwise it will return None.
-            if series:
-                return series
+        if key.endswith("-raw"):
+            # A "-raw" suffix means to skip the calculators
+            key = key.removesuffix("-raw")
+        else:
+            for calculator in self.calculators.values():
+                if key in calculator.available_series_names:
+                    series = calculator.calculate_series(key, measurement=self)
+                    if series:
+                        return series
+                    warnings.warn(
+                        f"The Calulator {calculator} inscludes {key} in its"
+                        f" `available_series_names`, yet returns `None` when asked to"
+                        " calculate it."
+                    )
         # C
         series_to_append = []
         if key in self.series_names:  # ii
@@ -756,10 +852,9 @@ class Measurement(Saveable):
             # Then we'll look up the aliases instead and append them
             for k in self.aliases[key]:
                 if k == key:  # this would result in infinite recursion.
-                    print(  # TODO: Real warnings.
-                        "WARNING!!!\n"
-                        f"\t{self!r} has {key} in its aliases for {key}:\n"
-                        f"\tself.aliases['{key}'] = {self.aliases[key]}"
+                    warnings.warn(
+                        f"{self!r} has {key} in its aliases for {key}:\n"
+                        f"self.aliases['{key}'] = {self.aliases[key]}"
                     )
                     continue
                 try:
@@ -786,8 +881,8 @@ class Measurement(Saveable):
         """Remove an existing series, add a series to the measurement, or both.
 
         FIXME: This will not appear to change the series for the user if the
-            measurement's calibration returns something for ´series_name´, since
-            __getitem__ asks the calibration before looking in series_list.
+            measurement's calculator returns something for ´series_name´, since
+            __getitem__ asks the calculator before looking in series_list.
 
         Args:
             series_name (str): The name of a series. If the measurement has (raw) data
@@ -825,7 +920,15 @@ class Measurement(Saveable):
         )
         self.replace_series(value_name, new_vseries)
 
-    def grab(self, item, tspan=None, include_endpoints=False, tspan_bg=None):
+    def grab(
+        self,
+        item,
+        tspan=None,
+        include_endpoints=False,
+        tspan_bg=None,
+        remove_background=None,
+        calculator_list=None,
+    ):
         """Return a value vector with the corresponding time vector
 
         Grab is the *canonical* way to retrieve numerical time-dependent data from a
@@ -852,8 +955,40 @@ class Measurement(Saveable):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from the values returned.
+            remove_background (boolean): Whether to subtract a pre-set background, if
+                available. This is True by default. If set to False, it suppresses
+                background calculators, taken to be those specified by the class
+                attribute `background_calculator_types`
+            calculator_list (list of Calculators): A list of ixdat.Calculator instances
+                to apply in place of the measurement's existing calculator_list. These
+                calculators are given a chance, starting from the front of the list,
+                to calculate a `DataSeries` for `item`.
+
+        Returns: tuple of np.Array. The first array is time, and the second array is the
+            corresponding (calculated) values of the requested item.
         """
+        if (calculator_list is not None) or (remove_background is not None):
+            self.clear_cache()
+
+        if remove_background is False:
+            if calculator_list is None:
+                calculator_list = self._calculator_list
+            calculator_list = [
+                cal
+                for cal in calculator_list
+                if not type(cal) in self.background_calculator_types
+            ]
+
+        if calculator_list is not None:
+            # this will now be the case if either (i) a calculator_list was given, or
+            # (ii) remove_background was set to False.
+            self._temp_calculator_list = calculator_list
+            self.consolidate_calculators()
+
         vseries = self[item]
+        self._temp_calculator_list = None
+        self.consolidate_calculators()
+
         tseries = vseries.tseries
         v = vseries.data
         t = tseries.data + tseries.tstamp - self.tstamp
@@ -870,11 +1005,15 @@ class Measurement(Saveable):
             mask = np.logical_and(tspan[0] <= t, t <= tspan[-1])
             t, v = t[mask], v[mask]
         if tspan_bg:
-            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
+            t_bg, v_bg = self.grab(
+                item, tspan=tspan_bg, remove_background=remove_background
+            )
             v = v - np.mean(v_bg)
         return t, v
 
-    def grab_for_t(self, item, t, tspan_bg=None):
+    def grab_for_t(
+        self, item, t, tspan_bg=None, remove_background=None, calculator_list=None
+    ):
         """Return a numpy array with the value of item interpolated to time t
 
         Args:
@@ -883,15 +1022,20 @@ class Measurement(Saveable):
             tspan_bg (iterable): Optional. A timespan defining when `item` is at its
                 baseline level. The average value of `item` in this interval will be
                 subtracted from what is returned.
+            remove_background (boolean): Whether to subtract a pre-set background, if
+                available. This is True by default. If set to False, it suppresses
+                background calculators, taken to be those specified by the class
+                attribute `background_calculator_types`
         """
-        vseries = self[item]
-        tseries = vseries.tseries
-        v_0 = vseries.data
-        t_0 = tseries.data + tseries.tstamp - self.tstamp
+        t_0, v_0 = self.grab(
+            item,
+            tspan=[t[0], t[-1]],
+            include_endpoints=True,
+            tspan_bg=tspan_bg,
+            remove_background=remove_background,
+            calculator_list=calculator_list,
+        )
         v = np.interp(t, t_0, v_0)
-        if tspan_bg:
-            t_bg, v_bg = self.grab(item, tspan=tspan_bg)
-            v = v - np.mean(v_bg)
         return v
 
     def integrate(self, item, tspan=None, ax=None):
@@ -916,103 +1060,6 @@ class Measurement(Saveable):
     @property
     def t_name(self):
         return self[self.control_series_name].tseries.name
-
-    def _build_file_number_series(self):
-        """Build a `file_number` series based on component measurements times."""
-        series_to_append = []
-        for i, m in enumerate(self.component_measurements or [self]):
-            if (
-                self.control_technique_name
-                and not m.technique == self.control_technique_name
-            ):
-                continue
-            if not self.control_series_name:
-                tseries = m.time_series[0]
-            else:
-                try:
-                    tseries = m[self.control_series_name].tseries
-                except SeriesNotFoundError:
-                    continue
-            series_to_append.append(
-                ConstantValue(name="file_number", unit_name="", data=i, tseries=tseries)
-            )
-        return append_series(series_to_append, name="file_number", tstamp=self.tstamp)
-
-    def _build_selector_series(
-        self, selector_string=None, columns=None, extra_columns=None
-    ):
-        """Build a `selector` series which demarcates the data.
-
-        The `selector` is a series which can be used to conveniently and powerfully
-        grab sections of the data. It is built up from less powerful demarcation series
-        in the raw data (like `cycle_number`, `step_number`, `loop_number`, etc) and
-        `file_number` by counting the cumulative changes in those series.
-        See slide 3 of:
-        https://www.dropbox.com/s/sjxzr52fw8yml5k/21E18_DWS3_cont.pptx?dl=0
-
-        Args:
-            selector_string (str): The name to use for the selector series
-            columns (list): The list of demarcation series. The demarcation series have
-                to have equal-length tseries, which should be the one pointed to by the
-                meausrement's `control_series_name`.
-            extra_columns (list): Extra demarcation series to include if needed.
-        """
-        # the name of the selector series:
-        selector_string = selector_string or self.selector_name
-        # a vector that will be True at the points where a series changes:
-        changes = np.tile(False, self.t.shape)
-        # the names of the series which help demarcate the data
-        columns = columns or self.selection_series_names
-        if extra_columns:
-            columns += extra_columns
-        for col in columns:
-            try:
-                vseries = self[col]
-            except SeriesNotFoundError:
-                continue
-            values = vseries.data
-            if len(values) == 0:
-                print("WARNING: " + col + " is empty")
-                continue
-            elif not len(values) == len(changes):
-                print("WARNING: " + col + " has an unexpected length")
-                continue
-            # a vector which is shifted one.
-            last_value = np.append(values[0], values[:-1])
-            # comparing value and last_value shows where in the vector changes occur:
-            changes = np.logical_or(changes, last_value != values)
-        # taking the cumsum makes a vector that increases 1 each time one of the
-        #   original demarcation vector changes
-        selector_data = np.cumsum(changes)
-        selector_series = ValueSeries(
-            name=selector_string,
-            unit_name="",
-            data=selector_data,
-            tseries=self[self.control_series_name].tseries,
-        )
-        return selector_series
-
-    def rebuild_selector(self, selector_string=None, columns=None, extra_columns=None):
-        """Build a new selector series for the measurement and cache it.
-
-        This can be useful if a user wants to change how their measurement counts
-        sections (for example, only count sections when technique or file number changes)
-
-        Args:
-            selector_string (str): The name to use for the selector series
-            columns (list): The list of demarcation series. The demarcation series have
-                to have the same tseries, which should be the one pointed to by the
-                meausrement's `control_series_name`.
-            extra_columns (list): Extra demarcation series to include if needed.
-        """
-        selector_string = selector_string or self.selector_name
-        selector_series = self._build_selector_series(
-            selector_string=selector_string,
-            columns=columns,
-            extra_columns=extra_columns,
-        )
-        self._cache_series(selector_string, selector_series)
-        return selector_series
 
     @property
     def selector(self):
@@ -1342,9 +1389,7 @@ class Measurement(Saveable):
                 + (other.component_measurements or [other])
             )
         )
-        new_calibration_list = list(
-            set(self._calibration_list + other._calibration_list)
-        )
+        new_calculator_list = list(set(self._calculator_list + other._calculator_list))
         new_aliases = self.aliases.copy()
         for key, names in other.aliases.items():
             if key in new_aliases:
@@ -1362,10 +1407,10 @@ class Measurement(Saveable):
             technique=new_technique,
             series_list=new_series_list,
             component_measurements=new_component_measurements,
-            calibration_list=new_calibration_list,
+            calculator_list=new_calculator_list,
             aliases=new_aliases,
         )
-        # don't want the original calibrations, component measurements, or series:
+        # don't want the original calculators, component measurements, or series:
         del obj_as_dict["c_ids"]
         del obj_as_dict["m_ids"]
         del obj_as_dict["s_ids"]
@@ -1389,35 +1434,39 @@ class Measurement(Saveable):
         raise NotImplementedError
 
 
-class Calibration(Saveable):
-    """Base class for calibrations."""
+class Calculator(Saveable):
+    """Base class for calculators."""
 
-    table_name = "calibration"
-    column_attrs = {
-        "name",
-        "technique",
-        "tstamp",
-    }
+    table_name = "calculator"
+    calculator_type = None  # to be overwritten
+    column_attrs = {"name", "technique", "tstamp", "calculator_type"}
 
     def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):
-        """Initiate a Calibration
+        """Initiate a Calculator
 
         Args:
-            name (str): The name of the calibration
-            technique (str): The technique of the calibration
-            tstamp (float): The time at which the calibration took place or is valid
-            measurement (Measurement): Optional. A measurement to calibrate by default.
+            name (str): The name of the calculator
+            technique (str): The technique of the calculator
+            tstamp (float): The time at which the calculator took place or is valid
+            measurement (Measurement): Optional. The measurement to use by default for
+                raw data form which to calculate new series.
         """
         super().__init__()
         # NOTE: The :r syntax in f-strings doesn't work on None
-        self.name = name or f"{self.__class__.__name__}({repr(measurement)})"
+        self.name = name or f"{self.__class__.__name__}()"
         self.technique = technique
         self.tstamp = tstamp or (measurement.tstamp if measurement else None)
         self.measurement = measurement
 
+    def __str__(self):
+        rep = (
+            f"{self.__class__.__name__} providing: " + f"{self.available_series_names} "
+        )
+        return rep
+
     @classmethod
     def from_dict(cls, obj_as_dict):
-        """Return an object of the Calibration class of the right technique
+        """Return an object of the Calculator class of the right technique
 
         Args:
               obj_as_dict (dict): The full serializaiton (rows from table and aux
@@ -1426,20 +1475,21 @@ class Calibration(Saveable):
         """
         # TODO: see if there isn't a way to put the import at the top of the module.
         #    see: https://github.com/ixdat/ixdat/pull/1#discussion_r546437410
-        from .techniques import CALIBRATION_CLASSES
+        from .calculators import CALCULATOR_CLASSES
 
-        if obj_as_dict["technique"] in CALIBRATION_CLASSES:
-            calibration_class = CALIBRATION_CLASSES[obj_as_dict["technique"]]
+        calculator_type = obj_as_dict.pop("calculator_type")
+        if calculator_type in CALCULATOR_CLASSES:
+            calculator_class = CALCULATOR_CLASSES[calculator_type]
         else:
-            calibration_class = cls
+            calculator_class = cls
         try:
-            calibration = calibration_class(**obj_as_dict)
+            calculator = calculator_class(**obj_as_dict)
         except Exception:
             raise
-        return calibration
+        return calculator
 
     def export(self, path_to_file=None):
-        """Export an ECMSCalibration as a json-formatted text file"""
+        """Export a Calculator as a json-formatted text file"""
         path_to_file = path_to_file or (self.name + ".ix")
         self_as_dict = self.as_dict()
         with open(path_to_file, "w") as f:
@@ -1447,17 +1497,34 @@ class Calibration(Saveable):
 
     @classmethod
     def read(cls, path_to_file):
-        """Read a Calibration from a json-formatted text file"""
+        """Read a Calculator from a json-formatted text file"""
         with open(path_to_file) as f:
             obj_as_dict = json.load(f)
         return cls.from_dict(obj_as_dict)
 
-    def calibrate_series(self, key, measurement=None):
-        """This should be overwritten in real calibration classes.
+    @property
+    def available_series_names(self):
+        """The set of the names of the series the Calculater can provide
+
+        FIXME: Add more documentation about how to write this in inheriting classes.
+        """
+        raise NotImplementedError(
+            f"class {type(self)} does not implement available_series_names"
+        )
+
+    def calculate_series(self, key, measurement=None):
+        """This should be overwritten in real Calculator classes.
 
         FIXME: Add more documentation about how to write this in inheriting classes.
         """
         raise NotImplementedError
+
+    def __add__(self, other):
+        warnings.warn(
+            f"Addition is not implemented for {type(self)}. Adding a second to a"
+            " measurement causes the first to be ignored."
+        )
+        return other
 
 
 def get_combined_technique(technique_1, technique_2):

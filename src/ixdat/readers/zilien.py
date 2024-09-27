@@ -115,6 +115,7 @@ def determine_class(technique):
 
     if technique in ("EC-MS", "EC", "MS", "MS-MS_spectra"):
         if technique == "MS-MS_spectra":
+            # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1494222332
             # We read it as a MSMeasurement and then add the SpectrumSeries
             return MSMeasurement
         return TECHNIQUE_CLASSES[technique]
@@ -211,6 +212,8 @@ class ZilienTSVReader:
             self._cls = cls
 
         if include_mass_scans is None:
+            # FIXME: https://github.com/ixdat/ixdat/pull/166#discussion_r1494540212
+            # and https://github.com/ixdat/ixdat/pull/166#discussion_r1528603252
             # This becomes True if neither a class nor a technique was specified,
             # or if a technique or class including spectra was specified.
             include_mass_scans = (
@@ -255,9 +258,13 @@ class ZilienTSVReader:
             # Check if there are MS spectra.
             # If the file name is "YYYY-MM-DD hh_mm_ss my_file_name.tsv", then
             # the spectra are the .tsv files in the folder "my_file_name mass scans"
-            spectra_folder = self._path_to_file.parent / (
-                self._path_to_file.stem[20:] + " mass scans"
-            )
+            measurement_name = self._path_to_file.stem[20:]
+            if measurement_name == "":
+                spectra_folder = self._path_to_file.parent / "mass scans"
+            else:
+                spectra_folder = self._path_to_file.parent / (
+                    measurement_name + " mass scans"
+                )
             if spectra_folder.exists():  # Then we have a spectra folder!
                 spectrum_series = MSSpectrumSeries.read_set(
                     spectra_folder,

@@ -5,8 +5,6 @@ Constants:
         reader_name is the name of the backend (like "directory") and ReaderClass
         is the reader class for parsing files.
 """
-from ..techniques import TECHNIQUE_CLASSES
-
 # ixdat
 from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 
@@ -37,9 +35,14 @@ from .xrdml import XRDMLReader
 from .avantage import AvantageAVGReader
 
 # xas
-from .qexafs import QexafsDATReader
+from .qexafs import QexafsDATReader, B18TRXRFReader
+
+# ftir
+from .opus_ftir import OpusFTIRReader
+
 
 # Measruement.read() looks for readers here:
+
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
     "biologic": BiologicReader,
@@ -57,6 +60,7 @@ READER_CLASSES = {
     "msrh_sec_decay": MsrhSECDecayReader,
     "qexafs": QexafsDATReader,
     "nordic": NordicTDMSReader,
+    "b18_trxrf": B18TRXRFReader,
 }
 
 
@@ -66,4 +70,6 @@ SPECTRUM_READER_CLASSES = {
     "avantage": AvantageAVGReader,
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
+    "qexafs": QexafsDATReader,
+    "opus_ftir": OpusFTIRReader,
 }

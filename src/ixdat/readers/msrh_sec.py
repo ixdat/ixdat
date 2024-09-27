@@ -6,7 +6,7 @@ from .reading_tools import prompt_for_tstamp
 from ..techniques import TECHNIQUE_CLASSES
 from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..spectra import Spectrum, SpectrumSeries
-from ..techniques.analysis_tools import calc_t_using_scan_rate
+from ..calculators.scan_rate_tools import calc_t_using_scan_rate
 
 
 class MsrhSECReader:
@@ -228,6 +228,7 @@ class MsrhSECDecayReader:
                 data=spectra,
             ),
             tstamp=tstamp,
+            continuous=True,
         )
         series_list = [
             tseries_J,
