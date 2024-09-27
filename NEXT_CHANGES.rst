@@ -10,3 +10,13 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 `PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
+
+For ixdat 0.3.1
+===============
+
+readers
+^^^^^^^
+
+- The ``NordicTDMSReader`` (reader="nordic") has been added for reading the .tdms files
+  produced by Nordic potentiostat. So far it just reads current, potential, and impedance.
+

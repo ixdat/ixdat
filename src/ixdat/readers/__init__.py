@@ -13,6 +13,7 @@ from .biologic import BiologicReader
 from .autolab import NovaASCIIReader
 from .ivium import IviumDatasetReader
 from .chi import CHInstrumentsTXTReader
+from .nordic import NordicTDMSReader
 
 # mass spectrometers
 from .pfeiffer import PVMassSpecReader
@@ -57,6 +58,8 @@ READER_CLASSES = {
     "EC_MS": EC_MS_CONVERTER,
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
+    "qexafs": QexafsDATReader,
+    "nordic": NordicTDMSReader,
     "b18_trxrf": B18TRXRFReader,
 }
 
