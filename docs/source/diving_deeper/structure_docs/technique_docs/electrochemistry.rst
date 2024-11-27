@@ -27,7 +27,7 @@ Electrochemistry is the most thoroughly developed technique in ``ixdat``. For in
 examples of the functionality in the ``ECMeasurement`` class and its subclasses, see
 the following Tutorials:
 
-- :ref:`data_in_and_out`
+- :ref:`data_tutorial`
 
 - :ref:`ec_tutorials`
 
@@ -74,7 +74,7 @@ For example, to coplot two cycles (the sedond and the 50th) which both start and
 Note that ``as_cv()`` is available for any hyphenated technique which inherits from ``ECMeasurement``,
 such as ``ECMSMeasurement``, and that all the data from the second technique (here MS)
 comes along for the ride when using the cycle counter to select data. For full documentation of the cyclic voltammetry
-module see below: :ref:`cv_module`
+module see below: :ref:`cyclic_voltammetry`
 
 .. _ec_module:
 
@@ -99,9 +99,9 @@ Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/cv.p
 
 .. figure:: ../../../figures/cv_diff.svg
   :width: 300
-  :alt: Example ``CyclicVoltammagramDiff`` plot
+  :alt: Example ``CyclicVoltammogramDiff`` plot
 
-  output of ``CyclicVoltammagramDiff.plot()``.  `Tutorial <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_.
+  output of ``CyclicVoltammogramDiff.plot()``.  `Tutorial <https://github.com/ixdat/tutorials/blob/main/loading_appending_and_saving/export_demo_data_as_csv.ipynb>`_.
 
 .. automodule:: ixdat.techniques.cv
     :members:

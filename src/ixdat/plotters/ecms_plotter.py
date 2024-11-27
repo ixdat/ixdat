@@ -72,7 +72,7 @@ class ECMSPlotter(MPLPlotter):
                 other on the right y-axis of the top panel.
             tspan (str or iter of float): The time interval `(t_start, t_end)` to plot,
                 wrt measurement.tstamp. Use `tspan="all"` to plot all the data.
-                Defaults to EC data tspan. See :fun:`determine_tspan`_ for more details.
+                Defaults to EC data tspan. See :obj:`determine_tspan` for more details.
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
@@ -100,11 +100,11 @@ class ECMSPlotter(MPLPlotter):
 
         Returns:
             list of Axes: (top_left, bottom_left, top_right, bottom_right) where:
-                axes[0] is top_left is MS data;
-                axes[1] is bottom_left is potential;
-                axes[2] is top_right is additional MS data if left and right mass_lists
-                    or mol_lists were plotted (otherwise axes[2] is None); and
-                axes[3] is bottom_right is current.
+                * axes[0] is top_left is MS data;
+                * axes[1] is bottom_left is potential;
+                * axes[2] is top_right is additional MS data if left and right mass_lists
+                  or mol_lists were plotted (otherwise axes[2] is None); and
+                * axes[3] is bottom_right is current.
         """
         measurement = measurement or self.measurement
         tspan = determine_tspan(tspan, measurement)
@@ -209,7 +209,7 @@ class ECMSPlotter(MPLPlotter):
                 other on the right y-axis of the top panel.
             tspan (str or iter of float): The time interval `(t_start, t_end)` to plot,
                 wrt measurement.tstamp. Use `tspan="all"` to plot all the data.
-                Defaults to EC data tspan. See :fun:`determine_tspan`_ for more details.
+                Defaults to EC data tspan. See :obj:`determine_tspan` for more details.
             tspan_bg (timespan): A timespan for which to assume the signal is at its
                 background. The average signals during this timespan are subtracted.
                 If `mass_lists` are given rather than a single `mass_list`, `tspan_bg`
@@ -265,10 +265,13 @@ def determine_tspan(tspan=None, measurement=None):
 
     `tspan` is most directly given as two numbers, which are taken to be
     start time and end time (wrt to measurement.tstamp), e.g. `[800, 1000]`.
+
     `tspan` can also be one of these strings:
-        "all": The full timespan from the first data point to the last
-        "ec": The full timespan of the EC data.
-        "ms": The full timespan of the MS data.
+
+    * "all": The full timespan from the first data point to the last
+    * "ec": The full timespan of the EC data.
+    * "ms": The full timespan of the MS data.
+
     If tspan is not used, the measurement's default timespan `measurement.tspan` is
     used, which for EC-MS measurements will be "ec".
 

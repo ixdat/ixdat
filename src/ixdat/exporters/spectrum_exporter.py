@@ -23,8 +23,9 @@ class SpectrumExporter:
             path_to_file (str or Path): The path of the file to export to. Note that if a
                 file already exists with this path, it will be overwritten.
             spectrum (Spectrum): The spectrum to export if different from self.spectrum
-                TODO: remove this kwarg. See conversation here:
-                   https://github.com/ixdat/ixdat/pull/30/files#r810926968
+                TODO:
+                    remove this kwarg. See conversation here:
+                    https://github.com/ixdat/ixdat/pull/30/files#r810926968
         """
         from .. import Spectrum
 
@@ -78,8 +79,9 @@ class SpectrumSeriesExporter:
         Args:
             spectrum_series (Spectrum): The spectrum_series to export if different from
                 self.spectrum_series
-                TODO: remove this kwarg. See conversation here:
-                   https://github.com/ixdat/ixdat/pull/30/files#r810926968
+                TODO:
+                    remove this kwarg. See conversation here:
+                    https://github.com/ixdat/ixdat/pull/30/files#r810926968
             path_to_file (str or Path): The path of the file to export to. Note that if a
                 file already exists with this path, it will be overwritten.
             spectra_as_rows (bool): This specifies the orientation of the data exported.

@@ -354,7 +354,8 @@ class Measurement(Saveable):
     ):
         """Return a measurement with the data contained in the component measurements
 
-        TODO: This function "builds" the resulting measurement, i.e. it appends series
+        TODO:
+            This function "builds" the resulting measurement, i.e. it appends series
             of the same name rather than keeping all the original copies. This should be
             made more explicit, and a `build()` method should take over some of the work.
 
@@ -485,9 +486,12 @@ class Measurement(Saveable):
     @property
     def m_ids(self):
         """List of the id's of a combined measurement's component measurements
-        FIXME: m.id can be (backend, id) if it's not on the active backend.
+
+        TODO:
+            m.id can be (backend, id) if it's not on the active backend.
             This is as of now necessary to find it if you're only given self.as_dict()
             see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+
         """
         if not self._component_measurements:
             return None
@@ -547,9 +551,11 @@ class Measurement(Saveable):
     @property
     def c_ids(self):
         """List of the id's of the measurement's calculators
-        FIXME: c.id can be (backend, id) if it's not on the active backend.
+
+        TODO:
+            c.id can be (backend, id) if it's not on the active backend.
             This is as of now necessary to find it if you're only given self.as_dict()
-             see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
         return [c.short_identity for c in self.calculator_list]
 
@@ -600,7 +606,7 @@ class Measurement(Saveable):
         """Add a calculator of the Measurement's default calculator type
 
         The calculator class is determined by the measurement's `technique`.
-        *args and **kwargs are passed to the calculator class's `__init__`.
+        `*args` and `**kwargs` are passed to the calculator class's `__init__`.
 
         Raises:
             TechniqueError if no calculator class for the measurement's technique
@@ -641,9 +647,11 @@ class Measurement(Saveable):
     @property
     def s_ids(self):
         """List of the id's of the measurement's DataSeries
-        FIXME: m.id can be (backend, id) if it's not on the active backend.
-            This is as of now necessary to find it if you're only given self.as_dict()
-            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+
+        TODO:
+          s.id can be (backend, id) if it's not on the active backend.
+          This is as of now necessary to find it if you're only given self.as_dict()
+          see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
         """
         return [series.short_identity for series in self._series_list]
 
@@ -880,9 +888,10 @@ class Measurement(Saveable):
     def replace_series(self, series_name, new_series=None):
         """Remove an existing series, add a series to the measurement, or both.
 
-        FIXME: This will not appear to change the series for the user if the
-            measurement's calculator returns something for ´series_name´, since
-            __getitem__ asks the calculator before looking in series_list.
+        TODO:
+          This will not appear to change the series for the user if the
+          measurement's calculator returns something for ´series_name´, since
+          __getitem__ asks the calculator before looking in series_list.
 
         Args:
             series_name (str): The name of a series. If the measurement has (raw) data
@@ -922,7 +931,7 @@ class Measurement(Saveable):
 
     def grab(
         self,
-        item,
+        key,
         tspan=None,
         include_endpoints=False,
         tspan_bg=None,
@@ -944,16 +953,14 @@ class Measurement(Saveable):
             t, v = measurement.grab("potential", tspan=[0, 100])
 
         Args:
-            item (str): The name of the DataSeries to grab data for
-                TODO: Should this be called "name" or "key" instead? And/or, should
-                   the argument to __getitem__ be called "item" instead of "key"?
+            key (str): The name of the DataSeries to grab data for
             tspan (iter of float): Defines the timespan with its first and last values.
                 Optional. By default the entire time of the measurement is included.
             include_endpoints (bool): Whether to add a points at t = tspan[0] and
                 t = tspan[-1] to the data returned. This makes trapezoidal integration
                 less dependent on the time resolution. Default is False.
-            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
-                baseline level. The average value of `item` in this interval will be
+            tspan_bg (iterable): Optional. A timespan defining when `key` is at its
+                baseline level. The average value of `key` in this interval will be
                 subtracted from the values returned.
             remove_background (boolean): Whether to subtract a pre-set background, if
                 available. This is True by default. If set to False, it suppresses
@@ -962,10 +969,10 @@ class Measurement(Saveable):
             calculator_list (list of Calculators): A list of ixdat.Calculator instances
                 to apply in place of the measurement's existing calculator_list. These
                 calculators are given a chance, starting from the front of the list,
-                to calculate a `DataSeries` for `item`.
+                to calculate a `DataSeries` for `key`.
 
         Returns: tuple of np.Array. The first array is time, and the second array is the
-            corresponding (calculated) values of the requested item.
+            corresponding (calculated) values of the requested key.
         """
         if (calculator_list is not None) or (remove_background is not None):
             self.clear_cache()
@@ -985,7 +992,7 @@ class Measurement(Saveable):
             self._temp_calculator_list = calculator_list
             self.consolidate_calculators()
 
-        vseries = self[item]
+        vseries = self[key]
         self._temp_calculator_list = None
         self.consolidate_calculators()
 
@@ -1006,21 +1013,21 @@ class Measurement(Saveable):
             t, v = t[mask], v[mask]
         if tspan_bg:
             t_bg, v_bg = self.grab(
-                item, tspan=tspan_bg, remove_background=remove_background
+                key, tspan=tspan_bg, remove_background=remove_background
             )
             v = v - np.mean(v_bg)
         return t, v
 
     def grab_for_t(
-        self, item, t, tspan_bg=None, remove_background=None, calculator_list=None
+        self, key, t, tspan_bg=None, remove_background=None, calculator_list=None
     ):
-        """Return a numpy array with the value of item interpolated to time t
+        """Return a numpy array with the value of `key` interpolated to time t
 
         Args:
-            item (str): The name of the value to grab
+            key (str): The name of the value to grab
             t (np array): The time vector to grab the value for
-            tspan_bg (iterable): Optional. A timespan defining when `item` is at its
-                baseline level. The average value of `item` in this interval will be
+            tspan_bg (iterable): Optional. A timespan defining when `key` is at its
+                baseline level. The average value of `key` in this interval will be
                 subtracted from what is returned.
             remove_background (boolean): Whether to subtract a pre-set background, if
                 available. This is True by default. If set to False, it suppresses
@@ -1028,7 +1035,7 @@ class Measurement(Saveable):
                 attribute `background_calculator_types`
         """
         t_0, v_0 = self.grab(
-            item,
+            key,
             tspan=[t[0], t[-1]],
             include_endpoints=True,
             tspan_bg=tspan_bg,
@@ -1038,14 +1045,13 @@ class Measurement(Saveable):
         v = np.interp(t, t_0, v_0)
         return v
 
-    def integrate(self, item, tspan=None, ax=None):
-        """Return the time integral of item in the specified timespan"""
-        t, v = self.grab(item, tspan, include_endpoints=True)
+    def integrate(self, key, tspan=None, ax=None):
+        """Return the time integral of `key` in the specified timespan"""
+        t, v = self.grab(key, tspan, include_endpoints=True)
         if ax:
             if ax == "new":
-                ax = self.plotter.new_ax(ylabel=item)
-                # FIXME: xlabel=self[item].tseries.name gives a problem :(
-            ax.plot(t, v, color="k", label=item)
+                ax = self.plotter.new_ax(ylabel=key)
+            ax.plot(t, v, color="k", label=key)
             ax.fill_between(t, v, np.zeros(t.shape), where=v > 0, color="g", alpha=0.3)
             ax.fill_between(
                 t, v, np.zeros(t.shape), where=v < 0, color="g", alpha=0.1, hatch="//"
@@ -1209,8 +1215,12 @@ class Measurement(Saveable):
         The method finds all time intervals for which `self[series_name] == value`
         It then cuts the measurement according to each time interval and adds these
         segments together.
-        TODO: This can maybe be done better, i.e. without chopping series.
-        TODO: Some way of less than and greater than kwargs.
+
+        TODO:
+            This can maybe be done better, i.e. without chopping series.
+
+        TODO:
+            Some way of less than and greater than kwargs.
             Ideally you should be able to say e.g., `select(cycle=1, 0.5<potential<1)`
             But this is hard,
             see: https://github.com/ixdat/ixdat/pull/11#discussion_r677272239
@@ -1257,20 +1267,20 @@ class Measurement(Saveable):
         here using the key-word argument `selector_name`. Multiple criteria are
         applied sequentially, i.e. you get the intersection of satisfying parts.
 
-        Examples of valid calls given a measurement `meas`:
-        ```
-        # to select where the default selector is 3, use:
-        meas.select_values(3)
-        # to select for where the default selector is 4 or 5:
-        meas.select_values(4, 5)
-        # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
-        meas.select_values(cycle=4)
-        # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
-        meas.select_values(loop_number=1, cycle=[3, 4, 5])
-        # to select for where "cycle number" (notice the space) is 2 or 3:
-        meas.select_values([2, 3], selector_name="cycle number")
-        # which is equivalent to:
-        meas.select_values(**{"cycle number": [2, 3]})
+        Examples of valid calls given a measurement `meas`::
+
+            # to select where the default selector is 3, use:
+            meas.select_values(3)
+            # to select for where the default selector is 4 or 5:
+            meas.select_values(4, 5)
+            # to select for where "cycle" (i.e. the value of meas["cycle"].data) is 4:
+            meas.select_values(cycle=4)
+            # to select for where "loop_number" is 1 AND "cycle" is 3, 4, or 5:
+            meas.select_values(loop_number=1, cycle=[3, 4, 5])
+            # to select for where "cycle number" (notice the space) is 2 or 3:
+            meas.select_values([2, 3], selector_name="cycle number")
+            # which is equivalent to:
+            meas.select_values(**{"cycle number": [2, 3]})
 
         Args:
             args (tuple): Argument(s) given without keyword are understood as acceptable
@@ -1321,7 +1331,7 @@ class Measurement(Saveable):
         return self.multicut(tspans)
 
     def select(self, *args, tspan=None, **kwargs):
-        """`cut` (with tspan) and `select_values` (with *args and/or **kwargs).
+        """`cut` (with tspan) and `select_values` (with `*args` and/or `**kwargs`).
 
         These all work for measurements that have a default selector and/or the
         indicated columns:

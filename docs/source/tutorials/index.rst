@@ -43,6 +43,7 @@ As an open source project, ``ixdat`` is always happy to get contributions from t
 
 .. _readers_tutorial:
 
+
 Readers
 -------
 
@@ -122,9 +123,20 @@ Jupyter notebook file: https://github.com/ixdat/tutorials/blob/af1b38f2096555904
   an introduction to calibration.
 
 
+Demos
+-----
+Demos give a quick demonstration of many features of ixdat
 
-The jupyter notebooks
----------------------
+Jupiter notebook file: https://github.com/ixdat/tutorials/blob/main/demos/22E17_DTU/22E17_DTU_demo.ipynb
+
+.. toctree::
+  :maxdepth: 0
+
+  tutorials_repo/demos/22E17_DTU/22E17_DTU_demo
+
+
+The tutorials repo
+------------------
 
 All tutorials linked to above are also hosted and version controlled in the ixdat Tutorials repository:
 https://github.com/ixdat/tutorials/

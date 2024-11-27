@@ -19,3 +19,4 @@ The following sections contain the full documentation of readers, plotters and e
     backend
     plotter_docs/index
     exporter_docs/index
+    extended-concept.rst

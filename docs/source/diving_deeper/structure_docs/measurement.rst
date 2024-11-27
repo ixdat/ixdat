@@ -58,5 +58,5 @@ The ``measurements`` module
 Here is the full in-line documentation of the ``measurements`` module containing the
 ``Measurement`` class.
 
-.. automodule:: ixdat.measurements
+.. automodule:: ixdat.measurement_base
     :members:

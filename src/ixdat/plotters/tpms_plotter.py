@@ -918,7 +918,7 @@ class TPMSSpectroPlotter(MPLPlotter):
         _data = field.data.copy()
 
         _t = field.axes_series[0].t
-        _v = measurement.grab_for_t(item=vs_name, t=_t)
+        _v = measurement.grab_for_t(key=vs_name, t=_t)
 
         if tspan:
             # create t_mask from tspan

@@ -144,19 +144,19 @@ class CyclicVoltammogram(ECMeasurement):
         )
         return self.cut(tspan=tspan)
 
-    def integrate(self, item, tspan=None, vspan=None, ax=None):
+    def integrate(self, key, tspan=None, vspan=None, ax=None):
         """Return the time integral of item while time in tspan or potential in vspan
 
         Args:
-            item (str): The name of the ValueSeries to integrate
+            key (str): The name of the ValueSeries to integrate
             tspan (iter of float): A time interval over which to integrate it
             vspan (iter of float): A potential interval over which to integrate it
         """
         if vspan:
             return self.select_sweep(
                 vspan=vspan, t_i=tspan[0] if tspan else None
-            ).integrate(item, ax=ax)
-        return super().integrate(item, tspan, ax=ax)
+            ).integrate(key, ax=ax)
+        return super().integrate(key, tspan, ax=ax)
 
     @property
     @deprecate("0.1", "Use a look-up, i.e. `ec_meas['scan_rate']`, instead.", "0.3.1")

@@ -4,7 +4,7 @@
 Extended concept
 ================
 
-.. figure:: figures/ixdat_profile_pic.svg
+.. figure:: ../figures/ixdat_profile_pic.svg
     :width: 200
 
     The power of combining techniques (fig made with ``EC_Xray``, an ``ixdat`` precursor)

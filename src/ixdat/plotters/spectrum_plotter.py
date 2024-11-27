@@ -299,11 +299,14 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 consider the signal at background. For each spectrum, the
                 average y value in this range is subtracted.
             scale_mode (str): The way to initially scale the spectra.
+
                 Options:
-                - "auto": scale uniformly such that all spectra fit in
-                    their given interval. The raw y-values are scaled by
-                    min(interval) / max(y range)
-                - [no other scale_mode options yet]
+
+                * "auto": scale uniformly such that all spectra fit in
+                  their given interval. The raw y-values are scaled by
+                  min(interval) / max(y range). This is the default.
+                * [no other scale_mode options yet]
+
             scale_factor: A factor to apply on top of the initial scaling
             y_values (str): What to plot on the y-axis. Options: "time", "n"
             ax (Axis): axis to plot on, if not a new axis
@@ -575,11 +578,14 @@ class SpectroMeasurementPlotter(MPLPlotter):
                 consider the signal at background. For each spectrum, the
                 average y value in this range is subtracted.
             scale_mode (str): The way to initially scale the spectra.
+
                 Options:
-                - "auto": scale uniformly such that all spectra fit in
-                    their given interval. The raw y-values are scaled by
-                    min(interval) / max(y range)
-                - [no other scale_mode options yet]
+
+                * "auto": scale uniformly such that all spectra fit in
+                  their given interval. The raw y-values are scaled by
+                  min(interval) / max(y range). This is the default.
+                * [no other scale_mode options yet]
+
             scale_factor: A factor to apply on top of the initial scaling
             y_values (str): What to plot on the y-axis. Options: "time", "n"
             ax (Axis): axis to plot on, if not a new axis

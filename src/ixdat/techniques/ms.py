@@ -89,12 +89,12 @@ class MSMeasurement(Measurement):
     ):
         """Return the flux of mol (calibrated signal) in [mol/s]
 
-        Note:
-        - With native ixdat quantification (use_siq=False),
-          `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
-          remove_background=True by default. An MSCalibration does the maths.
-        - With an external quantification package (use_siq=True), the maths are done
-          here with the help of self.quantifier
+        .. note::
+          * With native ixdat quantification (use_siq=False),
+            `grab_flux(mol, ...)` is identical to `grab(f"n_dot_{mol}", ...)` with
+            remove_background=True by default. An MSCalibration does the maths.
+          * With an external quantification package (use_siq=True), the maths are done
+            here with the help of self.quantifier
 
         Args:
             mol (str or MSCalResult): Name of the molecule or a ms_calibration thereof
@@ -167,7 +167,8 @@ class MSMeasurement(Measurement):
     def integrate_signal(self, mass, tspan, tspan_bg, ax=None):
         """Integrate a ms signal with background subtraction and evt. plotting
 
-        TODO: Should this, like grab_signal does now, have the option of using a
+        TODO:
+            Should this, like grab_signal does now, have the option of using a
             background saved in the object rather than calculating a new one?
 
         Args:
@@ -193,9 +194,12 @@ class MSMeasurement(Measurement):
         """Integrate a calibrated ms signal with background subtraction and evt.
         plotting (copy of integrate_signal method)
 
-        TODO: Should this, like grab_signal does now, have the option of using a
-            background saved in the object rather than calculating a new one?
-        TODO: Ensure fill_between considers the non-standard unit in the figure
+        TODO:
+          Should this, like grab_signal does now, have the option of using a
+          background saved in the object rather than calculating a new one?
+
+        TODO:
+            Ensure fill_between considers the non-standard unit in the figure
 
         Args:
             mol (str): The molecule name for which to integrate the signal

@@ -39,8 +39,10 @@ class ECMSExporter(ECExporter):
                 a .csv suffix is appended. Defaults to f"{measurement.name}.csv"
             measurement (Measurement): The measurement to export.
                 Defaults to self.measurement.
-                TODO: remove this kwarg. See conversation here:
-                   https://github.com/ixdat/ixdat/pull/30/files#r810926968
+
+                TODO:
+                    remove this kwarg. See conversation here:
+                    https://github.com/ixdat/ixdat/pull/30/files#r810926968
             columns (list of str): The names of the data series to include. Defaults to
                 potential, current, and all MID signals.
             v_list: DEPRECATED. Use `columns` instead.

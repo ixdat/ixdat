@@ -40,15 +40,17 @@ class CSVExporter:
         """Export a given measurement to a specified file.
 
         To improve flexibility with inheritance, this method delegates its work to:
-        - CSVExporter.prepare_header_and_data()
-        - CSVExporter.write_header()
-        - CSVExporter.write_data()
+
+        * CSVExporter.prepare_header_and_data()
+        * CSVExporter.write_header()
+        * CSVExporter.write_data()
 
         Args:
             measurement (Measurement): The measurement to export.
                 Defaults to self.measurement.
-                TODO: remove this kwarg. See conversation here:
-                   https://github.com/ixdat/ixdat/pull/30/files#r810926968
+                TODO:
+                    remove this kwarg. See conversation here:
+                    https://github.com/ixdat/ixdat/pull/30/files#r810926968
             path_to_file (Path): The path to the file to write. If it has no suffix,
                 a .csv suffix is appended. Defaults to f"{measurement.name}.csv"
             columns (list of str): The names of the data series to include. Defaults in

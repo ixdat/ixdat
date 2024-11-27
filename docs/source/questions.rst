@@ -28,7 +28,7 @@ Check out tutorials & cheat sheet:
 How do I get my data in an array form?
 ......................................
 
-:ref:`advanced_tutorials`
+:ref:`data_tutorial`
 :ref:`cheat_sheet`
 
 

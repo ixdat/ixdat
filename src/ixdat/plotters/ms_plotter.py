@@ -36,11 +36,12 @@ class MSPlotter(MPLPlotter):
     ):
         """Plot m/z signal vs time (MID) data and return the axis.
 
-        There are four ways to specify what to plot. Only specify one of these::
-            mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
-            mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
-            mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
-            mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
+        There are four ways to specify what to plot. Only specify one of these:
+
+        * mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
+        * mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
+        * mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
+        * mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
 
         Two axes refers to separate left and right y-axes. Default is to use all
         available masses as mass_list.
@@ -188,11 +189,12 @@ class MSPlotter(MPLPlotter):
     ):
         """Plot m/z signal (MID) data against a specified variable and return the axis.
 
-        There are four ways to specify what to plot. Only specify one of these::
-            mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
-            mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
-            mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
-            mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
+        There are four ways to specify what to plot. Only specify one of these:
+
+        * mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
+        * mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
+        * mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
+        * mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
 
         Two axes refers to seperate left and right y-axes. Default is to use all
         available masses as mass_list.
@@ -528,11 +530,12 @@ class MSSpectroPlotter(MPLPlotter):
         """Plot m/z signal, mass spectra vs time (MID) data and return the axes of a two
         panel figure.
 
-        There are four ways to specify what to plot. Only specify one of these::
-            mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
-            mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
-            mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
-            mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
+        There are four ways to specify what to plot. Only specify one of these:
+
+        * mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
+        * mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
+        * mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
+        * mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
 
         Two axes refers to separate left and right y-axes. Default is to use all
         available masses as mass_list.
@@ -696,10 +699,11 @@ class MSSpectroPlotter(MPLPlotter):
 
         There are four ways to specify which (MID) signals to plot in panel.
         Only specify one of these:
-            mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
-            mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
-            mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
-            mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
+
+        * mass_list: Uncalibrated signals in [(u/n/p)A] on on axis
+        * mass_lists: Uncalibrated signals in [(u/n/p)A] on two axes
+        * mol_list: Calibrated signals in [(u/n/p)mol/s] on on axis
+        * mol_lists: Calibrated signals in [(u/n/p)mol/s] on two axes
 
         Two axes refers to separate left and right y-axes. Default is to use all
         available masses as mass_list.
@@ -756,33 +760,34 @@ class MSSpectroPlotter(MPLPlotter):
                 List of booleans of same shape as SpectrumSeries.data to exclude specific
                 data prior to plotting
             sort_spectra (list or str): Whether or not to sort the spectra data prior to
-                plotting.
-                There is three specifers:
-                    'none':
-                        This gives no new sorting. Effectively the spectras are sorted
-                        by time. (tstamp for each of the spectrum).
-                    'linear' (default):
-                        the spectras are sorted linear to v_name from low to high.
-                    a list of same shape as field.data to be sorted:
-                        This list is passed directly as the indices to sort the spectras.
-                        Defaults to sort lowest to highest value. Example
+                plotting. There are three options for this variable:
+
+                * 'none':
+                  This gives no new sorting. Effectively the spectrums are
+                  sorted by time. (tstamp for each of the spectrum).
+                * 'linear' (default):
+                   The spectrums are sorted linear to v_name from low to high.
+                * a list of same shape as field.data to be sorted:
+                  This list is passed directly as the indices to sort the spectrums.
+                  Defaults to sort lowest to highest value. Example
+
                 Note: If tspan spans a time span of a measurement with up and down
                 cycles in v_name, this might yield funny looking heat_plots.
 
-                    Example:
-                    Scanning up and down in temperature from T_low to T_high the spectras
-                    obtained wil be plotted from [T_low_start ..  T_high .. T_low_end].
+                Example:
 
-                    - If 'none' sorting is specified leads to heat_plot xaxis linearly
-                    from T_low_start to T_low_end missing representation of the high
-                    values in the middle of the axis.
+                Scanning up and down in temperature from T_low to T_high the spectras
+                obtained wil be plotted from [T_low_start ..  T_high .. T_low_end].
 
-                    - If 'linear' sorting is specified all spectras obtained
-                        are sorted linearly from lowest v_name_value to highest v_name.
-                        When data is assymetric from scanning up or down in v_name this
-                        leads to abrupt looking figures since two non similair spectras
-                        are obtained at similair v_name value and hence plotted next to
-                        eachother.
+                * If 'none' sorting is specified leads to heat_plot xaxis linearly
+                  from T_low_start to T_low_end missing representation of the high
+                  values in the middle of the axis.
+                * If 'linear' sorting is specified all spectras obtained
+                  are sorted linearly from lowest v_name_value to highest v_name.
+                  When data is assymetric from scanning up or down in v_name this
+                  leads to abrupt looking figures since two non similair spectras
+                  are obtained at similair v_name value and hence plotted next to
+                  eachother.
 
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
@@ -850,7 +855,7 @@ class MSSpectroPlotter(MPLPlotter):
         _data = field.data.copy()
 
         _t = field.axes_series[0].t
-        _v = measurement.grab_for_t(item=vs_name, t=_t)
+        _v = measurement.grab_for_t(key=vs_name, t=_t)
 
         if tspan:
             # create t_mask from tspan

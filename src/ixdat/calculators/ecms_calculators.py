@@ -394,7 +394,7 @@ class ECMSImpulseResponse(Calculator):
             measurement (ECMSMeasurement): Measurement including impulse response
                 measurment. Measurement needs to contain calibration data for mol
                 (either using ixdat native ECMSMeasurement.calibrate() or external
-                 package (eg siq's "quantifier"))
+                package (eg siq's "quantifier"))
             tspan (list): tspan over which to calculate the impulse response. Needs to
                 include zero.
             tspan_bg (list): tspan of background to subtract. If list of tspans
@@ -402,9 +402,10 @@ class ECMSImpulseResponse(Calculator):
                 calc_linear_background()
             norm (bool): If true the impulse response is normalized to its
                 area. Default is True.
+            kwargs: Additional keyword arguments are passed on to
+                ECMSImpulseResponse.__init__
 
-            Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
-        Return ECMSImpulseResponse
+        Return: ECMSImpulseResponse
         """
         print("Generating `ECMSImpulseResponse` from measurement.")
         if type(tspan_bg[0]) is not list:
@@ -674,7 +675,8 @@ class ECMSImpulseResponse(Calculator):
         """
         Loops though list of tspans and associated t_zero list to deconvolute using
         the given impulse response (from model, but could also be from data) for
-        the molecule the impulse resp
+        the molecule.
+
         Args:
             tspan_list (list): list of tspans to devonvolute data over. if no t_zero
                 is given needs to include zero.
@@ -694,7 +696,7 @@ class ECMSImpulseResponse(Calculator):
             export_data (bool): save raw and deconvoluted data as csv using name
 
         Return t_v_list (list): list of tuple of (time [s], deconvoluted MS signal
-                                [mol/s]) as returned from grab_deconvoluted_signal()
+            [mol/s]) as returned from grab_deconvoluted_signal()
         """
         measurement = measurement or self.measurement
         t_v_list = []

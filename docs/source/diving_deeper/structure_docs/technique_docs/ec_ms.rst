@@ -22,7 +22,7 @@ based on an electrochemical cyclic voltammatry program that are implemented in `
 (see :ref:`cyclic_voltammetry`).
 
 Finally, :ref:`deconvolution <deconvolution>` of mass spectrometry data from the diffusion broadening in the EC cell, described in `this publication <https://doi.org/10.1021/acs.analchem.1c00110>`_,
-is implemented in the deconvolution module, in a class inheriting from ``ECMSMeasurement``.
+is implemented in the ecms_calcualtors module, using the calculator class ``ECMSImpulseResponse``.
 
 ``ixdat`` has all the functionality and more for EC-MS data and analysis as the
 legacy `EC_MS <https://github.com/ScottSoren/EC_MS>`_ package. This includes the tools
@@ -66,9 +66,9 @@ Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/ec_m
 
 .. _deconvolution:
 
-The ``deconvolution`` module
-----------------------------
-Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/deconvolution.py
+The ``ecms_calculators`` module
+-------------------------------
+Source: https://github.com/ixdat/ixdat/tree/user_ready/src/ixdat/techniques/calculators/ecms_calculators.py
 
-.. automodule:: ixdat.techniques.deconvolution
+.. automodule:: ixdat.calculators.ecms_calculators
     :members:

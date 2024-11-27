@@ -129,14 +129,18 @@ class ECPlotter(MPLPlotter):
         This can actually plot with anything on the x-axis, by specifying what you want
         on the x-axis using V_str. The y-axis variable, which can be specified by J_str,
         is interpolated onto the time corresponding to the x-axis variable.
-        .. TODO::
+
+        TODO:
             This is a special case of the not-yet-implemented generalized
             `plot_vs`. Consider an inheritance structure to reduce redundancy in
             future plotters.
-            sub-TODO: hide or fix TODO's using sphix boxes.
+            sub-TODO: hide or fix TODO's using sphinx boxes.
+
         All arguments are optional. By default it will plot current vs potential in
         black on a single axis for the whole experiment.
-            TODO: color gradient (cmap=inferno) from first to last cycle.
+
+        TODO:
+            color gradient (cmap=inferno) from first to last cycle.
 
         Args:
             measurement (Measurement): What to plot. Defaults to the measurement the

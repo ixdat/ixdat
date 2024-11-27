@@ -33,7 +33,7 @@ and ``plot_wavelengths``). :ref:`Exporting SEC data <sec-exporter>` results in a
 the EC data and any tracked wavelengths and two auxiliary files with (i) the
 spectrum series and (ii) the reference spectrum.
 
-A :ref:`jupyter notebook tutorial <sec-tutorial>` for S-EC is available.
+A :ref:`jupyter notebook tutorial <sec_tutorial>` for S-EC is available.
 
 Fitting of spectroelectrochemistry data is not yet supported in ``ixdat``.
 
