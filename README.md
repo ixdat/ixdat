@@ -1,13 +1,11 @@
-:::{figure} docs/source/figures/logo.svg
-:width: 200
-:::
+![ixdat logo](./docs/source/figures/logo.svg "ixdat logo")
 
 # `ixdat`: The In-situ Experimental Data Tool
 
 With `ixdat`, you can import, combine, and export complex experimental datasets
 as simply as:
 
-```
+```{code-block} py
 ec = Measurement.read_set("awesome_EC_data", reader="biologic")
 ec.plot_measurement()
 
@@ -22,11 +20,7 @@ ecms.export("my_combined_data.csv")
 
 Output:
 
-:::{figure} docs/source/figures/ixdat_example_figures.png
-:width: 700
-
-In-situ experimental data made easy
-:::
+![In-situ experimental data made easy](./docs/source/figures/ixdat_example_figures.png "EC + MS demo")
 
 Or rather than exporting, you can take advantage of `ixdat`'s powerful analysis
 tools and database backends to be a one-stop tool from messy raw data to public
@@ -50,45 +44,27 @@ In addition to a **pluggable** parser interface for importing your data format, 
 pluggable exporters and plotters, as well as a database interface. A relational model of experimental data is
 designed into every level.
 
-```{eval-rst}
-.. list-table:: Techniques and Readers
-   :widths: 20 15 50
-   :header-rows: 1
-
-
-   * - Measurement technique
-     - Status
-     - Readers
-   * - Electrochemistry
-     - Released
-     - - biologic: .mpt files from Biologic's EC-Lab software
-       - autolab: ascii files from AutoLab's NOVA software
-       - ivium: .txt files from Ivium's IviumSoft software
-   * - Mass Spectrometry
-     - Released
-     - - pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software
-       - cinfdata: text export from DTU Physics' cinfdata system
-       - zilien: .tsv files from Spectro Inlets' Zilien software
-   * - Electrochemistry - Mass Spectrometry
-     - Released
-     - - zilien: .tsv files from Spectro Inlets' Zilien software
-       - EC_MS: .pkl files from the legacy EC_MS python package
-   * - Spectroelectrochemistry
-     - Released
-     - - msrh_sec: .csv file sets from Imperial College London's SEC system
-   * - X-ray photoelectron spectroscopy (XPS)
-     - Development
-     - - avantage: .avg files from Thermo Scientific's Avantage software
-   * - X-ray diffraction (XRD)
-     - Development
-     - - xrdml: .xrdml files from e.g. PanAnalytical's Empyereon
-   * - In-situ Electrochemistry - X-ray adsorption spectroscopy
-     - Development
-     - - qexafs: .dat files from Diamond's B18 beamline
-   * - Low-Energy Ion Scattering (LEIS)
-     - Future
-     -
-```
+    | Measurement technique                  | Readers                                                                              |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | Electrochemistry                       | <ul><li>biologic: .mpt files from Biologic's EC-Lab software</li>                    |
+    |                                        | <li>autolab: ascii files from AutoLab's NOVA software</li>                           |
+    |                                        | <li>ivium: .txt files from Ivium's IviumSoft software</li> </ul>                     |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | Mass Spectrometry                      | <ul><li>pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software</li>         |
+    |                                        | <<li>cinfdata: text export from DTU Physics' cinfdata system</li>                    |
+    |                                        | <li>zilien: .tsv files from Spectro Inlets' Zilien software</li> </ul>               |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | Electrochemistry - Mass Spectrometry   | <ul><li>zilien: .tsv files from Spectro Inlets' Zilien software</li>                 |
+    |                                        | <li>EC_MS: .pkl files from the legacy EC_MS python package</li> </ul>                |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | EC-Optical (spectroelectrochemistry)   | <ul><li>srh_sec: .csv file sets from Imperial College London's SEC system</li> </ul> |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | X-ray photoelectron spectroscopy (XPS) | <ul><li>avantage: .avg files from Thermo Scientific's Avantage software </li> </ul>  |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | X-ray diffraction (XRD)                | <ul><li>xrdml: .xrdml files from e.g. PanAnalytical's Empyereon</li> </ul>           |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
+    | In-situ Electrochemistry - XAS         | <ul><li>qexafs: .dat files from Diamond's B18 beamline </li> </ul>                   |
+    |----------------------------------------|--------------------------------------------------------------------------------------|
 
 Tutorials are provided at <https://ixdat.readthedocs.io/en/latest/tutorials/index.html>
 
@@ -99,7 +75,7 @@ To use `ixdat`, you need to have python installed. We recommend
 
 To install `ixdat`, just type in your terminal or Anaconda prompt:
 
-```
+```console
 $ pip install ixdat
 ```
 
@@ -108,7 +84,7 @@ And hit enter.
 `ixdat` is under development, and to make use of the newest features,
 you may need to upgrade to the latest version. This is also easy. Just type:
 
-```
+```console
 $ pip install --upgrade ixdat
 ```
 
