@@ -44,27 +44,66 @@ In addition to a **pluggable** parser interface for importing your data format, 
 pluggable exporters and plotters, as well as a database interface. A relational model of experimental data is
 designed into every level.
 
-    | Measurement technique                  | Readers                                                                              |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | Electrochemistry                       | <ul><li>biologic: .mpt files from Biologic's EC-Lab software</li>                    |
-    |                                        | <li>autolab: ascii files from AutoLab's NOVA software</li>                           |
-    |                                        | <li>ivium: .txt files from Ivium's IviumSoft software</li> </ul>                     |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | Mass Spectrometry                      | <ul><li>pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software</li>         |
-    |                                        | <<li>cinfdata: text export from DTU Physics' cinfdata system</li>                    |
-    |                                        | <li>zilien: .tsv files from Spectro Inlets' Zilien software</li> </ul>               |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | Electrochemistry - Mass Spectrometry   | <ul><li>zilien: .tsv files from Spectro Inlets' Zilien software</li>                 |
-    |                                        | <li>EC_MS: .pkl files from the legacy EC_MS python package</li> </ul>                |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | EC-Optical (spectroelectrochemistry)   | <ul><li>srh_sec: .csv file sets from Imperial College London's SEC system</li> </ul> |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | X-ray photoelectron spectroscopy (XPS) | <ul><li>avantage: .avg files from Thermo Scientific's Avantage software </li> </ul>  |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | X-ray diffraction (XRD)                | <ul><li>xrdml: .xrdml files from e.g. PanAnalytical's Empyereon</li> </ul>           |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
-    | In-situ Electrochemistry - XAS         | <ul><li>qexafs: .dat files from Diamond's B18 beamline </li> </ul>                   |
-    |----------------------------------------|--------------------------------------------------------------------------------------|
+<table>
+  <tr>
+    <td> Technique </td> <td> Description </td> <td> Readers </td> 
+  </tr>
+  <tr>
+    <td> EC </td> 
+    <td> Electrochemistry </td> 
+    <td><ul>
+        <li>biologic: .mpt files from Biologic's EC-Lab software</li> 
+        <li>autolab: ascii files from AutoLab's NOVA software</li>     
+        <li>ivium: .txt files from Ivium's IviumSoft software</li> 
+    </ul></td>
+  </tr>
+  <tr>
+    <td> MS </td> 
+    <td> Mass Spectrometry </td> 
+    <td><ul>
+        <li>pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software</li>
+        <li>cinfdata: text export from DTU Physics' cinfdata system</li>   
+        <li>zilien: .tsv files from Spectro Inlets' Zilien software</li>  
+    </ul></td>
+  </tr>
+  <tr>
+    <td> EC-MS </td> 
+    <td> Electrochemistry - Mass Spectrometry </td> 
+    <td><ul>
+      <li>zilien: .tsv files from Spectro Inlets' Zilien software</li>
+      <li>EC_MS: .pkl files from the legacy EC_MS python package</li>  
+    </ul></td>
+  </tr>
+  <tr>
+    <td> EC-Optical </td> 
+    <td> in-situ UV-vis, spectroelectrochemistry </td> 
+    <td><ul>
+      <li>srh_sec: .csv file sets from Imperial College London's SEC system</li>  
+    </ul></td>
+  </tr>
+  <tr>
+    <td> XPS </td> 
+    <td> X-ray Photoelectron Spectroscopy </td> 
+    <td><ul>
+      <li>avantage: .avg files from Thermo Scientific's Avantage software </li>  
+    </ul></td>
+  </tr>
+  <tr>
+    <td> XRD </td> 
+    <td> X-Ray Diffraction </td> 
+    <td><ul>
+      <li>xrdml: .xrdml files from e.g. PanAnalytical's Empyereon</li>  
+    </ul></td>
+  </tr>
+  <tr>
+    <td> XAS </td> 
+    <td> X-ray Absorption Spectroscopy </td> 
+    <td><ul>
+      <li>qexafs: .dat files from Diamond's B18 beamline </li>
+    </ul></td>
+  </tr>
+</table>
+
 
 Tutorials are provided at <https://ixdat.readthedocs.io/en/latest/tutorials/index.html>
 
