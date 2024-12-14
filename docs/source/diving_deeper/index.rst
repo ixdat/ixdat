@@ -15,8 +15,4 @@ The following sections contain the full documentation of readers, plotters and e
     :maxdepth: 1
 
     structure_docs/index
-    reader_docs/index
-    backend
-    plotter_docs/index
-    exporter_docs/index
     extended-concept.rst

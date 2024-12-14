@@ -9,6 +9,10 @@ Explore the sections below to find in-depth information on how ``ixdat`` is stru
 .. toctree::
     :maxdepth: 1
 
+    data-series
     measurement
     technique_docs/index
-    data-series
+    reader_docs/index
+    plotter_docs/index
+    exporter_docs/index
+    backend

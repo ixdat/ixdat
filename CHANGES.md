@@ -976,6 +976,7 @@ will be higher by five, comparing to the timestamps in the MPT files.
 
 ### ixdat.measurement
 
+
 - Generalization of multiple calibrations:
 
   `Measurement.calibration` is deprecated in favor of `Measurement.calibration_list`.
@@ -984,6 +985,8 @@ will be higher by five, comparing to the timestamps in the MPT files.
 
   - `meas.calibration_list[0]` (replaces `meas.calibration`).
   - `meas.add_calibration(my_cal)` (replaces `meas.calibration = my_cal`).
+  
+  see: docs/
 
 - New method `Measurement.calibrate(*args, **kwargs)`
 
