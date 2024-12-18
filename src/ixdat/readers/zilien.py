@@ -226,17 +226,20 @@ class ZilienTSVReader:
 
         # Part of filename before the extension
         file_stem = self._path_to_file.stem
-
-        if "start_time_unix" in self._metadata:
-            # Extract unix timestamp from metadata
-            self._timestamp = float(self._metadata["start_time_unix"])
-        else:
-            # Extract timestamp from filename on form:
-            # 2021-04-20 11_16_18 Measurement name
-            self._timestamp = timestamp_string_to_tstamp(
-                timestamp_string=" ".join(file_stem.split(" ")[:2]),
-                form=ZILIEN_TIMESTAMP_FORM,
-            )
+        
+        # this seems to create problems when importing the data and combining it with
+        # separately saved biologic data in a different timezone as where the experiment
+        # was done - back to using filename for now
+        # if "start_time_unix" in self._metadata:
+        #     # Extract unix timestamp from metadata
+        #     self._timestamp = float(self._metadata["start_time_unix"])
+        # else:
+        #     # Extract timestamp from filename on form:
+        #     # 2021-04-20 11_16_18 Measurement name
+        self._timestamp = timestamp_string_to_tstamp(
+            timestamp_string=" ".join(file_stem.split(" ")[:2]),
+            form=ZILIEN_TIMESTAMP_FORM,
+        )
 
         # Extract series data and form series
         series, aliases = self._form_series()
