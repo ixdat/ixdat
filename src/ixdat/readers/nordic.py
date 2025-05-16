@@ -1,6 +1,7 @@
 from ..exceptions import ReadError
 from ..techniques import ECMeasurement
 from ..data_series import DataSeries, TimeSeries, ValueSeries
+import numpy as np
 
 
 class NordicTDMSReader:
@@ -48,8 +49,27 @@ class NordicTDMSReader:
         tseries = TimeSeries(name="Time", unit_name="s", data=t, tstamp=tstamp)
         Vseries = ValueSeries(name="E", unit_name="V", data=V, tseries=tseries)
         Iseries = ValueSeries(name="i", unit_name="mA", data=i, tseries=tseries)
-        Zseries = DataSeries(name="Z_E", unit_name="Ohm", data=Z)
-        pseries = DataSeries(name="phase_E", unit_name=None, data=phase)
+
+        # whoa, Z and p (impedance and phase) have different lenghts than t
+        # To deal with this, we'll have to assume that they are evenly spaced in time
+        # over the same timespan as potential and current:
+
+        t_EIS = np.linspace(t[0], t[-1], num=len(Z))
+        tseries_EIS = TimeSeries(
+            name="Time EIS", unit_name="s", data=t_EIS, tstamp=tstamp
+        )
+        Zseries = ValueSeries(
+            name="Z_E",
+            unit_name="Ohm",
+            data=Z,
+            tseries=tseries_EIS,
+        )
+        pseries = ValueSeries(
+            name="phase_E",
+            unit_name=None,
+            data=phase,
+            tseries=tseries_EIS,
+        )
 
         aliases = {"t": ["Time"], "raw_potential": ["E"], "raw_current": ["i"]}
 
