@@ -43,33 +43,44 @@ class NordicTDMSReader:
         V = tdms_file["EC"]["E"][:]  # raw potential in [V]
         i = tdms_file["EC"]["i"][:] * 1e3  # raw current in [mA]
 
-        Z = tdms_file["EC"]["Z_E"][:]
-        phase = tdms_file["EC"]["Phase_E"][:]
-
         tseries = TimeSeries(name="Time", unit_name="s", data=t, tstamp=tstamp)
         Vseries = ValueSeries(name="E", unit_name="V", data=V, tseries=tseries)
         Iseries = ValueSeries(name="i", unit_name="mA", data=i, tseries=tseries)
 
-        # whoa, Z and p (impedance and phase) have different lenghts than t
-        # To deal with this, we'll have to assume that they are evenly spaced in time
-        # over the same timespan as potential and current:
+        series_list = [tseries, Vseries, Iseries]
 
-        t_EIS = np.linspace(t[0], t[-1], num=len(Z))
-        tseries_EIS = TimeSeries(
-            name="Time EIS", unit_name="s", data=t_EIS, tstamp=tstamp
-        )
-        Zseries = ValueSeries(
-            name="Z_E",
-            unit_name="Ohm",
-            data=Z,
-            tseries=tseries_EIS,
-        )
-        pseries = ValueSeries(
-            name="phase_E",
-            unit_name=None,
-            data=phase,
-            tseries=tseries_EIS,
-        )
+        try:
+            Z = tdms_file["EC"]["Z_E"][:]
+        except KeyError:
+            print("Warning: no Z")
+        else:
+            # whoa, Z and p (impedance and phase) have different lenghts than t
+            # To deal with this, we'll have to assume that they are evenly spaced in time
+            # over the same timespan as potential and current:
+
+            t_EIS = np.linspace(t[0], t[-1], num=len(Z))
+            tseries_EIS = TimeSeries(
+                name="Time EIS", unit_name="s", data=t_EIS, tstamp=tstamp
+            )
+            Zseries = ValueSeries(
+                name="Z_E",
+                unit_name="Ohm",
+                data=Z,
+                tseries=tseries_EIS,
+            )
+            series_list.append(Zseries)
+        try:
+            phase = tdms_file["EC"]["Phase_E"][:]
+        except KeyError:
+            print("Warning: no Phase_E")
+        else:
+            pseries = ValueSeries(
+                name="phase_E",
+                unit_name=None,
+                data=phase,
+                tseries=tseries_EIS,
+            )
+            series_list.append(pseries)
 
         aliases = {"t": ["Time"], "raw_potential": ["E"], "raw_current": ["i"]}
 
@@ -77,7 +88,7 @@ class NordicTDMSReader:
             name=name,
             technique="EC",
             tstamp=tstamp,
-            series_list=[tseries, Vseries, Iseries, Zseries, pseries],
+            series_list=series_list,
             aliases=aliases,
             reader=self,
         )
