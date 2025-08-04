@@ -18,6 +18,9 @@ from .chi import CHInstrumentsTXTReader
 from .pfeiffer import PVMassSpecReader
 from .rgasoft import StanfordRGASoftReader
 from .cinfdata import CinfdataTXTReader
+
+# online databases
+from .echemdb import EChemDBReader
 from .cinfdata_db import CinfdataDBReader
 
 # ec-ms
@@ -58,6 +61,7 @@ READER_CLASSES = {
     "msrh_sec": MsrhSECReader,
     "msrh_sec_decay": MsrhSECDecayReader,
     "b18_trxrf": B18TRXRFReader,
+    "echemdb": EChemDBReader,
 }
 
 
