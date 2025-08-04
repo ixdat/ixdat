@@ -1,9 +1,12 @@
 """This module contains general purpose tools"""
 
+import os
 import datetime
 import inspect
 import time
 import warnings
+import platform
+from pathlib import Path
 from functools import wraps
 from string import ascii_uppercase
 from typing import Optional
@@ -18,6 +21,33 @@ import ixdat.config
 from ixdat import __version__
 
 warnings.simplefilter("default")
+
+
+def get_default_cache_dir(appname="myapp", subdir=None):
+    """
+    Return the platform-appropriate cache directory for a given application.
+
+    Args:
+        appname (str): Folder name for the app's cache
+        subdir (str or Path, optional): Optional subfolder (e.g. version)
+
+    Returns:
+        Path: Path to the appropriate user cache directory
+    """
+    system = platform.system()
+
+    if system == "Windows":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif system == "Darwin":
+        base = Path.home() / "Library" / "Caches"
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+
+    path = base / appname
+    if subdir:
+        path = path / subdir
+
+    return path
 
 
 def thing_is_close(thing_one, thing_two):
