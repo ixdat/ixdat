@@ -10,7 +10,6 @@ from ixdat.techniques.cv import CyclicVoltammogram
 
 
 class EChemDBReader:
-
     def read(self, echemdb_identifier, cls):
         """
 
