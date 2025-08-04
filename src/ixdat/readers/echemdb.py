@@ -3,13 +3,15 @@
 Created on Mon Aug  4 11:03:18 2025
 
 @author: Søren
+@contributor: Frederik
 """
 from ixdat.measurement_base import Measurement
 from ixdat.techniques.cv import CyclicVoltammogram
 
 
 class EChemDBReader:
-    def read(echemdb_identifier, cls):
+
+    def read(self, echemdb_identifier, cls):
         """
 
         Args:
@@ -22,6 +24,3 @@ class EChemDBReader:
 
         if cls is Measurement:
             cls = CyclicVoltammogram
-
-
-
