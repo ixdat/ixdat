@@ -20,7 +20,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        # Pin 3.7 to latest patch to avoid Github setup-python cache issue
+        python-version: ["3.7.17", "3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
