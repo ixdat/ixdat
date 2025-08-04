@@ -24,3 +24,5 @@ class EChemDBReader:
 
         if cls is Measurement:
             cls = CyclicVoltammogram
+
+        return
