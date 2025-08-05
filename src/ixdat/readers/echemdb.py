@@ -35,6 +35,14 @@ class EChemDBReader:
         meas = Measurement.read("alves_2011_electrochemistry_6010", reader='echemdb')
     """
 
+    # fallback aliases for typical cyclic voltammetry fields
+    ALIASES = {
+        "potential": ["E", "U", "potential"],
+        "current": ["J", "I", "current"],
+        "raw_potential": ["potential"],
+        "raw_current": ["current"],
+    }
+
     class _Paths(NamedTuple):
         csv: Path
         json: Path
@@ -307,7 +315,11 @@ class EChemDBReader:
                 horiz = name
             elif orient == "vertical":
                 vert = name
-        aliases = {}
+
+        # start from static fallback
+        aliases = self.ALIASES.copy()
+
+        # override with metadata-derived values if available
         if horiz:
             aliases["potential"] = [horiz]
             aliases["raw_potential"] = aliases["potential"]
