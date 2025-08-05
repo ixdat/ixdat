@@ -17,7 +17,7 @@ import pandas as pd
 
 from ixdat.measurement_base import Measurement
 from ixdat.techniques.cv import CyclicVoltammogram
-from ixdat.data_series import TimeSeries, ValueSeries
+from ixdat.data_series import TimeSeries, ValueSeries, ConstantValue
 from ixdat.tools import get_default_cache_dir
 from ixdat.exceptions import BuildError
 
@@ -253,6 +253,11 @@ class EChemDBReader:
                         tseries=tseries,
                     )
                 )
+
+        # append cycle (singular in the case of EChemDB)
+        series_list.append(
+            ConstantValue(name="cycle", unit_name="", data=0, tseries=tseries)
+        )
 
         if tseries is None:
             raise BuildError("No time column found according to JSON schema!")
