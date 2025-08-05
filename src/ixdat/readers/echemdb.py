@@ -11,7 +11,7 @@ import io
 import os
 import json
 from pathlib import Path
-from typing import NamedTuple, TypeVar, Type, Optional, Union
+from typing import NamedTuple, TypeVar, Type, Optional, Union, List
 
 import pandas as pd
 
@@ -193,7 +193,7 @@ class EChemDBReader:
 
     def _make_series_list(
         self, df: pd.DataFrame, full_meta: dict
-    ) -> list[Union[TimeSeries, ValueSeries]]:
+    ) -> List[Union[TimeSeries, ValueSeries]]:
         """
         Build DataSeries from the DataFrame using the JSON schema.
 
@@ -211,7 +211,7 @@ class EChemDBReader:
         # determine t=0 timestamp (if present at top level) or default to 0
         tstamp = full_meta.get("tstamp", 0.0)
 
-        series_list: list[Union[TimeSeries, ValueSeries]] = []
+        series_list: List[Union[TimeSeries, ValueSeries]] = []
         tseries = None
 
         # iterate the schema in order
