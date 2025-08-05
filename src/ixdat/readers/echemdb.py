@@ -78,10 +78,6 @@ class EChemDBReader:
         if cls is Measurement:
             cls = CyclicVoltammogram  # type: ignore[arg-type]
 
-        # paths = self._locate_paths(echemdb_identifier)
-        # if not (paths.csv.exists() and paths.json.exists()):
-        #     self._extract_entry(echemdb_identifier)
-
         # Extract only this entry if not already cached
         paths = self.find_cached_paths(echemdb_identifier)
         if not paths:
@@ -89,7 +85,8 @@ class EChemDBReader:
             paths = self.find_cached_paths(echemdb_identifier)
             if not paths:
                 raise FileNotFoundError(
-                    f"Could not find files for entry {echemdb_identifier} in version {ver} @ {self.zip_url}"
+                    f"Could not find files for entry"
+                    f"{echemdb_identifier} in version {ver} @ {self.zip_url}"
                 )
 
         df = self._load_dataframe(paths.csv)
@@ -104,7 +101,8 @@ class EChemDBReader:
 
     def find_cached_paths(self, echemdb_identifier: str) -> Optional[_Paths]:
         """
-        Search the cache for existing CSV, JSON, and optional bib files matching echemdb_identifier.
+        Search the cache for existing CSV, JSON,
+        and optional bib files matching echemdb_identifier.
 
         Returns:
             _Paths or None if not found.
@@ -120,75 +118,6 @@ class EChemDBReader:
                 bib_path = bib_files[0] if bib_files else None
                 return self._Paths(csv=csv_path, json=json_path, bib=bib_path)
         return None
-
-    # def _locate_paths(self, echemdb_identifier: str) -> _Paths:
-    #     """
-    #     Compute the local file paths for CSV, JSON metadata and .bib citations
-    #     """
-    #     svg_root = self.cache_root / "data" / "generated" / "svgdigitizer"
-    #     if not svg_root.is_dir():
-    #         raise FileNotFoundError(f"No svgdigitizer folder at {svg_root}")
-    #
-    #     # direct path
-    #     candidate = svg_root / echemdb_identifier
-    #     if candidate.is_dir():
-    #         folder = candidate
-    #     else:
-    #         # fallback: scan for the one folder containing our entry CSV
-    #         folders = [d for d in svg_root.iterdir() if d.is_dir()]
-    #         matches = []
-    #         for d in folders:
-    #             for csv_file in d.glob("*.csv"):
-    #                 stem = csv_file.stem
-    #                 # normalize hyphens to underscores
-    #                 if (
-    #                     stem == echemdb_identifier
-    #                     or stem.replace("-", "_") == echemdb_identifier
-    #                     or stem.replace("_", "-") == echemdb_identifier
-    #                 ):
-    #                     matches.append(d)
-    #                     break
-    #         if not matches:
-    #             opts = ", ".join(d.name for d in folders)
-    #             raise FileNotFoundError(
-    #                 f"Could not find folder for '{echemdb_identifier}' under {svg_root}.\n"
-    #                 f"Available subfolders: {opts}"
-    #             )
-    #         if len(matches) > 1:
-    #             opts = ", ".join(d.name for d in matches)
-    #             raise FileExistsError(
-    #                 f"Ambiguous folders for '{echemdb_identifier}': {opts}"
-    #             )
-    #         folder = matches[0]
-    #
-    #     # build the three paths
-    #     csv_path = folder / f"{echemdb_identifier}.csv"
-    #     json_path = folder / f"{echemdb_identifier}.json"
-    #
-    #     if not csv_path.exists():
-    #         raise FileNotFoundError(f"CSV not found: {csv_path}")
-    #     if not json_path.exists():
-    #         raise FileNotFoundError(f"JSON not found: {json_path}")
-    #
-    #     bib_candidates = list(folder.glob("*.bib"))
-    #     if len(bib_candidates) == 1:
-    #         bib_path = bib_candidates[0]
-    #     elif not bib_candidates:
-    #         bib_path = None
-    #     else:
-    #         # try to disambiguate on stem match
-    #         exact = [
-    #             p
-    #             for p in bib_candidates
-    #             if p.stem.replace("-", "_") == echemdb_identifier
-    #         ]
-    #         if len(exact) == 1:
-    #             bib_path = exact[0]
-    #         else:
-    #             names = ", ".join(p.name for p in bib_candidates)
-    #             raise FileExistsError(f"Multiple .bib files in {folder}: {names}")
-    #
-    #     return self._Paths(csv=csv_path, json=json_path, bib=bib_path)
 
     def _extract_entry(self, echemdb_identifier: str) -> None:
         """
@@ -206,7 +135,8 @@ class EChemDBReader:
             ]
             if len(csv_members) != 1:
                 raise FileNotFoundError(
-                    f"Expected exactly one CSV for '{echemdb_identifier}', found {csv_members}"
+                    f"Expected exactly one CSV"
+                    f"for '{echemdb_identifier}', found {csv_members}"
                 )
             csv_member = csv_members[0]
 
