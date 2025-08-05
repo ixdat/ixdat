@@ -265,8 +265,9 @@ class EChemDBReader:
 
         def get_meta_value(d, *keys, default=None):
             for key in keys:
-                if key in d:
-                    return d[key]
+                value = d.get(key)
+                if value is not None:
+                    return value
             return default
 
         resource = meta["resources"][0]
