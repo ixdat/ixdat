@@ -11,7 +11,7 @@ import io
 import os
 import json
 from pathlib import Path
-from typing import NamedTuple, TypeVar, Type, Optional
+from typing import NamedTuple, TypeVar, Type, Optional, Union
 
 import pandas as pd
 
@@ -47,7 +47,7 @@ class EChemDBReader:
         self,
         echemdb_identifier: str,
         cls: Type[T] = Measurement,
-        version: str | None = None,
+        version: Optional[str] = None,
     ) -> T:
         """
         Download (if not in cache), extract, parse CSV+JSON for each measurement
@@ -187,13 +187,13 @@ class EChemDBReader:
         """Read the JSON file into a dict"""
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def _load_citation(self, path: Path | None) -> str | None:
+    def _load_citation(self, path: Optional[Path]) -> Optional[str]:
         """Read the BibTex citation, if it exists"""
         return path.read_text(encoding="utf-8") if path is not None else None
 
     def _make_series_list(
         self, df: pd.DataFrame, full_meta: dict
-    ) -> list[TimeSeries | ValueSeries]:
+    ) -> list[Union[TimeSeries, ValueSeries]]:
         """
         Build DataSeries from the DataFrame using the JSON schema.
 
@@ -211,7 +211,7 @@ class EChemDBReader:
         # determine t=0 timestamp (if present at top level) or default to 0
         tstamp = full_meta.get("tstamp", 0.0)
 
-        series_list: list[TimeSeries | ValueSeries] = []
+        series_list: list[Union[TimeSeries, ValueSeries]] = []
         tseries = None
 
         # iterate the schema in order
@@ -256,7 +256,7 @@ class EChemDBReader:
         cls: Type[T],
         series_list: list,
         meta: dict,
-        citation: str | None,
+        citation: Optional[str],
     ) -> T:
         """
         Assemble the cls.from_dict payload and return the instance.
