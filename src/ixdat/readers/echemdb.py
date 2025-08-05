@@ -185,7 +185,8 @@ class EChemDBReader:
 
     def _load_metadata(self, path: Path) -> dict:
         """Read the JSON file into a dict"""
-        return json.loads(path.read_text(encoding="utf-8"))
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
 
     def _load_citation(self, path: Optional[Path]) -> Optional[str]:
         """Read the BibTex citation, if it exists"""
