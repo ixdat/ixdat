@@ -345,6 +345,9 @@ class EChemDBReader:
         # preserve the raw schema-fields mapping
         md["schema_fields"] = {fld["name"]: fld for fld in schema_fields}
 
+        # expose full metadata tree in case it is useful for the curious user
+        md["_raw_echemdb_meta"] = echem_meta
+
         # build the payload
         payload = {
             "name": echemdb_identifier,
