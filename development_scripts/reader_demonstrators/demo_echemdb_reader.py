@@ -9,7 +9,6 @@ Created on Mon Aug  4 10:48:47 2025
 from pathlib import Path
 from ixdat import Measurement
 import matplotlib.pyplot as plt
-import numpy as np
 
 # load CV from a Biologic .mpt file and convert to EC technique
 mpt_path = Path(__file__).parent / "../../test_data/biologic/Pt_poly_cv_CUT.mpt"
@@ -30,7 +29,7 @@ try:
     # calibrate and plot
     ref_cycle.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V
     ref_cycle.plot(ax=ax, color="C1", label="EchemDB ref vs RHE")
-    
+
     # alternatively, also supported
     # ref_cycle[0].plot(ax=ax, color="C1", label="EchemDB ref vs RHE")
 
