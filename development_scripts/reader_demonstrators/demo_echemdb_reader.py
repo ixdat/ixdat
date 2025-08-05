@@ -41,10 +41,12 @@ try:
     ref_old = Measurement.read(ref_id, reader="echemdb", version="0.4.1").as_cv()
     ref_cycle_old = ref_old[1]
     ref_cycle_old.plot(ax=ax, color="C2", linestyle="-.", label="EchemDB ref (v0.4.1)")
-    
+
     # calibrate and re-plot
     ref_cycle_old.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V
-    ref_cycle_old.plot(ax=ax, color="k", linewidth=1, alpha=0.6, label="EchemDB ref (v0.4.1) vs RHE")
+    ref_cycle_old.plot(
+        ax=ax, color="k", linewidth=1, alpha=0.6, label="EchemDB ref (v0.4.1) vs RHE"
+    )
 except Exception as e:
     print(f"[Warning] Could not load v0.4.1 ref: {e}")
 
