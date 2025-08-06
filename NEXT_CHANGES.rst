@@ -10,3 +10,11 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 `PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
+
+For ixdat 0.3.1
+===============
+
+readers
+^^^^^^^
+
+- The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
