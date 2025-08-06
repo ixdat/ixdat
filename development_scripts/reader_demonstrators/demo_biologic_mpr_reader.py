@@ -23,16 +23,19 @@ def check_ewe_v_column_normalization(meas, file):
 
 
 for data_dir in [
-    # Path.home() / "Dropbox/ixdat_resources/test_data/biologic/17J04_Pt_isotope_exchange",
-    # Path.home() / "Dropbox/ixdat_resources/test_data/biologic/22I27_London",
-    # Path.home() / "Dropbox/ixdat_resources/test_data/biologic/22K14_Tempo",
+    # Path.home() /
+    # "Dropbox/ixdat_resources/test_data/biologic/17J04_Pt_isotope_exchange",
+    # Path.home() /
+    # "Dropbox/ixdat_resources/test_data/biologic/22I27_London",
+    # Path.home() /
+    # "Dropbox/ixdat_resources/test_data/biologic/22K14_Tempo",
     Path(__file__).parent
     / "../../test_data/biologic",
 ]:
     combined_meas = None
 
     for file in data_dir.iterdir():
-        if not file.suffix in [".mpr", ".mpt"]:
+        if file.suffix not in [".mpr", ".mpt"]:
             continue
         meas = Measurement.read(file, reader="biologic")
         print(meas)
