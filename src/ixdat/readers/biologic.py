@@ -35,6 +35,12 @@ BIOLOGIC_ALIASES = {
     "cycle": ["cycle number"],
 }
 
+COLUMN_NAME_ALIASES = {
+    "<Ewe/V>": "<Ewe>/V",
+    "<Ece/V>": "<Ece>/V",
+    # Add more if EC-Lab has other variants
+}
+
 
 def fix_WE_potential(measurement):
     """Fix column of zeros in "<Ewe>/V" sometimes exported by EC Lab for CP measurements.
@@ -437,6 +443,12 @@ class BiologicReader:
 
     def _update_aliases_and_ensure_essential_series(self):
         """A helper function completing the data_series_list for biologic readers."""
+
+        # normalize known inconsistent EC-Lab column names
+        for series in self.data_series_list:
+            if series.name in COLUMN_NAME_ALIASES:
+                series.name = COLUMN_NAME_ALIASES[series.name]
+
         # First, check if any of the biologic aliases are
         for data_series in self.data_series_list:
             for name, alias_list in BIOLOGIC_ALIASES.items():
