@@ -11,24 +11,25 @@ from ixdat import Measurement
 import matplotlib.pyplot as plt
 
 # load CV from a Biologic .mpt file and convert to EC technique
-mpt_path = Path(__file__).parent / "../../test_data/biologic/Pt_poly_cv_CUT.mpt"
+mpt_path = Path(__file__).parent / "../../test_data/biologic/Pt_poly_cv.mpt"
 my_cv = Measurement.read(mpt_path, reader="biologic").as_cv()
 
 # pull out the 3rd cycle and plot
 my_cycle = my_cv[2]
-my_cycle.calibrate_RE(RE_vs_RHE=0.7)
 fig, ax = plt.subplots(figsize=(6, 4))
-my_cycle.plot(ax=ax, color="C0", label="Measured cycle #3 vs RHE")
+my_cycle.plot(ax=ax, color="C0", label="Measured cycle #3")
 
 # load reference from EChemDB
 ref_id = "briega-martos_2021_cation_48_f1Cs_black"
 try:
     ref_cv = Measurement.read(ref_id, reader="echemdb")
     ref_cycle = ref_cv.as_cv()
+    ref_electrode = ref_cycle.metadata["reference_electrode"]
 
     # calibrate and plot
-    ref_cycle.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V
-    ref_cycle.plot(ax=ax, color="C1", label="EchemDB ref vs RHE")
+    ref_cycle.plot(ax=ax, color="C1", label=f"EchemDB ref vs {ref_electrode}")
+    ref_cycle.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V (arbitrary here)
+    ref_cycle.plot(ax=ax, color="C1", label=f"EchemDB ref vs RHE")
 
     # alternatively, also supported
     # ref_cycle[0].plot(ax=ax, color="C1", label="EchemDB ref vs RHE")
@@ -38,20 +39,19 @@ except Exception as e:
     raise e
 
 # fetch an older reference (v0.4.1) and overlay, should be the same
-try:
-    ref_cycle_old = Measurement.read(ref_id, reader="echemdb", version="0.4.1").as_cv()
-
-    # calibrate and plot
-    ref_cycle_old.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V
-    ref_cycle_old.plot(ax=ax, color="C2", label="EchemDB ref (v0.4.1) vs RHE")
-
-except Exception as e:
-    print(f"[Warning] Could not load v0.4.1 ref: {e}")
+# try:
+#     ref_cycle_old = Measurement.read(ref_id, reader="echemdb", version="0.4.1").as_cv()
+#
+#     # calibrate and plot
+#     ref_cycle_old.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V
+#     ref_cycle_old.plot(ax=ax, color="C2", label="EchemDB ref (v0.4.1) vs RHE")
+#
+# except Exception as e:
+#     print(f"[Warning] Could not load v0.4.1 ref: {e}")
 
 # Finalize plot
-ax.set_xlabel("Potential vs. SHE (V)")
+ax.set_xlabel("Potential vs. [some ref. electrode] (V)")
 ax.set_ylabel("Current density (A/m²)")
-ax.set_title("Comparison of Measured vs. Reference CVs")
 ax.legend(loc="best")
 ax.grid(True)
 
