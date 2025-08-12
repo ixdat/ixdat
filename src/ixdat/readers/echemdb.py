@@ -322,7 +322,9 @@ class EChemDBReader:
                 vert = name
 
         # get reference electrode if available
-        reference_electrode = scan_fields[0].get("reference", "[unknown reference electrode]")
+        reference_electrode = scan_fields[0].get(
+            "reference", "[unknown reference electrode]"
+        )
 
         # start from static fallback
         aliases = self.ALIASES.copy()

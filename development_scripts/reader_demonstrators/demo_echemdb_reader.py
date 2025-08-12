@@ -29,7 +29,7 @@ try:
     # calibrate and plot
     ref_cycle.plot(ax=ax, color="C1", label=f"EchemDB ref vs {ref_electrode}")
     ref_cycle.calibrate_RE(RE_vs_RHE=0.7)  # shift potential by +0.7 V (arbitrary here)
-    ref_cycle.plot(ax=ax, color="C1", label=f"EchemDB ref vs RHE")
+    ref_cycle.plot(ax=ax, color="C1", label="EchemDB ref vs RHE")
 
     # alternatively, also supported
     # ref_cycle[0].plot(ax=ax, color="C1", label="EchemDB ref vs RHE")
