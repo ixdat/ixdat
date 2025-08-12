@@ -321,6 +321,9 @@ class EChemDBReader:
             elif orient == "vertical":
                 vert = name
 
+        # get reference electrode if available
+        reference_electrode = scan_fields[0].get("reference", "[unknown reference electrode]")
+
         # start from static fallback
         aliases = self.ALIASES.copy()
 
@@ -345,6 +348,7 @@ class EChemDBReader:
             "curve": curve,
             "measurement_type": meas_type,
             "scan_rate": scan_rate,
+            "reference_electrode": reference_electrode,
         }
 
         # preserve the raw schema-fields mapping
