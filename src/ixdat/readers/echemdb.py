@@ -35,7 +35,7 @@ class EChemDBReader:
         meas = Measurement.read("alves_2011_electrochemistry_6010", reader='echemdb')
     """
 
-    # fallback aliases for typical cyclic voltammetry fields
+    # fallback aliases
     ALIASES = {
         "potential": ["E", "U", "potential"],
         "current": ["J", "I", "current"],
@@ -326,16 +326,23 @@ class EChemDBReader:
             "reference", "[unknown reference electrode]"
         )
 
-        # start from static fallback
-        aliases = self.ALIASES.copy()
-
-        # override with metadata-derived values if available
-        if horiz:
-            aliases["potential"] = [horiz]
-            aliases["raw_potential"] = aliases["potential"]
-        if vert:
-            aliases["current"] = [vert]
-            aliases["raw_current"] = aliases["current"]
+        # make aliases with metadata-derived values if available
+        aliases = {}
+        if horiz or vert:
+            if horiz:
+                aliases["potential"] = [horiz]
+                aliases["raw_potential"] = [horiz]
+            if vert:
+                aliases["current"] = [vert]
+                aliases["raw_current"] = [vert]
+        else:
+            # fallback only if no orientation info is provided at all
+            aliases = {
+                "potential": ["E"],
+                "current": ["j"],
+                "raw_potential": ["E"],
+                "raw_current": ["j"],
+            }
 
         # assemble metadata dict
         md: dict = {
