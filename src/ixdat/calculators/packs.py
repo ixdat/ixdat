@@ -310,10 +310,8 @@ class CalculatorPack(Saveable):
         """
         Serialize the pack (including calculators) to a JSON-serializable dict.
 
-        Returns
-        -------
-        dict
-            The full, self-describing pack.
+        Returns:
+            dict: The full, self-describing pack.
         """
         items = self._ensure_items()
         data: JsonDict = {
@@ -333,11 +331,6 @@ class CalculatorPack(Saveable):
     def from_json(cls, data: JsonDict) -> "CalculatorPack":
         """
         Construct a pack from a JSON dictionary (inverse of `to_json`).
-
-        Notes
-        -----
-        - Calculators are *not* materialized here; only their JSON entries are stored.
-          Use `.calculators()` to materialize later.
         """
         if data.get("type") != "ixdat.CalculatorPack":
             raise ValueError(f"Unexpected type: {data.get('type')}")
@@ -356,10 +349,8 @@ class CalculatorPack(Saveable):
         """
         Write the pack to a JSON file.
 
-        Parameters
-        ----------
-        path
-            Output file path (e.g., 'my_setup.ixpack.json').
+        Parameters:
+            path: Output file path (e.g., 'my_setup.ixpack.json').
         """
         data = self.to_json()
         with open(path, "w", encoding="utf-8") as f:
@@ -368,42 +359,24 @@ class CalculatorPack(Saveable):
     @classmethod
     def read(
         cls,
-        path: Optional[str] = None,
-        id: Optional[str] = None,  # noqa: A002 - parity with Saveable.read
+        path: str,
     ) -> "CalculatorPack":
         """
-        Read a pack either from a file (`path`) or from the database (`id`).
+        Read a pack from a file (`path`)
 
-        Exactly one of `path` or `id` must be provided.
-
-        Returns
-        -------
-        CalculatorPack
+        Returns:
+            CalculatorPack
         """
-        if bool(path) == bool(id):
-            raise ValueError("Provide exactly one of 'path' or 'id'")
-
-        if path:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return cls.from_json(data)
-
-        # Database path: delegate to Saveable.read to get an instance that already
-        # has the `json` column populated. Then parse its json payload.
-        obj = super().read(id)  # type: ignore[misc]
-        if not getattr(obj, "json", None):
-            raise ValueError(f"Database record {id!r} has no json payload")
-        data = json.loads(obj.json)  # type: ignore[arg-type]
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
         return cls.from_json(data)
 
     def calculators(self) -> List[Any]:
         """
         Materialize and return the list of calculator objects contained in the pack.
 
-        Returns
-        -------
-        list
-            List of calculator instances reconstructed from their stored payloads.
+        Returns:
+            list: List of calculator instances reconstructed from their stored payloads.
         """
         if self._calculators:
             return list(self._calculators)
@@ -438,15 +411,11 @@ class CalculatorPack(Saveable):
         """
         Validate the internal structure and per-calculator integrity hashes.
 
-        Parameters
-        ----------
-        strict
-            If True, treat any discrepancy as an error; otherwise aggregate warnings.
+        Parameters:
+            strict: If True, treat any discrepancy as an error; otherwise aggregate warnings.
 
-        Returns
-        -------
-        (ok, messages)
-            ok=True if everything looks good (or if not strict and only warnings).
+        Returns:
+            (ok, messages) ok=True if everything looks good (or if not strict and only warnings).
         """
         msgs: List[str] = []
         ok = True
