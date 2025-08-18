@@ -1443,6 +1443,120 @@ class Measurement(Saveable):
         """
         raise NotImplementedError
 
+    def save_calculators_pack(
+        self,
+        *,
+        name: Optional[str] = None,
+        path: Optional[str] = None,
+        include: Selector = None,
+        exclude: Selector = None,
+        notes: Optional[str] = None,
+        extra_metadata: Optional[dict] = None,
+        save_to_db: bool = False,
+    ) -> "CalculatorPack":
+        """
+        Create a CalculatorPack from this Measurement's calculators and (optionally)
+        write it to disk and/or save it to the ixdat database.
+
+        Parameters
+        ----------
+        name
+            Optional human-readable name for the pack. Defaults to
+            "CalculatorPack(<measurement.name>)".
+        path
+            Optional output filepath (e.g. "my_setup.ixpack.json"). If provided,
+            the pack is serialized to JSON at this location.
+        include
+            Selector to include calculators (iter of class names / class paths,
+            or a predicate `fn(cal) -> bool`). If None, include all.
+        exclude
+            Selector to exclude calculators (applied after `include`).
+        notes
+            Optional free-text notes stored in pack metadata (provenance).
+        extra_metadata
+            Optional dict merged into pack metadata.
+        save_to_db
+            If True, also persist the pack via `CalculatorPack.save()`.
+
+        Returns
+        -------
+        CalculatorPack
+            The constructed pack (saved to file/DB if requested).
+        """
+        from .calculators.packs import CalculatorPack
+
+        pack = CalculatorPack.from_measurement(
+            self,
+            include=include,
+            exclude=exclude,
+            name=name,
+            notes=notes,
+            extra_metadata=extra_metadata,
+        )
+
+        if path:
+            pack.to_file(path)
+
+        if save_to_db:
+            pack.save()
+
+        return pack
+
+    def apply_calculators_pack(
+        self,
+        pack: Union["CalculatorPack", str],
+        *,
+        on_conflict: str = "replace",
+    ) -> list[Any]:
+        """
+        Attach all calculators contained in a CalculatorPack to this Measurement.
+
+        Parameters
+        ----------
+        pack
+            A CalculatorPack instance, a filesystem path to a JSON pack
+            (e.g. "my_setup.ixpack.json"), or a database id (string).
+            - If `str` ends with ".json" or ".ixpack.json": treated as file path.
+            - Else: treated as a database id for `CalculatorPack.read(id=...)`.
+        on_conflict
+            Policy when a calculator with same class+name already exists:
+            "replace" (default), "skip", or "duplicate".
+        missing_plugins
+            Behavior if a required plugin is not installed: "warn" (default),
+            "skip", or "fail".
+        preflight
+            If True, perform light compatibility checks and raise
+            QuantificationError with an actionable message if unmet.
+
+        Returns
+        -------
+        list[Calculator]
+            The calculators that were actually attached.
+        """
+        from .calculators.packs import CalculatorPack
+
+        # Normalize `pack` to a CalculatorPack instance
+        if isinstance(pack, CalculatorPack):
+            the_pack = pack
+        elif isinstance(pack, str):
+            # Heuristic: file vs DB id
+            lower = pack.lower()
+            if lower.endswith(".json") or lower.endswith(".ixpack.json"):
+                the_pack = CalculatorPack.read(path=pack)
+            else:
+                the_pack = CalculatorPack.read(id=pack)
+        else:
+            raise TypeError(
+                "pack must be a CalculatorPack instance, "
+                "a file path, or a database id (str)"
+            )
+
+        # Delegate to the pack's attach method
+        return the_pack.attach_to(
+            self,
+            on_conflict=on_conflict,
+        )
+
 
 class Calculator(Saveable):
     """Base class for calculators."""
@@ -1535,121 +1649,6 @@ class Calculator(Saveable):
             " measurement causes the first to be ignored."
         )
         return other
-
-    def save_calculators_pack(
-        self,
-        *,
-        name: Optional[str] = None,
-        path: Optional[str] = None,
-        include: Selector = None,
-        exclude: Selector = None,
-        notes: Optional[str] = None,
-        extra_metadata: Optional[dict] = None,
-        save_to_db: bool = False,
-    ) -> "CalculatorPack":
-        """
-        Create a CalculatorPack from this Measurement's calculators and (optionally)
-        write it to disk and/or save it to the ixdat database.
-
-        Parameters
-        ----------
-        name
-            Optional human-readable name for the pack. Defaults to
-            "CalculatorPack(<measurement.name>)".
-        path
-            Optional output filepath (e.g. "my_setup.ixpack.json"). If provided,
-            the pack is serialized to JSON at this location.
-        include
-            Selector to include calculators (iter of class names / class paths,
-            or a predicate `fn(cal) -> bool`). If None, include all.
-        exclude
-            Selector to exclude calculators (applied after `include`).
-        notes
-            Optional free-text notes stored in pack metadata (provenance).
-        extra_metadata
-            Optional dict merged into pack metadata.
-        save_to_db
-            If True, also persist the pack via `CalculatorPack.save()`.
-
-        Returns
-        -------
-        CalculatorPack
-            The constructed pack (saved to file/DB if requested).
-        """
-        from .calculators.packs import CalculatorPack
-        pack = CalculatorPack.from_measurement(
-            self,
-            include=include,
-            exclude=exclude,
-            name=name,
-            notes=notes,
-            extra_metadata=extra_metadata,
-        )
-
-        if path:
-            pack.to_file(path)
-
-        if save_to_db:
-            pack.save()
-
-        return pack
-
-    def apply_calculators_pack(
-        self,
-        pack: Union["CalculatorPack", str],
-        *,
-        on_conflict: str = "replace",
-        missing_plugins: str = "warn",
-        preflight: bool = True,
-    ) -> list[Any]:
-        """
-        Attach all calculators contained in a CalculatorPack to this Measurement.
-
-        Parameters
-        ----------
-        pack
-            A CalculatorPack instance, a filesystem path to a JSON pack
-            (e.g. "my_setup.ixpack.json"), or a database id (string).
-            - If `str` ends with ".json" or ".ixpack.json": treated as file path.
-            - Else: treated as a database id for `CalculatorPack.read(id=...)`.
-        on_conflict
-            Policy when a calculator with same class+name already exists:
-            "replace" (default), "skip", or "duplicate".
-        missing_plugins
-            Behavior if a required plugin is not installed: "warn" (default),
-            "skip", or "fail".
-        preflight
-            If True, perform light compatibility checks and raise
-            QuantificationError with an actionable message if unmet.
-
-        Returns
-        -------
-        list[Calculator]
-            The calculators that were actually attached.
-        """
-        from .calculators.packs import CalculatorPack
-        # Normalize `pack` to a CalculatorPack instance
-        if isinstance(pack, CalculatorPack):
-            the_pack = pack
-        elif isinstance(pack, str):
-            # Heuristic: file vs DB id
-            lower = pack.lower()
-            if lower.endswith(".json") or lower.endswith(".ixpack.json"):
-                the_pack = CalculatorPack.read(path=pack)
-            else:
-                the_pack = CalculatorPack.read(id=pack)
-        else:
-            raise TypeError(
-                "pack must be a CalculatorPack instance, a file path, or a database id (str)"
-            )
-
-        # Delegate to the pack's attach method
-        return the_pack.attach_to(
-            self,
-            on_conflict=on_conflict,
-            missing_plugins=missing_plugins,
-            preflight=preflight,
-        )
 
 
 def get_combined_technique(technique_1, technique_2):
