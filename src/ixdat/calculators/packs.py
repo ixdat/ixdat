@@ -412,10 +412,11 @@ class CalculatorPack(Saveable):
         Validate the internal structure and per-calculator integrity hashes.
 
         Parameters:
-            strict: If True, treat any discrepancy as an error; otherwise aggregate warnings.
+            strict: If True, treat any discrepancy as an error;
+            otherwise aggregate warnings.
 
         Returns:
-            (ok, messages) ok=True if everything looks good (or if not strict and only warnings).
+            (ok, messages): ok=True if everything looks good
         """
         msgs: List[str] = []
         ok = True
