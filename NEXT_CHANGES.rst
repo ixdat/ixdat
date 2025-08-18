@@ -10,3 +10,11 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 `PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
+
+For ixdat 0.3.1
+===============
+
+calculators
+^^^^^^^^^^^
+
+- The ``CalculatorPack`` has been added in `PR #196 <https://github.com/ixdat/ixdat/pull/196>`_, adressing `Issue #184 <https:github.com/ixdat/ixdat/issues/184>`_, to allow capturing multiple calculators from a measurement, saving them to JSON, and re-attaching them to other measurements for convenient, reproducible, and portable reuse of calibration workflows.
