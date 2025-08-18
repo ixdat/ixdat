@@ -30,7 +30,7 @@ from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadErr
 from .tools import tstamp_to_string, deprecate
 
 
-from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
+from typing import Any, Callable, Iterable, Optional, Union, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .calculators.packs import (
@@ -1507,7 +1507,7 @@ class Measurement(Saveable):
         pack: Union["CalculatorPack", str],
         *,
         on_conflict: str = "replace",
-    ) -> list[Any]:
+    ) -> List[Any]:
         """
         Attach all calculators contained in a CalculatorPack to this Measurement.
 
@@ -1530,7 +1530,7 @@ class Measurement(Saveable):
 
         Returns
         -------
-        list[Calculator]
+        List[Calculator]
             The calculators that were actually attached.
         """
         from .calculators.packs import CalculatorPack
