@@ -62,6 +62,7 @@ designed into every level.
      - - biologic: .mpt files from Biologic's EC-Lab software
        - autolab: ascii files from AutoLab's NOVA software
        - ivium: .txt files from Ivium's IviumSoft software
+       - echemdb: curated digitized CV reference datasets from `EChemDB <https://www.echemdb.org/>`_ (CSV/JSON via GitHub releases)
    * - Mass Spectrometry
      - Released
      - - pfeiffer: .dat files from Pfeiffer Vacuum's PVMassSpec software
