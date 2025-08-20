@@ -1,5 +1,7 @@
 """This module contains general purpose tools"""
 
+from __future__ import annotations
+
 import os
 import datetime
 import inspect
@@ -9,7 +11,12 @@ import platform
 from pathlib import Path
 from functools import wraps
 from string import ascii_uppercase
-from typing import Optional
+from typing import Optional, Iterable, Mapping, Union, cast
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import threading, queue
 
 import numpy as np
 from packaging import version
@@ -21,6 +28,120 @@ import ixdat.config
 from ixdat import __version__
 
 warnings.simplefilter("default")
+
+
+def request_with_retries(
+    session: requests.Session,
+    method: str,
+    url: str,
+    *,
+    connect_timeout: float = 3.0,  # TCP connect timeout (s)
+    read_timeout: float = 10.0,  # per-chunk read timeout (s)
+    total_timeout: Optional[float] = None,  # absolute wall-clock cap (s)
+    retries: int = 2, # retries = retries+1
+    backoff_factor: float = 0.5, # values found online
+    retry_statuses: Iterable[int] = (502, 503, 504), # values found online
+    headers: Optional[Mapping[str, str]] = None,
+    params: Optional[Mapping[str, Union[str, int, float]]] = None,
+    stream: bool = False,
+) -> requests.Response:
+    """
+    Make an HTTP request with explicit connect/read timeouts, a hard total deadline,
+    and limited retries on tranfer errors. Runs the request in a daemon worker thread so
+    Ctrl-C (KeyboardInterrupt) aborts immediately, and timeout exception executes correctly.
+    """
+    # Mount a temp. retry adapter
+    adapter = HTTPAdapter(
+        max_retries=Retry(
+            total=retries,
+            connect=retries,
+            read=retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=frozenset(retry_statuses),
+            allowed_methods=frozenset(["GET", "HEAD", "OPTIONS"]),
+            raise_on_status=False,
+            respect_retry_after_header=True,
+        )
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    start = time.monotonic()
+
+    out: "queue.Queue[Union[requests.Response, BaseException]]" = queue.Queue(maxsize=1)
+
+    def _do_request():
+        try:
+            r = session.request(
+                method=method.upper(),
+                url=url,
+                headers=headers,
+                params=params,
+                stream=stream,
+                timeout=(connect_timeout, read_timeout),
+            )
+            r.raise_for_status()
+            out.put(r)
+        except BaseException as e:
+            # propagate any exception to main thread
+            out.put(e)
+
+    # daemon thread: won’t keep the process alive if we raise/exit
+    t = threading.Thread(target=_do_request, name="ixdat_http", daemon=True)
+    t.start()
+
+    try:
+        while True:
+            try:
+                item = out.get(timeout=0.2)  # short poll: Ctrl-C responsive
+                if isinstance(item, requests.Response):
+                    resp: requests.Response = item
+                    break
+                raise cast(BaseException, item)
+            except queue.Empty:
+                if (
+                    total_timeout is not None
+                    and (time.monotonic() - start) > total_timeout
+                ):
+                    raise requests.exceptions.Timeout("Total timeout exceeded")
+
+        # optional second check
+        if total_timeout is not None and (time.monotonic() - start) > total_timeout:
+            raise requests.exceptions.Timeout("Total timeout exceeded")
+
+        return resp
+
+    except KeyboardInterrupt:
+        # Ctrl-C
+        raise
+
+    except requests.exceptions.Timeout as exc:
+        if "Total timeout" in str(exc):
+            msg = (
+                f"Request to {url} exceeded total time budget "
+                f"({total_timeout} s). Try increasing the total timeout "
+                "or check your internet connection."
+            )
+        else:
+            msg = (
+                f"Request to {url} timed out while connecting/reading "
+                f"(connect={connect_timeout}s, read={read_timeout}s). "
+                "Check connectivity or increase timeouts."
+            )
+        raise RuntimeError(msg) from exc
+
+    except requests.exceptions.RequestException as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        suffix = f" (HTTP {status})" if status is not None else ""
+        raise RuntimeError(
+            f"Failed to fetch {url} after {retries} retries{suffix}. "
+            "Possible causes: no internet, DNS failure, or blocked TCP."
+        ) from exc
+
+    finally:
+        # unmount adapters
+        session.adapters.pop("http://", None)
+        session.adapters.pop("https://", None)
 
 
 def get_default_cache_dir(appname="myapp", subdir=None):
