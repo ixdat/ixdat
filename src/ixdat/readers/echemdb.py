@@ -175,7 +175,6 @@ class EChemDBReader:
                 bib_files = list(folder.glob("*.bib"))
                 bib_path = bib_files[0] if bib_files else None
                 return self._Paths(csv=csv_path, json=json_path, bib=bib_path)
-        return None
 
     def _extract_entry(
         self,
