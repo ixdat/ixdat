@@ -180,7 +180,10 @@ class EChemDBReader:
         total_timeout: Optional[float],
     ) -> None:
         """
-        Download the release ZIP and extract only the files under the given identifier
+        Download the release ZIP and extract only the files under the given identifier.
+        EChemDB release assets contain a top-level `data/` folder. Each entry consists
+        of a CSV file and a JSON with the same basename, and optionally a .bib
+        in the same directory. We preserve the internal path in the cache.
         """
         # Fetch with retries and explicit timeouts
         # (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
