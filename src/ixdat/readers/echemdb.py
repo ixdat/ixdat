@@ -22,7 +22,7 @@ from ixdat.tools import get_default_cache_dir
 from ixdat.exceptions import BuildError
 
 
-T = TypeVar("T", bound=Measurement)
+M = TypeVar("M", bound=Measurement)
 
 
 class EChemDBReader:
@@ -54,9 +54,9 @@ class EChemDBReader:
     def read(
         self,
         echemdb_identifier: str,
-        cls: Type[T] = Measurement,
+        cls: Type[M] = Measurement,
         version: Optional[str] = None,
-    ) -> T:
+    ) -> M:
         """
         Download (if not in cache), extract, parse CSV+JSON for each measurement
 
@@ -267,11 +267,11 @@ class EChemDBReader:
     def _assemble_measurement(
         self,
         echemdb_identifier: str,
-        cls: Type[T],
+        cls: Type[M],
         series_list: list,
         meta: dict,
         citation: Optional[str],
-    ) -> T:
+    ) -> M:
         """
         Assemble the cls.from_dict payload and return the instance.
         Attaches citation as `.citation` attribute if provided.
