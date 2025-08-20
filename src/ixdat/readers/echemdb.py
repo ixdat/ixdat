@@ -103,7 +103,7 @@ class EChemDBReader:
             cls = CyclicVoltammogram  # type: ignore[arg-type]
 
         # Extract only this entry if not already cached
-        paths = self.find_cached_paths(echemdb_identifier)
+        paths = self._find_cached_paths(echemdb_identifier)
         if not paths:
             self._extract_entry(
                 echemdb_identifier,
@@ -111,7 +111,7 @@ class EChemDBReader:
                 read_timeout or self._read_timeout,
                 total_timeout or self._total_timeout,
             )
-            paths = self.find_cached_paths(echemdb_identifier)
+            paths = self._find_cached_paths(echemdb_identifier)
             if not paths:
                 raise FileNotFoundError(
                     f"Could not find files for entry"
@@ -157,7 +157,7 @@ class EChemDBReader:
         print(f"[EChemDBReader] using latest release: {ver}")
         return resp.json()["info"]["version"]
 
-    def find_cached_paths(self, echemdb_identifier: str) -> Optional[_Paths]:
+    def _find_cached_paths(self, echemdb_identifier: str) -> Optional[_Paths]:
         """
         Search the cache for existing CSV, JSON,
         and optional bib files matching echemdb_identifier.
