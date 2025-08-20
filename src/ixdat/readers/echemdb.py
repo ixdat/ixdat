@@ -12,7 +12,10 @@ import pandas as pd
 from ixdat.measurement_base import Measurement
 from ixdat.techniques.cv import CyclicVoltammogram
 from ixdat.data_series import TimeSeries, ValueSeries, ConstantValue
-from ixdat.tools import get_default_cache_dir
+from ixdat.tools import (
+    get_default_cache_dir,
+    request_with_retries,
+)
 from ixdat.exceptions import BuildError
 
 
@@ -42,14 +45,27 @@ class EChemDBReader:
         json: Path
         bib: Optional[Path]
 
-    def __init__(self, version: str = "latest"):
+    def __init__(
+        self,
+        version: str = "latest",
+        connect_timeout: float = 3.0,
+        read_timeout: float = 10.0,
+        total_timeout: Optional[float] = None,
+    ):
         self._version_arg = version
+        self._connect_timeout = connect_timeout
+        self._read_timeout = read_timeout
+        self._total_timeout = total_timeout
+        self._session = self._build_session()
 
     def read(
         self,
         echemdb_identifier: str,
         cls: Type[M] = Measurement,
         version: Optional[str] = None,
+        connect_timeout: float = 1.0,
+        read_timeout: float = 1.0,
+        total_timeout: float = 20.0,
     ) -> M:
         """
         Download (if not in cache), extract, parse CSV+JSON for each measurement
@@ -64,12 +80,12 @@ class EChemDBReader:
         """
 
         # allow version override, and resolve "latest" via PyPI
-        ver = version or self._version_arg
-        if ver == "latest":
-            resp = requests.get("https://pypi.org/pypi/echemdb-ecdata/json")
-            resp.raise_for_status()
-            ver = resp.json()["info"]["version"]
-            print(f"[EChemDBReader] using latest release: {ver}")
+        ver = self._resolve_version(
+            version or self._version_arg,
+            connect_timeout or self._connect_timeout,
+            read_timeout or self._read_timeout,
+            total_timeout or self._total_timeout,
+        )
 
         self.zip_url = (
             f"https://github.com/echemdb/electrochemistry-data/"
@@ -83,7 +99,12 @@ class EChemDBReader:
         # Extract only this entry if not already cached
         paths = self.find_cached_paths(echemdb_identifier)
         if not paths:
-            self._extract_entry(echemdb_identifier)
+            self._extract_entry(
+                echemdb_identifier,
+                connect_timeout or self._connect_timeout,
+                read_timeout or self._read_timeout,
+                total_timeout or self._total_timeout,
+            )
             paths = self.find_cached_paths(echemdb_identifier)
             if not paths:
                 raise FileNotFoundError(
@@ -100,6 +121,34 @@ class EChemDBReader:
         )
 
         return measurement
+
+    def _build_session(self) -> requests.Session:
+        s = requests.Session()
+        s.trust_env = False  # Ignore HTTP(S)_PROXY for now.
+        return s
+
+    def _resolve_version(
+        self,
+        ver: str,
+        read_timeout: float,
+        connect_timeout: float,
+        total_timeout: Optional[float],
+    ) -> str:
+        if ver != "latest":
+            return ver
+        # Fetch with retries and explicit timeouts (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
+        resp = request_with_retries(
+            self._session,
+            "GET",
+            "https://pypi.org/pypi/echemdb-ecdata/json",
+            read_timeout=read_timeout,
+            connect_timeout=connect_timeout,
+            total_timeout=total_timeout,
+            retries=3,
+        )
+        ver = resp.json()["info"]["version"]
+        print(f"[EChemDBReader] using latest release: {ver}")
+        return resp.json()["info"]["version"]
 
     def find_cached_paths(self, echemdb_identifier: str) -> Optional[_Paths]:
         """
@@ -121,12 +170,27 @@ class EChemDBReader:
                 return self._Paths(csv=csv_path, json=json_path, bib=bib_path)
         return None
 
-    def _extract_entry(self, echemdb_identifier: str) -> None:
+    def _extract_entry(
+        self,
+        echemdb_identifier: str,
+        read_timeout: float,
+        connect_timeout: float,
+        total_timeout: Optional[float],
+    ) -> None:
         """
         Download the release ZIP and extract only the files under the given identifier
         """
-        resp = requests.get(self.zip_url)
-        resp.raise_for_status()
+        # Fetch with retries and explicit timeouts (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
+        resp = request_with_retries(
+            self._session,
+            "GET",
+            self.zip_url,
+            read_timeout=read_timeout,
+            connect_timeout=connect_timeout,
+            total_timeout=total_timeout,
+            retries=0,
+            stream=True,
+        )
 
         with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
             namelist = z.namelist()
