@@ -147,7 +147,7 @@ def request_with_retries(
         session.adapters.pop("https://", None)
 
 
-def get_default_cache_dir(appname="myapp", subdir=None):
+def get_default_cache_dir(appname, subdir=None):
     """
     Return the platform-appropriate cache directory for a given application.
 
