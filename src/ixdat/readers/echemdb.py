@@ -38,13 +38,9 @@ class EChemDBReader:
         and raises clear RuntimeError messages if retries are exhausted.
     """
 
-    # fallback aliases
-    ALIASES = {
-        "potential": ["E", "U", "potential"],
-        "current": ["J", "I", "current"],
-        "raw_potential": ["potential"],
-        "raw_current": ["current"],
-    }
+    # fallback aliases are disabled to avoid circular lookups.
+    # Keep empty and handle explicit fallbacks where needed.
+    ALIASES = {}
 
     class _Paths(NamedTuple):
         csv: Path
