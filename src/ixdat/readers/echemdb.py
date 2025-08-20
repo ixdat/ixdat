@@ -281,6 +281,9 @@ class EChemDBReader:
             List of TimeSeries and ValueSeries in schema order.
         """
         # grab the single table resource and its schema
+        # EChemDB splits metadata across:
+        #   - top-level meta (datapackage)
+        #   - resource-level schema & metadata
         resource = full_meta["resources"][0]
         schema_fields = resource["schema"]["fields"]
 
