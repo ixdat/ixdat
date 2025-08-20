@@ -31,11 +31,14 @@ class EChemDBReader:
         reader = EChemDBReader(version='0.4.1') # pins to v0.4.1
         meas = Measurement.read("alves_2011_electrochemistry_6010", reader='echemdb')
 
-    Notes:
+    Note:
         All network calls use ixdat.tools.request_with_retries.
         This enforces connect, read, and total timeouts,
         allows Ctrl-C to abort immediately,
         and raises clear RuntimeError messages if retries are exhausted.
+    Note:
+       `tstamp` defaults to 0.0 if not present in the EChemDB metadata. This sets the
+       absolute time origin of the constructed TimeSeries.
     """
 
     # fallback aliases are disabled to avoid circular lookups.
@@ -281,7 +284,7 @@ class EChemDBReader:
         resource = full_meta["resources"][0]
         schema_fields = resource["schema"]["fields"]
 
-        # determine t=0 timestamp (if present at top level) or default to 0
+        # determine t=0 timestamp (if present at top level) or default to 0.0
         tstamp = full_meta.get("tstamp", 0.0)
 
         series_list: List[Union[TimeSeries, ValueSeries]] = []
@@ -436,7 +439,7 @@ class EChemDBReader:
             "technique": "EC",
             "reader": self,
             "series_list": series_list,
-            "tstamp": md["schema_fields"].get("t", {}).get("unit") and 0.0,
+            "tstamp": float(meta.get("tstamp", 0.0)),
             "metadata": md,
             "aliases": aliases,
         }
