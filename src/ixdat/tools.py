@@ -16,7 +16,8 @@ from typing import Optional, Iterable, Mapping, Union, cast
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import threading, queue
+import threading
+import queue
 
 import numpy as np
 from packaging import version
@@ -38,17 +39,19 @@ def request_with_retries(
     connect_timeout: float = 3.0,  # TCP connect timeout (s)
     read_timeout: float = 10.0,  # per-chunk read timeout (s)
     total_timeout: Optional[float] = None,  # absolute wall-clock cap (s)
-    retries: int = 2, # retries = retries+1
-    backoff_factor: float = 0.5, # values found online
-    retry_statuses: Iterable[int] = (502, 503, 504), # values found online
+    retries: int = 2,  # retries = retries+1
+    backoff_factor: float = 0.5,  # values found online
+    retry_statuses: Iterable[int] = (502, 503, 504),  # values found online
     headers: Optional[Mapping[str, str]] = None,
     params: Optional[Mapping[str, Union[str, int, float]]] = None,
     stream: bool = False,
 ) -> requests.Response:
     """
-    Make an HTTP request with explicit connect/read timeouts, a hard total deadline,
-    and limited retries on tranfer errors. Runs the request in a daemon worker thread so
-    Ctrl-C (KeyboardInterrupt) aborts immediately, and timeout exception executes correctly.
+    Make an HTTP request with explicit connect/read timeouts,
+    a hard total deadline, and limited retries on tranfer errors.
+    Runs the request in a daemon worker thread
+    so Ctrl-C (KeyboardInterrupt) aborts immediately,
+    and timeout exception executes correctly.
     """
     # Mount a temp. retry adapter
     adapter = HTTPAdapter(
