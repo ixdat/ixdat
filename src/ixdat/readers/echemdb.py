@@ -281,9 +281,12 @@ class EChemDBReader:
             List of TimeSeries and ValueSeries in schema order.
         """
         # grab the single table resource and its schema
-        # EChemDB splits metadata across:
-        #   - top-level meta (datapackage)
-        #   - resource-level schema & metadata
+        # EChemDB splits metadata into several layers:
+        # - top-level key "resources"
+        # - resource["schema"]["fields"]: column definitions with units and orientation
+        # - resource["metadata"]["echemdb"]: domain metadata (system, electrodes, electrolyte, source, curation, figure description)
+        #   which itself contains: experimental conditions, electrode/electrolyte setup, source citation, and figure description (scan rate, fields, orientation, etc.)
+        # - optional .bib file: full BibTeX entry
         resource = full_meta["resources"][0]
         schema_fields = resource["schema"]["fields"]
 
@@ -354,6 +357,12 @@ class EChemDBReader:
                     return value
             return default
 
+        # EChemDB splits metadata into several layers:
+        # - top-level key "resources"
+        # - resource["schema"]["fields"]: column definitions with units and orientation
+        # - resource["metadata"]["echemdb"]: domain metadata (system, electrodes, electrolyte, source, curation, figure description)
+        #   which itself contains: experimental conditions, electrode/electrolyte setup, source citation, and figure description (scan rate, fields, orientation, etc.)
+        # - optional .bib file: full BibTeX entry
         resource = meta["resources"][0]
         schema_fields = resource["schema"]["fields"]
         echem_meta = resource["metadata"]["echemdb"]
