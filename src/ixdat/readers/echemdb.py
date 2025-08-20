@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Aug  4 11:03:18 2025
-
-@author: Søren
-@contributor: Frederik
-"""
 import requests
 import zipfile
 import io
