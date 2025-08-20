@@ -30,6 +30,12 @@ class EChemDBReader:
         reader = EChemDBReader() # uses latest release
         reader = EChemDBReader(version='0.4.1') # pins to v0.4.1
         meas = Measurement.read("alves_2011_electrochemistry_6010", reader='echemdb')
+
+    Notes:
+        All network calls use ixdat.tools.request_with_retries.
+        This enforces connect, read, and total timeouts,
+        allows Ctrl-C to abort immediately,
+        and raises clear RuntimeError messages if retries are exhausted.
     """
 
     # fallback aliases
@@ -136,7 +142,8 @@ class EChemDBReader:
     ) -> str:
         if ver != "latest":
             return ver
-        # Fetch with retries and explicit timeouts (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
+        # Fetch with retries and explicit timeouts
+        # (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
         resp = request_with_retries(
             self._session,
             "GET",
@@ -180,7 +187,8 @@ class EChemDBReader:
         """
         Download the release ZIP and extract only the files under the given identifier
         """
-        # Fetch with retries and explicit timeouts (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
+        # Fetch with retries and explicit timeouts
+        # (raises RuntimeError if retries exhausted: no internet/DNS/TCP issues)
         resp = request_with_retries(
             self._session,
             "GET",
