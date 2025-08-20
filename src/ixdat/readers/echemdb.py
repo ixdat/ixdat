@@ -284,8 +284,11 @@ class EChemDBReader:
         # EChemDB splits metadata into several layers:
         # - top-level key "resources"
         # - resource["schema"]["fields"]: column definitions with units and orientation
-        # - resource["metadata"]["echemdb"]: domain metadata (system, electrodes, electrolyte, source, curation, figure description)
-        #   which itself contains: experimental conditions, electrode/electrolyte setup, source citation, and figure description (scan rate, fields, orientation, etc.)
+        # - resource["metadata"]["echemdb"]: domain metadata
+        #   (system, electrodes, electrolyte, source, curation, figure description)
+        #   which itself contains: experimental conditions, electrode/electrolyte setup,
+        #   source citation, and figure description
+        #   (scan rate, fields, orientation, etc.)
         # - optional .bib file: full BibTeX entry
         resource = full_meta["resources"][0]
         schema_fields = resource["schema"]["fields"]
@@ -360,8 +363,11 @@ class EChemDBReader:
         # EChemDB splits metadata into several layers:
         # - top-level key "resources"
         # - resource["schema"]["fields"]: column definitions with units and orientation
-        # - resource["metadata"]["echemdb"]: domain metadata (system, electrodes, electrolyte, source, curation, figure description)
-        #   which itself contains: experimental conditions, electrode/electrolyte setup, source citation, and figure description (scan rate, fields, orientation, etc.)
+        # - resource["metadata"]["echemdb"]: domain metadata
+        #   (system, electrodes, electrolyte, source, curation, figure description)
+        #   which itself contains: experimental conditions, electrode/electrolyte setup,
+        #   source citation, and figure description
+        #   (scan rate, fields, orientation, etc.)
         # - optional .bib file: full BibTeX entry
         resource = meta["resources"][0]
         schema_fields = resource["schema"]["fields"]
