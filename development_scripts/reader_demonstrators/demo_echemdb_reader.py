@@ -27,9 +27,10 @@ try:
     ref_electrode = ref_cycle.metadata["reference_electrode"]
     ref_cycle.plot(ax=ax, color="C1", label=f"EchemDB ref vs {ref_electrode}")
 
-    # calibrate and plot
-    RE_vs_RHE = 0.060 * ref_cycle.metadata["electrolyte"]["ph"]["value"]  # Nernst shift SHE to RHE
-    ref_cycle.calibrate(RE_vs_RHE=RE_vs_RHE)  # shift potential by +0.7 V (arbitrary here)
+    # Nernst shift SHE to RHE
+    RE_vs_RHE = 0.060 * ref_cycle.metadata["electrolyte"]["ph"]["value"]
+    # shift potential by +0.7 V (arbitrary here)
+    ref_cycle.calibrate(RE_vs_RHE=RE_vs_RHE)
     ref_cycle.plot(ax=ax, color="C2", label="EchemDB ref vs RHE")
 
     # alternatively, also supported
