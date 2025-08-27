@@ -3,10 +3,12 @@ from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
 from ..db import PlaceHolderObject
-from ..spectra import Spectrum, SpectroMeasurement
+from ..spectra import Spectrum, SpectroMeasurement,SpectrumSeries
 from ..data_series import Field, ValueSeries
 from ..exporters import SECExporter
 from ..plotters import SECPlotter, ECOpticalPlotter
+
+
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
@@ -47,6 +49,9 @@ class ECXASMeasurement(SpectroECMeasurement):
 
     pass
 
+class OpticalSpectrumSeries(SpectrumSeries):
+    """Optical Spectrum Series"""
+    pass
 
 class ECOpticalMeasurement(SpectroECMeasurement):
     """Electrochemistry with optical Spectroscopy
