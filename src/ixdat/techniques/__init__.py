@@ -15,7 +15,8 @@ from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,
-    OpticalSpectrumSeries
+    OpticalSpectrumSeries,
+    StaircaseSEC
 )
 
 from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
