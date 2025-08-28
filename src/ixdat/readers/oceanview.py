@@ -28,14 +28,18 @@ class OceanViewTimeSeriesReader:
             lines = f.readlines()
 
         # ---- Parse header for Date ----
-        tstamp_first = None
+        dt_header  = None
         for ln in lines[:40]:  # only scan the top of the file
             if ln.lower().startswith("date:"):
                 date_str = ln.split(":", 1)[1].strip()
-                print(date_str)
-                tstamp_first = self._parse_header_date(date_str)
+                dt_header  = self._parse_header_date(date_str)
                 break
 
+        # ---- Refine with filename milliseconds if available ----
+        ms = self._parse_filename_time(path_to_file)       # int 毫秒
+        if ms is not None and dt_header is not None:
+            dt_header = dt_header.replace(microsecond=ms*1000)
+        tstamp_first = dt_header.timestamp()  
         # ---- Find Begin Spectral Data ----
         start_idx = None
         for i, ln in enumerate(lines):
@@ -69,7 +73,7 @@ class OceanViewTimeSeriesReader:
 
         y_matrix = np.stack(spectra)
         rel_times = np.array(rel_times) - rel_times[0]  # start at 0 s
-        print(tstamp_first)
+
         # ---- Wrap into ixdat objects ----
         xseries = DataSeries(name="wavelength", unit_name="nm", data=wavelengths)
         tseries = TimeSeries(
@@ -95,20 +99,17 @@ class OceanViewTimeSeriesReader:
 
     # -------- Helpers --------
     @staticmethod
-    def _parse_header_date(date_str: str) -> float:
+    def _parse_header_date(date_str: str) -> datetime:
         """Parse OceanView-style header dates like
         'Mon Aug 18 15:23:28 CEST 2025' or 'Mon Aug 18 15:23:28 GMT+2 2025'
-        and return a UNIX timestamp (float seconds).
+        and return a timezone-aware datetime object.
         """
         s = date_str.strip()
-        # If the caller passed the whole line ('Date: ...'), trim the label:
         if s.lower().startswith("date:"):
             s = s.split(":", 1)[1].strip()
-
-        # Normalize all whitespace to single spaces:
         s = re.sub(r"\s+", " ", s)
 
-        # Known TZ offsets (hours). Add more if you need them.
+        # Known TZ offsets (hours). Extend if needed.
         tz_offsets = {
             "UTC": 0, "GMT": 0,
             "CET": 1, "CEST": 2,
@@ -118,8 +119,8 @@ class OceanViewTimeSeriesReader:
             "MST": -7, "MDT": -6,
             "CST": -6, "CDT": -5,
             "EST": -5, "EDT": -4,
-            "BST": 1,   # UK summer
-            "IST": 5.5, # India (note: ambiguous name globally)
+            "BST": 1,
+            "IST": 5.5,
         }
 
         tz_offset_hours = None
@@ -139,10 +140,9 @@ class OceanViewTimeSeriesReader:
             m = re.search(r"\b([A-Z]{2,5})\b(?=\s+\d{4}$)", s)
             if m and m.group(1) in tz_offsets:
                 tz_offset_hours = tz_offsets[m.group(1)]
-                # remove the TZ token so strptime formats will match:
                 s = s.replace(" " + m.group(1), "")
 
-        # Try a few likely layouts (with/without weekday, with/without micros)
+        # Try a few likely layouts
         fmts = [
             "%a %b %d %H:%M:%S %Y",
             "%b %d %H:%M:%S %Y",
@@ -160,26 +160,40 @@ class OceanViewTimeSeriesReader:
         if dt is None:
             raise ValueError(f"Could not parse header date: {date_str!r}")
 
-        # Apply timezone (default UTC if none found)
+        # Apply timezone
         if tz_offset_hours is None:
             tz = timezone.utc
         else:
             tz = timezone(timedelta(hours=tz_offset_hours))
 
-        return dt.replace(tzinfo=tz).timestamp()
+        return dt.replace(tzinfo=tz) 
+
+    @staticmethod
+    def _parse_filename_time(path):
+        """Extract only millisecond from '__HH-MM-SS-mmm'."""
+        m = re.search(r"__(\d{2})-(\d{2})-(\d{2})-(\d{3})", str(path))
+        if not m:
+            return None
+        ms = int(m.group(4))
+        return ms
 
     @staticmethod
     def _parse_row_time(stamp):
-        # Row times like '1970-01-01 01:24:29.367452'
+        # Row times like '1970-01-01 01:24:29.367452' or '13-42-52-946'
         stamp = stamp.strip()
-        for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%H:%M:%S.%f",
-                    "%Y-%m-%d %H:%M:%S", "%H:%M:%S"):
+        fmts = [
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%H:%M:%S",
+            "%H-%M-%S-%f",  # support '13-42-52-946'
+        ]
+        for fmt in fmts:
             try:
                 dt = datetime.strptime(stamp, fmt)
                 return dt.hour * 3600 + dt.minute * 60 + dt.second + dt.microsecond/1e6
             except ValueError:
                 continue
-        # fallback: try float seconds
         try:
             return float(stamp.replace(",", "."))
         except Exception:
