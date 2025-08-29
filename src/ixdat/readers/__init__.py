@@ -42,6 +42,8 @@ from .qexafs import QexafsDATReader, B18TRXRFReader
 # ftir
 from .opus_ftir import OpusFTIRReader
 
+# optical
+from .oceanview import OceanViewTimeSeriesReader
 
 # Measruement.read() looks for readers here:
 
@@ -73,4 +75,5 @@ SPECTRUM_READER_CLASSES = {
     "xrdml": XRDMLReader,
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
+    "oceanview":OceanViewTimeSeriesReader
 }
