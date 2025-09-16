@@ -137,82 +137,6 @@ class CalculatorPack(Saveable):
         # Backing JSON for Saveable (db column). Keep it None until first to_json()
         self.json: Optional[str] = None
 
-    @staticmethod
-    def _serialize_calculator(cal: Any) -> dict:
-        """
-        Serialize a calculator to a JSON-safe dict.
-
-        Preference order:
-          1) Calculator.as_dict()  (ixdat-native format used by Calculator.export())
-          2) lightweight __dict__ snapshot (filtered)
-        """
-        try:
-            from ..measurement_base import (
-                Calculator as _BaseCalc,
-            )  # local import to avoid import cycle errors
-
-            if isinstance(cal, _BaseCalc) and hasattr(cal, "as_dict"):
-                payload = cal.as_dict()
-                # Assuming for sake of future implementation.
-                # Ensure we don't persist a heavy/circular measurement reference:
-                payload.pop("measurement", None)
-                return {
-                    "__format__": "ixdat.calculator.as_dict",
-                    "payload": payload,
-                    "calculator_type": getattr(cal, "calculator_type", None),
-                    "technique": getattr(cal, "technique", None),
-                }
-        except Exception:
-            pass
-
-        # Fallback: filtered __dict__
-        safe: dict[str, Any] = {"__format__": "light.dict"}
-        for k, v in vars(cal).items():
-            if k == "measurement":
-                continue  # don't persist the measurement object
-            if isinstance(v, (int, float, str, list, dict, type(None))):
-                safe[k] = v
-        return safe
-
-    @staticmethod
-    def _deserialize_calculator(cls: type, payload: dict) -> Any:
-        """
-        Recreate calculator instance from stored payload.
-
-        Preference order:
-          1) Calculator.from_dict() if we stored 'as_dict' format
-          2) lightweight __dict__
-        """
-        fmt = payload.get("__format__")
-        if fmt == "ixdat.calculator.as_dict":
-            # Try the native method first
-            calc_payload = dict(payload.get("payload") or {})
-            # from_dict expects calculator metadata in the dict:
-            if "calculator_type" not in calc_payload and payload.get("calculator_type"):
-                calc_payload["calculator_type"] = payload["calculator_type"]
-            if "technique" not in calc_payload and payload.get("technique"):
-                calc_payload["technique"] = payload["technique"]
-            try:
-                from ..measurement_base import (
-                    Calculator as _BaseCalc,
-                )  # avoid circular import, by loading locally
-
-                if issubclass(cls, _BaseCalc) and hasattr(cls, "from_dict"):
-                    return cls.from_dict(calc_payload)
-            except Exception:
-                pass
-
-        # Fallback: blank instance + shallow dict update
-        cal = object.__new__(cls)
-        try:
-            # Strip helper key if present
-            payload = dict(payload)
-            payload.pop("__format__", None)
-            cal.__dict__.update(payload)
-        except Exception:
-            pass
-        return cal
-
     @classmethod
     def from_measurement(
         cls,
@@ -300,7 +224,9 @@ class CalculatorPack(Saveable):
             cls = cal.__class__
             class_path = f"{cls.__module__}.{cls.__name__}"
 
-            payload = self._serialize_calculator(cal)
+            payload = cal.as_dict(
+                exclude=["measurement"]
+            )  # exclude to avoid heavy/cyclic payload
 
             item: JsonDict = {
                 "class_path": class_path,
@@ -410,9 +336,7 @@ class CalculatorPack(Saveable):
                 )
 
             CalCls = _import_from_class_path(class_path)
-
-            # Always use CalculatorPack’s deserializer
-            cal = self._deserialize_calculator(CalCls, payload)
+            cal = CalCls.from_dict(payload)
             calculators.append(cal)
 
         self._calculators = calculators
