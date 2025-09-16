@@ -160,8 +160,10 @@ class CalculatorPack(Saveable):
             include: Optional filter to include some calculators.
                 - None (default): include all calculators
                 - Iterable[str]: match by class name or full module.ClassName path
-                - Callable[[Calculator], bool]: predicate returning True for calculators to keep
-            exclude: Optional filter applied after `include` with the same accepted forms.
+                - Callable[[Calculator], bool]: predicate returning
+                  True for calculators to keep
+            exclude: Optional filter applied after `include`,
+                     with the same accepted forms.
             name: Optional name for the created pack.
             notes: Optional human-readable note stored in metadata.history.notes.
             extra_metadata: Extra metadata merged into the pack metadata.
