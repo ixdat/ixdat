@@ -222,8 +222,13 @@ class CalculatorPack(Saveable):
 
     def _ensure_items(self) -> List[JsonDict]:
         """
-        Ensure internal `_items` list exists,
-        synthesizing it from calculators if needed.
+        Ensure `_items` exists by synthesizing it from calculators when needed.
+
+        Each entry contains:
+          - class_path: module.ClassName of the calculator
+          - payload: calculator.as_dict(exclude=["measurement"])
+          - hash: SHA256 over the payload
+          - optional: calculator_version
         """
         if self._items is not None:
             return self._items
@@ -255,10 +260,8 @@ class CalculatorPack(Saveable):
 
     def to_json(self) -> JsonDict:
         """
-        Serialize the pack (including calculators) to a JSON-serializable dict.
-
-        Returns:
-            dict: The full, self-describing pack.
+        Serialize the pack container (metadata + calculators’ payloads) to a dict.
+        Calculator payloads come from each calculator’s own `as_dict()`.
         """
         items = self._ensure_items()
         data: JsonDict = {
@@ -277,7 +280,8 @@ class CalculatorPack(Saveable):
     @classmethod
     def from_json(cls, data: JsonDict) -> "CalculatorPack":
         """
-        Construct a pack from a JSON dictionary (inverse of `to_json`).
+        Rebuild the pack container from a dict made by `to_json()`.
+        Calculator instances are materialized lazily via `.calculators()`.
         """
         if data.get("type") != "ixdat.CalculatorPack":
             raise ValueError(f"Unexpected type: {data.get('type')}")
