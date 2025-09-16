@@ -67,7 +67,7 @@ def main():
     )
     print(pack.summary())
 
-    pack.to_file(str(PACK_PATH))
+    pack.export(str(PACK_PATH))
     print("\tWrote:", PACK_PATH.resolve())
 
     # 5) Read the pack back

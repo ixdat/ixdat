@@ -86,7 +86,7 @@ class CalculatorPack(Saveable):
       with minimal metadata and per-calculator payloads.
     - Supports:
         `CalculatorPack.from_measurement(...)` to capture calculators
-        `pack.to_file(path)` and `CalculatorPack.read(path=...)` for file I/O
+        `pack.export(path)` and `CalculatorPack.read(path=...)` for file I/O
         `pack.calculators()` for lazy materialization
         `pack.attach_to(measurement, ...)` convenience to add all calculators
 
@@ -357,7 +357,7 @@ class CalculatorPack(Saveable):
         pack.json = json.dumps(data, indent=2)
         return pack
 
-    def to_file(self, path: str) -> None:
+    def export(self, path: str) -> None:
         """
         Write the pack to a JSON file.
 
