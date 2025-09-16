@@ -248,14 +248,26 @@ class CalculatorPack(Saveable):
         else:
             raise AttributeError("Measurement has no 'calculators' attribute")
 
-        # Do not include Indexes
-        calculators = [c for c in calculators if not isinstance(c, Indexer)]
+        # Exclude Indexer by default
+        base = [c for c in calculators if not isinstance(c, Indexer)]
 
-        # Apply include/exclude filters
-        if include is not None:
-            calculators = [c for c in calculators if _matches_selector(c, include)]
+        # Exclude first
         if exclude is not None:
-            calculators = [c for c in calculators if not _matches_selector(c, exclude)]
+            base = [c for c in base if not _matches_selector(c, exclude)]
+
+        # Include (also include Indexer again if requested)
+        if include is not None:
+            must_have = [c for c in calculators if _matches_selector(c, include)]
+            seen = set()
+            calculators = []
+            for c in base + must_have:
+                oid = id(c)
+                if oid in seen:
+                    continue
+                seen.add(oid)
+                calculators.append(c)
+        else:
+            calculators = base
 
         # Build metadata
         meta: JsonDict = {

@@ -63,7 +63,7 @@ def main():
         src,
         name="demo_pack",
         notes="EC-only demo",
-        exclude=["Indexer", "ixdat.calculators.indexer.Indexer"],
+        #include = ["Indexer"],
     )
     print(pack.summary())
 
