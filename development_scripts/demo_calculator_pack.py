@@ -63,7 +63,7 @@ def main():
         src,
         name="demo_pack",
         notes="EC-only demo",
-        #include = ["Indexer"],
+        # include = ["Indexer"],
     )
     print(pack.summary())
 
@@ -90,6 +90,11 @@ def main():
 
     print("\n[8] Computing calibrated EC series on target:")
     compute_ec_series(tgt)
+
+    # 7) Clean up
+    if PACK_PATH.exists():
+        PACK_PATH.unlink()
+        print(f"\n[9] Deleted temprory pack file: {PACK_PATH.name}")
 
     print("\nDone")
 
