@@ -15,7 +15,11 @@ from ixdat.calculators.indexer import Indexer
 
 
 JsonDict = Dict[str, Any]
-Selector = Union[Iterable[str], Callable[[Any], bool], None]
+# Local, private selector type used only within CalculatorPack:
+# - Iterable[str]: class names or fully-qualified class paths
+# - Callable[[Any], bool]: predicate on a calculator
+# - None: no filtering
+_Selector = Union[Iterable[str], Callable[[Any], bool], None]
 
 
 def _now_utc_iso() -> str:
@@ -41,7 +45,7 @@ def _import_from_class_path(class_path: str) -> type:
     return getattr(module, cls_name)
 
 
-def _matches_selector(obj: Any, selector: Selector) -> bool:
+def _matches_selector(obj: Any, selector: _Selector) -> bool:
     """
     Return True if `obj` matches the selector.
     """
@@ -142,8 +146,8 @@ class CalculatorPack(Saveable):
         cls,
         measurement: Any,
         *,
-        include: Selector = None,
-        exclude: Selector = None,
+        include: _Selector = None,
+        exclude: _Selector = None,
         name: Optional[str] = None,
         notes: Optional[str] = None,
         extra_metadata: Optional[JsonDict] = None,
@@ -153,8 +157,11 @@ class CalculatorPack(Saveable):
 
         Parameters:
             measurement: Source Measurement providing `.calculators`.
-            include: Selector to include some calculators.
-            exclude: Selector to exclude some calculators.
+            include: Optional filter to include some calculators.
+                - None (default): include all calculators
+                - Iterable[str]: match by class name or full module.ClassName path
+                - Callable[[Calculator], bool]: predicate returning True for calculators to keep
+            exclude: Optional filter applied after `include` with the same accepted forms.
             name: Optional name for the created pack.
             notes: Optional human-readable note stored in metadata.history.notes.
             extra_metadata: Extra metadata merged into the pack metadata.
