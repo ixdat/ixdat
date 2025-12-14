@@ -85,7 +85,11 @@ class OceanViewTimeSeriesReader:
             rel_sec = self._parse_row_time(stamp_str)
             rel_times.append(rel_sec)
             vals = [float(v.replace(",", ".")) for v in vals.split()]
-            spectra.append(vals)
+
+            if len(vals)>=len(wavelengths):
+                spectra.append(vals[len(vals)-len(wavelengths):])
+            else:
+                spectra.append(vals)
 
         y_matrix = np.stack(spectra)
         rel_times = np.array(rel_times) - rel_times[0]  # start at 0 s
