@@ -22,6 +22,7 @@ from .cinfdata import CinfdataTXTReader
 # online databases
 from .echemdb import EChemDBReader
 from .cinfdata_db import CinfdataDBReader
+from .asimov import AsimovReader
 
 # ec-ms
 from .zilien import ZilienTSVReader, ZilienTMPReader, ZilienSpectrumReader
@@ -62,6 +63,7 @@ READER_CLASSES = {
     "msrh_sec_decay": MsrhSECDecayReader,
     "b18_trxrf": B18TRXRFReader,
     "echemdb": EChemDBReader,
+    "asimov": AsimovReader,
 }
 
 
