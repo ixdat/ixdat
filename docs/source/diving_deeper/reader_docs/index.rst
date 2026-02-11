@@ -72,6 +72,24 @@ The ``cinfdata`` module
 .. automodule:: ixdat.readers.cinfdata
     :members:
 
+Asimov datasets
+---------------
+
+``ixdat`` can read datasets hosted behind the Asimov API by using the
+``asimov`` reader. Authentication is done with a bearer token either provided
+directly or acquired from Keycloak via device flow.
+
+Example:
+
+>>> from ixdat import Measurement
+>>> meas = Measurement.read("my-dataset-uuid", reader="asimov")
+
+The ``asimov`` module
+.....................
+
+.. automodule:: ixdat.readers.asimov
+    :members:
+
 Electrochemistry and sub-techniques
 ------------------------------------
 These are readers which by default return an ``ECMeasurement``.
@@ -171,4 +189,3 @@ The ``qexafs`` module
 
 .. automodule:: ixdat.readers.qexafs
     :members:
-
