@@ -124,7 +124,9 @@ class AsimovReader:
         )
         payload = dataset_version.get("payload_json")
         if not payload and dataset_version.get("payload_uri"):
-            payload = self._load_payload_uri(dataset_version["payload_uri"], headers=headers)
+            payload = self._load_payload_uri(
+                dataset_version["payload_uri"], headers=headers
+            )
         if not payload:
             raise ValueError(
                 f"Asimov dataset version {dataset_version.get('id')} does not include "
@@ -217,7 +219,9 @@ class AsimovReader:
             or dataset.get("kind")
             or "generic"
         )
-        metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+        metadata = (
+            payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+        )
         metadata = metadata.copy()
         metadata["asimov"] = self._make_asimov_metadata(dataset, dataset_version)
         measurement_dict = {

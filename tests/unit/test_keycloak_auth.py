@@ -88,7 +88,9 @@ def test_keycloak_provider_uses_realm_based_endpoints():
         client_id="ixdat-cli",
     )
 
-    assert provider.token_endpoint.endswith("/realms/master/protocol/openid-connect/token")
+    assert provider.token_endpoint.endswith(
+        "/realms/master/protocol/openid-connect/token"
+    )
     assert provider.device_endpoint.endswith(
         "/realms/master/protocol/openid-connect/auth/device"
     )
