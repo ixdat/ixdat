@@ -3,3 +3,4 @@ matplotlib>=3.2
 scipy>=1.5
 mpmath>=1  # for deconvolution
 pandas>=1  # for some readers and an exporter.
+requests>=2  # for HTTP-backed readers and auth flows.
