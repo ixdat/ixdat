@@ -42,6 +42,9 @@ from .qexafs import QexafsDATReader, B18TRXRFReader
 # ftir
 from .opus_ftir import OpusFTIRReader
 
+# asimov
+from .asimov import AsimovReader
+
 
 # Measruement.read() looks for readers here:
 
@@ -62,6 +65,7 @@ READER_CLASSES = {
     "msrh_sec_decay": MsrhSECDecayReader,
     "b18_trxrf": B18TRXRFReader,
     "echemdb": EChemDBReader,
+    "asimov": AsimovReader,
 }
 
 
