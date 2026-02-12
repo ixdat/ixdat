@@ -1,10 +1,10 @@
-"""Reader for ixdat measurements stored in Asimov dataset versions."""
+"""Reader for ixdat measurements stored in Asimov dataset versions."""                                                                                                                                                                                      
+                                                                                                                                                                                                                                                            
+import os                                                                                                                                                                                                                                                   
+from urllib.parse import urljoin                                                                                                                                                                                                                            
 
-import os
-from urllib.parse import urljoin
-
-import numpy as np
-import requests
+import numpy as np                                                                                                                                                                                                                                          
+import requests                                                                                                                                                                                                                                             
 
 from ..auth import KeycloakDeviceTokenProvider
 from ..data_series import DataSeries, TimeSeries, ValueSeries
@@ -16,15 +16,93 @@ DEFAULT_KEYCLOAK_SERVER_URL = "https://auth.enci.dk"
 DEFAULT_KEYCLOAK_REALM = "master"
 DEFAULT_KEYCLOAK_CLIENT_ID = "ixdat-cli"
 
+# Candidate time-axis column names, checked in priority order.
+_TIME_COLUMN_CANDIDATES = [
+    "time/s",
+    "t",
+    "time",
+    "elapsed time/s",
+    "elapsed_time/s",
+    "Time [s]",
+    "Time/s",
+]
+
+
+def _parse_unit_from_name(name):
+    """Extract a unit string from an ixdat-style column name.
+
+    Supports ``name/unit`` (e.g. ``"Ewe/V"``), ``name [unit]``
+    (e.g. ``"Time [s]"``), and ``name (unit)`` conventions.
+
+    Returns (base_name, unit_string).  *unit_string* is empty when no unit
+    can be parsed.
+    """
+    # "Ewe/V", "time/s", "<I>/mA" — last "/" separates name from unit
+    if "/" in name:
+        base, unit = name.rsplit("/", 1)
+        if unit and " " not in unit:
+            return base.strip(), unit.strip()
+    # "Time [s]", "Voltage [V]"
+    if name.endswith("]") and "[" in name:
+        idx = name.index("[")
+        return name[:idx].strip(), name[idx + 1 : -1].strip()
+    # "Time (s)"
+    if name.endswith(")") and "(" in name:
+        idx = name.rindex("(")
+        return name[:idx].strip(), name[idx + 1 : -1].strip()
+    return name, ""
+
+
+def _find_time_column(series_keys):
+    """Return the key that represents the time axis, or *None*.
+
+    Checks known candidate names first, then falls back to a heuristic
+    that matches columns whose lower-cased name contains ``"time"``.
+    """
+    keys_set = set(series_keys)
+    for candidate in _TIME_COLUMN_CANDIDATES:
+        if candidate in keys_set:
+            return candidate
+    # Heuristic: first column with "time" in the name
+    for key in series_keys:
+        if "time" in key.lower():
+            return key
+    return None
+
+
+def _extract_tstamp(metadata):
+    """Return *tstamp* from *metadata* as a float (unix epoch seconds).
+
+    Handles float, int, numeric strings, and ISO-format datetime strings.
+    Falls back to ``0.0`` when nothing usable is found.
+    """
+    raw = metadata.get("tstamp", 0.0)
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+        # ISO datetime string
+        from datetime import datetime
+
+        try:
+            return datetime.fromisoformat(raw).timestamp()
+        except (ValueError, TypeError):
+            pass
+    return 0.0
+
 
 class AsimovReader:
     """Read a remote dataset version from Asimov into an ixdat Measurement.
 
     Authentication is done via bearer token:
-    - Direct token: pass ``token=...`` or set ``ASIMOV_ACCESS_TOKEN``
-    - Keycloak provider: pass ``token_provider=...``
-    - Auto-initialize Keycloak device flow with Asimov defaults.
-      Optional env var overrides:
+
+    - Direct token: pass ``token=...`` or set ``ASIMOV_ACCESS_TOKEN``.
+    - Keycloak provider: pass ``token_provider=...``.
+    - Auto-initialise Keycloak device flow with Asimov defaults.
+      Optional env-var overrides:
       ``KEYCLOAK_SERVER_URL``, ``KEYCLOAK_REALM``, ``KEYCLOAK_CLIENT_ID``.
     """
 
@@ -91,6 +169,10 @@ class AsimovReader:
         self._session = requests.Session()
         self._session.trust_env = False
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def read(
         self,
         path_to_file,
@@ -100,15 +182,15 @@ class AsimovReader:
         force_login=False,
         **kwargs,
     ):
-        """Read dataset version identified by ``path_to_file`` as dataset_id.
+        """Read a dataset version from Asimov as an ixdat Measurement.
 
         Args:
             path_to_file (str): Asimov dataset id (UUID string).
             cls (Measurement class): Measurement class to instantiate.
-            version (int, optional): Explicit version number to select.
-            version_id (str, optional): Explicit dataset-version id to select.
-            force_login (bool): Force fresh Keycloak device login if provider is used.
-            kwargs: Extra key/value pairs passed into the resulting measurement dict.
+            version (int, optional): Version number to select.
+            version_id (str, optional): Dataset-version UUID to select.
+            force_login (bool): Force fresh Keycloak device login.
+            kwargs: Extra key/value pairs merged into the measurement dict.
         """
         dataset_id = str(path_to_file)
         headers = self._build_auth_headers(force_login=force_login)
@@ -122,6 +204,7 @@ class AsimovReader:
         dataset_version = self._select_dataset_version(
             versions, version=version, version_id=version_id
         )
+
         payload = dataset_version.get("payload_json")
         if not payload and dataset_version.get("payload_uri"):
             payload = self._load_payload_uri(
@@ -129,8 +212,8 @@ class AsimovReader:
             )
         if not payload:
             raise ValueError(
-                f"Asimov dataset version {dataset_version.get('id')} does not include "
-                "`payload_json` or `payload_uri`."
+                f"Dataset version {dataset_version.get('id')} has no "
+                "payload_json or payload_uri."
             )
 
         self.dataset = dataset
@@ -143,219 +226,214 @@ class AsimovReader:
             kwargs=kwargs,
         )
 
+    # ------------------------------------------------------------------
+    # Payload → Measurement conversion
+    # ------------------------------------------------------------------
+
     def _measurement_from_payload(self, payload, dataset, dataset_version, cls, kwargs):
-        if self._looks_like_ixdat_measurement(payload):
-            measurement_dict = self._deserialize_measurement_dict(payload)
-            if "name" not in measurement_dict:
-                measurement_dict["name"] = dataset.get("label") or str(dataset.get("id"))
-            metadata = measurement_dict.get("metadata") or {}
-            if not isinstance(metadata, dict):
-                metadata = {"original_metadata": metadata}
-            metadata["asimov"] = self._make_asimov_metadata(dataset, dataset_version)
-            measurement_dict["metadata"] = metadata
-            measurement_dict = self._normalize_measurement_aliases(measurement_dict)
-            measurement_dict.update(kwargs)
-            return cls.from_dict(measurement_dict)
-        return self._fallback_measurement_from_series_payload(
-            payload=payload,
-            dataset=dataset,
-            dataset_version=dataset_version,
-            cls=cls,
-            kwargs=kwargs,
-        )
-
-    def _fallback_measurement_from_series_payload(
-        self, payload, dataset, dataset_version, cls, kwargs
-    ):
         if not isinstance(payload, dict):
-            raise ValueError("Asimov payload_json must be a dict.")
+            raise ValueError("payload_json must be a dict.")
 
+        # Primary path: Asimov's canonical format from serialize_measurement()
+        #   {technique, measurement_class, series: {col: [...]}, columns, metadata}
         series_map = payload.get("series")
-        if not isinstance(series_map, dict) or not series_map:
-            raise ValueError(
-                "Asimov payload_json could not be interpreted as an ixdat "
-                "measurement, and does not contain `series` data."
+        if isinstance(series_map, dict) and series_map:
+            return self._from_series_payload(
+                payload, dataset, dataset_version, cls, kwargs
             )
 
-        axis_name = (
-            "time"
-            if "time" in series_map
-            else ("frequency" if "frequency" in series_map else next(iter(series_map)))
+        # Fallback: native ixdat dict with series_list (e.g. manual upload)
+        if isinstance(payload.get("series_list"), list):
+            return self._from_native_ixdat_payload(
+                payload, dataset, dataset_version, cls, kwargs
+            )
+
+        raise ValueError(
+            "payload_json contains neither a 'series' dict nor a 'series_list'. "
+            "Cannot reconstruct a Measurement."
         )
-        axis_data = np.asarray(series_map[axis_name])
-        tstamp = (
-            (payload.get("metadata") or {}).get("tstamp", 0.0)
+
+    def _from_series_payload(self, payload, dataset, dataset_version, cls, kwargs):
+        """Reconstruct an ixdat Measurement from Asimov's flat series format."""
+        series_map = payload["series"]
+        metadata = (
+            payload["metadata"]
             if isinstance(payload.get("metadata"), dict)
-            else 0.0
+            else {}
         )
-        axis_unit = "s" if axis_name == "time" else "a.u."
+
+        tstamp = _extract_tstamp(metadata)
+
+        # --- Identify the time axis ---
+        time_key = _find_time_column(series_map)
+        if time_key is None:
+            # Last resort: use the first column
+            time_key = next(iter(series_map))
+
+        time_data = np.asarray(series_map[time_key], dtype=float)
+        _, time_unit = _parse_unit_from_name(time_key)
+        if not time_unit:
+            time_unit = "s"  # assume seconds when unparseable
+
         tseries = TimeSeries(
-            name=axis_name,
-            unit_name=axis_unit,
-            data=axis_data,
+            name=time_key,
+            unit_name=time_unit,
+            data=time_data,
             tstamp=tstamp,
         )
+
+        # --- Build ValueSeries for every other column ---
         series_list = [tseries]
-        for series_name, series_data in series_map.items():
-            if series_name == axis_name:
+        for col_name, col_data in series_map.items():
+            if col_name == time_key:
                 continue
-            values = np.asarray(series_data)
-            if values.shape != axis_data.shape:
-                raise ValueError(
-                    f"Series '{series_name}' shape {values.shape} did not match "
-                    f"axis '{axis_name}' shape {axis_data.shape}."
-                )
+            values = np.asarray(col_data, dtype=float)
+            if values.shape != time_data.shape:
+                # Different-length columns (e.g. from combined techniques)
+                # cannot be linked to this TimeSeries — skip them.
+                continue
+            _, unit = _parse_unit_from_name(col_name)
             series_list.append(
                 ValueSeries(
-                    name=series_name,
-                    unit_name="a.u.",
+                    name=col_name,
+                    unit_name=unit or "a.u.",
                     data=values,
                     tseries=tseries,
                 )
             )
 
+        # --- Technique ---
         technique = (
-            (dataset_version.get("summary") or {}).get("technique")
+            payload.get("technique")
+            or (dataset_version.get("summary") or {}).get("technique")
             or dataset.get("kind")
-            or "generic"
+            or "simple"
         )
-        metadata = (
-            payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
-        )
-        metadata = metadata.copy()
-        metadata["asimov"] = self._make_asimov_metadata(dataset, dataset_version)
+
+        # --- Aliases ---
+        series_names = {s.name for s in series_list}
+        aliases = self._build_aliases(technique, series_names)
+
+        # --- Metadata ---
+        asimov_meta = self._make_asimov_metadata(dataset, dataset_version)
+        merged_metadata = metadata.copy()
+        merged_metadata["asimov"] = asimov_meta
+
         measurement_dict = {
-            "name": dataset.get("label") or str(dataset.get("id")),
+            "name": (
+                metadata.get("name")
+                or dataset.get("label")
+                or str(dataset.get("id"))
+            ),
             "technique": technique,
             "series_list": series_list,
             "tstamp": tstamp,
-            "metadata": metadata,
+            "aliases": aliases,
+            "metadata": merged_metadata,
         }
-        measurement_dict = self._normalize_measurement_aliases(measurement_dict)
+        if metadata.get("sample_name"):
+            measurement_dict["sample_name"] = metadata["sample_name"]
         measurement_dict.update(kwargs)
         return cls.from_dict(measurement_dict)
 
-    def _normalize_measurement_aliases(self, measurement_dict):
-        """Add common aliases for known techniques when payload lacks them."""
-        aliases = measurement_dict.get("aliases") or {}
-        if not isinstance(aliases, dict):
-            aliases = {}
+    def _from_native_ixdat_payload(
+        self, payload, dataset, dataset_version, cls, kwargs
+    ):
+        """Reconstruct from a native ixdat-style dict (series_list of dicts)."""
+        measurement_dict = payload.copy()
 
-        normalized_aliases = {}
-        for key, value in aliases.items():
-            if isinstance(value, list):
-                normalized_aliases[key] = value.copy()
-            elif isinstance(value, tuple):
-                normalized_aliases[key] = list(value)
-            else:
-                normalized_aliases[key] = [value]
-
-        series_names = set(self._series_names_from_measurement_dict(measurement_dict))
-        technique = str(measurement_dict.get("technique", "")).upper()
-
-        alias_candidates = {
-            "t": ["time/s", "time", "Time [s]", "elapsed time/s", "elapsed_time/s"],
-        }
-        if "EC" in technique:
-            alias_candidates.update(
-                {
-                    "raw_potential": [
-                        "Ewe/V",
-                        "<Ewe>/V",
-                        "E/V",
-                        "potential",
-                        "Voltage [V]",
-                        "U/V",
-                    ],
-                    "raw_current": [
-                        "I/mA",
-                        "<I>/mA",
-                        "I/A",
-                        "current",
-                        "Current/A",
-                    ],
-                }
-            )
-
-        for canonical_name, candidates in alias_candidates.items():
-            if canonical_name in series_names:
-                continue
-            existing = normalized_aliases.get(canonical_name, [])
-            matched = [name for name in candidates if name in series_names]
-            if not matched:
-                matched = self._heuristic_alias_match(
-                    canonical_name=canonical_name,
-                    series_names=series_names,
-                )
-            for name in matched:
-                if name not in existing:
-                    existing.append(name)
-            if existing:
-                normalized_aliases[canonical_name] = existing
-
-        measurement_dict["aliases"] = normalized_aliases
-        return measurement_dict
-
-    @staticmethod
-    def _series_names_from_measurement_dict(measurement_dict):
-        series_names = []
-        for series in measurement_dict.get("series_list", []):
-            if hasattr(series, "name"):
-                series_names.append(series.name)
-            elif isinstance(series, dict) and "name" in series:
-                series_names.append(series["name"])
-        return series_names
-
-    @staticmethod
-    def _heuristic_alias_match(canonical_name, series_names):
-        if canonical_name == "t":
-            for name in series_names:
-                lowered = name.lower()
-                if "time" in lowered and ("/s" in lowered or "sec" in lowered):
-                    return [name]
-        if canonical_name == "raw_potential":
-            for name in series_names:
-                lowered = name.lower()
-                if "ewe" in lowered or "potential" in lowered or "voltage" in lowered:
-                    return [name]
-        if canonical_name == "raw_current":
-            for name in series_names:
-                lowered = name.lower()
-                if lowered.startswith("i/") or "current" in lowered:
-                    return [name]
-        return []
-
-    def _looks_like_ixdat_measurement(self, payload):
-        if not isinstance(payload, dict):
-            return False
-        has_technique = "technique" in payload
-        has_series = "series_list" in payload
-        return has_technique and has_series
-
-    def _deserialize_measurement_dict(self, payload):
-        payload_dict = payload.copy()
-
-        list_casts = [
+        for key, obj_cls in [
             ("series_list", DataSeries),
             ("component_measurements", Measurement),
             ("calculator_list", Calculator),
-        ]
-        for key, cls in list_casts:
-            if key not in payload_dict:
-                continue
-            items = payload_dict[key]
+        ]:
+            items = measurement_dict.get(key)
             if not isinstance(items, list):
                 continue
-            casted_items = []
-            for item in items:
-                if isinstance(item, dict):
-                    casted_items.append(cls.from_dict(item))
-                else:
-                    casted_items.append(item)
-            payload_dict[key] = casted_items
-        return payload_dict
+            measurement_dict[key] = [
+                obj_cls.from_dict(item) if isinstance(item, dict) else item
+                for item in items
+            ]
 
-    def _make_asimov_metadata(self, dataset, dataset_version):
+        if "name" not in measurement_dict:
+            measurement_dict["name"] = (
+                dataset.get("label") or str(dataset.get("id"))
+            )
+
+        meta = measurement_dict.get("metadata") or {}
+        if not isinstance(meta, dict):
+            meta = {"original_metadata": meta}
+        meta["asimov"] = self._make_asimov_metadata(dataset, dataset_version)
+        measurement_dict["metadata"] = meta
+        measurement_dict.update(kwargs)
+        return cls.from_dict(measurement_dict)
+
+    # ------------------------------------------------------------------
+    # Alias construction
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_aliases(technique, series_names):
+        """Build ixdat aliases mapping canonical names to actual column names.
+
+        Constructs aliases for ``t``, ``raw_potential``, ``raw_current``, etc.
+        based on the *technique* and which *series_names* are present.
+        """
+        aliases = {}
+        technique_upper = str(technique).upper()
+
+        # Time alias — needed for every technique
+        _add_alias(
+            aliases,
+            "t",
+            [
+                "time/s", "t", "time", "elapsed time/s",
+                "elapsed_time/s", "Time [s]", "Time/s",
+            ],
+            series_names,
+        )
+
+        # EC / CV aliases
+        if any(kw in technique_upper for kw in ("EC", "CV")):
+            _add_alias(
+                aliases,
+                "raw_potential",
+                [
+                    "Ewe/V", "<Ewe>/V", "E/V", "potential/V",
+                    "Voltage [V]", "U/V", "WE(1).Potential (V)",
+                ],
+                series_names,
+            )
+            _add_alias(
+                aliases,
+                "raw_current",
+                [
+                    "I/mA", "<I>/mA", "I/A", "Current/A",
+                    "current/mA", "WE(1).Current (A)",
+                ],
+                series_names,
+            )
+            _add_alias(
+                aliases,
+                "raw_CE_potential",
+                ["Ece/V", "<Ece>/V"],
+                series_names,
+            )
+            _add_alias(
+                aliases,
+                "cycle",
+                ["cycle number", "cycle", "Ns"],
+                series_names,
+            )
+
+        return aliases
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_asimov_metadata(dataset, dataset_version):
         return {
             "dataset_id": dataset.get("id"),
             "dataset_kind": dataset.get("kind"),
@@ -372,23 +450,22 @@ class AsimovReader:
             raise ValueError("No dataset versions returned from Asimov API.")
 
         if version_id is not None:
-            for dataset_version in versions:
-                if dataset_version.get("id") == version_id:
-                    return dataset_version
-            raise ValueError(f"No dataset version found with id={version_id}.")
+            for v in versions:
+                if v.get("id") == version_id:
+                    return v
+            raise ValueError(f"No dataset version with id={version_id}.")
 
         if version is not None:
-            for dataset_version in versions:
-                if dataset_version.get("version") == version:
-                    return dataset_version
-            raise ValueError(f"No dataset version found with version={version}.")
+            for v in versions:
+                if v.get("version") == version:
+                    return v
+            raise ValueError(f"No dataset version with version={version}.")
 
-        versions_sorted = sorted(
+        return sorted(
             versions,
-            key=lambda dataset_version: dataset_version.get("created_at", ""),
+            key=lambda v: v.get("created_at", ""),
             reverse=True,
-        )
-        return versions_sorted[0]
+        )[0]
 
     def _build_auth_headers(self, force_login=False):
         if self._token:
@@ -397,12 +474,11 @@ class AsimovReader:
             token = self.token_provider.get_access_token(force_login=force_login)
             return {"Authorization": f"Bearer {token}"}
         raise RuntimeError(
-            "AsimovReader has no authentication configured. Provide `token` "
-            "or `token_provider`."
+            "No authentication configured. Provide `token` or `token_provider`."
         )
 
     def _load_payload_uri(self, payload_uri, headers):
-        if payload_uri.startswith("http://") or payload_uri.startswith("https://"):
+        if payload_uri.startswith(("http://", "https://")):
             url = payload_uri
         else:
             url = urljoin(self.base_url + "/", payload_uri.lstrip("/"))
@@ -432,3 +508,39 @@ class AsimovReader:
             retries=2,
         )
         return response.json()
+
+
+# ------------------------------------------------------------------
+# Module-level helpers for alias construction
+# ------------------------------------------------------------------
+
+
+def _add_alias(aliases, canonical_name, candidates, series_names):
+    """Add *canonical_name* → [matched columns] to *aliases* if any match."""
+    if canonical_name in series_names:
+        return  # Direct name exists, no alias needed
+    matched = [c for c in candidates if c in series_names]
+    if not matched:
+        matched = _heuristic_alias_match(canonical_name, series_names)
+    if matched:
+        aliases[canonical_name] = matched
+
+
+def _heuristic_alias_match(canonical_name, series_names):
+    """Last-resort case-insensitive matching for standard series names."""
+    if canonical_name == "t":
+        for name in series_names:
+            low = name.lower()
+            if "time" in low and ("/s" in low or "sec" in low or "[s]" in low):
+                return [name]
+    elif canonical_name == "raw_potential":
+        for name in series_names:
+            low = name.lower()
+            if "ewe" in low or "potential" in low or "voltage" in low:
+                return [name]
+    elif canonical_name == "raw_current":
+        for name in series_names:
+            low = name.lower()
+            if low.startswith("i/") or low.startswith("<i>/") or "current" in low:
+                return [name]
+    return []
