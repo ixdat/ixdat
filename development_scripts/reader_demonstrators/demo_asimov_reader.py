@@ -1,26 +1,92 @@
 import argparse
-
 import matplotlib.pyplot as plt
 
 from ixdat import Measurement
+from ixdat.exceptions import SeriesNotFoundError
+
+
+def _measurement_label(measurement):
+    asimov_meta = (measurement.metadata or {}).get("asimov", {})
+    return (
+        asimov_meta.get("dataset_label")
+        or asimov_meta.get("dataset_id")
+        or measurement.name
+    )
 
 
 def demo(args):
-    measurement = Measurement.read(
-        args.dataset_id,
-        reader="asimov",
-        version=args.version,
-        version_id=args.version_id,
-        force_login=args.force_login,
+    dataset_ids = (
+        args.dataset_id if isinstance(args.dataset_id, list) else [args.dataset_id]
     )
-    cv = measurement.as_cv()
+    if len(dataset_ids) == 1:
+        measurement = Measurement.read(
+            dataset_ids[0],
+            reader="asimov",
+            version=args.version,
+            version_id=args.version_id,
+            force_login=args.force_login,
+        )
+        measurements_to_plot = [measurement]
+    else:
+        measurement = Measurement.read_set(
+            file_list=dataset_ids,
+            reader="asimov",
+            version=args.version,
+            version_id=args.version_id,
+            force_login=args.force_login,
+        )
+        measurements_to_plot = measurement.component_measurements or [measurement]
 
-    plt.style.use("seaborn-v0_8-whitegrid")
-    fig, (ax_ec, ax_cv) = plt.subplots(2, 1, figsize=(10, 8), constrained_layout=True)
-    fig.suptitle(measurement.name)
+    fig, (ax_ec, ax_cv) = plt.subplots(2, 1, constrained_layout=True)
+    ax_ec_right = ax_ec.twinx()
 
-    measurement.plot(axes=[ax_ec, ax_ec.twinx()], U_color="#1f77b4", J_color="#d62728")
-    cv.plot(ax=ax_cv, linewidth=1.5, color="#0f766e")
+    line_styles = ("-", "--")
+    u_color = "C0"
+    j_color = "C3"
+    for idx, meas in enumerate(measurements_to_plot):
+        label = _measurement_label(meas)
+        linestyle = line_styles[idx % len(line_styles)]
+        try:
+            t_u, u = meas.grab(meas.U_name)
+        except SeriesNotFoundError:
+            pass
+        else:
+            ax_ec.plot(
+                t_u,
+                u,
+                linestyle=linestyle,
+                color=u_color,
+                label=f"{label} U",
+            )
+
+        try:
+            t_j, j = meas.grab(meas.J_name)
+        except SeriesNotFoundError:
+            pass
+        else:
+            ax_ec_right.plot(
+                t_j,
+                j,
+                linestyle=linestyle,
+                color=j_color,
+                label=f"{label} J",
+            )
+
+    ax_ec.set_xlabel("time / [s]")
+    if measurements_to_plot:
+        ax_ec.set_ylabel(measurements_to_plot[0].U_name)
+        ax_ec_right.set_ylabel(measurements_to_plot[0].J_name)
+    ax_ec.legend()
+    ax_ec_right.legend()
+
+    for idx, meas in enumerate(measurements_to_plot):
+        meas.as_cv().plot(
+            ax=ax_cv,
+            color=f"C{idx}",
+            linestyle=line_styles[idx % len(line_styles)],
+            label=_measurement_label(meas),
+        )
+    ax_cv.legend()
 
     if args.savefig:
         fig.savefig(args.savefig, dpi=220, bbox_inches="tight")
@@ -30,12 +96,13 @@ def demo(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Read and plot an Asimov dataset using ixdat."
+        description="Read and plot one or more Asimov datasets using ixdat."
     )
     parser.add_argument(
         "--dataset-id",
+        nargs="+",
         required=True,
-        help="Asimov dataset UUID",
+        help="One or more Asimov dataset UUIDs",
     )
     parser.add_argument(
         "--version",
