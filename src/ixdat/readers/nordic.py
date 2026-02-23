@@ -122,10 +122,15 @@ class NordicTDMSReader:
         metadata["datetime"] = str(tdms_file.properties["dateTime"])
         macro_files = list(Path(path_to_file).parent.glob("*.EC_Macro"))
         if not macro_files:
-            warnings.warn("No .EC_Macro file found; experiment sequence not included in metadata.")
+            warnings.warn(
+                "No .EC_Macro file found;"
+                "experiment sequence not included in metadata."
+            )
         else:
             if len(macro_files) > 1:
-                warnings.warn(f"Multiple .EC_Macro files found; using {macro_files[0].name}.")
+                warnings.warn(
+                    f"Multiple .EC_Macro files found; using {macro_files[0].name}."
+                )
             metadata["macro"] = _parse_ec_macro(macro_files[0])
 
         obj_as_dict = dict(
