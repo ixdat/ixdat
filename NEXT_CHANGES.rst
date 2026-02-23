@@ -25,3 +25,4 @@ readers
   (hardware control, gas, CV, and hold steps) is also parsed into the metadata.
   `PR #167 <https://github.com/ixdat/ixdat/pull/167>`_
 
+- The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
