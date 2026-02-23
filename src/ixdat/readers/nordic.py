@@ -1,8 +1,32 @@
 import warnings
+from pathlib import Path
 from ..exceptions import ReadError
 from ..techniques import ECMeasurement
 from ..data_series import TimeSeries, ValueSeries
 import numpy as np
+
+
+def _parse_ec_macro(path):
+    """Parse a Nordic .EC_Macro file into a list of step dicts.
+
+    Each line is a tab-separated sequence: step_type, key, value, key, value, ...
+    Returns a list of dicts with a "type" key plus any key-value pairs.
+    """
+    steps = []
+    with open(path) as f:
+        for line in f:
+            parts = [p for p in line.strip().split("\t") if p]
+            if not parts:
+                continue
+            rest = parts[1:]
+            if len(rest) == 1:
+                step = {"type": parts[0], "value": rest[0]}
+            else:
+                step = {"type": parts[0]}
+                for key, val in zip(rest[0::2], rest[1::2]):
+                    step[key] = val
+            steps.append(step)
+    return steps
 
 
 class NordicTDMSReader:
@@ -94,12 +118,23 @@ class NordicTDMSReader:
 
         aliases = {"t": ["Time"], "raw_potential": ["E"], "raw_current": ["i"]}
 
+        metadata = {}
+        metadata["datetime"] = str(tdms_file.properties["dateTime"])
+        macro_files = list(Path(path_to_file).parent.glob("*.EC_Macro"))
+        if not macro_files:
+            warnings.warn("No .EC_Macro file found; experiment sequence not included in metadata.")
+        else:
+            if len(macro_files) > 1:
+                warnings.warn(f"Multiple .EC_Macro files found; using {macro_files[0].name}.")
+            metadata["macro"] = _parse_ec_macro(macro_files[0])
+
         obj_as_dict = dict(
             name=name,
             technique="EC",
             tstamp=tstamp,
             series_list=series_list,
             aliases=aliases,
+            metadata=metadata,
             reader=self,
         )
         obj_as_dict.update(kwargs)
