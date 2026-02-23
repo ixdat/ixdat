@@ -96,10 +96,12 @@ def get_database_name():
     """Return the name of the class of which the database backend is an instance"""
     return DB.backend.__class__.__name__
 
+
 def _to_portable_value(value):
-    """ Helper function: Recursively convert a value to a JSON-serializable form """
+    """Helper function: Recursively convert a value to a JSON-serializable form"""
     try:
         import numpy as np
+
         if isinstance(value, np.ndarray):
             return value.tolist()
         if isinstance(value, (np.integer, np.floating, np.bool_)):
@@ -111,6 +113,7 @@ def _to_portable_value(value):
     if isinstance(value, (list, tuple)):
         return [_to_portable_value(val) for val in value]
     return value
+
 
 class Saveable:
     """Base class for table-representing classes implementing database functionality.
@@ -323,7 +326,7 @@ class Saveable:
                 self_as_dict.update(**linked_attrs)
 
         return self_as_dict
-    
+
     def to_portable_dict(self):
         """
         Return a self-contained, JSON-serializable dict with inline data.

@@ -174,7 +174,7 @@ class Measurement(Saveable):
                     out.append("┣━ " + str(value_series))
 
         calc_out = []
-        for (n, (name, calculator)) in enumerate(self.calculators.items()):
+        for n, (name, calculator) in enumerate(self.calculators.items()):
             if n == len(self.calculators) - 1:
                 calc_out.append("┗━ " + str(calculator))
             else:
@@ -251,11 +251,11 @@ class Measurement(Saveable):
         return measurement
 
     def to_portable_dict(self):
-        """ Extends the base Saveable.to_portable_dict() with the inline series list."""
+        """Extends the base Saveable.to_portable_dict() with the inline series list."""
         dct = super().to_portable_dict()
         dct["series_list"] = [s.to_portable_dict() for s in self.series_list]
         return dct
-    
+
     @classmethod
     def from_portable_dict(cls, dct, **kwargs):
         """
@@ -286,10 +286,7 @@ class Measurement(Saveable):
         for s_dict in dct.get("series_list", []):
             if s_dict.get("series_type") != "tseries":
                 series_list.append(
-                    DataSeries.from_portable_dict(
-                        s_dict, 
-                        tseries_dict=tseries_dict
-                    )
+                    DataSeries.from_portable_dict(s_dict, tseries_dict=tseries_dict)
                 )
 
         obj_as_dict = {

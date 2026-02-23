@@ -285,7 +285,7 @@ class ValueSeries(Field):
             f"{self.__class__.__name__}: '{self.name}'. "
             f"Min, max: {min_str}, {max_str} [{self.unit.name}]"
         )
-    
+
     @property
     def tseries(self):
         return self.axes_series[0]
@@ -314,13 +314,14 @@ class ValueSeries(Field):
 
     def __hash__(self):
         return super().__hash__()
-    
+
     def to_portable_dict(self):
-        """  Adds the tseries_name reference to the base serialization """
+        """Adds the tseries_name reference to the base serialization"""
         dct = super().to_portable_dict()
         if self.tseries is not None:
             dct["tseries_name"] = self.tseries.name
         return dct
+
 
 class ConstantValue(ValueSeries):
     """This is a stand-in for a VSeries for when we know the value is constant"""
