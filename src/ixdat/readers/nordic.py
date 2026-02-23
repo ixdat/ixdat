@@ -40,19 +40,26 @@ class NordicTDMSReader:
         name = tdms_file.properties["name"]
         tstamp = tdms_file.properties["dateTime"].astype("datetime64[s]").astype("int")
 
-        t = tdms_file["EC"]["Time"][:]  # time in [s]
-        V = tdms_file["EC"]["E"][:]  # raw potential in [V]
-        i = tdms_file["EC"]["i"][:] * 1e3  # raw current in [mA]
+        ec = tdms_file["EC"]
+
+        t = ec["Time"][:]  # time in [s]
+        V = ec["E"][:]  # raw potential
+        V_unit = ec["E"].properties["unit_string"]
+        i = ec["i"][:]  # raw current; convert A -> mA below
+        i_unit = ec["i"].properties["unit_string"]
+        if i_unit == "A":
+            i = i * 1e3
+            i_unit = "mA"
 
         tseries = TimeSeries(name="Time", unit_name="s", data=t, tstamp=tstamp)
-        Vseries = ValueSeries(name="E", unit_name="V", data=V, tseries=tseries)
-        Iseries = ValueSeries(name="i", unit_name="mA", data=i, tseries=tseries)
+        Vseries = ValueSeries(name="E", unit_name=V_unit, data=V, tseries=tseries)
+        Iseries = ValueSeries(name="i", unit_name=i_unit, data=i, tseries=tseries)
 
         series_list = [tseries, Vseries, Iseries]
 
         tseries_EIS = None
         try:
-            Z = tdms_file["EC"]["Z_E"][:]
+            Z = ec["Z_E"][:]
         except KeyError:
             warnings.warn("No Z_E channel found in TDMS file.")
         else:
@@ -64,13 +71,13 @@ class NordicTDMSReader:
             )
             Zseries = ValueSeries(
                 name="Z_E",
-                unit_name="Ohm",
+                unit_name=ec["Z_E"].properties["unit_string"],
                 data=Z,
                 tseries=tseries_EIS,
             )
             series_list.append(Zseries)
         try:
-            phase = tdms_file["EC"]["Phase_E"][:]
+            phase = ec["Phase_E"][:]
         except KeyError:
             warnings.warn("No Phase_E channel found in TDMS file.")
         else:
@@ -79,7 +86,7 @@ class NordicTDMSReader:
             else:
                 pseries = ValueSeries(
                     name="phase_E",
-                    unit_name=None,
+                    unit_name=ec["Phase_E"].properties["unit_string"],
                     data=phase,
                     tseries=tseries_EIS,
                 )
