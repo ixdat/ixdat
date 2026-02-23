@@ -57,9 +57,7 @@ class KeycloakDeviceTokenProvider:
 
     @property
     def token_endpoint(self):
-        return (
-            f"{self.server_url}/realms/{self.realm}/protocol/openid-connect/token"
-        )
+        return f"{self.server_url}/realms/{self.realm}/protocol/openid-connect/token"
 
     @property
     def device_endpoint(self):
@@ -104,7 +102,11 @@ class KeycloakDeviceTokenProvider:
         now = time.time()
         refresh_expires_in = tokens.get("refresh_expires_in")
         obtained_at = tokens.get("obtained_at")
-        if refresh_expires_in and obtained_at and now >= obtained_at + refresh_expires_in:
+        if (
+            refresh_expires_in
+            and obtained_at
+            and now >= obtained_at + refresh_expires_in
+        ):
             return None
 
         data = {
@@ -179,7 +181,10 @@ class KeycloakDeviceTokenProvider:
             try:
                 error_data = response.json()
             except ValueError:
-                error_data = {"error": "unknown_error", "error_description": response.text}
+                error_data = {
+                    "error": "unknown_error",
+                    "error_description": response.text,
+                }
 
             error = error_data.get("error")
             if error == "authorization_pending":
@@ -212,7 +217,8 @@ class KeycloakDeviceTokenProvider:
             except ValueError:
                 detail = response.text
             raise RuntimeError(
-                f"Token request failed at {url} with HTTP {response.status_code}: {detail}"
+                f"Token request failed at {url} "
+                f"with HTTP {response.status_code}: {detail}"
             )
         try:
             return response.json()
