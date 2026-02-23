@@ -1,6 +1,7 @@
+import warnings
 from ..exceptions import ReadError
 from ..techniques import ECMeasurement
-from ..data_series import DataSeries, TimeSeries, ValueSeries
+from ..data_series import TimeSeries, ValueSeries
 import numpy as np
 
 
@@ -49,15 +50,14 @@ class NordicTDMSReader:
 
         series_list = [tseries, Vseries, Iseries]
 
+        tseries_EIS = None
         try:
             Z = tdms_file["EC"]["Z_E"][:]
         except KeyError:
-            print("Warning: no Z")
+            warnings.warn("No Z_E channel found in TDMS file.")
         else:
-            # whoa, Z and p (impedance and phase) have different lenghts than t
-            # To deal with this, we'll have to assume that they are evenly spaced in time
+            # Z and phase have different lengths than t. Assume they are evenly spaced
             # over the same timespan as potential and current:
-
             t_EIS = np.linspace(t[0], t[-1], num=len(Z))
             tseries_EIS = TimeSeries(
                 name="Time EIS", unit_name="s", data=t_EIS, tstamp=tstamp
@@ -72,15 +72,18 @@ class NordicTDMSReader:
         try:
             phase = tdms_file["EC"]["Phase_E"][:]
         except KeyError:
-            print("Warning: no Phase_E")
+            warnings.warn("No Phase_E channel found in TDMS file.")
         else:
-            pseries = ValueSeries(
-                name="phase_E",
-                unit_name=None,
-                data=phase,
-                tseries=tseries_EIS,
-            )
-            series_list.append(pseries)
+            if tseries_EIS is None:
+                warnings.warn("Phase_E found without Z_E; cannot assign time series.")
+            else:
+                pseries = ValueSeries(
+                    name="phase_E",
+                    unit_name=None,
+                    data=phase,
+                    tseries=tseries_EIS,
+                )
+                series_list.append(pseries)
 
         aliases = {"t": ["Time"], "raw_potential": ["E"], "raw_current": ["i"]}
 
