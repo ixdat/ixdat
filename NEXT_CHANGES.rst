@@ -17,4 +17,12 @@ For ixdat 0.3.1
 readers
 ^^^^^^^
 
+- The ``NordicTDMSReader`` (reader="nordic") has been added for reading the .tdms files
+  produced by Nordic potentiostat. It reads current, potential, and impedance, with units
+  taken directly from the TDMS channel properties (current is converted from A to mA to
+  follow ixdat convention). An ISO 8601 datetime is included in the measurement metadata.
+  If a ``*.EC_Macro`` file is present alongside the data file, the experiment sequence
+  (hardware control, gas, CV, and hold steps) is also parsed into the metadata.
+  `PR #167 <https://github.com/ixdat/ixdat/pull/167>`_
+
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
