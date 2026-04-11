@@ -26,3 +26,21 @@ readers
   `PR #167 <https://github.com/ixdat/ixdat/pull/167>`_
 
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
+
+- The ``BrukerReader`` (reader="bruker") has been added for reading Bruker
+  TopSpin 1D NMR experiment folders. It uses the optional ``nmrglue`` package
+  to parse the ``acqus`` parameter file and the processed real spectrum from
+  ``pdata/<procno>/`` (with a fallback to the raw FID magnitude when no
+  processed data is present), and returns an ``NMRSpectrum`` with a chemical-
+  shift axis in ppm. Key acquisition parameters (``PULPROG``, ``SOLVENT``,
+  ``BF1``, ``NS``, ``TE``, ``DATE`` ...) and processing parameters (``SI``,
+  ``SF``, ``OFFSET`` ...) are lifted into the spectrum's ``metadata``, and
+  the full ``acqus``/``procs`` dictionaries are preserved alongside.
+
+techniques
+^^^^^^^^^^
+
+- New ``NMRSpectrum`` and ``NMRSpectrumSeries`` classes (technique ``"NMR"``
+  / ``"NMR_spectra"``) added in ``ixdat.techniques.nmr``, mirroring the
+  ``FTIRSpectrum`` / ``FTIRSpectrumSeries`` pattern.
+

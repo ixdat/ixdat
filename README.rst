@@ -84,6 +84,9 @@ designed into every level.
    * - In-situ Electrochemistry - X-ray adsorption spectroscopy
      - Development
      - - qexafs: .dat files from Diamond's B18 beamline
+   * - Nuclear Magnetic Resonance (NMR)
+     - Development
+     - - bruker: Bruker TopSpin 1D experiment folders (acqus + pdata/) via nmrglue
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -

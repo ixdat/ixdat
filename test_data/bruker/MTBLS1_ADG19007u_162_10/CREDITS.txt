@@ -1,0 +1,24 @@
+Bruker TopSpin example dataset
+==============================
+
+This folder contains a single 1D 1H NMR experiment vendored from the
+nmrML reference data set:
+
+    Source repo : https://github.com/nmrML/nmrML
+    Path        : examples/MTBLS1/FIDs/ADG19007u_162/10
+    License     : MIT (see https://github.com/nmrML/nmrML/blob/master/LICENSE)
+
+The data itself originates from MetaboLights study MTBLS1
+(https://www.ebi.ac.uk/metabolights/MTBLS1), a publicly released human
+urine 1H NMR dataset acquired on a 700 MHz Bruker spectrometer
+(pulse program "noesypr1d", 128 scans, solvent: urine).
+
+Citation for MTBLS1:
+    Salek, R.M. et al. "A metabolomic comparison of urinary changes in
+    type 2 diabetes in mouse, rat, and human." Physiological Genomics,
+    2007. doi:10.1152/physiolgenomics.00194.2007
+
+The files included are the minimum needed to exercise ixdat's
+BrukerReader test suite (acqus / acqu / fid / pulseprogram and
+pdata/1/{procs, proc, 1r, 1i, title}). All other files from the
+original experiment have been omitted.

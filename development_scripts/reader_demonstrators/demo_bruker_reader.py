@@ -1,0 +1,73 @@
+"""Demo for the Bruker TopSpin NMR reader.
+
+Reads the vendored 1D 1H NMR experiment under
+``test_data/bruker/MTBLS1_ADG19007u_162_10`` (MetaboLights MTBLS1 human
+urine, 700 MHz, ``noesypr1d``, 128 scans), prints the metadata that the
+reader has lifted out of ``acqus`` / ``procs``, and plots the chemical
+shift spectrum.
+
+Requires the optional ``nmrglue`` dependency: ``pip install nmrglue``.
+"""
+
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+
+from ixdat import Spectrum
+
+
+DATA_DIR = (
+    Path(__file__).parent.parent.parent
+    / "test_data"
+    / "bruker"
+    / "MTBLS1_ADG19007u_162_10"
+)
+
+
+# 1. Read the experiment folder.
+spec = Spectrum.read(DATA_DIR, reader="bruker")
+
+# 2. Print the basics.
+print(f"class       : {type(spec).__name__}")
+print(f"technique   : {spec.technique}")
+print(f"name        : {spec.name}")
+print(f"tstamp      : {spec.tstamp}")
+print(f"x ({spec.xseries.unit_name}) : "
+      f"{spec.x.min():.2f} .. {spec.x.max():.2f}  ({spec.x.size} points)")
+print(f"y           : {spec.y.min():.3g} .. {spec.y.max():.3g}")
+print()
+
+# 3. Print the lifted acquisition + processing parameters.
+md = spec.metadata
+acq_keys = ("PULPROG", "SOLVENT", "NUC1", "BF1", "SFO1", "O1",
+            "SW", "NS", "DS", "TD", "TE", "AQ_mod", "DATE")
+proc_keys = ("proc_SI", "proc_SF", "proc_OFFSET", "proc_SW_p",
+             "proc_LB", "proc_WDW", "proc_PHC0", "proc_PHC1")
+
+print("acquisition parameters (from acqus):")
+for k in acq_keys:
+    if k in md:
+        print(f"  {k:10s} = {md[k]}")
+print()
+print("processing parameters (from procs):")
+for k in proc_keys:
+    if k in md:
+        print(f"  {k:14s} = {md[k]}")
+print()
+print(f"full acqus dict has {len(md['acqus'])} keys; "
+      f"full procs dict has {len(md['procs'])} keys.")
+
+# 4. Plot the spectrum. Chemical-shift convention: high ppm on the left.
+fig, ax = plt.subplots()
+ax.plot(spec.x, spec.y, color="k", linewidth=0.6)
+ax.invert_xaxis()
+ax.set_xlabel(f"chemical shift / {spec.xseries.unit_name}")
+ax.set_ylabel("intensity / a.u.")
+ax.set_title(
+    f"{spec.name}\n"
+    f"{md.get('NUC1', '?')} NMR, {md.get('PULPROG', '?')}, "
+    f"BF1 = {md.get('BF1', '?')} MHz, "
+    f"NS = {md.get('NS', '?')}, solvent = {md.get('SOLVENT', '?')}"
+)
+fig.tight_layout()
+plt.show()
