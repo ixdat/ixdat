@@ -32,17 +32,40 @@ print(f"class       : {type(spec).__name__}")
 print(f"technique   : {spec.technique}")
 print(f"name        : {spec.name}")
 print(f"tstamp      : {spec.tstamp}")
-print(f"x ({spec.xseries.unit_name}) : "
-      f"{spec.x.min():.2f} .. {spec.x.max():.2f}  ({spec.x.size} points)")
+print(
+    f"x ({spec.xseries.unit_name}) : "
+    f"{spec.x.min():.2f} .. {spec.x.max():.2f}  ({spec.x.size} points)"
+)
 print(f"y           : {spec.y.min():.3g} .. {spec.y.max():.3g}")
 print()
 
 # 3. Print the lifted acquisition + processing parameters.
 md = spec.metadata
-acq_keys = ("PULPROG", "SOLVENT", "NUC1", "BF1", "SFO1", "O1",
-            "SW", "NS", "DS", "TD", "TE", "AQ_mod", "DATE")
-proc_keys = ("proc_SI", "proc_SF", "proc_OFFSET", "proc_SW_p",
-             "proc_LB", "proc_WDW", "proc_PHC0", "proc_PHC1")
+acq_keys = (
+    "PULPROG",
+    "SOLVENT",
+    "NUC1",
+    "BF1",
+    "SFO1",
+    "O1",
+    "SW",
+    "NS",
+    "DS",
+    "TD",
+    "TE",
+    "AQ_mod",
+    "DATE",
+)
+proc_keys = (
+    "proc_SI",
+    "proc_SF",
+    "proc_OFFSET",
+    "proc_SW_p",
+    "proc_LB",
+    "proc_WDW",
+    "proc_PHC0",
+    "proc_PHC1",
+)
 
 print("acquisition parameters (from acqus):")
 for k in acq_keys:
@@ -54,8 +77,10 @@ for k in proc_keys:
     if k in md:
         print(f"  {k:14s} = {md[k]}")
 print()
-print(f"full acqus dict has {len(md['acqus'])} keys; "
-      f"full procs dict has {len(md['procs'])} keys.")
+print(
+    f"full acqus dict has {len(md['acqus'])} keys; "
+    f"full procs dict has {len(md['procs'])} keys."
+)
 
 # 4. Plot the spectrum. Chemical-shift convention: high ppm on the left.
 fig, ax = plt.subplots()
