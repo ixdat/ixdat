@@ -19,6 +19,6 @@ Citation for MTBLS1:
     2007. doi:10.1152/physiolgenomics.00194.2007
 
 The files included are the minimum needed to exercise ixdat's
-BrukerReader test suite (acqus / acqu / fid / pulseprogram and
+BrukerNMRReader test suite (acqus / acqu / fid / pulseprogram and
 pdata/1/{procs, proc, 1r, 1i, title}). All other files from the
 original experiment have been omitted.

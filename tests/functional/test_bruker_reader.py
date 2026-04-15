@@ -17,7 +17,7 @@ nmrglue = pytest.importorskip("nmrglue")
 
 from ixdat import Spectrum  # noqa: E402
 from ixdat.exceptions import ReadError  # noqa: E402
-from ixdat.readers.bruker import BrukerReader  # noqa: E402
+from ixdat.readers.bruker import BrukerNMRReader  # noqa: E402
 from ixdat.techniques.nmr import NMRSpectrum  # noqa: E402
 
 
@@ -31,15 +31,15 @@ DATA_DIR = (
 
 @pytest.fixture(scope="module")
 def processed_spectrum():
-    return BrukerReader().read(DATA_DIR)
+    return BrukerNMRReader().read(DATA_DIR)
 
 
 @pytest.fixture(scope="module")
 def fid_spectrum():
-    return BrukerReader().read(DATA_DIR, prefer_processed=False)
+    return BrukerNMRReader().read(DATA_DIR, prefer_processed=False)
 
 
-class TestBrukerReaderProcessed:
+class TestBrukerNMRReaderProcessed:
     """Read the processed (pdata/1) 1D spectrum."""
 
     def test_returns_nmr_spectrum(self, processed_spectrum):
@@ -105,7 +105,7 @@ class TestBrukerReaderProcessed:
         assert 631152000 < ts < 4102444800
 
 
-class TestBrukerReaderFidFallback:
+class TestBrukerNMRReaderFidFallback:
     """Read the raw FID when no processed data is requested."""
 
     def test_fid_path_marked_unprocessed(self, fid_spectrum):
@@ -128,7 +128,7 @@ class TestBrukerReaderFidFallback:
         assert fid_spectrum.metadata["PULPROG"] == "noesypr1d"
 
 
-class TestBrukerReaderInterface:
+class TestBrukerNMRReaderInterface:
     """Reader integration with the high-level Spectrum.read() entrypoint."""
 
     def test_spectrum_read_dispatch(self):
@@ -141,14 +141,14 @@ class TestBrukerReaderInterface:
         assert isinstance(spec, NMRSpectrum)
 
     def test_read_accepts_path_inside_folder(self):
-        spec = BrukerReader().read(DATA_DIR / "acqus")
+        spec = BrukerNMRReader().read(DATA_DIR / "acqus")
         assert isinstance(spec, NMRSpectrum)
         assert spec.metadata["PULPROG"] == "noesypr1d"
 
     def test_read_missing_folder_raises(self, tmp_path):
         with pytest.raises(ReadError, match="acqus"):
-            BrukerReader().read(tmp_path)
+            BrukerNMRReader().read(tmp_path)
 
     def test_custom_name(self):
-        spec = BrukerReader().read(DATA_DIR, name="my_nmr")
+        spec = BrukerNMRReader().read(DATA_DIR, name="my_nmr")
         assert spec.name == "my_nmr"

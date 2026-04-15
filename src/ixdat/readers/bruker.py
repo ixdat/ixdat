@@ -47,7 +47,7 @@ _ACQUS_KEYS = (
 _PROCS_KEYS = ("SI", "OFFSET", "SF", "SW_p", "LB", "WDW", "PHC0", "PHC1")
 
 
-class BrukerReader:
+class BrukerNMRReader:
     """Reader for a Bruker TopSpin NMR experiment folder."""
 
     def __init__(self):
@@ -94,7 +94,7 @@ class BrukerReader:
             folder = folder.parent
         if not (folder / "acqus").is_file():
             raise ReadError(
-                f"No 'acqus' file found in {folder}. Point BrukerReader at a "
+                f"No 'acqus' file found in {folder}. Point BrukerNMRReader at a "
                 "Bruker TopSpin experiment folder (the one containing acqus)."
             )
 

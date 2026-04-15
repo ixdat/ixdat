@@ -27,7 +27,7 @@ readers
 
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
 
-- The ``BrukerReader`` (reader="bruker") has been added for reading Bruker
+- The ``BrukerNMRReader`` (reader="bruker") has been added for reading Bruker
   TopSpin 1D NMR experiment folders. It uses the optional ``nmrglue`` package
   to parse the ``acqus`` parameter file and the processed real spectrum from
   ``pdata/<procno>/`` (with a fallback to the raw FID magnitude when no
