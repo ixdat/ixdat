@@ -454,7 +454,11 @@ class CalculatorPack(Saveable):
             on_conflict:
                 "replace" (default): replace existing calculator of same class+name
                 "skip": keep existing one, skip new
-                "duplicate": add new one and allow duplicates (caller handles names)
+                "duplicate": add new one alongside the existing one (caller handles
+                    names). Note: this bypasses ``Measurement.consolidate_calculators``
+                    and its ``__add__``-based merging. For merge behaviour (e.g. two
+                    ``ECCalibration`` objects with complementary fields), call
+                    ``measurement.add_calculator()`` directly instead.
         Returns:
             list: The list of calculators actually attached to the measurement.
         """
