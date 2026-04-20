@@ -33,6 +33,7 @@ from .msrh_sec import MsrhSECReader, MsrhSECDecayReader
 
 # xrd
 from .xrdml import XRDMLReader
+from .xrd_xy import XRDXYReader
 
 # xps
 from .avantage import AvantageAVGReader
@@ -74,6 +75,7 @@ SPECTRUM_READER_CLASSES = {
     "avantage": AvantageAVGReader,
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
+    "xy": XRDXYReader,
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
 }
