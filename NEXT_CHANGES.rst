@@ -17,4 +17,4 @@ For ixdat 0.3.1
 calculators
 ^^^^^^^^^^^
 
-- The ``CalculatorPack`` has been added in `PR #196 <https://github.com/ixdat/ixdat/pull/196>`_, adressing `Issue #184 <https:github.com/ixdat/ixdat/issues/184>`_, to allow capturing multiple calculators from a measurement, saving them to JSON, and re-attaching them to other measurements for convenient, reproducible, and portable reuse of calibration workflows.
+- The ``CalculatorPack`` has been added in `PR #196 <https://github.com/ixdat/ixdat/pull/196>`_, addressing `Issue #184 <https://github.com/ixdat/ixdat/issues/184>`_, to allow capturing multiple calculators from a measurement, saving them to file, and re-attaching them to other measurements for convenient, reproducible, and portable reuse of calibration workflows. The file format is YAML (``pyyaml`` required) or JSON, auto-detected from the file extension.

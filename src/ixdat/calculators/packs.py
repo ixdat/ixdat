@@ -320,11 +320,18 @@ class CalculatorPack(Saveable):
         if path.endswith((".yaml", ".yml")):
             if not _YAML_AVAILABLE:
                 raise ImportError(
-                    "pyyaml is required for YAML export. Install with: pip install pyyaml"
+                    "pyyaml is required for YAML export. "
+                    "Install with: pip install pyyaml"
                 )
             assert _yaml is not None
             with open(path, "w", encoding="utf-8") as f:
-                _yaml.dump(data, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
+                _yaml.dump(
+                    data,
+                    f,
+                    allow_unicode=True,
+                    sort_keys=False,
+                    default_flow_style=False,
+                )
         else:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
@@ -348,7 +355,8 @@ class CalculatorPack(Saveable):
             if path.endswith((".yaml", ".yml")):
                 if not _YAML_AVAILABLE:
                     raise ImportError(
-                        "pyyaml is required to read YAML files. Install with: pip install pyyaml"
+                        "pyyaml is required to read YAML files. "
+                        "Install with: pip install pyyaml"
                     )
                 assert _yaml is not None
                 data = _yaml.safe_load(f)
