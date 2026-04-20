@@ -7,7 +7,14 @@ import requests
 
 from ..auth import KeycloakDeviceTokenProvider
 from ..measurement_base import Measurement
+from ..spectra import Spectrum, SpectrumSeries
 from ..tools import request_with_retries
+
+OBJECT_TYPE_CLASSES = {
+    "measurement": Measurement,
+    "spectrum": Spectrum,
+    "spectrum_series": SpectrumSeries,
+}
 
 DEFAULT_ASIMOV_BASE_URL = "https://asimov.enci.dk/api"
 DEFAULT_KEYCLOAK_SERVER_URL = "https://auth.enci.dk"
@@ -93,21 +100,22 @@ class AsimovReader:
     def read(
         self,
         id,
-        cls=Measurement,
+        cls=None,
         version=None,
         version_id=None,
         force_login=False,
         **kwargs,
     ):
-        """Read a dataset version from Asimov as an ixdat Measurement.
+        """Read a dataset version from Asimov as an ixdat object.
 
         Args:
             id (str): Asimov dataset id (UUID string).
-            cls (Measurement class): Measurement class to instantiate.
+            cls (class, optional): Class to instantiate (Measurement, Spectrum, etc.).
+                If None, auto-detected from the payload's ``object_type`` field.
             version (int, optional): Version number to select.
             version_id (str, optional): Dataset-version UUID to select.
             force_login (bool): Force fresh Keycloak device login.
-            kwargs: Extra key/value pairs merged into the measurement dict.
+            kwargs: Extra key/value pairs merged into the object dict.
         """
         dataset_id = str(id)
         headers = self._build_auth_headers(force_login=force_login)
@@ -152,6 +160,10 @@ class AsimovReader:
         d = {**payload, "metadata": meta}
         if not d.get("name"):
             d["name"] = dataset.get("label") or str(dataset.get("id"))
+
+        if cls is None:
+            object_type = d.get("object_type", "measurement")
+            cls = OBJECT_TYPE_CLASSES.get(object_type, Measurement)
 
         return cls.from_portable_dict(d, reader=self, **kwargs)
 

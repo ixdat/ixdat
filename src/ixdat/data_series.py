@@ -80,6 +80,14 @@ class DataSeries(Saveable):
                 data=data,
                 tseries=tseries,
             )
+        if series_type == "field":
+            axes = [cls.from_portable_dict(ax) for ax in dct.get("axes_series", [])]
+            return Field(
+                name=name,
+                unit_name=unit_name,
+                data=data,
+                axes_series=axes,
+            )
         return cls(name=name, unit_name=unit_name, data=data)
 
     def __repr__(self):
@@ -229,6 +237,12 @@ class Field(DataSeries):
                 )
         return self._data.copy()  # TODO: make data series data immutable with numpy flag
         # see: https://github.com/ixdat/ixdat/pull/101/files#r1126172936
+
+    def to_portable_dict(self):
+        """Serialize the Field with its axes inlined."""
+        dct = super().to_portable_dict()
+        dct["axes_series"] = [ax.to_portable_dict() for ax in self.axes_series]
+        return dct
 
     @property
     def tstamp(self):

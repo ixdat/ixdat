@@ -14,7 +14,7 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 
 import warnings
 import numpy as np
-from .db import Saveable, fill_object_list, PlaceHolderObject
+from .db import Saveable, fill_object_list, PlaceHolderObject, _to_portable_value
 from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
@@ -96,6 +96,35 @@ class Spectrum(Saveable):
         self.plot = self.plotter.plot
         self.exporter = SpectrumExporter(spectrum=self)
         self.export = self.exporter.export
+
+    def to_portable_dict(self):
+        """Serialize the Spectrum with its Field data inlined."""
+        return {
+            "object_type": "spectrum",
+            "name": self.name,
+            "technique": self.technique,
+            "metadata": _to_portable_value(self.metadata),
+            "tstamp": self.tstamp,
+            "sample_name": self.sample_name,
+            "duration": self.duration,
+            "field": self.field.to_portable_dict(),
+        }
+
+    @classmethod
+    def from_portable_dict(cls, dct, **kwargs):
+        """Reconstruct a Spectrum from a portable dict."""
+        field = DataSeries.from_portable_dict(dct["field"])
+        obj_as_dict = {
+            "name": dct.get("name"),
+            "technique": dct.get("technique", "spectrum"),
+            "metadata": dct.get("metadata") or {},
+            "tstamp": dct.get("tstamp"),
+            "sample_name": dct.get("sample_name"),
+            "duration": dct.get("duration"),
+            "field": field,
+        }
+        obj_as_dict.update(kwargs)
+        return cls.from_dict(obj_as_dict)
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -515,6 +544,32 @@ class SpectrumSeries(Spectrum):
         self.heat_plot = self.plotter.heat_plot
         # can be overwritten in inheriting classes with e.g. plot_waterfall:
         self.plot = self.plotter.heat_plot
+
+    def to_portable_dict(self):
+        """Serialize the SpectrumSeries with its Field data inlined."""
+        dct = super().to_portable_dict()
+        dct["object_type"] = "spectrum_series"
+        dct["durations"] = self.durations
+        dct["continuous"] = self.continuous
+        return dct
+
+    @classmethod
+    def from_portable_dict(cls, dct, **kwargs):
+        """Reconstruct a SpectrumSeries from a portable dict."""
+        field = DataSeries.from_portable_dict(dct["field"])
+        obj_as_dict = {
+            "name": dct.get("name"),
+            "technique": dct.get("technique", "spectra"),
+            "metadata": dct.get("metadata") or {},
+            "tstamp": dct.get("tstamp"),
+            "sample_name": dct.get("sample_name"),
+            "duration": dct.get("duration"),
+            "field": field,
+            "durations": dct.get("durations"),
+            "continuous": dct.get("continuous", False),
+        }
+        obj_as_dict.update(kwargs)
+        return cls.from_dict(obj_as_dict)
 
     @classmethod
     def from_spectrum_list(cls, spectrum_list, **kwargs):

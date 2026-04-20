@@ -253,6 +253,7 @@ class Measurement(Saveable):
     def to_portable_dict(self):
         """Extends the base Saveable.to_portable_dict() with the inline series list."""
         dct = super().to_portable_dict()
+        dct["object_type"] = "measurement"
         dct["series_list"] = [s.to_portable_dict() for s in self.series_list]
         return dct
 
