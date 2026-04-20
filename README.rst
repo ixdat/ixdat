@@ -81,6 +81,7 @@ designed into every level.
    * - X-ray diffraction (XRD)
      - Development
      - - xrdml: .xrdml files from e.g. PanAnalytical's Empyereon
+       - xy: generic two- or three-column .xy/.xye files (2θ or Q-space)
    * - In-situ Electrochemistry - X-ray adsorption spectroscopy
      - Development
      - - qexafs: .dat files from Diamond's B18 beamline

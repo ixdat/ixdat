@@ -23,9 +23,7 @@ import matplotlib.pyplot as plt
 DATA_DIR = Path(__file__).parent / "xrd_xy_data"
 DATA_DIR.mkdir(exist_ok=True)
 
-ZSM5_URL = (
-    "https://raw.githubusercontent.com/stefsmeets/lines/main/testing/zsm-5.xye"
-)
+ZSM5_URL = "https://raw.githubusercontent.com/stefsmeets/lines/main/testing/zsm-5.xye"
 RUTILE_URL = (
     "https://raw.githubusercontent.com/FrederikLizakJohansen/DebyeCalculator"
     "/main/debyecalculator/unittests_files"

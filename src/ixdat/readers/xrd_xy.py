@@ -29,7 +29,9 @@ def _parse_header_and_data(path_to_file):
                 continue
             if stripped[0] in _COMMENT_CHARS:
                 header_lines.append(stripped.lstrip("".join(_COMMENT_CHARS)).strip())
-            elif not data_lines and not _is_numeric(stripped.replace(",", " ").split()[0]):
+            elif not data_lines and not _is_numeric(
+                stripped.replace(",", " ").split()[0]
+            ):
                 # Bare column-label line before any data (e.g. "Q,I(Q)")
                 header_lines.append(stripped)
             else:
