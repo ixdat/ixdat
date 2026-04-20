@@ -16,7 +16,7 @@ from ixdat.calculators.packs import CalculatorPack
 
 # --- CONFIG -------------------------------------------------------------------
 TEST_FILE = Path(__file__).parent / "../test_data/biologic/Pt_poly_cv.mpt"
-PACK_PATH = Path(__file__).parent / "demo_pack.ixpack.json"
+PACK_PATH = Path(__file__).parent / "demo_pack.ixpack.yaml"
 
 
 def compute_ec_series(meas: Measurement):

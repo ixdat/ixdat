@@ -10,6 +10,14 @@ import importlib
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
+try:
+    import yaml as _yaml
+
+    _YAML_AVAILABLE = True
+except ImportError:
+    _yaml = None  # type: ignore[assignment]
+    _YAML_AVAILABLE = False
+
 from ixdat.db import Saveable
 from ixdat.calculators.indexer import Indexer
 
@@ -298,14 +306,28 @@ class CalculatorPack(Saveable):
 
     def export(self, path: str) -> None:
         """
-        Write the pack to a JSON file.
+        Write the pack to a file.
+
+        Format is determined by file extension:
+        - ``.yaml`` / ``.yml``: YAML (requires pyyaml; allows inline comments)
+        - anything else (e.g. ``.json``): JSON
 
         Parameters:
-            path: Output file path (e.g., 'my_setup.ixpack.json').
+            path: Output file path (e.g., 'my_setup.ixpack.yaml').
         """
         data = self.to_json()
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        path = str(path)
+        if path.endswith((".yaml", ".yml")):
+            if not _YAML_AVAILABLE:
+                raise ImportError(
+                    "pyyaml is required for YAML export. Install with: pip install pyyaml"
+                )
+            assert _yaml is not None
+            with open(path, "w", encoding="utf-8") as f:
+                _yaml.dump(data, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        else:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
 
     @classmethod
     def read(
@@ -313,15 +335,28 @@ class CalculatorPack(Saveable):
         path: str,
     ) -> "CalculatorPack":
         """
-        Read a pack from a file (`path`)
+        Read a pack from a file.
+
+        Format is auto-detected from the file extension (``.yaml``/``.yml`` → YAML,
+        everything else → JSON).
 
         Returns:
             CalculatorPack
         """
+        path = str(path)
         with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            if path.endswith((".yaml", ".yml")):
+                if not _YAML_AVAILABLE:
+                    raise ImportError(
+                        "pyyaml is required to read YAML files. Install with: pip install pyyaml"
+                    )
+                assert _yaml is not None
+                data = _yaml.safe_load(f)
+            else:
+                data = json.load(f)
         return cls.from_json(data)
 
+    @property
     def calculators(self) -> List[Any]:
         """
         Materialize and return the list of calculator objects contained in the pack.
@@ -424,7 +459,7 @@ class CalculatorPack(Saveable):
             list: The list of calculators actually attached to the measurement.
         """
         attached: List[Any] = []
-        calculators = self.calculators()
+        calculators = self.calculators
 
         # Acquire current calculators on measurement (for conflict handling)
         existing: List[Any]
