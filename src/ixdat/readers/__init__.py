@@ -75,7 +75,7 @@ SPECTRUM_READER_CLASSES = {
     "avantage": AvantageAVGReader,
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
-    "xy": XRDXYReader,
+    "xrdxy": XRDXYReader,
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
 }
