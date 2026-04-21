@@ -15,6 +15,8 @@ from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,
+    OpticalSpectrumSeries,
+    StaircaseSEC
 )
 
 from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
@@ -44,5 +46,6 @@ TECHNIQUE_CLASSES = {
     "S-EC": SpectroECMeasurement,
     "EC-MS-MS_spectra": ECMSSpectroMeasurement,
     "FTIR": FTIRSpectrum,
+    # "Optical":OpticalSpectrumSeries, # or should it be OpticalSpectrum? 
     "EC-FTIR": ECFTIRMeasurement,
 }

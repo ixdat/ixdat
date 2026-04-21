@@ -1,9 +1,12 @@
 """Plotters for spectroelectrochemistry. Makes use of those in spectrum_plotter.py"""
 
 import matplotlib as mpl
-from . import ECPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter
+from . import ECPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter,MPLPlotter
 from ..exceptions import SeriesNotFoundError
-
+from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.signal import savgol_filter
 
 class SECPlotter(SpectroMeasurementPlotter):
     """A spectroelectrochemistry (SEC) matplotlib plotter."""
@@ -439,3 +442,414 @@ class ECOpticalPlotter(SECPlotter):
             measurement=measurement, ax=axes[1], tspan=tspan, **kwargs
         )
         return axes
+
+class StaircaseSECPlotter(MPLPlotter):
+    def __init__(self, measurement=None):
+
+        self.measurement = measurement
+        self.smooth = self.measurement.smooth
+        self.with_voltage_interval = self.measurement.with_voltage_interval
+        self.with_wavelength_interval = self.measurement.with_wavelength_interval
+        self.data_config = self.measurement.data_config
+        self.around_WL = self.measurement.around_WL
+        self.around_V = self.measurement.around_V
+
+    def plot_waterfall(
+        self,
+        fig=None,
+        ax=None,
+        dataFrame=None,
+        make_colorbar=True,  # GUI
+        cmap_name="jet",  # GUI
+        t_ref=None,
+        WL_interval=None,
+        V_interval=None,
+        smooth_param=None,
+        reduce_factor = 1,
+        **kwargs
+    ):  # GUI
+        """waterfall plot
+
+        Args:
+            fig : the matplotlib figure object
+            ax : the matplotlib ax object which is on the fig
+            dataFrame : the data to plot
+            make_colorbar : whether add a colorbar to the fig
+            cmap_name : color map name
+            t_ref : time reference (not in used currently)
+            WL_interval : wavelength interval
+            V_interval : voltage interval
+            smooth_param : smooth parameters in the form of [window length, polyorder]
+
+        Returns:
+            the fig
+        """
+
+        # return an fig of waterfall plot
+        if dataFrame is None:
+            dataFrame = self.measurement.SEC_dataFrame.copy() * 1000
+        dataFrame = self.data_config(
+            dataFrame=dataFrame, WL_interval=WL_interval, V_interval=V_interval
+        )
+
+        if fig is None:
+            fig = plt.figure()
+        if ax is None:
+            ax = fig.add_subplot(111)
+
+        cmap = plt.get_cmap(cmap_name, len(dataFrame.columns))
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap,
+            norm=plt.Normalize(vmin=dataFrame.columns[0], vmax=dataFrame.columns[-1]),
+        )
+
+        for i in range(0, len(dataFrame.columns),reduce_factor):
+            if smooth_param != None:
+                y_data = savgol_filter(
+                    dataFrame[dataFrame.columns[i]], smooth_param[0], smooth_param[1]
+                )
+            else:
+                y_data = dataFrame[dataFrame.columns[i]]
+            ax.plot(dataFrame.index, y_data, c=cmap(i),**kwargs)
+
+        ax.set_xlabel("Wavelength (nm)")
+        ax.set_ylabel("Absorption (m $\Delta$ O.D.)")
+
+        if make_colorbar:
+            cbar = ax.figure.colorbar(sm, ax=ax)
+            cbar.set_label("U vs RHE (V)")
+
+        return fig,ax, cbar
+    
+
+
+    
+    def plot_differential(
+        self,
+        fig=None,
+        ax=None,
+        dataFrame=None,
+        differential_interval=0.1,
+        make_colorbar=True,
+        cmap_name="jet",
+        normalize=True,
+        normalize_method="max",
+        skip_negative=True,
+        WL_interval=None,
+        V_interval=None,
+        smooth_param=None,
+        capacitance_func = None
+    ):
+        """differential plot
+
+        Args:
+            fig : the matplotlib figure object
+            ax : the matplotlib ax object which is on the fig
+            dataFrame : the data to plot
+            differential_interval : differential interval in Volts
+            make_colorbar : whether add a colorbar to the fig
+            cmap_name (str) : color map name
+            normalize (boolean) : normalize differential spectra with respect to the maximum
+            normalize_method (str) : max or norm
+            skip_negative (boolean) : skip spectra with a negative average
+            WL_interval (list): wavelength interval
+            V_interval (list) : voltage interval
+            smooth_param (list) : smooth parameters in the form of [window length, polyorder]
+
+        Returns:
+            the fig
+        """
+        if dataFrame is None:
+
+            dataFrame = self.measurement.SEC_dataFrame.copy() * 1000
+        dataFrame = self.data_config(
+            dataFrame=dataFrame, WL_interval=WL_interval, V_interval=V_interval
+        )
+        if V_interval is None:
+            V_interval = [dataFrame.columns[0], dataFrame.columns[-1]]
+        if fig is None:
+            fig = plt.figure()
+        if ax is None:
+            ax = fig.add_subplot(111)
+        fig.suptitle(
+            f"Voltage range: {V_interval[0]} V - {V_interval[1]} V, differentiate interval = {differential_interval} V",
+            fontsize=10,
+        )
+
+        self.differential_dict = {}
+
+        differential_interval = int(
+            round(
+                differential_interval / (dataFrame.columns[1] - dataFrame.columns[0]), 0
+            )
+        )
+
+        cmap = plt.get_cmap(cmap_name, len(dataFrame.columns))
+        # the indexes for the dataframe.columns are the first i in the following loop and the last one
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap,
+            norm=plt.Normalize(
+                vmin=dataFrame.columns[
+                    [
+                        i
+                        for i in range(
+                            differential_interval,
+                            len(dataFrame.columns),
+                            differential_interval,
+                        )
+                    ][0]
+                ],
+                vmax=dataFrame.columns[
+                    [
+                        i
+                        for i in range(
+                            differential_interval,
+                            len(dataFrame.columns),
+                            differential_interval,
+                        )
+                    ][-1]
+                ],
+            ),
+        )
+        for i in range(
+            differential_interval, len(dataFrame.columns), differential_interval
+        ):
+
+            original_spectrum = (
+                dataFrame[dataFrame.columns[i]]
+                - dataFrame[dataFrame.columns[i - differential_interval]]
+            )
+
+            if sum(original_spectrum) < 0 and skip_negative:
+                continue
+
+            if smooth_param is not None:
+                spectrum_to_plot = pd.Series(
+                    savgol_filter(original_spectrum, smooth_param[0], smooth_param[1]),
+                    index=original_spectrum.index,
+                )
+            else:
+                spectrum_to_plot = original_spectrum
+
+            if normalize:
+                if normalize_method == "max":
+                    spectrum_to_plot = spectrum_to_plot / np.abs(np.max(spectrum_to_plot))
+                elif normalize_method == "norm":
+                    spectrum_to_plot = spectrum_to_plot / np.linalg.norm(spectrum_to_plot)
+                elif normalize_method == 'capacitance':
+                    if capacitance_func is not None:
+                        spectrum_to_plot = spectrum_to_plot/capacitance_func(dataFrame.columns[i])
+
+            ax.plot(spectrum_to_plot, c=cmap(i), linewidth=0.8, alpha=0.9)
+
+            self.differential_dict[dataFrame.columns[i]] = spectrum_to_plot
+
+        ax.set_xlabel("Wavelength (nm)")
+        if normalize:
+            ax.set_ylabel("Normalized\n Differential Absorption")
+        else:
+            ax.set_ylabel("Differential Absorption (m $\Delta$ O.D.)")
+        if make_colorbar:
+            cbar = ax.figure.colorbar(sm, ax=ax)
+            cbar.set_label("U vs RHE (V)")
+            return fig,ax,cbar
+        else:
+            return fig,ax
+
+        
+        
+
+    def plot_spectrum(
+        self,
+        fig=None,
+        ax=None,
+        V_range=[0, 1],
+        normalize=True,
+        WL_interval=None,
+        V_interval=None,
+        smooth_param=None,
+        normalize_method = "max",
+        **kwargs
+    ):
+        """single spectrum plot
+
+        Args:
+            fig : the matplotlib figure object
+            ax : the matplotlib ax object which is on the fig
+            dataFrame : the data to plot
+            V_range : the voltage range that defines the spectrum based on the SEC data
+            normalize (boolean) : normalize differential spectra with respect to the maximum
+            WL_interval (list): wavelength interval
+            V_interval (list) : voltage interval
+            smooth_param (list) : smooth parameters in the form of [window length, polyorder]
+
+        """
+        dataFrame = self.measurement.SEC_dataFrame.copy() * 1000
+        dataFrame = self.data_config(
+            dataFrame=dataFrame, WL_interval=WL_interval, V_interval=V_interval
+        )
+        spectrum_to_plot = (
+            dataFrame.loc[:, self.around_V(V_range[1])]
+            - dataFrame.loc[:, self.around_V(V_range[0])]
+        )
+
+        if smooth_param is not None:
+            spectrum_to_plot = pd.Series(
+                savgol_filter(spectrum_to_plot, smooth_param[0], smooth_param[1]),
+                index=spectrum_to_plot.index,
+            )
+        if normalize:
+            if normalize_method == "max":
+                spectrum_to_plot = spectrum_to_plot / np.abs(np.max(spectrum_to_plot))
+            elif normalize_method == "norm":
+                spectrum_to_plot = spectrum_to_plot / np.linalg.norm(spectrum_to_plot)
+
+        ax.plot(spectrum_to_plot,**kwargs)
+
+
+
+
+
+
+    def plot_stack_differential(
+        self,
+        fig=None,
+        ax=None,
+        dataFrame=None,
+        differential_interval=0.1,
+        make_colorbar=True,
+        cmap_name="jet",
+        normalize=True,
+        normalize_method="max",
+        skip_negative=True,
+        WL_interval=None,
+        V_interval=None,
+        smooth_param=None,
+        capacitance_func = None,
+        spacing = 0.018,
+    ):
+        """differential plot
+
+        Args:
+            fig : the matplotlib figure object
+            ax : the matplotlib ax object which is on the fig
+            dataFrame : the data to plot
+            differential_interval : differential interval in Volts
+            make_colorbar : whether add a colorbar to the fig
+            cmap_name (str) : color map name
+            normalize (boolean) : normalize differential spectra with respect to the maximum
+            normalize_method (str) : max or norm
+            skip_negative (boolean) : skip spectra with a negative average
+            WL_interval (list): wavelength interval
+            V_interval (list) : voltage interval
+            smooth_param (list) : smooth parameters in the form of [window length, polyorder]
+
+        Returns:
+            the fig
+        """
+        if dataFrame is None:
+
+            dataFrame = self.measurement.SEC_dataFrame.copy() * 1000
+        dataFrame = self.data_config(
+            dataFrame=dataFrame, WL_interval=WL_interval, V_interval=V_interval
+        )
+        if V_interval is None:
+            V_interval = [dataFrame.columns[0], dataFrame.columns[-1]]
+        if fig is None:
+            fig = plt.figure()
+        if ax is None:
+            ax = fig.add_subplot(111)
+        # fig.suptitle(
+        #     f"Voltage range: {V_interval[0]} V - {V_interval[1]} V, differentiate interval = {differential_interval} V",
+        #     fontsize=10,
+        # )
+
+        self.differential_dict = {}
+
+        differential_interval = int(
+            round(
+                differential_interval / (dataFrame.columns[1] - dataFrame.columns[0]), 0
+            )
+        )
+
+        cmap = plt.get_cmap(cmap_name, len(dataFrame.columns)+50)
+        # the indexes for the dataframe.columns are the first i in the following loop and the last one
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap,
+            norm=plt.Normalize(
+                vmin=dataFrame.columns[
+                    [
+                        i
+                        for i in range(
+                            differential_interval,
+                            len(dataFrame.columns),
+                            differential_interval,
+                        )
+                    ][0]
+                ],
+                vmax=dataFrame.columns[
+                    [
+                        i
+                        for i in range(
+                            differential_interval,
+                            len(dataFrame.columns),
+                            differential_interval,
+                        )
+                    ][-1]
+                ],
+            ),
+        )
+        n = 0
+        for i in range(
+            differential_interval, len(dataFrame.columns), differential_interval
+        ):
+
+            original_spectrum = (
+                dataFrame[dataFrame.columns[i]]
+                - dataFrame[dataFrame.columns[i - differential_interval]]
+            )
+
+            if sum(original_spectrum) < 0 and skip_negative:
+                continue
+
+            if smooth_param is not None:
+                spectrum_to_plot = pd.Series(
+                    savgol_filter(original_spectrum, smooth_param[0], smooth_param[1]),
+                    index=original_spectrum.index,
+                )
+            else:
+                spectrum_to_plot = original_spectrum
+
+            if normalize:
+                if normalize_method == "max":
+                    spectrum_to_plot = spectrum_to_plot / np.abs(np.max(spectrum_to_plot))
+                elif normalize_method == "norm":
+                    spectrum_to_plot = spectrum_to_plot / np.linalg.norm(spectrum_to_plot)
+                elif normalize_method == "zero_norm":
+                    spectrum_to_plot = spectrum_to_plot - np.min(spectrum_to_plot)
+                    spectrum_to_plot = spectrum_to_plot / np.linalg.norm(spectrum_to_plot)
+                    
+                elif normalize_method == 'capacitance':
+                    if capacitance_func is not None:
+                        spectrum_to_plot = spectrum_to_plot/capacitance_func(dataFrame.columns[i])
+            line_lable = str(round(dataFrame.columns[i - differential_interval],2))+"V - "+str(round(dataFrame.columns[i],2))+"V"
+            ax.plot(spectrum_to_plot+n*spacing, c=cmap(i), linewidth=1, alpha=1)
+            ax.annotate(text=line_lable,xy = [735,spectrum_to_plot.iloc[-1]+n*spacing+0.005],c=cmap(i),fontsize = 7)
+            
+
+            self.differential_dict[dataFrame.columns[i]] = original_spectrum
+            n+=1
+        
+        ax.set_xlabel("Wavelength (nm)",fontsize = 12)
+        ax.set_yticks([])
+
+        if normalize:
+            ax.set_ylabel("Normalized\n Differential Absorption",fontsize = 12)
+        else:
+            ax.set_ylabel("Differential Absorption (m $\Delta$ O.D.)",fontsize = 12)
+        if make_colorbar:
+            cbar = ax.figure.colorbar(sm, ax=ax)
+            cbar.set_label("U vs RHE (V)")
+            return fig,ax,cbar
+        else:
+            return fig,ax

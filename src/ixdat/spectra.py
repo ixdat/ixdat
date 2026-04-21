@@ -824,11 +824,11 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         cls = TECHNIQUE_CLASSES[new_technique]
     else:
         cls = SpectroMeasurement
-    if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
-        # Then we need a reference spectrum!
-        # But so far the only EC-Optical reader doesn't support reading Optical and
-        # EC parts separately, so this needs not be implemented yet.
-        raise NotImplementedError("addition of EC and Optical not yet supported.")
+    # if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
+    #     # Then we need a reference spectrum!
+    #     # But so far the only EC-Optical reader doesn't support reading Optical and
+    #     # EC parts separately, so this needs not be implemented yet.
+    #     raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
     print(new_technique)

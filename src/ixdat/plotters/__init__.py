@@ -17,5 +17,5 @@ from .spectrum_plotter import (
 from .ec_plotter import ECPlotter, CVDiffPlotter
 from .ms_plotter import MSPlotter, MSSpectroPlotter
 from .ecms_plotter import ECMSPlotter
-from .sec_plotter import SECPlotter, ECOpticalPlotter
+from .sec_plotter import SECPlotter, ECOpticalPlotter,StaircaseSECPlotter
 from .tpms_plotter import TPMSPlotter, TPMSSpectroPlotter
