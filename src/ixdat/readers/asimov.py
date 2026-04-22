@@ -211,15 +211,27 @@ class AsimovReader:
 
     def _get_json(self, endpoint, headers, params=None):
         url = urljoin(self.base_url + "/", endpoint.lstrip("/"))
-        response = request_with_retries(
-            self._session,
-            "GET",
-            url,
-            headers=headers,
-            params=params,
-            connect_timeout=self.connect_timeout,
-            read_timeout=self.read_timeout,
-            total_timeout=self.total_timeout,
-            retries=2,
-        )
+        try:
+            response = request_with_retries(
+                self._session,
+                "GET",
+                url,
+                headers=headers,
+                params=params,
+                connect_timeout=self.connect_timeout,
+                read_timeout=self.read_timeout,
+                total_timeout=self.total_timeout,
+                retries=2,
+            )
+        except RuntimeError as exc:
+            if "HTTP 401" in str(exc) and "Unauthorized client" in str(exc):
+                raise RuntimeError(
+                    str(exc)
+                    + "\n\nAsimov rejected the OAuth client used for this token. "
+                    f"The default ixdat client is {DEFAULT_KEYCLOAK_CLIENT_ID!r}; "
+                    "check that this client is allowed by the Asimov API, or set "
+                    "KEYCLOAK_CLIENT_ID/ASIMOV_ACCESS_TOKEN to an API-authorized "
+                    "client/token."
+                ) from exc
+            raise
         return response.json()

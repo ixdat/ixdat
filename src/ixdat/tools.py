@@ -133,6 +133,31 @@ def request_with_retries(
             )
         raise RuntimeError(msg) from exc
 
+    except requests.exceptions.HTTPError as exc:
+        response = exc.response
+        status = response.status_code if response is not None else None
+        reason = response.reason if response is not None else None
+        detail = None
+        if response is not None:
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = None
+            if isinstance(payload, dict):
+                detail = payload.get("detail") or payload.get("message")
+            if detail is None:
+                detail = response.text.strip()[:500]
+
+        message = f"Failed to fetch {url}"
+        if status is not None:
+            message += f" (HTTP {status}"
+            if reason:
+                message += f" {reason}"
+            message += ")"
+        if detail:
+            message += f": {detail}"
+        raise RuntimeError(message) from exc
+
     except requests.exceptions.RequestException as exc:
         status = getattr(getattr(exc, "response", None), "status_code", None)
         suffix = f" (HTTP {status})" if status is not None else ""

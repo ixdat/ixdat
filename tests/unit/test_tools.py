@@ -3,16 +3,55 @@ import warnings
 from unittest.mock import patch
 
 import pytest
+import requests
 from packaging import version
 
 from ixdat.exceptions import DeprecationError
-from ixdat.tools import deprecate
+from ixdat.tools import deprecate, request_with_retries
 
 # Standard arguments for deprecate
 DEPRECATE_STANDARD_ARGS = {
     "last_supported_release": "1.2.3",
     "update_message": "Do SOMETHING ELSE now.",
 }
+
+
+class FakeSession:
+    """Minimal requests.Session stand-in for request_with_retries tests."""
+
+    def __init__(self, response):
+        self.response = response
+        self.adapters = {}
+
+    def mount(self, prefix, adapter):
+        self.adapters[prefix] = adapter
+
+    def request(self, *args, **kwargs):
+        return self.response
+
+
+def make_response(status_code, body, content_type="application/json", reason=""):
+    response = requests.Response()
+    response.status_code = status_code
+    response.reason = reason
+    response.url = "https://example.test/resource"
+    response._content = body.encode()
+    response.headers["content-type"] = content_type
+    return response
+
+
+def test_request_with_retries_includes_http_error_detail():
+    """HTTP errors should preserve the API status and JSON detail."""
+    response = make_response(404, '{"detail": "Dataset not found"}', reason="Not Found")
+    session = FakeSession(response)
+
+    with pytest.raises(RuntimeError) as exception:
+        request_with_retries(session, "GET", response.url)
+
+    message = str(exception.value)
+    assert "HTTP 404 Not Found" in message
+    assert "Dataset not found" in message
+    assert "DNS failure" not in message
 
 
 def generate_function_and_classes(decorator, *args):
