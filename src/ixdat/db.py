@@ -115,6 +115,31 @@ def _to_portable_value(value):
     return value
 
 
+def portable_metadata_fields(obj, *, include=None):
+    """Return common portable metadata fields for ixdat objects."""
+    include = include or ("name", "technique", "metadata", "tstamp", "sample_name")
+    dct = {}
+    for key in include:
+        value = getattr(obj, key, None)
+        if key == "metadata":
+            value = _to_portable_value(value)
+        dct[key] = value
+    return dct
+
+
+def obj_as_dict_from_portable_metadata(dct, *, technique_default):
+    """Return constructor kwargs for common portable metadata fields."""
+    obj_as_dict = {
+        "name": dct.get("name"),
+        "technique": dct.get("technique", technique_default),
+        "metadata": dct.get("metadata") or {},
+        "tstamp": dct.get("tstamp"),
+    }
+    if dct.get("sample_name") is not None:
+        obj_as_dict["sample_name"] = dct["sample_name"]
+    return obj_as_dict
+
+
 class Saveable:
     """Base class for table-representing classes implementing database functionality.
 

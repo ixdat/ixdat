@@ -13,7 +13,13 @@ classes will be defined in the corresponding module in ./techniques/
 import warnings
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject, fill_object_list
+from .db import (
+    Saveable,
+    PlaceHolderObject,
+    fill_object_list,
+    portable_metadata_fields,
+    obj_as_dict_from_portable_metadata,
+)
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -252,9 +258,10 @@ class Measurement(Saveable):
 
     def to_portable_dict(self):
         """Extends the base Saveable.to_portable_dict() with the inline series list."""
-        dct = super().to_portable_dict()
+        dct = portable_metadata_fields(self)
         dct["object_type"] = "measurement"
         dct["series_list"] = [s.to_portable_dict() for s in self.series_list]
+        dct["aliases"] = self.aliases
         return dct
 
     @classmethod
@@ -290,16 +297,10 @@ class Measurement(Saveable):
                     DataSeries.from_portable_dict(s_dict, tseries_dict=tseries_dict)
                 )
 
-        obj_as_dict = {
-            "name": dct.get("name"),
-            "technique": dct.get("technique", "simple"),
-            "tstamp": dct.get("tstamp", 0.0),
-            "series_list": series_list,
-            "aliases": dct.get("aliases") or {},
-            "metadata": dct.get("metadata") or {},
-        }
-        if dct.get("sample_name") is not None:
-            obj_as_dict["sample_name"] = dct["sample_name"]
+        obj_as_dict = obj_as_dict_from_portable_metadata(dct, technique_default="simple")
+        obj_as_dict["tstamp"] = dct.get("tstamp", 0.0)
+        obj_as_dict["series_list"] = series_list
+        obj_as_dict["aliases"] = dct.get("aliases") or {}
         obj_as_dict.update(kwargs)
 
         return cls.from_dict(obj_as_dict)

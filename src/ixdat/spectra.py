@@ -14,7 +14,13 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 
 import warnings
 import numpy as np
-from .db import Saveable, fill_object_list, PlaceHolderObject, _to_portable_value
+from .db import (
+    Saveable,
+    fill_object_list,
+    PlaceHolderObject,
+    portable_metadata_fields,
+    obj_as_dict_from_portable_metadata,
+)
 from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
@@ -99,30 +105,21 @@ class Spectrum(Saveable):
 
     def to_portable_dict(self):
         """Serialize the Spectrum with its Field data inlined."""
-        return {
-            "object_type": "spectrum",
-            "name": self.name,
-            "technique": self.technique,
-            "metadata": _to_portable_value(self.metadata),
-            "tstamp": self.tstamp,
-            "sample_name": self.sample_name,
-            "duration": self.duration,
-            "field": self.field.to_portable_dict(),
-        }
+        dct = portable_metadata_fields(self)
+        dct["object_type"] = "spectrum"
+        dct["duration"] = self.duration
+        dct["field"] = self.field.to_portable_dict()
+        return dct
 
     @classmethod
     def from_portable_dict(cls, dct, **kwargs):
         """Reconstruct a Spectrum from a portable dict."""
         field = DataSeries.from_portable_dict(dct["field"])
-        obj_as_dict = {
-            "name": dct.get("name"),
-            "technique": dct.get("technique", "spectrum"),
-            "metadata": dct.get("metadata") or {},
-            "tstamp": dct.get("tstamp"),
-            "sample_name": dct.get("sample_name"),
-            "duration": dct.get("duration"),
-            "field": field,
-        }
+        obj_as_dict = obj_as_dict_from_portable_metadata(
+            dct, technique_default="spectrum"
+        )
+        obj_as_dict["duration"] = dct.get("duration")
+        obj_as_dict["field"] = field
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)
 
@@ -557,17 +554,13 @@ class SpectrumSeries(Spectrum):
     def from_portable_dict(cls, dct, **kwargs):
         """Reconstruct a SpectrumSeries from a portable dict."""
         field = DataSeries.from_portable_dict(dct["field"])
-        obj_as_dict = {
-            "name": dct.get("name"),
-            "technique": dct.get("technique", "spectra"),
-            "metadata": dct.get("metadata") or {},
-            "tstamp": dct.get("tstamp"),
-            "sample_name": dct.get("sample_name"),
-            "duration": dct.get("duration"),
-            "field": field,
-            "durations": dct.get("durations"),
-            "continuous": dct.get("continuous", False),
-        }
+        obj_as_dict = obj_as_dict_from_portable_metadata(
+            dct, technique_default="spectra"
+        )
+        obj_as_dict["duration"] = dct.get("duration")
+        obj_as_dict["field"] = field
+        obj_as_dict["durations"] = dct.get("durations")
+        obj_as_dict["continuous"] = dct.get("continuous", False)
         obj_as_dict.update(kwargs)
         return cls.from_dict(obj_as_dict)
 
