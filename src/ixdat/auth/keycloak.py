@@ -48,8 +48,8 @@ class KeycloakDeviceTokenProvider:
         if cache_path:
             self.cache_path = Path(cache_path)
         else:
-            cache_dir = get_default_cache_dir("ixdat") / "auth"
-            cache_name = f"keycloak_{self.realm}_{self.client_id}.json"
+            cache_dir = get_default_cache_dir("ixdat") / "auth" / "keycloak"
+            cache_name = f"{self.realm}_{self.client_id}.json"
             self.cache_path = cache_dir / cache_name
 
         self._session = requests.Session()
