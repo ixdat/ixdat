@@ -265,7 +265,6 @@ def test_field_axis_reuses_top_level_tseries_via_axes_keys():
     obj = _reader()._build_kwargs(payload)
     top_level_t = next(s for s in obj["series_list"] if isinstance(s, TimeSeries))
     field = next(
-        s for s in obj["series_list"]
-        if not isinstance(s, (TimeSeries, ValueSeries))
+        s for s in obj["series_list"] if not isinstance(s, (TimeSeries, ValueSeries))
     )
     assert field.axes_series[0] is top_level_t

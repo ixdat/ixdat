@@ -1,4 +1,5 @@
 """Tests for tools.py"""
+
 import warnings
 from unittest.mock import patch
 
