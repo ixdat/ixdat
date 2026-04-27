@@ -301,9 +301,7 @@ class AsimovReader:
             ts = None
             if key_map and "tseries_key" in dct:
                 ts = key_map.get(dct["tseries_key"])
-            return ValueSeries(
-                name=name, unit_name=unit_name, data=data, tseries=ts
-            )
+            return ValueSeries(name=name, unit_name=unit_name, data=data, tseries=ts)
         if kind == "field":
             # axes_keys references top-level series; axes_series is the inline
             # form used by standalone Spectrum / SpectrumSeries payloads.
