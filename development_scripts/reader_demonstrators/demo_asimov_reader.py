@@ -25,35 +25,14 @@ def main():
     ax_ec_right = ax_ec.twinx()
 
     line_styles = ("-", "--")
-    u_color = "C0"
-    j_color = "C3"
     for idx, meas in enumerate(measurements):
-        label = _measurement_label(meas)
         linestyle = line_styles[idx % len(line_styles)]
-        t_u, u = meas.grab(meas.U_name)
-        ax_ec.plot(
-            t_u,
-            u,
+        meas.plot(
+            axes=[ax_ec, ax_ec_right],
+            U_color="C0",
+            J_color="C3",
             linestyle=linestyle,
-            color=u_color,
-            label=f"{label} U",
         )
-
-        t_j, j = meas.grab(meas.J_name)
-        ax_ec_right.plot(
-            t_j,
-            j,
-            linestyle=linestyle,
-            color=j_color,
-            label=f"{label} J",
-        )
-
-    ax_ec.set_xlabel("time / [s]")
-    if measurements:
-        ax_ec.set_ylabel(measurements[0].U_name)
-        ax_ec_right.set_ylabel(measurements[0].J_name)
-    ax_ec.legend()
-    ax_ec_right.legend()
 
     for idx, meas in enumerate(measurements):
         meas.as_cv().plot(
