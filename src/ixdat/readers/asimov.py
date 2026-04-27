@@ -109,7 +109,7 @@ ASIMOV_CONFIG = AsimovConfig.from_env()
 class AsimovReader:
     """Read a remote dataset version from Asimov into an ixdat object.
 
-    Typical use needs no arguments at all -- just ``Measurement.read(<id>,
+    Typical use needs no arguments at all; just ``Measurement.read(<id>,
     reader="asimov")``. The first read opens a browser tab where you log
     in once; later reads reuse a cached token.
 
@@ -174,7 +174,7 @@ class AsimovReader:
         Args:
             id (str): Asimov dataset id (UUID string).
             cls (class, optional): Class to instantiate (Measurement, Spectrum, etc.).
-                If None, auto-detected from the payload's ``object_type`` field.
+                If None, auto-detected from the payload's object_type field.
             version (int, optional): Version number to select.
             version_id (str, optional): Dataset-version UUID to select.
             force_login (bool): Force fresh Keycloak device login.
@@ -231,9 +231,10 @@ class AsimovReader:
         return cls.from_dict(self._build_kwargs(d, reader=self, **kwargs))
 
     def _build_kwargs(self, dct, **kwargs):
-        """Translate an Asimov payload into kwargs for ``cls.from_dict()``."""
-        # Measurements need an absolute tstamp; Spectrum / SpectrumSeries
-        # accept tstamp=None natively, so we don't enforce it for them.
+        """Translate an Asimov payload into kwargs for cls.from_dict().
+        Measurements need an absolute tstamp; Spectrum / SpectrumSeries
+        accept tstamp=None natively, so we don't enforce it for them.
+        """
         if "series_list" in dct and dct.get("tstamp") is None:
             raise ValueError(
                 "Asimov measurement payload is missing 'tstamp'. ixdat requires "
@@ -279,8 +280,8 @@ class AsimovReader:
     def _build_series(dct, key_map=None):
         """Build a DataSeries from one payload entry.
 
-        ``key_map`` resolves ``tseries_key`` / ``axes_keys`` references when
-        the entry comes from a Measurement's ``series_list``.
+        key_map resolves tseries_key / axes_keys references when
+        the entry comes from a Measurement's series_list.
         """
         kind = dct.get("series_type", "series")
         name = dct["name"]
