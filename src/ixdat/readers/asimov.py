@@ -230,18 +230,10 @@ class AsimovReader:
 
         return cls.from_dict(self._build_kwargs(d, reader=self, **kwargs))
 
-    # Asimov stores ixdat objects as a self-contained JSON document. The
-    # two methods below translate that JSON into kwargs for cls.from_dict()
-
     def _build_kwargs(self, dct, **kwargs):
-        """Translate an Asimov payload into kwargs for ``cls.from_dict()``.
-
-        The payload's shape (``series_list`` for measurements, ``field``
-        for spectra) decides which extra fields to add.
-        """
-        # Measurements must have an absolute tstamp (to align TimeSeries).
-        # Spectrum/SpectrumSeries can carry tstamp=None natively in ixdat,
-        # so we pass through whatever the payload has rather than forcing it.
+        """Translate an Asimov payload into kwargs for ``cls.from_dict()``."""
+        # Measurements need an absolute tstamp; Spectrum / SpectrumSeries
+        # accept tstamp=None natively, so we don't enforce it for them.
         if "series_list" in dct and dct.get("tstamp") is None:
             raise ValueError(
                 "Asimov measurement payload is missing 'tstamp'. ixdat requires "
@@ -258,30 +250,24 @@ class AsimovReader:
             obj["sample_name"] = dct["sample_name"]
 
         if "series_list" in dct:
-            # Asimov payloads tag every series_list entry with a payload-local
-            # "key" (s0, s1, ...). ValueSeries reference their TimeSeries via
-            # "tseries_key", and Fields reference top-level axes via
-            # "axes_keys". This avoids the name-collision and axis-duplication
-            # ambiguities of name-based references.
-            #
-            # TimeSeries are built first so vseries / fields can wire to them.
+            # Build TimeSeries first so vseries / fields can reference them.
             key_map = {}
             series_list = []
             for s in dct["series_list"]:
                 if s.get("series_type") == "tseries":
-                    ts = self._parse_series(s)
+                    ts = self._build_series(s)
                     key_map[s["key"]] = ts
                     series_list.append(ts)
             for s in dct["series_list"]:
                 if s.get("series_type") != "tseries":
-                    built = self._parse_series(s, key_map)
+                    built = self._build_series(s, key_map)
                     key_map[s["key"]] = built
                     series_list.append(built)
             obj["series_list"] = series_list
             obj["aliases"] = dct.get("aliases") or {}
 
         if "field" in dct:
-            obj["field"] = self._parse_series(dct["field"])
+            obj["field"] = self._build_series(dct["field"])
             obj["duration"] = dct.get("duration")
             if dct.get("object_type") == "spectrum_series":
                 obj["durations"] = dct.get("durations")
@@ -290,12 +276,11 @@ class AsimovReader:
         return obj
 
     @staticmethod
-    def _parse_series(dct, key_map=None):
+    def _build_series(dct, key_map=None):
         """Build a DataSeries from one payload entry.
 
-        ``key_map`` maps payload-local series keys (s0, s1, ...) to already
-        constructed DataSeries, used to resolve ``tseries_key`` and
-        ``axes_keys`` references.
+        ``key_map`` resolves ``tseries_key`` / ``axes_keys`` references when
+        the entry comes from a Measurement's ``series_list``.
         """
         kind = dct.get("series_type", "series")
         name = dct["name"]
@@ -309,34 +294,25 @@ class AsimovReader:
                     "an absolute timestamp on every TimeSeries."
                 )
             return TimeSeries(
-                name=name,
-                unit_name=unit_name,
-                data=data,
-                tstamp=dct["tstamp"],
+                name=name, unit_name=unit_name, data=data, tstamp=dct["tstamp"]
             )
         if kind in ("vseries", "constantvalue"):
             ts = None
             if key_map and "tseries_key" in dct:
                 ts = key_map.get(dct["tseries_key"])
             return ValueSeries(
-                name=name,
-                unit_name=unit_name,
-                data=data,
-                tseries=ts,
+                name=name, unit_name=unit_name, data=data, tseries=ts
             )
         if kind == "field":
-            # axes_keys points at top-level series_list entries; axes_series
-            # is the inline form for standalone Spectrum / SpectrumSeries
-            # payloads where there is no series_list to reference.
-            axes = []
+            # axes_keys references top-level series; axes_series is the inline
+            # form used by standalone Spectrum / SpectrumSeries payloads.
             if "axes_keys" in dct and key_map:
-                for k in dct["axes_keys"]:
-                    axes.append(key_map[k])
-                return Field(
-                    name=name, unit_name=unit_name, data=data, axes_series=axes
-                )
-            for a in dct.get("axes_series", []):
-                axes.append(AsimovReader._parse_series(a, key_map))
+                axes = [key_map[k] for k in dct["axes_keys"]]
+            else:
+                axes = [
+                    AsimovReader._build_series(a, key_map)
+                    for a in dct.get("axes_series", [])
+                ]
             return Field(name=name, unit_name=unit_name, data=data, axes_series=axes)
 
         return DataSeries(name=name, unit_name=unit_name, data=data)
