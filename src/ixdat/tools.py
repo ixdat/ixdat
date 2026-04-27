@@ -134,6 +134,11 @@ def request_with_retries(
         raise RuntimeError(msg) from exc
 
     except requests.exceptions.HTTPError as exc:
+        # r.raise_for_status() in the worker thread raises HTTPError on 4xx/5xx
+        # responses; it travels via the queue and is re-raised above. Tries to
+        # extract a readable detail from the JSON body ("detail" and "message"
+        # are common API conventions, e.g. FastAPI) before re-raising as a plain
+        # RuntimeError. Falls back to raw response text if no JSON is present.
         response = exc.response
         status = response.status_code if response is not None else None
         reason = response.reason if response is not None else None
