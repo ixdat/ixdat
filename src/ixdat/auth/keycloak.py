@@ -6,13 +6,40 @@ Grant (device code flow) with refresh-token based reuse.
 """
 
 import json
+import os
+import subprocess
+import sys
 import time
-import webbrowser
 from pathlib import Path
 
 import requests
 
 from ..tools import get_default_cache_dir
+
+
+# Background browser processes are kept here so their ``Popen`` handles are
+# not garbage-collected. CPython's ``webbrowser.open`` spawns the browser
+# via ``subprocess.Popen`` and then discards the handle, which triggers a
+# ``ResourceWarning`` from ``Popen.__del__``. Keeping references avoids the
+# warning; the browser itself runs detached via ``start_new_session=True``
+# and outlives the Python process.
+_BROWSER_PROCESSES = []
+
+
+def _open_in_browser(url):
+    """Open ``url`` in the user's default browser without leaking handles."""
+    if sys.platform == "win32":
+        # ``os.startfile`` hands the URL to Windows shell, which detaches.
+        os.startfile(url)  # type: ignore[attr-defined]
+        return
+    cmd = ["open", url] if sys.platform == "darwin" else ["xdg-open", url]
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    _BROWSER_PROCESSES.append(proc)
 
 
 class KeycloakDeviceTokenProvider:
@@ -141,7 +168,7 @@ class KeycloakDeviceTokenProvider:
             )
 
         if verification_uri_complete and self.open_browser:
-            webbrowser.open(verification_uri_complete)
+            _open_in_browser(verification_uri_complete)
 
         if verification_uri_complete:
             print(
@@ -161,11 +188,16 @@ class KeycloakDeviceTokenProvider:
             )
 
         # Poll the token endpoint until one of four outcomes:
-        #   - 200 OK:                user approved, return tokens and exit
-        #   - authorization_pending: user not done yet, wait and retry
-        #   - slow_down:             server asks us to back off, increase interval and retry
-        #   - access_denied:         user rejected, raise immediately
-        #   - expired_token:         flow window closed, break and fall through to timeout error
+        # - 200 OK:
+        #      user approved, return tokens and exit
+        # - authorization_pending:
+        #      user not done yet, wait and retry
+        # - slow_down:
+        #     server asks us to back off, increase interval and retry
+        # - access_denied:
+        #     user rejected, raise immediately
+        # - expired_token:
+        #     flow window closed, break and fall through to timeout error
         # Any other error raises immediately. Loop is bounded by `deadline`.
         deadline = time.time() + expires_in
         while time.time() < deadline:

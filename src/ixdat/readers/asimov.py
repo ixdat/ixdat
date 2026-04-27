@@ -1,11 +1,14 @@
 """Reader for ixdat measurements stored in Asimov dataset versions."""
 
 import os
+from dataclasses import dataclass, fields
 from urllib.parse import urljoin
 
+import numpy as np
 import requests
 
 from ..auth import KeycloakDeviceTokenProvider
+from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
 from ..measurement_base import Measurement
 from ..spectra import Spectrum, SpectrumSeries
 from ..tools import request_with_retries
@@ -16,80 +19,140 @@ OBJECT_TYPE_CLASSES = {
     "spectrum_series": SpectrumSeries,
 }
 
-DEFAULT_ASIMOV_BASE_URL = "https://asimov.enci.dk/api"
-DEFAULT_KEYCLOAK_SERVER_URL = "https://auth.enci.dk"
-DEFAULT_KEYCLOAK_REALM = "master"
-DEFAULT_KEYCLOAK_CLIENT_ID = "ixdat-cli"
+
+@dataclass
+class AsimovConfig:
+    """Connection and authentication settings for the Asimov reader.
+
+    You usually do not need to touch any of this. The defaults point at the
+    public Asimov service and use a normal browser login. Override a setting
+    only if your group runs a private Asimov deployment, or if you are
+    automating ixdat in a place where a browser cannot be opened.
+
+    Asimov uses an external login server (Keycloak) to verify who you
+    are, instead of asking for a username and password directly. The
+    first time you read from Asimov, ixdat opens a browser tab where
+    you log in. A short-lived access token is then cached on disk and
+    reused on subsequent reads, including silent renewal, until the
+    refresh window expires.
+
+    Attributes:
+        base_url (str): Base URL of the Asimov API.
+            Env var: ``ASIMOV_BASE_URL``.
+        keycloak_server_url (str): URL of the Keycloak login server.
+            Env var: ``KEYCLOAK_SERVER_URL``.
+        keycloak_realm (str): Keycloak realm. A realm is Keycloak's term
+            for an isolated user database
+            Env var: ``KEYCLOAK_REALM``.
+        keycloak_client_id (str): The "application name" Asimov knows
+            ixdat as. Leave at the default unless your administrator
+            tells you otherwise.
+            Env var: ``KEYCLOAK_CLIENT_ID``.
+        keycloak_client_secret (str, optional): Only required for
+            "confidential" clients (e.g. server-to-server automation).
+            Env var: ``KEYCLOAK_CLIENT_SECRET``.
+        keycloak_scope (str): OAuth scope string requested at login.
+            ``offline_access`` is included so that ixdat can silently
+            refresh expired tokens without prompting again.
+        keycloak_cache_path (str or Path, optional): Where to store the
+            cached login tokens on disk. Defaults to ixdat's user cache
+            directory under ``auth/keycloak/``.
+        keycloak_open_browser (bool): If ``True`` (default), the login URL
+            is opened in a browser automatically. Set to ``False`` in
+            headless environments; ixdat will print the URL instead so
+            you can open it manually on another machine.
+        connect_timeout (float): TCP-connect timeout for Asimov API calls,
+            in seconds.
+        read_timeout (float): Read timeout for Asimov API calls, in
+            seconds.
+        total_timeout (float): Overall time budget for a single API call
+            including retries, in seconds.
+    """
+
+    base_url: str = "https://asimov.enci.dk/api"
+    keycloak_server_url: str = "https://auth.enci.dk"
+    keycloak_realm: str = "master"
+    keycloak_client_id: str = "ixdat-cli"
+    keycloak_client_secret: "str | None" = None
+    keycloak_scope: str = "openid offline_access"
+    keycloak_cache_path: "str | None" = None
+    keycloak_open_browser: bool = True
+    connect_timeout: float = 3.0
+    read_timeout: float = 10.0
+    total_timeout: float = 30.0
+
+    # Mapping of field name -> environment variable name.
+    _ENV_VARS = {
+        "base_url": "ASIMOV_BASE_URL",
+        "keycloak_server_url": "KEYCLOAK_SERVER_URL",
+        "keycloak_realm": "KEYCLOAK_REALM",
+        "keycloak_client_id": "KEYCLOAK_CLIENT_ID",
+        "keycloak_client_secret": "KEYCLOAK_CLIENT_SECRET",
+    }
+
+    @classmethod
+    def from_env(cls):
+        """Build a config, layering environment variables on top of defaults."""
+        kwargs = {}
+        for f in fields(cls):
+            env_name = cls._ENV_VARS.get(f.name)
+            if env_name and os.environ.get(env_name):
+                kwargs[f.name] = os.environ[env_name]
+        return cls(**kwargs)
+
+
+# Module-level config, which is populated from environment variables at import.
+# Edit attributes on this object before the first reader call to override.
+ASIMOV_CONFIG = AsimovConfig.from_env()
 
 
 class AsimovReader:
-    """Read a remote dataset version from Asimov into an ixdat Measurement.
+    """Read a remote dataset version from Asimov into an ixdat object.
 
-    Authentication is done via bearer token:
+    Typical use needs no arguments at all -- just ``Measurement.read(<id>,
+    reader="asimov")``. The first read opens a browser tab where you log
+    in once; later reads reuse a cached token.
 
-    - Direct token: pass ``token=...`` or set ``ASIMOV_ACCESS_TOKEN``.
-    - Keycloak provider: pass ``token_provider=...``.
-    - Auto-initialise Keycloak device flow with Asimov defaults.
-      Optional env-var overrides:
-      ``KEYCLOAK_SERVER_URL``, ``KEYCLOAK_REALM``, ``KEYCLOAK_CLIENT_ID``.
+    Power users can pass a pre-obtained bearer ``token`` (or set
+    ``ASIMOV_ACCESS_TOKEN``), or supply a custom ``token_provider`` for
+    tests and CI. Connection and Keycloak settings live on
+    :class:`AsimovConfig`; see its docstring for what each field means and
+    which environment variables it reads.
     """
 
-    def __init__(
-        self,
-        base_url=None,
-        token=None,
-        token_provider=None,
-        keycloak_server_url=None,
-        keycloak_realm=None,
-        keycloak_client_id=None,
-        keycloak_client_secret=None,
-        keycloak_scope="openid offline_access",
-        keycloak_cache_path=None,
-        keycloak_open_browser=True,
-        connect_timeout=3.0,
-        read_timeout=10.0,
-        total_timeout=30.0,
-    ):
-        self.base_url = (
-            base_url or os.environ.get("ASIMOV_BASE_URL") or DEFAULT_ASIMOV_BASE_URL
-        ).rstrip("/")
+    def __init__(self, *, token=None, token_provider=None, config=None):
+        """Build an AsimovReader.
+
+        Args:
+            token (str, optional): A pre-obtained bearer access token. If
+                set (or if ``ASIMOV_ACCESS_TOKEN`` is in the environment),
+                no Keycloak login is performed.
+            token_provider (object, optional): Custom provider exposing
+                ``get_access_token(force_login: bool) -> str``. Mostly for
+                tests and alternative auth backends.
+            config (AsimovConfig, optional): Connection and Keycloak
+                settings. Defaults to the module-level ``ASIMOV_CONFIG``.
+        """
+        self.config = config or ASIMOV_CONFIG
+        self.base_url = self.config.base_url.rstrip("/")
+        self.connect_timeout = self.config.connect_timeout
+        self.read_timeout = self.config.read_timeout
+        self.total_timeout = self.config.total_timeout
 
         self._token = token or os.environ.get("ASIMOV_ACCESS_TOKEN")
         self.token_provider = token_provider
-        self.connect_timeout = connect_timeout
-        self.read_timeout = read_timeout
-        self.total_timeout = total_timeout
 
         if self._token is None and self.token_provider is None:
-            keycloak_server_url = (
-                keycloak_server_url
-                or os.environ.get("KEYCLOAK_SERVER_URL")
-                or DEFAULT_KEYCLOAK_SERVER_URL
-            )
-            keycloak_realm = (
-                keycloak_realm
-                or os.environ.get("KEYCLOAK_REALM")
-                or DEFAULT_KEYCLOAK_REALM
-            )
-            keycloak_client_id = (
-                keycloak_client_id
-                or os.environ.get("KEYCLOAK_CLIENT_ID")
-                or DEFAULT_KEYCLOAK_CLIENT_ID
-            )
-            keycloak_client_secret = keycloak_client_secret or os.environ.get(
-                "KEYCLOAK_CLIENT_SECRET"
-            )
-
             self.token_provider = KeycloakDeviceTokenProvider(
-                server_url=keycloak_server_url.rstrip("/"),
-                realm=keycloak_realm,
-                client_id=keycloak_client_id,
-                client_secret=keycloak_client_secret,
-                scope=keycloak_scope,
-                cache_path=keycloak_cache_path,
-                open_browser=keycloak_open_browser,
-                connect_timeout=connect_timeout,
-                read_timeout=read_timeout,
+                server_url=self.config.keycloak_server_url.rstrip("/"),
+                realm=self.config.keycloak_realm,
+                client_id=self.config.keycloak_client_id,
+                client_secret=self.config.keycloak_client_secret,
+                scope=self.config.keycloak_scope,
+                cache_path=self.config.keycloak_cache_path,
+                open_browser=self.config.keycloak_open_browser,
+                connect_timeout=self.config.connect_timeout,
+                read_timeout=self.config.read_timeout,
             )
 
         self.dataset = None
@@ -144,7 +207,7 @@ class AsimovReader:
         self.dataset = dataset
         self.dataset_version = dataset_version
 
-        # Inject Asimov provenance into metadata
+        # Inject Asimov provenance (dataset versioning) into metadata
         meta = dict(payload.get("metadata") or {})
         meta["asimov"] = {
             "dataset_id": dataset.get("id"),
@@ -165,7 +228,118 @@ class AsimovReader:
             object_type = d.get("object_type", "measurement")
             cls = OBJECT_TYPE_CLASSES.get(object_type, Measurement)
 
-        return cls.from_portable_dict(d, reader=self, **kwargs)
+        return cls.from_dict(self._build_kwargs(d, reader=self, **kwargs))
+
+    # Asimov stores ixdat objects as a self-contained JSON document. The
+    # two methods below translate that JSON into kwargs for cls.from_dict()
+
+    def _build_kwargs(self, dct, **kwargs):
+        """Translate an Asimov payload into kwargs for ``cls.from_dict()``.
+
+        The payload's shape (``series_list`` for measurements, ``field``
+        for spectra) decides which extra fields to add.
+        """
+        # Measurements must have an absolute tstamp (to align TimeSeries).
+        # Spectrum/SpectrumSeries can carry tstamp=None natively in ixdat,
+        # so we pass through whatever the payload has rather than forcing it.
+        if "series_list" in dct and dct.get("tstamp") is None:
+            raise ValueError(
+                "Asimov measurement payload is missing 'tstamp'. ixdat requires "
+                "an absolute timestamp on every Measurement."
+            )
+        obj = {
+            "name": dct.get("name"),
+            "technique": dct.get("technique"),
+            "metadata": dct.get("metadata") or {},
+            "tstamp": dct.get("tstamp"),
+            **kwargs,
+        }
+        if dct.get("sample_name") is not None:
+            obj["sample_name"] = dct["sample_name"]
+
+        if "series_list" in dct:
+            # Asimov payloads tag every series_list entry with a payload-local
+            # "key" (s0, s1, ...). ValueSeries reference their TimeSeries via
+            # "tseries_key", and Fields reference top-level axes via
+            # "axes_keys". This avoids the name-collision and axis-duplication
+            # ambiguities of name-based references.
+            #
+            # TimeSeries are built first so vseries / fields can wire to them.
+            key_map = {}
+            series_list = []
+            for s in dct["series_list"]:
+                if s.get("series_type") == "tseries":
+                    ts = self._parse_series(s)
+                    key_map[s["key"]] = ts
+                    series_list.append(ts)
+            for s in dct["series_list"]:
+                if s.get("series_type") != "tseries":
+                    built = self._parse_series(s, key_map)
+                    key_map[s["key"]] = built
+                    series_list.append(built)
+            obj["series_list"] = series_list
+            obj["aliases"] = dct.get("aliases") or {}
+
+        if "field" in dct:
+            obj["field"] = self._parse_series(dct["field"])
+            obj["duration"] = dct.get("duration")
+            if dct.get("object_type") == "spectrum_series":
+                obj["durations"] = dct.get("durations")
+                obj["continuous"] = dct.get("continuous", False)
+
+        return obj
+
+    @staticmethod
+    def _parse_series(dct, key_map=None):
+        """Build a DataSeries from one payload entry.
+
+        ``key_map`` maps payload-local series keys (s0, s1, ...) to already
+        constructed DataSeries, used to resolve ``tseries_key`` and
+        ``axes_keys`` references.
+        """
+        kind = dct.get("series_type", "series")
+        name = dct["name"]
+        unit_name = dct["unit_name"]
+        data = np.asarray(dct["data"])
+
+        if kind == "tseries":
+            if dct.get("tstamp") is None:
+                raise ValueError(
+                    f"Asimov tseries '{name}' is missing 'tstamp'. ixdat requires "
+                    "an absolute timestamp on every TimeSeries."
+                )
+            return TimeSeries(
+                name=name,
+                unit_name=unit_name,
+                data=data,
+                tstamp=dct["tstamp"],
+            )
+        if kind in ("vseries", "constantvalue"):
+            ts = None
+            if key_map and "tseries_key" in dct:
+                ts = key_map.get(dct["tseries_key"])
+            return ValueSeries(
+                name=name,
+                unit_name=unit_name,
+                data=data,
+                tseries=ts,
+            )
+        if kind == "field":
+            # axes_keys points at top-level series_list entries; axes_series
+            # is the inline form for standalone Spectrum / SpectrumSeries
+            # payloads where there is no series_list to reference.
+            axes = []
+            if "axes_keys" in dct and key_map:
+                for k in dct["axes_keys"]:
+                    axes.append(key_map[k])
+                return Field(
+                    name=name, unit_name=unit_name, data=data, axes_series=axes
+                )
+            for a in dct.get("axes_series", []):
+                axes.append(AsimovReader._parse_series(a, key_map))
+            return Field(name=name, unit_name=unit_name, data=data, axes_series=axes)
+
+        return DataSeries(name=name, unit_name=unit_name, data=data)
 
     def _select_dataset_version(self, versions, version=None, version_id=None):
         if not isinstance(versions, list) or not versions:
@@ -228,7 +402,8 @@ class AsimovReader:
                 raise RuntimeError(
                     str(exc)
                     + "\n\nAsimov rejected the OAuth client used for this token. "
-                    f"The default ixdat client is {DEFAULT_KEYCLOAK_CLIENT_ID!r}; "
+                    "The configured ixdat client is "
+                    f"{self.config.keycloak_client_id!r}; "
                     "check that this client is allowed by the Asimov API, or set "
                     "KEYCLOAK_CLIENT_ID/ASIMOV_ACCESS_TOKEN to an API-authorized "
                     "client/token."

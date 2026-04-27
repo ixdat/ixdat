@@ -43,53 +43,6 @@ class DataSeries(Saveable):
         series_class = SERIES_CLASSES[series_type]
         return series_class(**obj_as_dict)
 
-    @classmethod
-    def from_portable_dict(cls, dct, tseries_dict=None):
-        """Reconstruct a DataSeries from a portable dict.
-
-        Dispatches to the correct subclass based on ``series_type``.
-
-        Args:
-           dct(dict): A dict as produced by ``to_portable_dict()``.
-            tseries_dict (dict, optional): Mapping of TimeSeries name to
-                object, used to resolve the time-axis reference when
-                reconstructing a ValueSeries.
-
-        Returns:
-            DataSeries: An instance of the appropriate subclass.
-        """
-        series_type = dct.get("series_type", "series")
-        name = dct["name"]
-        unit_name = dct["unit_name"]
-        data = np.asarray(dct["data"])
-
-        if series_type == "tseries":
-            return TimeSeries(
-                name=name,
-                unit_name=unit_name,
-                data=data,
-                tstamp=dct.get("tstamp", 0.0),
-            )
-        if series_type in ("vseries", "constantvalue"):
-            tseries = None
-            if tseries_dict and "tseries_name" in dct:
-                tseries = tseries_dict.get(dct["tseries_name"])
-            return ValueSeries(
-                name=name,
-                unit_name=unit_name,
-                data=data,
-                tseries=tseries,
-            )
-        if series_type == "field":
-            axes = [cls.from_portable_dict(ax) for ax in dct.get("axes_series", [])]
-            return Field(
-                name=name,
-                unit_name=unit_name,
-                data=data,
-                axes_series=axes,
-            )
-        return cls(name=name, unit_name=unit_name, data=data)
-
     def __repr__(self):
         return f"{self.__class__.__name__}(id={self.id}, name='{self.name}')"
 
@@ -238,12 +191,6 @@ class Field(DataSeries):
         return self._data.copy()  # TODO: make data series data immutable with numpy flag
         # see: https://github.com/ixdat/ixdat/pull/101/files#r1126172936
 
-    def to_portable_dict(self):
-        """Serialize the Field with its axes inlined."""
-        dct = super().to_portable_dict()
-        dct["axes_series"] = [ax.to_portable_dict() for ax in self.axes_series]
-        return dct
-
     @property
     def tstamp(self):
         """The unix time corresponding to t=0 for the time-resolved axis of the Field
@@ -328,13 +275,6 @@ class ValueSeries(Field):
 
     def __hash__(self):
         return super().__hash__()
-
-    def to_portable_dict(self):
-        """Adds the tseries_name reference to the base serialization"""
-        dct = super().to_portable_dict()
-        if self.tseries is not None:
-            dct["tseries_name"] = self.tseries.name
-        return dct
 
 
 class ConstantValue(ValueSeries):

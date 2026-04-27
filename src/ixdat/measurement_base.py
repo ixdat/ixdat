@@ -13,13 +13,7 @@ classes will be defined in the corresponding module in ./techniques/
 import warnings
 import json
 import numpy as np
-from .db import (
-    Saveable,
-    PlaceHolderObject,
-    fill_object_list,
-    portable_metadata_fields,
-    obj_as_dict_from_portable_metadata,
-)
+from .db import Saveable, PlaceHolderObject, fill_object_list
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -255,55 +249,6 @@ class Measurement(Saveable):
             raise
 
         return measurement
-
-    def to_portable_dict(self):
-        """Extends the base Saveable.to_portable_dict() with the inline series list."""
-        dct = portable_metadata_fields(self)
-        dct["object_type"] = "measurement"
-        dct["series_list"] = [s.to_portable_dict() for s in self.series_list]
-        dct["aliases"] = self.aliases
-        return dct
-
-    @classmethod
-    def from_portable_dict(cls, dct, **kwargs):
-        """
-        Reconstruct a Measurement from a portable dict.
-        Performs a two-pass reconstruction: TimeSeries first, then
-        ValueSeries are created with references to their parent TimeSeries.
-
-        Args:
-            dct (dict): A dict as produced by ``to_portable_dict()``.
-            **kwargs: Extra key-value pairs merged into the measurement
-                dict before construction (e.g. ``reader=my_reader``).
-
-        Returns:
-            Measurement: An instance of the appropriate technique subclass.
-        """
-        from .data_series import DataSeries
-
-        # Reconstruct TimeSeries so they can be referenced by name.
-        tseries_dict = {}
-        series_list = []
-        for s_dict in dct.get("series_list", []):
-            if s_dict.get("series_type") == "tseries":
-                ts = DataSeries.from_portable_dict(s_dict)
-                tseries_dict[ts.name] = ts
-                series_list.append(ts)
-
-        # Reconstruct remaining series with TimeSeries linkage.
-        for s_dict in dct.get("series_list", []):
-            if s_dict.get("series_type") != "tseries":
-                series_list.append(
-                    DataSeries.from_portable_dict(s_dict, tseries_dict=tseries_dict)
-                )
-
-        obj_as_dict = obj_as_dict_from_portable_metadata(dct, technique_default="simple")
-        obj_as_dict["tstamp"] = dct.get("tstamp", 0.0)
-        obj_as_dict["series_list"] = series_list
-        obj_as_dict["aliases"] = dct.get("aliases") or {}
-        obj_as_dict.update(kwargs)
-
-        return cls.from_dict(obj_as_dict)
 
     @classmethod
     def read(cls, path_to_file, reader=None, **kwargs):
