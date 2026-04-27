@@ -160,6 +160,13 @@ class KeycloakDeviceTokenProvider:
                 "verification URI."
             )
 
+        # Poll the token endpoint until one of four outcomes:
+        #   - 200 OK:                user approved, return tokens and exit
+        #   - authorization_pending: user not done yet, wait and retry
+        #   - slow_down:             server asks us to back off, increase interval and retry
+        #   - access_denied:         user rejected, raise immediately
+        #   - expired_token:         flow window closed, break and fall through to timeout error
+        # Any other error raises immediately. Loop is bounded by `deadline`.
         deadline = time.time() + expires_in
         while time.time() < deadline:
             token_data = {
