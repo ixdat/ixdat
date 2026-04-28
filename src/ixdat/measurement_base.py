@@ -174,7 +174,7 @@ class Measurement(Saveable):
                     out.append("┣━ " + str(value_series))
 
         calc_out = []
-        for n, (name, calculator) in enumerate(self.calculators.items()):
+        for (n, (name, calculator)) in enumerate(self.calculators.items()):
             if n == len(self.calculators) - 1:
                 calc_out.append("┗━ " + str(calculator))
             else:
