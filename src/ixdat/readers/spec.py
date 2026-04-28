@@ -91,8 +91,16 @@ class SpecDATReader:
                     f"Available columns: {cols}"
                 )
             return self._read_xas(
-                scans, cls, technique, x_name, y_name, ref_name,
-                average_scans, path_to_file, file_meta, **kwargs,
+                scans,
+                cls,
+                technique,
+                x_name,
+                y_name,
+                ref_name,
+                average_scans,
+                path_to_file,
+                file_meta,
+                **kwargs,
             )
 
         return _multispectrum_from_scan(
@@ -100,8 +108,17 @@ class SpecDATReader:
         )
 
     def _read_xas(
-        self, scans, cls, technique, x_name, y_name, ref_name,
-        average_scans, path_to_file, file_meta, **kwargs,
+        self,
+        scans,
+        cls,
+        technique,
+        x_name,
+        y_name,
+        ref_name,
+        average_scans,
+        path_to_file,
+        file_meta,
+        **kwargs,
     ):
         def get_xy(scan):
             data = scan["data"]
@@ -150,7 +167,9 @@ def _multispectrum_from_scan(scan, x_name, path_to_file, file_meta, technique, *
     ]
     kwargs.setdefault("name", path_to_file.name)
     kwargs.setdefault("technique", technique)
-    kwargs.setdefault("metadata", _build_metadata([scan], file_meta, average_scans=False))
+    kwargs.setdefault(
+        "metadata", _build_metadata([scan], file_meta, average_scans=False)
+    )
     # MultiSpectrum does not accept reader or duration, so remove them
     kwargs.pop("reader", None)
     kwargs.pop("duration", None)
@@ -230,7 +249,9 @@ def _parse_spec_file(path_to_file):
                 # collect all comment lines, joining with newline
                 existing = file_meta.get("comment", "")
                 new = line[3:].strip()
-                file_meta["comment"] = (existing + "\n" + new).strip() if existing else new
+                file_meta["comment"] = (
+                    (existing + "\n" + new).strip() if existing else new
+                )
 
             else:
                 m = re.match(r"#O(\d+) ", line)

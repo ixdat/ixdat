@@ -36,17 +36,18 @@ It_col = "ion_1_2"
 # =============================================================================
 
 xas = Spectrum.read(
-    data_file, reader="spec", technique="XAS",
-    y_name=It_col, ref_name=I0_col,
+    data_file,
+    reader="spec",
+    technique="XAS",
+    y_name=It_col,
+    ref_name=I0_col,
 )
 
 print("=== SpecDATReader — stored attributes ===")
 print(f"  name      : {xas.name}")
 print(f"  technique : {xas.technique}")
-print(f"  tstamp    : {xas.tstamp}  "
-      f"({datetime.datetime.fromtimestamp(xas.tstamp)})")
-print(f"  duration  : {xas.duration} s  "
-      f"({xas.duration / 60:.1f} min)")
+print(f"  tstamp    : {xas.tstamp}  " f"({datetime.datetime.fromtimestamp(xas.tstamp)})")
+print(f"  duration  : {xas.duration} s  " f"({xas.duration / 60:.1f} min)")
 print(f"  reader    : {type(xas.reader).__name__}")
 print()
 meta = xas.metadata
@@ -55,13 +56,13 @@ print(f"  metadata['scan_command'] : {meta['scan_command']}")
 print(f"  metadata['count_time_ms']: {meta['count_time_ms']} ms")
 print(f"  metadata['beamline_file']: {meta['beamline_file']}")
 print(f"  metadata['comment']      : {meta['comment']}")
-print(f"  metadata['umi']          :")
+print("  metadata['umi']          :")
 for line in meta["umi"]:
     print(f"    {line}")
 print(f"  metadata['motor_positions'] ({len(meta['motor_positions'])} motors):")
 for k, v in list(meta["motor_positions"].items())[:6]:
     print(f"    {k}: {v}")
-print(f"    ...")
+print("    ...")
 print()
 
 # =============================================================================
@@ -80,7 +81,7 @@ print()
 # =============================================================================
 
 ms = Spectrum.read(data_file, reader="spec")
-print(f"=== MultiSpectrum (no technique) ===")
+print("=== MultiSpectrum (no technique) ===")
 print(f"  {len(ms.fields)} fields: {[f.name for f in ms.fields]}")
 print()
 
@@ -110,8 +111,12 @@ ax = axes[0, 1]
 scans = {}
 for n in (1, 2, 3):
     scans[n] = Spectrum.read(
-        data_file, reader="spec", technique="XAS",
-        y_name=It_col, ref_name=I0_col, scan_numbers=n,
+        data_file,
+        reader="spec",
+        technique="XAS",
+        y_name=It_col,
+        ref_name=I0_col,
+        scan_numbers=n,
     )
     scans[n].plot(ax=ax, label=f"scan {n}", alpha=0.75)
 ax.axvline(7112, color="gray", lw=0.8, ls="--")
@@ -121,11 +126,17 @@ ax.legend(fontsize=8)
 # --- (0,2) Averaging: single vs averaged ---
 ax = axes[0, 2]
 xas_avg = Spectrum.read(
-    data_file, reader="spec", technique="XAS",
-    y_name=It_col, ref_name=I0_col, average_scans=True,
+    data_file,
+    reader="spec",
+    technique="XAS",
+    y_name=It_col,
+    ref_name=I0_col,
+    average_scans=True,
 )
 scans[1].plot(ax=ax, color="C0", alpha=0.5, label="scan 1 only")
-xas_avg.plot(ax=ax, color="C2", label=f"average of {len(xas_avg.metadata['scan_numbers'])} scans")
+xas_avg.plot(
+    ax=ax, color="C2", label=f"average of {len(xas_avg.metadata['scan_numbers'])} scans"
+)
 ax.axvline(7112, color="gray", lw=0.8, ls="--")
 ax.set_title("Single vs averaged (average_scans=True)")
 ax.legend(fontsize=8)
@@ -158,19 +169,23 @@ lines = [
     f"reader:   {type(xas_avg.reader).__name__}",
     "",
     f"scan_numbers: {xas_avg.metadata['scan_numbers']}",
-    f"scan_command:",
+    "scan_command:",
     f"  {xas_avg.metadata['scan_command']}",
     f"count_time_ms: {xas_avg.metadata['count_time_ms']}",
     "",
-    f"beamline_file:",
+    "beamline_file:",
     f"  {xas_avg.metadata['beamline_file']}",
     "",
     f"comment: {xas_avg.metadata['comment']}",
 ]
 ax.text(
-    0.05, 0.95, "\n".join(lines),
-    transform=ax.transAxes, fontsize=8,
-    verticalalignment="top", fontfamily="monospace",
+    0.05,
+    0.95,
+    "\n".join(lines),
+    transform=ax.transAxes,
+    fontsize=8,
+    verticalalignment="top",
+    fontfamily="monospace",
     bbox=dict(boxstyle="round", facecolor="whitesmoke", alpha=0.8),
 )
 ax.set_title("Stored metadata")
