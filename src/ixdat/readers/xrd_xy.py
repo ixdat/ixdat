@@ -1,11 +1,9 @@
-"""Reader for .xy and .xye powder diffraction files"""
-
 from pathlib import Path
 import numpy as np
 from ..spectra import Spectrum
 from ..data_series import DataSeries, Field
 
-# Known header prefixes used by common XRD software
+# Known header prefixes
 _COMMENT_CHARS = ("#", "!", ";", "'")
 
 # Heuristics for x-axis label/unit from header tokens
@@ -14,12 +12,7 @@ _TWOTHETA_TOKENS = {"2theta", "2-theta", "2th", "angle"}
 
 
 def _parse_header_and_data(path_to_file):
-    """Return (x_name, x_unit, y_name, data_array) parsed from an .xy/.xye file.
-
-    Header lines starting with a comment character, or bare non-numeric first lines
-    (e.g. ``Q,I(Q)`` from Debye calculator output), are scanned for column labels.
-    Comma-separated and whitespace-separated data are both supported.
-    """
+    """Return (x_name, x_unit, y_name, data_array) parsed from an .xy/.xye file."""
     header_lines = []
     data_lines = []
     with open(path_to_file, "r") as f:
