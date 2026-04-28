@@ -85,6 +85,8 @@ designed into every level.
    * - In-situ Electrochemistry - X-ray adsorption spectroscopy
      - Development
      - - qexafs: .dat files from Diamond's B18 beamline
+       - spec: SPEC-format .dat files from beamlines using Certified Scientific
+         Software's SPEC program (e.g. ESRF BM31, APS, SOLEIL)
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -
