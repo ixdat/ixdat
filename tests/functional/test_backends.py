@@ -1,4 +1,4 @@
-""" "Tests that an ECMeasurement read from test data behaves as it should"""
+""""Tests that an ECMeasurement read from test data behaves as it should"""
 
 from ixdat import Measurement
 

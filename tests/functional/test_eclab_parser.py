@@ -6,7 +6,6 @@ the 'ixdat-large-test-files' submodule.
 NOTE: Test of PEIS technique is skipped, because the Ixdat does not support it.
 
 """
-
 from pathlib import Path
 
 from ixdat import Measurement
