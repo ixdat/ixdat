@@ -27,10 +27,8 @@ readers
 
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
 
-- The ``AsimovReader`` (reader="asimov") has been added for retrieving measurements
-  from asimov.enci.dk via REST API. Authentication uses the OAuth 2.0 Device Flow
-  via Keycloak. Portable dict serialization (``to_portable_dict``/``from_portable_dict``)
-  has been added for ``Measurement``, ``Spectrum``, ``SpectrumSeries``, and ``Field``,
-  enabling backend-agnostic round-trip serialization. The reader auto-detects the
-  object type from the payload.
+- The ``AsimovReader`` (reader="asimov") has been added for retrieving measurements,
+  spectra, and spectrum series from asimov.enci.dk via REST API. Authentication uses
+  the OAuth 2.0 Device Flow via Keycloak. The reader auto-detects the object type
+  from the payload.
   `PR #198 <https://github.com/ixdat/ixdat/pull/198>`_
