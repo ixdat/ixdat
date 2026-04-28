@@ -39,6 +39,7 @@ from .avantage import AvantageAVGReader
 
 # xas
 from .qexafs import QexafsDATReader, B18TRXRFReader
+from .spec import SpecDATReader
 
 # ftir
 from .opus_ftir import OpusFTIRReader
@@ -75,5 +76,6 @@ SPECTRUM_READER_CLASSES = {
     "zilien": ZilienSpectrumReader,
     "xrdml": XRDMLReader,
     "qexafs": QexafsDATReader,
+    "spec": SpecDATReader,
     "opus_ftir": OpusFTIRReader,
 }
