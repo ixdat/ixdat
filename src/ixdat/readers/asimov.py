@@ -352,6 +352,9 @@ class AsimovReader:
                 if v.get("version") == version:
                     return v
             raise ValueError(f"No dataset version with version={version}.")
+        # Asimov returns created_at as an ISO 8601 string (e.g. "2024-06-01T12:00:00Z").
+        # Lexicographic sorting of ISO 8601 strings is equivalent to chronological
+        # sorting, so reverse=True gives the most recently created version first.
         return sorted(versions, key=lambda v: v.get("created_at", ""), reverse=True)[0]
 
     def _build_auth_headers(self, force_login=False):
