@@ -254,6 +254,7 @@ class AsimovReader:
         if dct.get("sample_name") is not None:
             obj["sample_name"] = dct["sample_name"]
 
+        key_map = None
         if "series_list" in dct:
             # Build TimeSeries first so vseries / fields can reference them.
             key_map = {}
@@ -273,7 +274,7 @@ class AsimovReader:
 
         # this will be the case when retreiving a Spectrum, SpectrumSeries or SpectroMeasurement
         if "field" in dct:
-            obj["field"] = self._build_series(dct["field"])
+            obj["field"] = self._build_series(dct["field"], key_map)
             obj["duration"] = dct.get("duration")
             if dct.get("object_type") == "spectrum_series":
                 obj["durations"] = dct.get("durations")
@@ -308,11 +309,14 @@ class AsimovReader:
                 ts = key_map.get(dct["tseries_key"])
             return ValueSeries(name=name, unit_name=unit_name, data=data, tseries=ts)
         if kind == "field":
-            # axes_keys references top-level series; axes_series is the inline
-            # form used by standalone Spectrum / SpectrumSeries payloads.
+            # axes_keys references axes already built from the shared series_list;
+            # axes_series is the inline form where axes are embedded in the payload
+            # directly (standalone Spectrum / SpectrumSeries with no series_list).
             if "axes_keys" in dct and key_map:
                 axes = [key_map[k] for k in dct["axes_keys"]]
             else:
+                # No key_map means axes are not in a shared series_list, so they
+                # must be embedded inline under axes_series.
                 axes = [
                     AsimovReader._build_series(a, key_map)
                     for a in dct.get("axes_series", [])
