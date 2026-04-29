@@ -27,32 +27,39 @@ from ..techniques.nmr import NMRSpectrum
 # Acquisition parameters lifted from `acqus` into a flat metadata dict.
 # Anything not in this list is still preserved in metadata["acqus"].
 #
-# Definitions follow the Bruker TopSpin Acquisition Commands and Parameters Reference Manual.
-# A copy is available at:
-# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/acqu_commands_parameters.pdf
+# Definitions follow the Bruker TopSpin Acquisition Commands and Parameters
+# Reference Manual. A copy is available at:
+# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/
+# acqu_commands_parameters.pdf
 #
 # Key Bruker acqus abbreviations:
 #   SOLVENT  - NMR solvent (e.g. D2O, DMSO)
 #   TE       - sample temperature in Kelvin
-#   BF1      - basic transmitter frequency for channel 1 in MHz (e.g. 700 for a 700 MHz instrument;
-#              set automatically by TopSpin for each nucleus)
-#   SFO1     - exact irradiation frequency of channel 1 in MHz: SFO1 = BF1 + O1/1e6; this is the
-#              frequency at the center of the recorded spectral window
-#   O1       - carrier frequency offset from BF1 in Hz; sets the center of the spectral region to
-#              be acquired; adjust to place the window over the region of interest
+#   BF1      - basic transmitter frequency for channel 1 in MHz (e.g. 700 for
+#              a 700 MHz instrument; set automatically by TopSpin for each nucleus)
+#   SFO1     - exact irradiation frequency of channel 1 in MHz:
+#              SFO1 = BF1 + O1/1e6; this is the frequency at the center of the
+#              recorded spectral window
+#   O1       - carrier frequency offset from BF1 in Hz; sets the center of the
+#              spectral region to be acquired; adjust to place the window over
+#              the region of interest
 #   SW       - total spectral width in ppm (the chemical-shift range recorded)
 #   SW_h     - spectral width in Hz (the equivalent of SW in Hz units)
-#   NS       - number of scans: each scan is one RF pulse + FID acquisition; signals add
-#              coherently while random noise adds as sqrt(NS), so signal-to-noise ratio grows
-#              as sqrt(NS); NS should be a multiple of the phase-cycle length (often 8)
-#   DS       - dummy scans: loops of the pulse program executed without digitizing or accumulating
-#              data, run before the NS counted scans to reach a repeatable steady state
+#   NS       - number of scans: each scan is one RF pulse + FID acquisition;
+#              signals add coherently while random noise adds as sqrt(NS), so
+#              signal-to-noise ratio grows as sqrt(NS); NS should be a multiple
+#              of the phase-cycle length (often 8)
+#   DS       - dummy scans: loops of the pulse program executed without
+#              digitizing or accumulating data, run before the NS counted scans
+#              to reach a repeatable steady state
 #   TD       - time-domain size: number of complex data points digitised in the FID
-#   PULPROG  - pulse program name (defines the RF pulse sequence, e.g. zg, noesypr1d)
+#   PULPROG  - pulse program name (defines the RF pulse sequence, e.g. zg,
+#              noesypr1d)
 #   AQ_mod   - acquisition mode (e.g. DQD = digital quadrature detection)
 #   NUC1     - nucleus assigned to frequency channel 1 (e.g. 1H, 13C, 31P)
-#   P        - array of rectangular pulse lengths in microseconds (P[1] is typically the
-#              90-degree hard pulse that tips magnetisation from the z-axis into the xy-plane)
+#   P        - array of rectangular pulse lengths in microseconds (P[1] is
+#              typically the 90-degree hard pulse that tips magnetisation from
+#              the z-axis into the xy-plane)
 #   D        - array of inter-pulse delay times in seconds
 _ACQUS_KEYS = (
     "SOLVENT",
@@ -75,22 +82,29 @@ _ACQUS_KEYS = (
 
 # Processing parameters lifted from `procs`.
 #
-# Definitions follow the Bruker TopSpin Processing Commands and Parameters Reference Manual.
-# A copy is available at:
-# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/proc_commands_references.pdf
+# Definitions follow the Bruker TopSpin Processing Commands and Parameters
+# Reference Manual. A copy is available at:
+# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/
+# proc_commands_references.pdf
 #
-#   SI     - size of the frequency-domain spectrum in points (often 2 times TD after zero-filling;
-#             zero-filling pads the FID with zeros before Fourier transform to interpolate the axis)
-#   OFFSET - ppm value of the leftmost (highest-frequency) point of the processed spectrum
-#   SF     - spectrometer reference frequency in MHz used to convert Hz to ppm for axis calibration
+#   SI     - size of the frequency-domain spectrum in points (often 2 times TD
+#             after zero-filling; zero-filling pads the FID with zeros before
+#             Fourier transform to interpolate the axis)
+#   OFFSET - ppm value of the leftmost (highest-frequency) point of the
+#             processed spectrum
+#   SF     - spectrometer reference frequency in MHz used to convert Hz to ppm
+#             for axis calibration
 #   SW_p   - spectral width of the processed spectrum in ppm
-#   LB     - line-broadening in Hz: an exponential decay multiplied into the FID before Fourier
-#             transform; positive LB reduces noise at the cost of broader (lower-resolution) peaks
-#   WDW    - window/apodization function code applied to the FID before Fourier transform
-#             (0 = none, 1 = exponential, 2 = Gaussian, etc.)
-#   PHC0   - zero-order (constant) phase correction angle in degrees applied after Fourier transform
-#   PHC1   - first-order phase correction angle in degrees; varies linearly across the spectrum to
-#             correct the phase roll caused by a delayed FID start or finite pulse width
+#   LB     - line-broadening in Hz: an exponential decay multiplied into the
+#             FID before Fourier transform; positive LB reduces noise at the
+#             cost of broader (lower-resolution) peaks
+#   WDW    - window/apodization function code applied to the FID before Fourier
+#             transform (0 = none, 1 = exponential, 2 = Gaussian, etc.)
+#   PHC0   - zero-order (constant) phase correction angle in degrees applied
+#             after Fourier transform
+#   PHC1   - first-order phase correction angle in degrees; varies linearly
+#             across the spectrum to correct the phase roll caused by a delayed
+#             FID start or finite pulse width
 _PROCS_KEYS = ("SI", "OFFSET", "SF", "SW_p", "LB", "WDW", "PHC0", "PHC1")
 
 
@@ -159,11 +173,12 @@ class BrukerNMRReader:
             # nmrglue returns the processed real spectrum (1r) for 1D pdata.
             y = np.real(np.asarray(data))
             udic = ng.bruker.guess_udic(dic, data)
-            # uc (unit-conversion object) maps data-point indices to ppm using the
-            # spectrometer frequency, spectral width, and offset stored in the procs file.
+            # uc (unit-conversion object) maps data-point indices to ppm using
+            # the spectrometer frequency, spectral width, and offset in procs.
             uc = ng.fileiobase.uc_from_udic(udic, dim=0)
-            # ppm (parts per million): chemical shift = (freq_sample - freq_ref) / freq_ref * 1e6.
-            # Expressing frequencies as ppm makes peak positions instrument-independent.
+            # ppm (parts per million): chemical shift =
+            # (freq_sample - freq_ref) / freq_ref * 1e6. Expressing frequencies
+            # as ppm makes peak positions instrument-independent.
             x_ppm = uc.ppm_scale()
         else:
             dic, data = ng.bruker.read(str(folder))
@@ -178,7 +193,8 @@ class BrukerNMRReader:
                 # (unshifted) FID in that case.
                 pass
             # The raw FID (Free Induction Decay) is the time-domain signal recorded after
-            # an RF pulse: exponentially decaying oscillations from precessing nuclear spins.
+            # an RF pulse: exponentially decaying oscillations from precessing nuclear
+            # spins.
             # It is complex (two receiver channels shifted 90 degrees apart). Without a
             # Fourier transform + phase correction + chemical-shift referencing we cannot
             # assign ppm positions, so we return the magnitude (envelope) against a plain

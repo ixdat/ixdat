@@ -12,8 +12,9 @@ class NMRSpectrum(Spectrum):
 
     Chemical shift (ppm) expresses a nucleus's resonance frequency relative to a
     reference compound: delta = (freq_sample - freq_ref) / freq_ref * 1e6. Using
-    parts per million makes peak positions independent of the spectrometer field strength,
-    so the same compound looks the same whether measured at 400 MHz or 700 MHz. By NMR
+    parts per million makes peak positions independent of the spectrometer field
+    strength, so the same compound looks the same whether measured at 400 MHz or
+    700 MHz. By NMR
     convention the ppm axis runs right-to-left (high ppm on the left).
     """
 
