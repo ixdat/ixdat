@@ -234,6 +234,12 @@ def test_appended_measurement_same_named_tseries_resolved_by_key():
     assert v0.tseries is t0
     assert v1.tseries is t1
 
+    # At the Measurement level, series with the same name are concatenated and
+    # aligned to the measurement's tstamp (1.0). The second segment has
+    # tstamp=101.0, so its data is offset by (101.0 - 1.0) = 100 s.
+    meas = Measurement.from_dict(obj)
+    np.testing.assert_allclose(meas["time/s"].data, [0.0, 1.0, 200.0, 201.0])
+
 
 def test_field_axis_reuses_top_level_tseries_via_axes_keys():
     """A Field whose axis is a top-level series references it via

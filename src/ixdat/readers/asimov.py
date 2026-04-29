@@ -257,6 +257,9 @@ class AsimovReader:
         key_map = None
         if "series_list" in dct:
             # Build TimeSeries first so vseries / fields can reference them.
+            # Each series entry carries a "key" assigned by Asimov, a unique
+            # identifier used to cross-reference series within the same payload
+            # (e.g. a ValueSeries points to its TimeSeries via "tseries_key").
             key_map = {}
             series_list = []
             for s in dct["series_list"]:
@@ -384,6 +387,7 @@ class AsimovReader:
             url = payload_uri
         else:
             url = urljoin(self.base_url + "/", payload_uri.lstrip("/"))
+        # response is a requests.Response object; .json() parses its body as JSON.
         response = request_with_retries(
             self._session,
             "GET",
