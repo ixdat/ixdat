@@ -271,7 +271,7 @@ class AsimovReader:
             obj["series_list"] = series_list
             obj["aliases"] = dct.get("aliases") or {}
 
-        # "field" is present for spectral data (Spectrum, SpectrumSeries)
+        # this will be the case when retreiving a Spectrum, SpectrumSeries or SpectroMeasurement
         if "field" in dct:
             obj["field"] = self._build_series(dct["field"])
             obj["duration"] = dct.get("duration")
