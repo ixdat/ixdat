@@ -1,10 +1,3 @@
-"""Keycloak token acquisition helpers.
-
-This module focuses on OAuth2/OIDC flows that avoid putting username/password
-into notebooks and scripts. It currently implements the Device Authorization
-Grant (device code flow) with refresh-token based reuse.
-"""
-
 import json
 import os
 import subprocess
@@ -17,12 +10,8 @@ import requests
 from ..tools import get_default_cache_dir
 
 
-# Background browser processes are kept here so their ``Popen`` handles are
-# not garbage-collected. CPython's ``webbrowser.open`` spawns the browser
-# via ``subprocess.Popen`` and then discards the handle, which triggers a
-# ``ResourceWarning`` from ``Popen.__del__``. Keeping references avoids the
-# warning; the browser itself runs detached via ``start_new_session=True``
-# and outlives the Python process.
+# Holds references to browser processes we launch so Python does not discard them
+# before the browser has finished starting up.
 _BROWSER_PROCESSES = []
 
 
@@ -43,11 +32,18 @@ def _open_in_browser(url):
 
 
 class KeycloakDeviceTokenProvider:
-    """Obtain and refresh Keycloak access tokens via device code flow.
+    """Obtain and refresh Keycloak access tokens via the browser-login flow.
 
-    The first login asks the user to authenticate in a browser (or by manually
-    visiting the printed URL), then stores tokens in a local cache file for
-    subsequent runs.
+    On the first call the user is asked to log in via a browser tab (or a printed
+    URL). Two tokens are then saved to a local file:
+
+    - **access token**: a short-lived credential (typically minutes) sent with each
+      data request to prove the user is authorised.
+    - **refresh token**: a long-lived credential (typically hours/days) used to
+      obtain a fresh access token silently, without asking the user to log in again.
+
+    Subsequent calls reuse the cached tokens and only open the browser again when
+    both tokens have expired.
     """
 
     def __init__(
@@ -114,6 +110,8 @@ class KeycloakDeviceTokenProvider:
             return
 
     def _access_token_is_valid(self, tokens, leeway=30):
+        # Treat the token as expired `leeway` seconds early so it is never sent
+        # on a request that starts just before the real expiry time.
         expires_in = tokens.get("expires_in")
         obtained_at = tokens.get("obtained_at")
         access_token = tokens.get("access_token")
@@ -187,7 +185,10 @@ class KeycloakDeviceTokenProvider:
                 "verification URI."
             )
 
-        # Poll the token endpoint until one of four outcomes:
+        # Polling: repeatedly ask the server "has the user finished logging in yet?"
+        # every `interval` seconds. The server replies with a status code rather
+        # than making us wait on an open connection, so we sleep between attempts.
+        # Possible outcomes on each check:
         # - 200 OK:
         #      user approved, return tokens and exit
         # - authorization_pending:
@@ -197,7 +198,7 @@ class KeycloakDeviceTokenProvider:
         # - access_denied:
         #     user rejected, raise immediately
         # - expired_token:
-        #     flow window closed, break and fall through to timeout error
+        #     login window closed, break and fall through to timeout error
         # Any other error raises immediately. Loop is bounded by `deadline`.
         deadline = time.time() + expires_in
         while time.time() < deadline:
@@ -280,9 +281,7 @@ class KeycloakDeviceTokenProvider:
         with open(self.cache_path, "w") as f:
             json.dump(tokens, f)
         try:
-            self.cache_path.chmod(0o600)
+            self.cache_path.chmod(0o600)  # owner read/write only. Tokens are credentials
         except OSError:
-            # Best effort on platforms where chmod may not apply as expected.
-            # Seems to be working fine for now. TODO for later
-            pass
+            pass  # best effort; some platforms (e.g. Windows) ignore Unix permissions
         return tokens
