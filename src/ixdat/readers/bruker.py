@@ -170,7 +170,13 @@ class BrukerNMRReader:
             # Bruker ADCs apply a digital filter that shifts the FID by a fixed number of
             # points; removing it realigns the time-domain signal so point 0 is t = 0.
             # Without this step the Fourier-transformed baseline is severely distorted.
-            data = ng.bruker.remove_digital_filter(dic, data)
+            try:
+                data = ng.bruker.remove_digital_filter(dic, data)
+            except Exception:
+                # Older or non-standard acqus files may lack the DECIM/DSPFVS/GRPDLY
+                # parameters needed to determine the filter delay; proceed with the raw
+                # (unshifted) FID in that case.
+                pass
             # The raw FID (Free Induction Decay) is the time-domain signal recorded after
             # an RF pulse: exponentially decaying oscillations from precessing nuclear spins.
             # It is complex (two receiver channels shifted 90 degrees apart). Without a
