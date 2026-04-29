@@ -166,7 +166,8 @@ def request_with_retries(
             message += f": {detail}"
         raise RuntimeError(message) from exc
 
-    except requests.exceptions.RequestException as exc:  # network failure before the server ever replied
+    # network failure before the server ever replied
+    except requests.exceptions.RequestException as exc:
         status = getattr(getattr(exc, "response", None), "status_code", None)
         suffix = f" (HTTP {status})" if status is not None else ""
         raise RuntimeError(
