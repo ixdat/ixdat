@@ -109,7 +109,7 @@ ASIMOV_CONFIG = AsimovConfig.from_env()
 class AsimovReader:
     """Read a remote dataset version from Asimov into an ixdat object.
 
-    Typical use needs no arguments at all; just ``Measurement.read(<id>,
+    Typical use only needs the dataset id: ``Measurement.read(<id>,
     reader="asimov")``. The first read opens a browser tab where you log
     in once; later reads reuse a cached token.
 
