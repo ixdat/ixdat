@@ -90,6 +90,10 @@ class AsimovConfig:
         "keycloak_client_secret": "KEYCLOAK_CLIENT_SECRET",
     }
 
+    def __post_init__(self):
+        self.base_url = self.base_url.rstrip("/")
+        self.keycloak_server_url = self.keycloak_server_url.rstrip("/")
+
     @classmethod
     def from_env(cls):
         """Build a config, layering environment variables on top of defaults."""
@@ -134,7 +138,7 @@ class AsimovReader:
                 settings. Defaults to the module-level ``ASIMOV_CONFIG``.
         """
         self.config = config or ASIMOV_CONFIG
-        self.base_url = self.config.base_url.rstrip("/")
+        self.base_url = self.config.base_url
         self.connect_timeout = self.config.connect_timeout
         self.read_timeout = self.config.read_timeout
         self.total_timeout = self.config.total_timeout
@@ -144,7 +148,7 @@ class AsimovReader:
 
         if self._token is None and self.token_provider is None:
             self.token_provider = KeycloakDeviceTokenProvider(
-                server_url=self.config.keycloak_server_url.rstrip("/"),
+                server_url=self.config.keycloak_server_url,
                 realm=self.config.keycloak_realm,
                 client_id=self.config.keycloak_client_id,
                 client_secret=self.config.keycloak_client_secret,
