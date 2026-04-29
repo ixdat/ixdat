@@ -35,7 +35,7 @@ def main():
         )
 
     for idx, meas in enumerate(measurements):
-        meas.as_cv().plot(
+        meas.plot_vs_potential(
             ax=ax_cv,
             color=f"C{idx}",
             linestyle=line_styles[idx % len(line_styles)],
