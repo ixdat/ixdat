@@ -25,10 +25,10 @@ readers
   (hardware control, gas, CV, and hold steps) is also parsed into the metadata.
   `PR #167 <https://github.com/ixdat/ixdat/pull/167>`_
 
-- The ``XRDXYReader`` (reader="xy") has been added for reading generic two- or
+- The ``XRDXYReader`` (reader="xrdxy") has been added for reading generic two- or
   three-column powder diffraction text files (.xy, .xye, or similar). It handles
   both whitespace- and comma-separated data, scans comment and bare header lines to
-  detect whether the x axis is 2θ or Q-space (with units), and stores the error
+  detect whether the x axis is 2-theta or Q-space (with units), and stores the error
   column of .xye files in ``metadata["intensity_error"]``.
 
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.

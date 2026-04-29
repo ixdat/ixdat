@@ -2,7 +2,7 @@
 
 Downloads two real powder diffraction datasets:
 
-  1. ZSM-5 zeolite — synchrotron .xye (3-column: 2θ, intensity, error), no header
+  1. ZSM-5 zeolite -- synchrotron .xye (3-column: 2-theta, intensity, error), no header
      Source: https://github.com/stefsmeets/lines (MIT license)
 
   2. Rutile TiO2 — Debye-calculated I(Q) .dat (comma-separated, header "Q,I(Q)")
@@ -40,14 +40,14 @@ for url, path in [(ZSM5_URL, zsm5_path), (RUTILE_URL, rutile_path)]:
 
 # --- 1. ZSM-5 synchrotron .xye -------------------------------------------
 # No header: reader defaults to "two theta / degree" + stores error column
-zsm5 = Spectrum.read(zsm5_path, reader="xy", name="ZSM-5 zeolite (synchrotron)")
+zsm5 = Spectrum.read(zsm5_path, reader="xrdxy", name="ZSM-5 zeolite (synchrotron)")
 print(zsm5)
 zsm5.plot()
 plt.show()
 
 # --- 2. Rutile TiO2 I(Q) from DebyeCalculator ----------------------------
 # Header line "Q,I(Q)", comma-separated: reader detects Q-space automatically
-rutile = Spectrum.read(rutile_path, reader="xy", name="Rutile TiO2 I(Q)")
+rutile = Spectrum.read(rutile_path, reader="xrdxy", name="Rutile TiO2 I(Q)")
 print(rutile)
 rutile.plot()
 plt.show()
