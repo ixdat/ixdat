@@ -1,19 +1,3 @@
-"""Reader for Bruker TopSpin NMR experiment folders.
-
-A Bruker TopSpin experiment is a directory containing:
-
-* The raw FID file (binary, ``fid`` for 1D / ``ser`` for nD).
-* The acquisition parameter file ``acqus`` (and ``acqu2s`` etc. for nD).
-* Optional pulse-program file ``pulseprogram``.
-* A processed-data subfolder ``pdata/<n>/`` with parameter files ``procs``
-  (``proc2s`` ...) and processed binary spectrum files (``1r``, ``1i`` for 1D).
-
-This reader uses :mod:`nmrglue` to parse the parameter files and the binary
-data and returns an :class:`NMRSpectrum` (1D) populated with the chemical-shift
-axis (in ppm), the processed real spectrum, and a metadata dictionary holding
-the most relevant acquisition + processing parameters.
-"""
-
 import datetime
 from pathlib import Path
 
@@ -109,7 +93,18 @@ _PROCS_KEYS = ("SI", "OFFSET", "SF", "SW_p", "LB", "WDW", "PHC0", "PHC1")
 
 
 class BrukerNMRReader:
-    """Reader for a Bruker TopSpin NMR experiment folder."""
+    """Reader for a Bruker TopSpin NMR experiment folder.
+
+    A Bruker TopSpin experiment folder contains:
+
+    * The raw FID file (binary, ``fid`` for 1D / ``ser`` for nD).
+    * The acquisition parameter file ``acqus`` (and ``acqu2s`` etc. for nD).
+    * Optional pulse-program file ``pulseprogram``.
+    * A processed-data subfolder ``pdata/<n>/`` with parameter files ``procs``
+      (``proc2s`` ...) and binary spectrum files (``1r``, ``1i`` for 1D).
+
+    Uses :mod:`nmrglue` to parse the parameter and data files.
+    """
 
     def __init__(self):
         self.path_to_folder = None
