@@ -326,6 +326,20 @@ class AsimovReader:
         return DataSeries(name=name, unit_name=unit_name, data=data)
 
     def _select_dataset_version(self, versions, version=None, version_id=None):
+        """Return the dataset version dict to load.
+
+        A dataset in Asimov can have multiple versions: each time data is
+        re-processed or re-uploaded, a new version is created while older
+        ones are kept for provenance (so you can always trace back to exactly
+        what data was used in a given analysis). In practice you almost always
+        want the latest version, which is the default when neither ``version``
+        nor ``version_id`` is given.
+
+        Args:
+            versions (list): List of version dicts returned by the API.
+            version (int, optional): Version number to select (1-based).
+            version_id (str, optional): Exact version UUID to select.
+        """
         if not isinstance(versions, list) or not versions:
             raise ValueError("No dataset versions returned from Asimov API.")
         if version_id is not None:
@@ -341,6 +355,12 @@ class AsimovReader:
         return sorted(versions, key=lambda v: v.get("created_at", ""), reverse=True)[0]
 
     def _build_auth_headers(self, force_login=False):
+        """Return the HTTP Authorization header dict for an API request.
+
+        Uses a pre-set static token if available, otherwise asks the
+        token provider (Keycloak) for a valid access token, triggering
+        a browser login if the cached token has expired.
+        """
         if self._token:
             return {"Authorization": f"Bearer {self._token}"}
         if self.token_provider:
@@ -351,6 +371,12 @@ class AsimovReader:
         )
 
     def _load_payload_uri(self, payload_uri, headers):
+        """Fetch and return a payload stored at a URI rather than inline.
+
+        Large datasets are sometimes stored outside the main API response
+        and referenced by a URI. This method resolves relative URIs against
+        the base URL and downloads the payload JSON.
+        """
         if payload_uri.startswith(("http://", "https://")):
             url = payload_uri
         else:
@@ -368,6 +394,12 @@ class AsimovReader:
         return response.json()
 
     def _get_json(self, endpoint, headers, params=None):
+        """GET an Asimov API endpoint and return the parsed JSON response.
+
+        Constructs the full URL from the base URL and endpoint path, then
+        delegates to ``request_with_retries``. Provides a clearer error
+        message if the server rejects the OAuth client (HTTP 401).
+        """
         url = urljoin(self.base_url + "/", endpoint.lstrip("/"))
         try:
             response = request_with_retries(
