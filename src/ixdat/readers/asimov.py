@@ -387,7 +387,10 @@ class AsimovReader:
             url = payload_uri
         else:
             url = urljoin(self.base_url + "/", payload_uri.lstrip("/"))
-        # response is a requests.Response object; .json() parses its body as JSON.
+        # response is a requests.Response object, i.e. the raw HTTP reply from the
+        # server. It contains the status code (200 = OK), headers, and a body with
+        # the actual data. Calling .json() on it reads that body and converts it
+        # from text into a Python dictionary.
         response = request_with_retries(
             self._session,
             "GET",
