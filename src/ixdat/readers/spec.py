@@ -257,7 +257,7 @@ def _parse_spec_file(path_to_file):
                 m = re.match(r"#O(\d+) ", line)
                 if m:
                     idx = int(m.group(1))
-                    names = re.split(r"  +", line[line.index(" ") + 1:].strip())
+                    names = re.split(r"  +", line[line.index(" ") + 1 :].strip())
                     motor_name_lines[idx] = names
 
         # ---- start of a new scan block ----
@@ -300,7 +300,7 @@ def _parse_spec_file(path_to_file):
                 pass
 
         elif line.startswith("#UMI"):
-            text = line[line.index(" ") + 1:].strip() if " " in line else ""
+            text = line[line.index(" ") + 1 :].strip() if " " in line else ""
             if text:
                 current["umi"].append(text)
 
@@ -315,7 +315,7 @@ def _parse_spec_file(path_to_file):
             if m:
                 idx = int(m.group(1))
                 try:
-                    vals = [float(v) for v in line[line.index(" ") + 1:].split()]
+                    vals = [float(v) for v in line[line.index(" ") + 1 :].split()]
                     current["_p_values"][idx] = vals
                 except ValueError:
                     pass
