@@ -13,37 +13,31 @@ from ..techniques.nmr import NMRSpectrum
 #
 # Definitions follow the Bruker TopSpin Acquisition Commands and Parameters
 # Reference Manual. A copy is available at:
-# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/
-# acqu_commands_parameters.pdf
+# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/acqu_commands_parameters.pdf  # noqa: E501
 #
 # Key Bruker acqus abbreviations:
 #   SOLVENT  - NMR solvent (e.g. D2O, DMSO)
 #   TE       - sample temperature in Kelvin
-#   BF1      - basic transmitter frequency for channel 1 in MHz (e.g. 700 for
-#              a 700 MHz instrument; set automatically by TopSpin for each nucleus)
-#   SFO1     - exact irradiation frequency of channel 1 in MHz:
-#              SFO1 = BF1 + O1/1e6; this is the frequency at the center of the
-#              recorded spectral window
-#   O1       - carrier frequency offset from BF1 in Hz; sets the center of the
-#              spectral region to be acquired; adjust to place the window over
-#              the region of interest
+#   BF1      - basic transmitter frequency for channel 1 in MHz (e.g. 700 MHz);
+#              set automatically by TopSpin for each nucleus
+#   SFO1     - exact irradiation frequency of channel 1 in MHz; SFO1 = BF1 + O1/1e6,
+#              centered in the recorded spectral window
+#   O1       - carrier frequency offset from BF1 in Hz; centers the spectral
+#              window and determines which chemical-shift region is recorded
 #   SW       - total spectral width in ppm (the chemical-shift range recorded)
 #   SW_h     - spectral width in Hz (the equivalent of SW in Hz units)
-#   NS       - number of scans: each scan is one RF pulse + FID acquisition;
-#              signals add coherently while random noise adds as sqrt(NS), so
-#              signal-to-noise ratio grows as sqrt(NS); NS should be a multiple
-#              of the phase-cycle length (often 8)
-#   DS       - dummy scans: loops of the pulse program executed without
-#              digitizing or accumulating data, run before the NS counted scans
-#              to reach a repeatable steady state
+#   NS       - number of scans; signals add coherently while noise adds only as
+#              sqrt(NS), so SNR grows as sqrt(NS). Should be a multiple of the
+#              phase-cycle length (often 8)
+#   DS       - dummy scans: loops of the pulse program executed without digitizing
+#              or accumulating data, run before the NS counted scans to reach a
+#              repeatable steady state
 #   TD       - time-domain size: number of complex data points digitised in the FID
-#   PULPROG  - pulse program name (defines the RF pulse sequence, e.g. zg,
-#              noesypr1d)
+#   PULPROG  - pulse program name (defines the RF pulse sequence, e.g. zg, noesypr1d)
 #   AQ_mod   - acquisition mode (e.g. DQD = digital quadrature detection)
 #   NUC1     - nucleus assigned to frequency channel 1 (e.g. 1H, 13C, 31P)
-#   P        - array of rectangular pulse lengths in microseconds (P[1] is
-#              typically the 90-degree hard pulse that tips magnetisation from
-#              the z-axis into the xy-plane)
+#   P        - array of rectangular pulse lengths in microseconds (P[1] is typically
+#              the 90-degree hard pulse that tips magnetisation from z to the xy-plane)
 #   D        - array of inter-pulse delay times in seconds
 _ACQUS_KEYS = (
     "SOLVENT",
@@ -68,27 +62,23 @@ _ACQUS_KEYS = (
 #
 # Definitions follow the Bruker TopSpin Processing Commands and Parameters
 # Reference Manual. A copy is available at:
-# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/
-# proc_commands_references.pdf
+# https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/proc_commands_references.pdf  # noqa: E501
 #
-#   SI     - size of the frequency-domain spectrum in points (often 2 times TD
-#             after zero-filling; zero-filling pads the FID with zeros before
-#             Fourier transform to interpolate the axis)
-#   OFFSET - ppm value of the leftmost (highest-frequency) point of the
-#             processed spectrum
+#   SI     - size of the frequency-domain spectrum in points; often 2 times TD
+#             after zero-filling (zero-filling pads the FID with zeros before
+#             Fourier transform to interpolate the frequency axis)
+#   OFFSET - ppm of the leftmost (highest-frequency) point in the processed spectrum
 #   SF     - spectrometer reference frequency in MHz used to convert Hz to ppm
-#             for axis calibration
 #   SW_p   - spectral width of the processed spectrum in ppm
-#   LB     - line-broadening in Hz: an exponential decay multiplied into the
-#             FID before Fourier transform; positive LB reduces noise at the
-#             cost of broader (lower-resolution) peaks
-#   WDW    - window/apodization function code applied to the FID before Fourier
-#             transform (0 = none, 1 = exponential, 2 = Gaussian, etc.)
-#   PHC0   - zero-order (constant) phase correction angle in degrees applied
-#             after Fourier transform
-#   PHC1   - first-order phase correction angle in degrees; varies linearly
-#             across the spectrum to correct the phase roll caused by a delayed
-#             FID start or finite pulse width
+#   LB     - line-broadening in Hz: an exponential decay multiplied into the FID
+#             before Fourier transform; positive LB reduces noise at the cost of
+#             broader (lower-resolution) peaks
+#   WDW    - window/apodization function code applied to the FID before
+#             Fourier transform (0 = none, 1 = exponential, 2 = Gaussian, etc.)
+#   PHC0   - zero-order phase correction angle in degrees (constant across the spectrum)
+#   PHC1   - first-order phase correction angle in degrees; varies linearly across
+#             the spectrum to correct the phase roll from a delayed FID start or
+#             finite pulse width
 _PROCS_KEYS = ("SI", "OFFSET", "SF", "SW_p", "LB", "WDW", "PHC0", "PHC1")
 
 
@@ -171,9 +161,8 @@ class BrukerNMRReader:
             # uc (unit-conversion object) maps data-point indices to ppm using
             # the spectrometer frequency, spectral width, and offset in procs.
             uc = ng.fileiobase.uc_from_udic(udic, dim=0)
-            # ppm (parts per million): chemical shift =
-            # (freq_sample - freq_ref) / freq_ref * 1e6. Expressing frequencies
-            # as ppm makes peak positions instrument-independent.
+            # ppm (parts per million): shift = (f_sample - f_ref) / f_ref * 1e6.
+            # Using ppm makes peak positions instrument-independent.
             x_ppm = uc.ppm_scale()
         else:
             dic, data = ng.bruker.read(str(folder))
@@ -187,12 +176,12 @@ class BrukerNMRReader:
                 # parameters needed to determine the filter delay; proceed with the raw
                 # (unshifted) FID in that case.
                 pass
-            # The raw FID (Free Induction Decay) is the time-domain signal recorded after
-            # an RF pulse: exponentially decaying oscillations from precessing nuclear
-            # spins.
-            # It is complex (two receiver channels shifted 90 degrees apart). Without a
-            # Fourier transform + phase correction + chemical-shift referencing we cannot
-            # assign ppm positions, so we return the magnitude (envelope) against a plain
+            # The raw FID (Free Induction Decay) is the time-domain signal: the
+            # exponentially decaying oscillations from precessing nuclear spins,
+            # recorded after an RF pulse. It is complex (two receiver channels
+            # shifted 90 degrees apart). Without Fourier transform + phase
+            # correction + chemical-shift referencing we cannot assign ppm
+            # positions, so we return the magnitude (envelope) against a plain
             # point index instead.
             y = np.abs(np.asarray(data))
             x_ppm = np.arange(y.shape[-1], dtype=float)
@@ -274,10 +263,8 @@ def _to_jsonable(obj):
         return [_to_jsonable(v) for v in obj]
     if isinstance(obj, np.ndarray):
         return obj.tolist()
-    if isinstance(obj, (np.integer,)):
-        return int(obj)
-    if isinstance(obj, (np.floating,)):
-        return float(obj)
+    if isinstance(obj, np.generic):
+        return obj.item()
     if isinstance(obj, (bytes, bytearray)):
         try:
             return obj.decode("utf-8")
