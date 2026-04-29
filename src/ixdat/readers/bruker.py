@@ -17,7 +17,8 @@ from ..techniques.nmr import NMRSpectrum
 #
 # Key Bruker acqus abbreviations:
 #   SOLVENT  - NMR solvent (e.g. D2O, DMSO)
-#   TE       - sample temperature in Kelvin
+#   TE       - requested sample temperature in Kelvin (the set-point, not a
+#              measured value)
 #   BF1      - basic transmitter frequency for channel 1 in MHz (e.g. 700 MHz);
 #              set automatically by TopSpin for each nucleus
 #   SFO1     - exact irradiation frequency of channel 1 in MHz; SFO1 = BF1 + O1/1e6,
@@ -25,14 +26,16 @@ from ..techniques.nmr import NMRSpectrum
 #   O1       - carrier frequency offset from BF1 in Hz; centers the spectral
 #              window and determines which chemical-shift region is recorded
 #   SW       - total spectral width in ppm (the chemical-shift range recorded)
-#   SW_h     - spectral width in Hz (the equivalent of SW in Hz units)
+#   SW_h     - spectral width in Hz; SW_h = SW * SFO1
 #   NS       - number of scans; signals add coherently while noise adds only as
 #              sqrt(NS), so SNR grows as sqrt(NS). Should be a multiple of the
 #              phase-cycle length (often 8)
 #   DS       - dummy scans: loops of the pulse program executed without digitizing
 #              or accumulating data, run before the NS counted scans to reach a
 #              repeatable steady state
-#   TD       - time-domain size: number of complex data points digitised in the FID
+#   TD       - number of raw data points in the FID; for quadrature acquisition
+#              (the standard) TD is twice the number of complex points, because
+#              real and imaginary channels are stored interleaved
 #   PULPROG  - pulse program name (defines the RF pulse sequence, e.g. zg, noesypr1d)
 #   AQ_mod   - acquisition mode (e.g. DQD = digital quadrature detection)
 #   NUC1     - nucleus assigned to frequency channel 1 (e.g. 1H, 13C, 31P)
@@ -64,17 +67,20 @@ _ACQUS_KEYS = (
 # Reference Manual. A copy is available at:
 # https://www.nmr.ucdavis.edu/sites/g/files/dgvnsk4156/files/inline-files/proc_commands_references.pdf  # noqa: E501
 #
-#   SI     - size of the frequency-domain spectrum in points; often 2 times TD
-#             after zero-filling (zero-filling pads the FID with zeros before
-#             Fourier transform to interpolate the frequency axis)
+#   SI     - size of the real processed spectrum in points; standard Bruker
+#             setups use SI = TD/2 (the stored 1r/1i files each hold SI points,
+#             so total stored data is 2*SI). Zero-filling pads the FID with
+#             zeros before Fourier transform to interpolate the frequency axis.
 #   OFFSET - ppm of the leftmost (highest-frequency) point in the processed spectrum
 #   SF     - spectrometer reference frequency in MHz used to convert Hz to ppm
-#   SW_p   - spectral width of the processed spectrum in ppm
+#   SW_p   - spectral width of the processed spectrum in ppm; typically inherited
+#             from the acquisition SW unless changed during processing
 #   LB     - line-broadening in Hz: an exponential decay multiplied into the FID
 #             before Fourier transform; positive LB reduces noise at the cost of
 #             broader (lower-resolution) peaks
-#   WDW    - window/apodization function code applied to the FID before
-#             Fourier transform (0 = none, 1 = exponential, 2 = Gaussian, etc.)
+#   WDW    - apodization function applied to the FID before Fourier transform;
+#             Bruker values: no, em, gm, sine, qsine, trap, user, sinc, qsinc,
+#             traf, trafs
 #   PHC0   - zero-order phase correction angle in degrees (constant across the spectrum)
 #   PHC1   - first-order phase correction angle in degrees; varies linearly across
 #             the spectrum to correct the phase roll from a delayed FID start or
