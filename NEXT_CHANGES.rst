@@ -26,3 +26,9 @@ readers
   `PR #167 <https://github.com/ixdat/ixdat/pull/167>`_
 
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
+
+- The ``AsimovReader`` (reader="asimov") has been added for retrieving measurements,
+  spectra, and spectrum series from asimov.enci.dk via REST API. Authentication uses
+  the OAuth 2.0 Device Flow via Keycloak. The reader auto-detects the object type
+  from the payload.
+  `PR #198 <https://github.com/ixdat/ixdat/pull/198>`_
