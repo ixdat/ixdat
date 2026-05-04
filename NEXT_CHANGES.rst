@@ -27,8 +27,18 @@ readers
 
 - The ``XRDXYReader`` (reader="xrdxy") has been added for reading generic two- or
   three-column powder diffraction text files (.xy, .xye, or similar). It handles
-  both whitespace- and comma-separated data, scans comment and bare header lines to
-  detect whether the x axis is 2-theta or Q-space (with units), and stores the error
-  column of .xye files in ``metadata["intensity_error"]``.
+  both whitespace- and comma-separated data, and scans comment and bare header lines to
+  detect whether the x axis is 2-theta or Q-space (with units).
+  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
 
 - The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
+
+techniques
+^^^^^^^^^^
+
+- ``XRDSpectrum`` (a ``MultiSpectrum`` subclass) has been added in ``techniques/xrd.py``
+  as the dedicated spectrum class for XRD data. The ``XRDXYReader`` returns it for all
+  .xy and .xye files. For .xye files the per-point intensity error is stored as a second
+  field alongside the intensity, and the bundled ``XRDSpectrumPlotter`` draws a shaded
+  y+/-e band around the diffraction pattern.
+  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
