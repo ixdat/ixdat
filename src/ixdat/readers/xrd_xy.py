@@ -1,6 +1,5 @@
 from pathlib import Path
 import numpy as np
-from ..spectra import Spectrum
 from ..data_series import DataSeries, Field
 
 # Characters that mark a line as a comment in common XRD text formats.
@@ -127,33 +126,43 @@ class XRDXYReader:
     """
 
     def read(self, path_to_file, cls=None, **kwargs):
-        """Read an .xy or .xye file and return a Spectrum.
+        """Read an .xy or .xye file and return an XRDSpectrum.
 
         Args:
             path_to_file (str or Path): Path to the file.
-            cls (Spectrum subclass): Class to instantiate. Defaults to Spectrum.
-            kwargs: Passed to cls.from_field (e.g. name, sample_name).
+            cls (XRDSpectrum subclass): Class to instantiate. Defaults to XRDSpectrum.
+            kwargs: Passed to XRDSpectrum (e.g. name, sample_name).
 
         Returns:
-            Spectrum with x (2-theta or Q) and y (intensity) series. For .xye
-            files the error column is stored in ``metadata["intensity_error"]``.
+            XRDSpectrum with intensity (and error for .xye) as separate fields.
         """
         path_to_file = Path(path_to_file)
-        cls = cls or Spectrum
 
         x_name, x_unit, y_name, y_unit, data = _parse_header_and_data(path_to_file)
-
-        x_vec = data[:, 0]
-        y_vec = data[:, 1]
-
-        metadata = kwargs.pop("metadata", {})
-        if data.shape[1] >= 3:
-            metadata["intensity_error"] = data[:, 2].tolist()
-
-        xseries = DataSeries(name=x_name, unit_name=x_unit, data=x_vec)
-        field = Field(name=y_name, unit_name=y_unit, data=y_vec, axes_series=[xseries])
 
         if "name" not in kwargs:
             kwargs["name"] = path_to_file.stem
 
-        return cls.from_field(field, metadata=metadata or None, **kwargs)
+        xseries = DataSeries(name=x_name, unit_name=x_unit, data=data[:, 0])
+        intensity_field = Field(
+            name=y_name, unit_name=y_unit, data=data[:, 1], axes_series=[xseries]
+        )
+
+        from ..techniques.xrd import XRDSpectrum
+
+        try:
+            if not issubclass(cls, XRDSpectrum):
+                cls = XRDSpectrum
+        except TypeError:
+            cls = XRDSpectrum
+        fields = [intensity_field]
+        if data.shape[1] >= 3:
+            fields.append(
+                Field(
+                    name="intensity_error",
+                    unit_name=y_unit,
+                    data=data[:, 2],
+                    axes_series=[xseries],
+                )
+            )
+        return cls(fields=fields, **kwargs)
