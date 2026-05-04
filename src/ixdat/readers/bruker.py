@@ -6,6 +6,7 @@ import numpy as np
 from ..data_series import DataSeries, Field
 from ..exceptions import ReadError
 from ..techniques.nmr import FIDSpectrum, NMRSpectrum
+from ..tools import to_jsonable
 
 
 # Acquisition parameters lifted from `acqus` into a flat metadata dict.
@@ -242,15 +243,15 @@ class BrukerNMRReader:
         }
         for key in ACQUS_KEYS:
             if key in acqus:
-                metadata[key] = _to_jsonable(acqus[key])
+                metadata[key] = to_jsonable(acqus[key])
         for key in PROCS_KEYS:
             if key in procs:
-                metadata[f"proc_{key}"] = _to_jsonable(procs[key])
+                metadata[f"proc_{key}"] = to_jsonable(procs[key])
 
         # Keep the full raw dictionaries too, normalised for json.
-        metadata["acqus"] = _to_jsonable(acqus)
+        metadata["acqus"] = to_jsonable(acqus)
         if procs:
-            metadata["procs"] = _to_jsonable(procs)
+            metadata["procs"] = to_jsonable(procs)
         return metadata
 
 
@@ -271,19 +272,3 @@ def _extract_tstamp(dic):
         return None
 
 
-def _to_jsonable(obj):
-    """Recursively convert numpy / nmrglue values into json-safe primitives."""
-    if isinstance(obj, dict):
-        return {str(k): _to_jsonable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_to_jsonable(v) for v in obj]
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.generic):
-        return obj.item()
-    if isinstance(obj, (bytes, bytearray)):
-        try:
-            return obj.decode("utf-8")
-        except UnicodeDecodeError:
-            return obj.decode("latin-1", errors="replace")
-    return obj
