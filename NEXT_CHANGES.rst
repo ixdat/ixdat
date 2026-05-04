@@ -39,6 +39,13 @@ techniques
 - ``XRDSpectrum`` (a ``MultiSpectrum`` subclass) has been added in ``techniques/xrd.py``
   as the dedicated spectrum class for XRD data. The ``XRDXYReader`` returns it for all
   .xy and .xye files. For .xye files the per-point intensity error is stored as a second
-  field alongside the intensity, and the bundled ``XRDSpectrumPlotter`` draws a shaded
-  y+/-e band around the diffraction pattern.
+  field alongside the intensity.
+  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
+
+plotters
+^^^^^^^^
+
+- ``XRDSpectrumPlotter`` has been added in ``plotters/xrd_plotter.py`` as the default
+  plotter for ``XRDSpectrum``. It plots intensity vs x and, when error data is present
+  (i.e. for .xye files), overlays a shaded y+/-e band.
   `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
