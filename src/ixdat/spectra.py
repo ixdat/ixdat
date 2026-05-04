@@ -116,6 +116,16 @@ class Spectrum(Saveable):
         return reader.read(path_to_file, cls=cls, **kwargs)
 
     @classmethod
+    def read_url(cls, url, reader=None, **kwargs):
+        """Read a url (via a temporary file) using the specified reader"""
+        from .readers.reading_tools import url_to_file
+
+        path_to_temp_file = url_to_file(url)
+        spectrum = cls.read(path_to_temp_file, reader=reader, **kwargs)
+        path_to_temp_file.unlink()
+        return spectrum
+
+    @classmethod
     def read_set(
         cls,
         path_to_file_start=None,

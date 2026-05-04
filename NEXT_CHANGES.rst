@@ -45,6 +45,12 @@ readers
   are preserved alongside. The constants ``ACQUS_KEYS`` and ``PROCS_KEYS`` are
   public and can be imported from ``ixdat.readers.bruker``.
   `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
+  
+- The ``XRDXYReader`` (reader="xrdxy") has been added for reading generic two- or
+  three-column powder diffraction text files (.xy, .xye, or similar). It handles
+  both whitespace- and comma-separated data, and scans comment and bare header lines to
+  detect whether the x axis is 2-theta or Q-space (with units).
+  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
 
 techniques
 ^^^^^^^^^^
@@ -56,6 +62,12 @@ techniques
   inverts the x-axis to follow NMR convention (high ppm on the left).
   ``FIDSpectrum`` uses a plain plotter for the time-domain signal.
   `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
+  
+- ``XRDSpectrum`` (a ``MultiSpectrum`` subclass) has been added in ``techniques/xrd.py``
+  as the dedicated spectrum class for XRD data. The ``XRDXYReader`` returns it for all
+  .xy and .xye files. For .xye files the per-point intensity error is stored as a second
+  field alongside the intensity.
+  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
 
 plotters
 ^^^^^^^^
@@ -64,6 +76,11 @@ plotters
   ``SpectrumPlotter`` and inverts the x-axis so ``spec.plot()`` gives the
   standard NMR view out of the box.
   `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
+  
+- ``XRDSpectrumPlotter`` has been added in ``plotters/xrd_plotter.py`` as the default
+  plotter for ``XRDSpectrum``. It plots intensity vs x and, when error data is present
+  (i.e. for .xye files), overlays a shaded y+/-e band.
+  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
 
 tools
 ^^^^^
