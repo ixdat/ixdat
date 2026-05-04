@@ -1,5 +1,5 @@
 from pathlib import Path
-import numpy as np
+import pandas as pd
 from ..data_series import DataSeries, Field
 
 # Characters that mark a line as a comment in common XRD text formats.
@@ -16,29 +16,28 @@ _TWOTHETA_TOKENS = {"2theta", "2-theta", "2th", "angle"}
 def _parse_header_and_data(path_to_file):
     """Return (x_name, x_unit, y_name, y_unit, data_array) from an .xy/.xye file."""
     header_lines = []
-    data_lines = []
+    n_header = 0
     with open(path_to_file, "r") as f:
         for line in f:
             stripped = line.strip()
-            if not stripped:
-                continue
-            if stripped[0] in _COMMENT_CHARS:
-                header_lines.append(stripped.lstrip("".join(_COMMENT_CHARS)).strip())
-            elif not data_lines and not _is_numeric(
+            if not stripped or stripped[0] in _COMMENT_CHARS:
+                if stripped:
+                    header_lines.append(stripped.lstrip("".join(_COMMENT_CHARS)).strip())
+                n_header += 1
+            elif not header_lines and not _is_numeric(
                 stripped.replace(",", " ").split()[0]
             ):
                 # Bare column-label line before any data (e.g. "Q,I(Q)")
                 header_lines.append(stripped)
+                n_header += 1
             else:
-                data_lines.append(stripped)
+                break
 
     x_name, x_unit, y_name, y_unit = _infer_axis_labels(header_lines)
 
-    # Detect delimiter from first data line
-    delimiter = "," if data_lines and "," in data_lines[0] else None
-    data = np.loadtxt(data_lines, dtype=float, delimiter=delimiter)
-    if data.ndim == 1:
-        data = data[np.newaxis, :]
+    data = pd.read_csv(
+        path_to_file, skiprows=n_header, sep=r"\s+|,", header=None, engine="python"
+    ).values
     return x_name, x_unit, y_name, y_unit, data
 
 
