@@ -42,7 +42,7 @@ from ..techniques.nmr import NMRSpectrum
 #   P        - array of rectangular pulse lengths in microseconds (P[1] is typically
 #              the 90-degree hard pulse that tips magnetisation from z to the xy-plane)
 #   D        - array of inter-pulse delay times in seconds
-_ACQUS_KEYS = (
+ACQUS_KEYS = (
     "SOLVENT",
     "TE",
     "BF1",
@@ -85,7 +85,7 @@ _ACQUS_KEYS = (
 #   PHC1   - first-order phase correction angle in degrees; varies linearly across
 #             the spectrum to correct the phase roll from a delayed FID start or
 #             finite pulse width
-_PROCS_KEYS = ("SI", "OFFSET", "SF", "SW_p", "LB", "WDW", "PHC0", "PHC1")
+PROCS_KEYS = ("SI", "OFFSET", "SF", "SW_p", "LB", "WDW", "PHC0", "PHC1")
 
 
 class BrukerNMRReader:
@@ -230,10 +230,10 @@ class BrukerNMRReader:
             "folder": str(self.path_to_folder),
             "processed": have_processed,
         }
-        for key in _ACQUS_KEYS:
+        for key in ACQUS_KEYS:
             if key in acqus:
                 metadata[key] = _to_jsonable(acqus[key])
-        for key in _PROCS_KEYS:
+        for key in PROCS_KEYS:
             if key in procs:
                 metadata[f"proc_{key}"] = _to_jsonable(procs[key])
 
