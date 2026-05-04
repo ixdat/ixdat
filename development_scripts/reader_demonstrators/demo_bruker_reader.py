@@ -3,13 +3,15 @@
 Reads the vendored 1D 1H NMR experiment under
 ``test_data/bruker/MTBLS1_ADG19007u_162_10`` (MetaboLights MTBLS1 human
 urine, 700 MHz, ``noesypr1d``, 128 scans), prints the metadata that the
-reader has lifted out of ``acqus`` / ``procs``, and plots the chemical
-shift spectrum.
+reader has lifted out of ``acqus`` / ``procs``, and plots both the processed
+chemical-shift spectrum and the raw FID.
 
 Requires the optional ``nmrglue`` dependency: ``pip install nmrglue``.
 """
 
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 
 from ixdat import Spectrum
 from ixdat.readers.bruker import ACQUS_KEYS, PROCS_KEYS
@@ -58,7 +60,7 @@ print(
     f"full procs dict has {len(md['procs'])} keys."
 )
 
-# 4. Plot the spectrum.
+# 4. Plot the processed spectrum.
 ax = spec.plot(color="k", linewidth=0.6)
 ax.set_title(
     f"{spec.name}\n"
@@ -66,5 +68,10 @@ ax.set_title(
     f"BF1 = {md.get('BF1', '?')} MHz, "
     f"NS = {md.get('NS', '?')}, solvent = {md.get('SOLVENT', '?')}"
 )
-ax.get_figure().tight_layout()
-ax.get_figure().show()
+
+# 5. Read and plot the raw FID (time-domain signal, not reversed).
+fid = Spectrum.read(DATA_DIR, reader="bruker", processed=False)
+ax_fid = fid.plot(color="k", linewidth=0.6)
+ax_fid.set_title(f"{fid.name} — raw FID")
+
+plt.show()

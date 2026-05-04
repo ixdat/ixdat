@@ -5,7 +5,7 @@ import numpy as np
 
 from ..data_series import DataSeries, Field
 from ..exceptions import ReadError
-from ..techniques.nmr import NMRSpectrum
+from ..techniques.nmr import FIDSpectrum, NMRSpectrum
 
 
 # Acquisition parameters lifted from `acqus` into a flat metadata dict.
@@ -110,7 +110,7 @@ class BrukerNMRReader:
         self,
         path_to_file,
         name=None,
-        cls=NMRSpectrum,
+        cls=None,
         procno=1,
         processed=True,
         **kwargs,
@@ -123,8 +123,8 @@ class BrukerNMRReader:
                 that folder, in which case the parent folder is used.
             name (str): Optional name override. Defaults to the folder name.
             cls (Spectrum subclass): Class to instantiate. Defaults to
-                :class:`NMRSpectrum`. Anything that is not a subclass falls
-                back to :class:`NMRSpectrum`.
+                :class:`NMRSpectrum` when ``processed=True`` and
+                :class:`FIDSpectrum` when ``processed=False``.
             procno (int): Which processed-data subfolder to read from
                 (``pdata/<procno>``). Defaults to 1.
             processed (bool): If True (default), read the processed spectrum
@@ -152,11 +152,12 @@ class BrukerNMRReader:
         self.path_to_folder = folder
         name = name or folder.name
 
+        default_cls = NMRSpectrum if processed else FIDSpectrum
         try:
-            if not issubclass(cls, NMRSpectrum):
-                cls = NMRSpectrum
+            if not issubclass(cls, default_cls):
+                cls = default_cls
         except TypeError:
-            cls = NMRSpectrum
+            cls = default_cls
 
         pdata_dir = folder / "pdata" / str(procno)
         if processed and not (pdata_dir / "procs").is_file():
@@ -194,18 +195,20 @@ class BrukerNMRReader:
             # recorded after an RF pulse. It is complex (two receiver channels
             # shifted 90 degrees apart). Without Fourier transform + phase
             # correction + chemical-shift referencing we cannot assign ppm
-            # positions, so we return the magnitude (envelope) against a plain
-            # point index instead.
+            # positions, so we return the magnitude (envelope) against a time axis.
             y = np.abs(np.asarray(data))
-            x_ppm = np.arange(y.shape[-1], dtype=float)
+            # Dwell time (time between samples) = 1 / (2 * SW_h): the factor of 2
+            # comes from Nyquist — the ADC samples at twice the spectral width.
+            sw_h = dic["acqus"]["SW_h"]
+            x_ppm = np.arange(y.shape[-1]) / (2.0 * sw_h)
 
         self.dic = dic
         metadata = self._build_metadata(dic, processed=processed)
         tstamp = _extract_tstamp(dic)
 
         xseries = DataSeries(
-            name="chemical shift" if processed else "point",
-            unit_name="ppm" if processed else None,
+            name="chemical shift" if processed else "time",
+            unit_name="ppm" if processed else "s",
             data=np.asarray(x_ppm),
         )
         field = Field(

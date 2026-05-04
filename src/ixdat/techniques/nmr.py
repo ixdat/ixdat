@@ -2,7 +2,21 @@
 
 from ..spectra import Spectrum, SpectrumSeries
 from ..plotters.nmr_plotter import NMRPlotter
-from ..plotters.spectrum_plotter import SpectrumSeriesPlotter
+from ..plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
+
+
+class FIDSpectrum(Spectrum):
+    """A raw NMR Free Induction Decay (FID).
+
+    The x-axis is time in seconds and the y-axis is the magnitude of the
+    complex time-domain signal. The FID is the raw signal recorded directly
+    after the RF pulse, before any Fourier transform or phase correction.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.plotter = SpectrumPlotter(spectrum=self)
+        self.plot = self.plotter.plot
 
 
 class NMRSpectrum(Spectrum):
