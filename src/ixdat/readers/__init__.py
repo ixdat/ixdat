@@ -43,6 +43,9 @@ from .qexafs import QexafsDATReader, B18TRXRFReader
 # ftir
 from .opus_ftir import OpusFTIRReader
 
+# asimov
+from .asimov import AsimovReader
+
 # nmr
 from .bruker import BrukerNMRReader
 
@@ -68,6 +71,7 @@ READER_CLASSES = {
     "nordic": NordicTDMSReader,
     "b18_trxrf": B18TRXRFReader,
     "echemdb": EChemDBReader,
+    "asimov": AsimovReader,
 }
 
 

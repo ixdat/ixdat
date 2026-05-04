@@ -91,6 +91,11 @@ designed into every level.
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -
+   * - Database / remote storage
+     - Released
+     - - asimov: measurements, spectra, and spectrum series from `asimov.enci.dk <https://asimov.enci.dk>`_ via REST API (requires access\*)
+
+\* Access to asimov.enci.dk is currently restricted to approved users.
 
 Tutorials are provided at https://ixdat.readthedocs.io/en/latest/tutorials/index.html
 
