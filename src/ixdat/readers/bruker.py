@@ -156,9 +156,14 @@ class BrukerNMRReader:
             cls = NMRSpectrum
 
         pdata_dir = folder / "pdata" / str(procno)
-        have_processed = processed and (pdata_dir / "procs").is_file()
+        if processed and not (pdata_dir / "procs").is_file():
+            raise ReadError(
+                f"processed=True but no 'procs' file found in {pdata_dir}. "
+                "Either run TopSpin processing first or pass processed=False to "
+                "read the raw FID."
+            )
 
-        if have_processed:
+        if processed:
             dic, data = ng.bruker.read_pdata(str(pdata_dir))
             # nmrglue returns the processed real spectrum (1r) for 1D pdata.
             y = np.real(np.asarray(data))
@@ -192,12 +197,12 @@ class BrukerNMRReader:
             x_ppm = np.arange(y.shape[-1], dtype=float)
 
         self.dic = dic
-        metadata = self._build_metadata(dic, have_processed=have_processed)
+        metadata = self._build_metadata(dic, processed=processed)
         tstamp = _extract_tstamp(dic)
 
         xseries = DataSeries(
-            name="chemical shift" if have_processed else "point",
-            unit_name="ppm" if have_processed else None,
+            name="chemical shift" if processed else "point",
+            unit_name="ppm" if processed else None,
             data=np.asarray(x_ppm),
         )
         field = Field(
@@ -217,17 +222,17 @@ class BrukerNMRReader:
             **kwargs,
         )
 
-    def _build_metadata(self, dic, *, have_processed):
+    def _build_metadata(self, dic, *, processed):
         """Flatten the most-used parameters into a json-friendly dict."""
         acqus = dic.get("acqus", {}) if isinstance(dic, dict) else {}
         procs = {}
-        if have_processed:
+        if processed:
             procs = dic.get("procs", {}) if isinstance(dic, dict) else {}
 
         metadata = {
             "source": "bruker_topspin",
             "folder": str(self.path_to_folder),
-            "processed": have_processed,
+            "processed": processed,
         }
         for key in ACQUS_KEYS:
             if key in acqus:
