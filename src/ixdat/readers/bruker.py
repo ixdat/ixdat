@@ -112,7 +112,7 @@ class BrukerNMRReader:
         name=None,
         cls=NMRSpectrum,
         procno=1,
-        prefer_processed=True,
+        processed=True,
         **kwargs,
     ):
         """Read a Bruker TopSpin experiment folder.
@@ -127,9 +127,8 @@ class BrukerNMRReader:
                 back to :class:`NMRSpectrum`.
             procno (int): Which processed-data subfolder to read from
                 (``pdata/<procno>``). Defaults to 1.
-            prefer_processed (bool): If True (default) and a processed
-                spectrum is available, return it. If False, or if no processed
-                data is found, return the magnitude of the raw FID instead.
+            processed (bool): If True (default), read the processed spectrum
+                from ``pdata/<procno>/``. If False, read the raw FID instead.
             kwargs: Forwarded to ``cls``.
         """
         try:
@@ -157,7 +156,7 @@ class BrukerNMRReader:
             cls = NMRSpectrum
 
         pdata_dir = folder / "pdata" / str(procno)
-        have_processed = prefer_processed and (pdata_dir / "procs").is_file()
+        have_processed = processed and (pdata_dir / "procs").is_file()
 
         if have_processed:
             dic, data = ng.bruker.read_pdata(str(pdata_dir))
