@@ -14,6 +14,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from ixdat import Spectrum
+from ixdat.readers.bruker import ACQUS_KEYS, PROCS_KEYS
 
 
 DATA_DIR = (
@@ -41,31 +42,8 @@ print()
 
 # 3. Print the lifted acquisition + processing parameters.
 md = spec.metadata
-acq_keys = (
-    "PULPROG",
-    "SOLVENT",
-    "NUC1",
-    "BF1",
-    "SFO1",
-    "O1",
-    "SW",
-    "NS",
-    "DS",
-    "TD",
-    "TE",
-    "AQ_mod",
-    "DATE",
-)
-proc_keys = (
-    "proc_SI",
-    "proc_SF",
-    "proc_OFFSET",
-    "proc_SW_p",
-    "proc_LB",
-    "proc_WDW",
-    "proc_PHC0",
-    "proc_PHC1",
-)
+acq_keys = ACQUS_KEYS
+proc_keys = tuple(f"proc_{k}" for k in PROCS_KEYS)
 
 print("acquisition parameters (from acqus):")
 for k in acq_keys:
