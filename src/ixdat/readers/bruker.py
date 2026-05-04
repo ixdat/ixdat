@@ -152,7 +152,10 @@ class BrukerNMRReader:
         self.path_to_folder = folder
         name = name or folder.name
 
-        if not (isinstance(cls, type) and issubclass(cls, NMRSpectrum)):
+        try:
+            if not issubclass(cls, NMRSpectrum):
+                cls = NMRSpectrum
+        except TypeError:
             cls = NMRSpectrum
 
         pdata_dir = folder / "pdata" / str(procno)
