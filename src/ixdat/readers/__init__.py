@@ -46,6 +46,9 @@ from .opus_ftir import OpusFTIRReader
 # asimov
 from .asimov import AsimovReader
 
+# nmr
+from .bruker import BrukerNMRReader
+
 
 # Measruement.read() looks for readers here:
 
@@ -80,4 +83,5 @@ SPECTRUM_READER_CLASSES = {
     "xrdml": XRDMLReader,
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
+    "bruker": BrukerNMRReader,
 }

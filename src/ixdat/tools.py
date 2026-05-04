@@ -507,6 +507,24 @@ def tstamp_to_string(tstamp: float, string_format: Optional[str] = None) -> str:
     return dt.strftime(string_format)
 
 
+def to_jsonable(obj):
+    """Recursively convert numpy / bytes values into JSON-safe primitives."""
+    if isinstance(obj, dict):
+        return {str(k): to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_jsonable(v) for v in obj]
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, np.generic):
+        return obj.item()
+    if isinstance(obj, (bytes, bytearray)):
+        try:
+            return obj.decode("utf-8")
+        except UnicodeDecodeError:
+            return obj.decode("latin-1", errors="replace")
+    return obj
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print(tstamp_to_string(t0))
