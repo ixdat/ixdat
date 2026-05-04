@@ -44,6 +44,12 @@ from .qexafs import QexafsDATReader, B18TRXRFReader
 # ftir
 from .opus_ftir import OpusFTIRReader
 
+# asimov
+from .asimov import AsimovReader
+
+# nmr
+from .bruker import BrukerNMRReader
+
 
 # Measruement.read() looks for readers here:
 
@@ -66,6 +72,7 @@ READER_CLASSES = {
     "nordic": NordicTDMSReader,
     "b18_trxrf": B18TRXRFReader,
     "echemdb": EChemDBReader,
+    "asimov": AsimovReader,
 }
 
 
@@ -78,4 +85,5 @@ SPECTRUM_READER_CLASSES = {
     "xrdxy": XRDXYReader,
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
+    "bruker": BrukerNMRReader,
 }

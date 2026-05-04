@@ -62,6 +62,7 @@ designed into every level.
      - - biologic: .mpt files from Biologic's EC-Lab software
        - autolab: ascii files from AutoLab's NOVA software
        - ivium: .txt files from Ivium's IviumSoft software
+       - nordic: .tdms files from Nordic Electrochemistry potentiostats
        - echemdb: curated digitized CV reference datasets from `EChemDB <https://www.echemdb.org/>`_ (CSV/JSON via GitHub releases)
    * - Mass Spectrometry
      - Released
@@ -85,9 +86,17 @@ designed into every level.
    * - In-situ Electrochemistry - X-ray adsorption spectroscopy
      - Development
      - - qexafs: .dat files from Diamond's B18 beamline
+   * - Nuclear Magnetic Resonance (NMR)
+     - Development
+     - - bruker: Bruker TopSpin 1D experiment folders (acqus + pdata/) via nmrglue
    * - Low-Energy Ion Scattering (LEIS)
      - Future
      -
+   * - Database / remote storage
+     - Released
+     - - asimov: measurements, spectra, and spectrum series from `asimov.enci.dk <https://asimov.enci.dk>`_ via REST API (requires access\*)
+
+\* Access to asimov.enci.dk is currently restricted to approved users.
 
 Tutorials are provided at https://ixdat.readthedocs.io/en/latest/tutorials/index.html
 
