@@ -11,8 +11,6 @@ Requires the optional ``nmrglue`` dependency: ``pip install nmrglue``.
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-
 from ixdat import Spectrum
 from ixdat.readers.bruker import ACQUS_KEYS, PROCS_KEYS
 
@@ -60,17 +58,13 @@ print(
     f"full procs dict has {len(md['procs'])} keys."
 )
 
-# 4. Plot the spectrum. Chemical-shift convention: high ppm on the left.
-fig, ax = plt.subplots()
-ax.plot(spec.x, spec.y, color="k", linewidth=0.6)
-ax.invert_xaxis()
-ax.set_xlabel(f"chemical shift / {spec.xseries.unit_name}")
-ax.set_ylabel("intensity / a.u.")
+# 4. Plot the spectrum.
+ax = spec.plot(color="k", linewidth=0.6)
 ax.set_title(
     f"{spec.name}\n"
     f"{md.get('NUC1', '?')} NMR, {md.get('PULPROG', '?')}, "
     f"BF1 = {md.get('BF1', '?')} MHz, "
     f"NS = {md.get('NS', '?')}, solvent = {md.get('SOLVENT', '?')}"
 )
-fig.tight_layout()
-plt.show()
+ax.get_figure().tight_layout()
+ax.get_figure().show()

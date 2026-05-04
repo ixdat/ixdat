@@ -1,7 +1,8 @@
 """NMR technique classes."""
 
 from ..spectra import Spectrum, SpectrumSeries
-from ..plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
+from ..plotters.nmr_plotter import NMRPlotter
+from ..plotters.spectrum_plotter import SpectrumSeriesPlotter
 
 
 class NMRSpectrum(Spectrum):
@@ -19,7 +20,7 @@ class NMRSpectrum(Spectrum):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.plotter = SpectrumPlotter(spectrum=self)
+        self.plotter = NMRPlotter(spectrum=self)
         self.plot = self.plotter.plot
 
 
