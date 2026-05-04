@@ -208,7 +208,7 @@ class BrukerNMRReader:
         tstamp = _extract_tstamp(dic)
 
         xseries = DataSeries(
-            name="chemical shift" if processed else "time",
+            name="chemical shift" if processed else "time / s",
             unit_name="ppm" if processed else "s",
             data=np.asarray(x_ppm),
         )
