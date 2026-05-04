@@ -270,5 +270,3 @@ def _extract_tstamp(dic):
         return dt.timestamp()
     except ValueError:
         return None
-
-
