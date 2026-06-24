@@ -1,7 +1,7 @@
 """Inspect current Asimov payload structure without printing full data arrays.
 
 Usage:
-    python development_scripts/reader_demonstrators/inspect_asimov_payloads.py ID [ID ...]
+    python inspect_asimov_payloads.py ID [ID ...]
 
 Set ASIMOV_ACCESS_TOKEN for non-interactive use, or let AsimovReader use the
 normal Keycloak login flow.
@@ -63,7 +63,9 @@ def _print_object(dct, indent=0, label="payload"):
         print(f"{prefix}  metadata keys={sorted(dct['metadata'])}")
     if dct.get("series_list"):
         counts = Counter(s.get("series_type", "series") for s in dct["series_list"])
-        print(f"{prefix}  series_list len={len(dct['series_list'])} types={dict(counts)}")
+        print(
+            f"{prefix}  series_list len={len(dct['series_list'])} types={dict(counts)}"
+        )
         for series in dct["series_list"][:6]:
             _print_series(series, indent + 4)
         if len(dct["series_list"]) > 6:

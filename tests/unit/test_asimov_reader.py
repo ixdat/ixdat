@@ -271,7 +271,9 @@ def test_asimov_reader_falls_back_to_bundle_payload_endpoint(monkeypatch):
     assert isinstance(measurement, Measurement)
     assert measurement.metadata["asimov"]["bundle_id"] == "bundle-id"
     assert "project-files/bundle-id/ixdat-payload" in session.requests[0][1]["url"]
-    assert "project-file-bundles/bundle-id/ixdat-payload" in session.requests[1][1]["url"]
+    assert (
+        "project-file-bundles/bundle-id/ixdat-payload" in session.requests[1][1]["url"]
+    )
 
 
 def test_spectrum_read_explains_measurement_payload_mismatch(monkeypatch):
@@ -299,11 +301,7 @@ def test_spectrum_read_explains_measurement_payload_mismatch(monkeypatch):
             },
         ],
     }
-    session = FakeQueuedSession(
-        [
-            make_json_response(make_payload_envelope(payload))
-        ]
-    )
+    session = FakeQueuedSession([make_json_response(make_payload_envelope(payload))])
     monkeypatch.setenv("ASIMOV_ACCESS_TOKEN", "dummy")
     monkeypatch.setattr("ixdat.readers.asimov.requests.Session", lambda: session)
 
@@ -422,9 +420,7 @@ def test_asimov_nmr_spectrum_uses_nmr_subclass_and_plotter(monkeypatch):
         },
     }
     session = FakeQueuedSession(
-        [
-            make_json_response(make_payload_envelope(payload, filename="nmr.dat"))
-        ]
+        [make_json_response(make_payload_envelope(payload, filename="nmr.dat"))]
     )
     monkeypatch.setenv("ASIMOV_ACCESS_TOKEN", "dummy")
     monkeypatch.setattr("ixdat.readers.asimov.requests.Session", lambda: session)
@@ -461,9 +457,7 @@ def test_asimov_nmr_spectrum_can_be_read_from_nmr_class(monkeypatch):
         },
     }
     session = FakeQueuedSession(
-        [
-            make_json_response(make_payload_envelope(payload, filename="nmr.dat"))
-        ]
+        [make_json_response(make_payload_envelope(payload, filename="nmr.dat"))]
     )
     monkeypatch.setenv("ASIMOV_ACCESS_TOKEN", "dummy")
     monkeypatch.setattr("ixdat.readers.asimov.requests.Session", lambda: session)
@@ -538,9 +532,7 @@ def test_asimov_spectrum_read_can_return_spectrum_series(monkeypatch):
         },
     }
     session = FakeQueuedSession(
-        [
-            make_json_response(make_payload_envelope(payload, filename="series.dat"))
-        ]
+        [make_json_response(make_payload_envelope(payload, filename="series.dat"))]
     )
     monkeypatch.setenv("ASIMOV_ACCESS_TOKEN", "dummy")
     monkeypatch.setattr("ixdat.readers.asimov.requests.Session", lambda: session)

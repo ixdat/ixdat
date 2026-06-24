@@ -182,9 +182,7 @@ class AsimovReader:
         asimov_id = str(id)
         headers = self._build_auth_headers(force_login=force_login)
 
-        payload_envelope = self._get_ixdat_payload_envelope(
-            asimov_id, headers=headers
-        )
+        payload_envelope = self._get_ixdat_payload_envelope(asimov_id, headers=headers)
         payload = payload_envelope.get("payload_json")
         if not payload and payload_envelope.get("payload_uri"):
             payload = self._load_payload_uri(
@@ -231,7 +229,7 @@ class AsimovReader:
     def _check_requested_class_matches_object_type(
         requested_class, object_type, asimov_id
     ):
-        """Raise a clear error when a read entrypoint asks for the wrong object family."""
+        """Raise a clear error for the wrong read entrypoint."""
         if requested_class is None:
             return
 
@@ -251,7 +249,8 @@ class AsimovReader:
             compatible = issubclass(requested_class, Spectrum)
         else:
             raise ValueError(
-                f"Asimov payload {asimov_id} has unsupported object_type={object_type!r}. "
+                f"Asimov payload {asimov_id} has unsupported "
+                f"object_type={object_type!r}. "
                 f"Supported object types are {sorted(OBJECT_TYPE_CLASSES)}."
             )
 
@@ -345,11 +344,7 @@ class AsimovReader:
             # A nested dict with object_type is a complete ixdat object payload,
             # such as a reference_spectrum or spectrum_series inside a Measurement.
             # Build it recursively without caring what the attribute is called.
-            if (
-                key not in obj
-                and isinstance(value, dict)
-                and "object_type" in value
-            ):
+            if key not in obj and isinstance(value, dict) and "object_type" in value:
                 obj[key] = self._build_object(value, reader=self)
             # Some ixdat attributes are lists of child objects, for example
             # component_measurements. Hydrate only the list entries that declare
@@ -357,10 +352,7 @@ class AsimovReader:
             elif (
                 key not in obj
                 and isinstance(value, list)
-                and any(
-                    isinstance(v, dict) and "object_type" in v
-                    for v in value
-                )
+                and any(isinstance(v, dict) and "object_type" in v for v in value)
             ):
                 obj[key] = [
                     self._build_object(v, reader=self)
@@ -458,8 +450,7 @@ class AsimovReader:
             series_dict["axes_series"] = [key_map[k] for k in dct["axes_keys"]]
         elif "axes_series" in dct:
             series_dict["axes_series"] = [
-                AsimovReader._build_series(axis, key_map)
-                for axis in dct["axes_series"]
+                AsimovReader._build_series(axis, key_map) for axis in dct["axes_series"]
             ]
 
         return DataSeries.from_dict(series_dict)
