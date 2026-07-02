@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from pytest import fixture
 
 from ixdat import Measurement
-from ixdat.db import change_database
+from ixdat.db import DB, change_database
 
 # FIXME The size of this data file is at present one of the largest contributors to the
 # time it takes to run the test suite. We should consider cutting it down or replacing
@@ -14,17 +14,26 @@ from ixdat.db import change_database
 PATH_TO_DATAFILE = Path(__file__).parent / "../../test_data/biologic/Pt_poly_cv_CUT.mpt"
 
 
-@fixture(scope="function")
-def fresh_directory_backend():
-    """Fixture that provides a directory backend in a fresh temporary directory"""
+@fixture(scope="function", params=["directory", "sqlite"])
+def fresh_backend(request):
+    """Fixture that provides each database backend in a fresh temporary directory"""
     temporary_directory = TemporaryDirectory()
-    # Set the directory backup up to work of a temporary directory
-    change_database(
-        "directory",
-        directory=Path(temporary_directory.name),
-        project_name="test_biologic_ec_measurement",
-    )
-    return temporary_directory
+    original_backend = DB.backend
+    if request.param == "directory":
+        change_database(
+            "directory",
+            directory=Path(temporary_directory.name),
+            project_name="test_biologic_ec_measurement",
+        )
+    else:
+        db_path = Path(temporary_directory.name) / "test_biologic_ec_measurement.sqlite"
+        change_database("sqlite", db_path=db_path)
+    backend = DB.backend
+    yield temporary_directory
+    if hasattr(backend, "close"):
+        backend.close()
+    DB.set_backend(original_backend)
+    temporary_directory.cleanup()
 
 
 @fixture(scope="function")
