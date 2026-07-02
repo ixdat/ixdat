@@ -413,10 +413,16 @@ class MultiSpectrum(Saveable):
         return self._fields
 
     @property
+    def field_ids(self):
+        """List of the id's of the multi-spectrum's fields"""
+        return [field.short_identity for field in self.fields]
+
+    @property
     def xseries(self):
         """The shared xseries of all the spectra in the multi-spectrum"""
         if not self._xseries:
-            self._xseries = self._fields[0].axes_series[0]
+            # note: `self.fields`, unlike `self._fields`, loads any placeholders:
+            self._xseries = self.fields[0].axes_series[0]
         return self._xseries
 
     @property
