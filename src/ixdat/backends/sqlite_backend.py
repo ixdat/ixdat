@@ -333,6 +333,22 @@ class SQLiteBackend(BackendBase):
         ).fetchall()
         return {row[0] for row in rows}
 
+    @staticmethod
+    def schema_report():
+        """Return the CREATE TABLE statements of all imported Saveable classes
+
+        This is the full relational schema of ixdat's data model, derived from
+        the classes' table metadata - whether or not the tables have (yet) been
+        created in this database.
+        """
+        statements = {}
+        for cls in relational.saveable_classes():
+            if not cls.table_name:
+                continue
+            for schema in relational.table_schemas_of(cls):
+                statements.setdefault(schema.name, _create_table_sql(schema))
+        return ";\n\n".join(statements.values()) + ";"
+
     # ------- value encoding  ------- #
 
     def _encode(self, column, value):

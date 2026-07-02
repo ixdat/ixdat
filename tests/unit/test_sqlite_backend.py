@@ -11,6 +11,7 @@ from ixdat.db import DB, change_database
 from ixdat.exceptions import DataBaseError
 from ixdat.measurement_base import Calculator
 from ixdat.calculators.ec_calculators import ECCalibration
+from ixdat.spectra import MultiSpectrum
 from ixdat.techniques.ec_ms import ECMSMeasurement
 
 
@@ -184,3 +185,31 @@ class TestSQLiteBackend:
         """Containers require a logical type registered in relational.COLUMN_TYPES"""
         with pytest.raises(DataBaseError):
             sqlite_backend._encode(ColumnSchema("unregistered"), {"nested": "dict"})
+
+    def test_multispectrum_round_trip(self, sqlite_backend):
+        xseries = DataSeries(
+            name="two theta / deg", unit_name="deg", data=np.linspace(20, 80, 7)
+        )
+        fields = [
+            Field(
+                name=name,
+                unit_name="counts",
+                data=np.linspace(0, 1, 7) * scale,
+                axes_series=[xseries],
+            )
+            for name, scale in (("intensity", 100.0), ("error", 10.0))
+        ]
+        multi = MultiSpectrum(
+            name="test multispectrum", technique="XRD", tstamp=1.6e9, fields=fields
+        )
+        i = multi.save()
+        loaded = MultiSpectrum.get(i)
+        assert loaded == multi
+        assert len(loaded.fields) == 2
+        assert np.allclose(loaded.x, multi.x)
+
+    def test_schema_report(self, sqlite_backend):
+        report = sqlite_backend.schema_report()
+        assert 'CREATE TABLE IF NOT EXISTS "measurement"' in report
+        assert 'CREATE TABLE IF NOT EXISTS "measurement_series"' in report
+        assert 'REFERENCES "data_series"("id")' in report
