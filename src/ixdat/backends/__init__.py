@@ -9,12 +9,14 @@ Constants:
 from .backend_base import BackendBase
 from .memory_backend import MemoryBackend
 from .directory_backend import DirBackend
+from .sqlite_backend import SQLiteBackend
 
 
 BACKEND_CLASSES = {
     "none": BackendBase,
     "memory": MemoryBackend,
     "directory": DirBackend,
+    "sqlite": SQLiteBackend,
 }
 # FIXME: should automate that all initiated backends get added to database_backends?
 database_backends = {
