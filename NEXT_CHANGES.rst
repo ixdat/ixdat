@@ -118,4 +118,13 @@ database
   ``MultiSpectrum.extra_linkers`` uses a tuple instead of a set, misspelled
   auxiliary table names (``ec_meaurements``, ``ecms_meaurements``) are corrected,
   ``Sample`` and ``LabLog`` define ``column_attrs`` as sets, and
-  ``MSConstantBackground`` now saves its ``name``.
+  ``MSConstantBackground`` now saves its ``name``. ``MultiSpectrum`` gained the
+  ``field_ids`` property its ``extra_linkers`` refer to, and its ``xseries`` no
+  longer crashes on a lazily loaded (placeholder) field.
+
+- A comprehensive demo of the SQLite backend has been added as
+  ``development_scripts/demo_sqlite_backend.py``. It runs on data files shipped
+  in the repository and shows saving, schema generation with foreign keys, lazy
+  loading, load-by-name, row sharing between composed measurements and their
+  components, spectra, SQL analytics on the database file with pandas,
+  in-place updates, and plotting straight from the database.
