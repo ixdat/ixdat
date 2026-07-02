@@ -14,7 +14,7 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
     extra_column_attrs = {
-        "ecms_meaurements": {"ec_technique", "tspan_bg"},
+        "ecms_measurements": {"ec_technique", "tspan_bg"},
     }
     # FIXME: It would be much more elegant if this carried over automatically from
     #  *both* parents, by appending the table columns...

@@ -79,7 +79,7 @@ class ECMeasurement(Measurement):
     """
 
     extra_column_attrs = {
-        "ec_meaurements": {
+        "ec_measurements": {
             "ec_technique",
         }
     }

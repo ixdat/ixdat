@@ -34,7 +34,7 @@ class MSConstantBackground(Saveable):
     """
 
     table_name = "ms_constant_backgrounds"
-    column_attrs = {"mass", "bg"}
+    column_attrs = {"name", "mass", "bg"}
 
     def __init__(
         self,

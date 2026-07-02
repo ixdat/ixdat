@@ -360,7 +360,7 @@ class MultiSpectrum(Saveable):
         "tstamp",
         "sample_name",
     }
-    extra_linkers = {"multispectrum_fields": {"data_series", "field_ids"}}
+    extra_linkers = {"multispectrum_fields": ("data_series", "field_ids")}
     child_attrs = ["fields"]
 
     def __init__(

@@ -44,8 +44,8 @@ class Measurement(Saveable):
         "tstamp",
     }
     extra_linkers = {
-        "component_measurements": ("measurements", "m_ids"),
-        "measurement_calculators": ("calculators", "c_ids"),
+        "component_measurements": ("measurement", "m_ids"),
+        "measurement_calculators": ("calculator", "c_ids"),
         "measurement_series": ("data_series", "s_ids"),
     }
     child_attrs = ["component_measurements", "calculator_list", "series_list"]
