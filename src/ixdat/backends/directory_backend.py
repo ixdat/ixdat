@@ -9,6 +9,7 @@ import json
 import numpy as np
 from .backend_base import BackendBase
 from ..config import config, prompt_for_permission
+from ..exceptions import DataBaseError
 
 
 char_substitutions = {  # substitutions needed to name .json file with data series name
@@ -148,6 +149,25 @@ class DirBackend(BackendBase):
         obj.set_backend(self)
         obj.set_id(i)
         return obj
+
+    def load(self, cls, name):
+        """Return the most recently saved object of cls with the given name"""
+        folder = self.project_directory / cls.table_name
+        fixed_name = fix_name_for_saving(name)
+        i_to_load = None
+        if folder.exists():
+            for path in folder.iterdir():
+                if path.is_dir() or path.suffix != self.metadata_suffix:
+                    continue
+                if name_from_path(path) == fixed_name:
+                    i = id_from_path(path)
+                    if i is not None and (i_to_load is None or i > i_to_load):
+                        i_to_load = i
+        if i_to_load is None:
+            raise DataBaseError(
+                f"{self} has no row named '{name}' in table '{cls.table_name}'"
+            )
+        return self.get(cls, i_to_load)
 
     def contains(self, table_name, i):
         """Check if id `i` is already a principle key in the table named `table_name`"""

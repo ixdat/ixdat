@@ -45,6 +45,10 @@ class BackendBase:
         """Load the object with id=i of a Savable class. Must be implemented."""
         raise NotImplementedError
 
+    def load(self, cls, name):
+        """Load the newest object of a Savable class by name. Must be implemented."""
+        raise NotImplementedError
+
     def load_obj_data(self, obj):
         """Load and return the 'data' of a saveable object. Must be implemented."""
         raise NotImplementedError

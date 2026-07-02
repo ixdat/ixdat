@@ -54,6 +54,7 @@ class DataBase:
 
     def load(self, cls, name):
         """Select and return object of Saveable class cls with name=name from backend"""
+        return self.backend.load(cls, name)
 
     def load_obj_data(self, obj):
         """Load and return the numerical data (obj.data) for a Saveable object"""
@@ -406,6 +407,15 @@ class Saveable:
         old_backend = DB.backend
         DB.set_backend(backend or old_backend)
         obj = DB.get(cls, i)  # gets it from the requested backend.
+        DB.set_backend(old_backend)
+        return obj
+
+    @classmethod
+    def load(cls, name, backend=None):
+        """Open the most recently saved object of cls with the given name"""
+        old_backend = DB.backend
+        DB.set_backend(backend or old_backend)
+        obj = DB.load(cls, name)  # loads it from the requested backend.
         DB.set_backend(old_backend)
         return obj
 
