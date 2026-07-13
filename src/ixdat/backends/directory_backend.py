@@ -159,10 +159,18 @@ class DirBackend(BackendBase):
             for path in folder.iterdir():
                 if path.is_dir() or path.suffix != self.metadata_suffix:
                     continue
-                if name_from_path(path) == fixed_name:
-                    i = id_from_path(path)
-                    if i is not None and (i_to_load is None or i > i_to_load):
-                        i_to_load = i
+                if name_from_path(path) != fixed_name:
+                    continue
+                # Filename escaping is not one-to-one: for example, ``a/b`` and
+                # the literal name ``a_DIV_b`` have the same escaped form. Check
+                # the authoritative name in the row before accepting a candidate.
+                with open(path, "r") as file:
+                    row = json.load(file)
+                if row.get("name") != name:
+                    continue
+                i = id_from_path(path)
+                if i is not None and (i_to_load is None or i > i_to_load):
+                    i_to_load = i
         if i_to_load is None:
             raise DataBaseError(
                 f"{self} has no row named '{name}' in table '{cls.table_name}'"
@@ -195,8 +203,10 @@ class DirBackend(BackendBase):
             self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
             obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
+        from ..tools import to_jsonable
+
         with open(folder / file_name, "w") as f:
-            json.dump(obj_as_dict, f, indent=4)
+            json.dump(to_jsonable(obj_as_dict), f, indent=4)
         return i
 
     def update_row(self, table_name, i, obj_as_dict):
@@ -210,8 +220,10 @@ class DirBackend(BackendBase):
             self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
             obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
+        from ..tools import to_jsonable
+
         with open(folder / file_name, "w") as f:
-            json.dump(obj_as_dict, f, indent=4)
+            json.dump(to_jsonable(obj_as_dict), f, indent=4)
 
     def get_row_as_dict(self, table_name, i):
         """Return the serialization of the object represented in row i of table_name"""

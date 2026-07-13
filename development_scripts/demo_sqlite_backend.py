@@ -237,3 +237,6 @@ print(f"\nDone. The database file is yours to explore: {DB_FILE}")
 
 if not plt.isinteractive():
     plt.show()
+
+con.close()
+DB.backend.close()

@@ -24,6 +24,11 @@ ixdat's laziness intact: `Measurement.get()` touches only metadata, and each
 DataSeries fetches its array from the database the first time `.data` is
 accessed.
 
+Saving an object and all of its referenced children is one transaction. Existing
+tables are checked against a versioned schema when they are first used; new nullable
+columns are added automatically, while changes which cannot be migrated without
+ambiguity raise :class:`~ixdat.exceptions.DataBaseError`.
+
 Note that an SQLiteBackend's connection belongs to the thread that created the
 backend, as is the default for python's sqlite3 module.
 """
@@ -42,6 +47,13 @@ from ..exceptions import DataBaseError
 
 
 DATABASE_FILE_SUFFIX = ".sqlite"
+SCHEMA_VERSION = 1
+METADATA_TABLE = "_ixdat_metadata"
+
+
+def _quote_identifier(identifier):
+    """Return an SQLite identifier with embedded quotes escaped."""
+    return '"' + identifier.replace('"', '""') + '"'
 
 
 class SQLiteBackend(BackendBase):
@@ -59,16 +71,27 @@ class SQLiteBackend(BackendBase):
             directory (Path): The directory for the default database file
             project_name (str): The project name for the default database file
         """
-        if db_path:
+        self._is_memory = str(db_path) == ":memory:"
+        if self._is_memory:
+            self.db_path = ":memory:"
+        elif db_path:
             self.db_path = Path(db_path)
         else:
             directory = Path(directory or config.standard_data_directory)
             project_name = project_name or config.default_project_name
             self.db_path = directory / (project_name + DATABASE_FILE_SUFFIX)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        if not self._is_memory:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(self.db_path)
         self.connection.execute("PRAGMA foreign_keys = ON")
+        self._closed = False
         self._ensured_classes = set()
+        self._ensured_schema_definitions = set()
+        try:
+            self._initialize_schema_metadata()
+        except Exception:
+            self.close()
+            raise
         super().__init__()
 
     @property
@@ -78,21 +101,33 @@ class SQLiteBackend(BackendBase):
 
     def close(self):
         """Close the connection to the database file"""
-        self.connection.close()
+        if not self._closed:
+            self.connection.close()
+            self._closed = True
+
+    def __enter__(self):
+        """Return this backend for use as a context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Close the connection when leaving a context manager."""
+        self.close()
 
     def __eq__(self, other):
         """Two SQLiteBackends are equivalent if they use the same database file"""
         if other is self:
             return True
-        return (
-            other.__class__ is self.__class__
-            and other.db_path.resolve() == self.db_path.resolve()
-        )
+        if other.__class__ is not self.__class__:
+            return False
+        if self._is_memory or other._is_memory:
+            # Separate ":memory:" connections are separate databases.
+            return False
+        return other.db_path.resolve() == self.db_path.resolve()
 
     # ------- saving  ------- #
 
     def save(self, obj, force=False, no_updates=True):
-        """Save a Saveable object as rows of the tables defined by its class
+        """Atomically save an object and all objects it references.
 
         Args:
             obj (Saveable): the object to save
@@ -101,73 +136,149 @@ class SQLiteBackend(BackendBase):
                 saved. If both force and no_updates are False, the user will be
                 prompted on whether to save.
         """
-        # First, save the objects that this object references, so that they get
-        # their id's in this backend for the object's rows to correctly refer
-        # to. This is done recursively, and mirrors the directory backend.
-        if obj.child_attrs:
-            for child_list_name in obj.child_attrs:
-                child_list = getattr(obj, child_list_name) or []
-                for child_obj in child_list:
-                    self.save(child_obj, force=force, no_updates=True)
-        self._ensure_tables(type(obj))
-        # If it's already saved here, decide whether to update it:
-        if obj.backend is self and self.contains(obj.table_name, obj.id):
-            okay_to_update = not no_updates
-            update_the_row = force or (
-                okay_to_update
-                and prompt_for_permission(
-                    f"Are you sure you would like to overwrite "
-                    f"{self} table={obj.table_name} id={obj.id} with {obj}? "
-                    f"(You can use save() with force=True to suppress this.)"
+        plan = self._build_save_plan(obj, force=force, no_updates=no_updates)
+        for planned_obj, action in plan:
+            if action != "skip":
+                self._ensure_tables(type(planned_obj))
+
+        original_states = []
+        root_result = None
+        try:
+            # The plan is in child-first order, so every foreign-key target is
+            # inserted before the row which refers to it. One connection context
+            # makes the complete object graph a single transaction.
+            with self.connection as connection:
+                for planned_obj, action in plan:
+                    if action == "skip":
+                        continue
+                    if action == "update":
+                        self._update_row(connection, planned_obj)
+                        result = planned_obj.id
+                    else:
+                        original_states.append(
+                            (planned_obj, planned_obj._backend, planned_obj._id)
+                        )
+                        result = self._add_row(connection, planned_obj)
+                        planned_obj.set_id(result)
+                        planned_obj.set_backend(self)
+                    if planned_obj is obj:
+                        root_result = result
+        except Exception:
+            # A rollback removes inserted rows; keep the corresponding in-memory
+            # objects honest by restoring their pre-save identities as well.
+            for saved_obj, old_backend, old_id in reversed(original_states):
+                saved_obj._backend = old_backend
+                saved_obj._id = old_id
+            raise
+        return root_result
+
+    def _build_save_plan(self, root, force, no_updates):
+        """Return unique objects in child-first order with insert/update actions."""
+        plan = []
+        visited = set()
+        visiting = set()
+        existing_tables = self._existing_tables()
+
+        def visit(obj, updates_forbidden):
+            object_key = id(obj)
+            if object_key in visited:
+                return
+            if object_key in visiting:
+                raise DataBaseError(
+                    f"Can't save a cyclic object graph rooted at {root!r}."
+                )
+            visiting.add(object_key)
+            if obj.child_attrs:
+                for child_list_name in obj.child_attrs:
+                    for child_obj in getattr(obj, child_list_name) or []:
+                        visit(child_obj, updates_forbidden=True)
+            visiting.remove(object_key)
+            visited.add(object_key)
+            plan.append(
+                (
+                    obj,
+                    self._save_action(
+                        obj, force, updates_forbidden, existing_tables
+                    ),
                 )
             )
-            if update_the_row:
-                self.update_row(obj)
-                return obj.id  # return the id of the updated row
-            else:
-                return  # return nothing since nothing was done
-        i = self.add_row(obj)
-        obj.set_id(i)
-        obj.set_backend(self)
-        return i
+
+        visit(root, updates_forbidden=no_updates)
+        return plan
+
+    def _save_action(self, obj, force, updates_forbidden, existing_tables):
+        """Return ``insert``, ``update``, or ``skip`` for one planned object."""
+        row_exists = False
+        if obj.backend is self and obj.table_name in existing_tables:
+            row_exists = self.connection.execute(
+                f"SELECT 1 FROM {_quote_identifier(obj.table_name)} "
+                'WHERE "id" = ?',
+                (obj.id,),
+            ).fetchone()
+        if row_exists:
+            if force:
+                return "update"
+            if not updates_forbidden and prompt_for_permission(
+                f"Are you sure you would like to overwrite "
+                f"{self} table={obj.table_name} id={obj.id} with {obj}? "
+                f"(You can use save() with force=True to suppress this.)"
+            ):
+                return "update"
+            return "skip"
+        return "insert"
 
     def add_row(self, obj):
         """Insert the object's rows in its main, extension, and linker tables"""
+        self._ensure_tables(type(obj))
+        with self.connection as connection:
+            return self._add_row(connection, obj)
+
+    def _add_row(self, connection, obj):
+        """Insert one object's rows using an existing transaction."""
         main_schema = relational.main_table_schema(type(obj))
         main_dict = obj.get_main_dict()
         columns = main_schema.data_columns
         values = [self._encode(column, main_dict[column.name]) for column in columns]
-        with self.connection as connection:
-            cursor = connection.execute(
-                _insert_sql(main_schema.name, [column.name for column in columns]),
-                values,
-            )
-            i = cursor.lastrowid
-            self._insert_extras(connection, obj, i)
+        cursor = connection.execute(
+            _insert_sql(main_schema.name, [column.name for column in columns]),
+            values,
+        )
+        i = cursor.lastrowid
+        self._insert_extras(connection, obj, i)
         return i
 
     def update_row(self, obj):
         """Update the object's rows in its main, extension, and linker tables"""
+        self._ensure_tables(type(obj))
+        with self.connection as connection:
+            self._update_row(connection, obj)
+
+    def _update_row(self, connection, obj):
+        """Update one object's rows using an existing transaction."""
         main_schema = relational.main_table_schema(type(obj))
         main_dict = obj.get_main_dict()
         columns = main_schema.data_columns
         values = [self._encode(column, main_dict[column.name]) for column in columns]
-        assignments = ", ".join(f'"{column.name}" = ?' for column in columns)
-        with self.connection as connection:
+        assignments = ", ".join(
+            f"{_quote_identifier(column.name)} = ?" for column in columns
+        )
+        connection.execute(
+            f"UPDATE {_quote_identifier(main_schema.name)} "
+            f"SET {assignments} WHERE \"id\" = ?",
+            values + [obj.id],
+        )
+        for schema in relational.extension_table_schemas(type(obj)):
             connection.execute(
-                f'UPDATE "{main_schema.name}" SET {assignments} WHERE "id" = ?',
-                values + [obj.id],
+                f"DELETE FROM {_quote_identifier(schema.name)} WHERE \"id\" = ?",
+                (obj.id,),
             )
-            for schema in relational.extension_table_schemas(type(obj)):
-                connection.execute(
-                    f'DELETE FROM "{schema.name}" WHERE "id" = ?', (obj.id,)
-                )
-            for linker in relational.linker_table_schemas(type(obj)):
-                connection.execute(
-                    f'DELETE FROM "{linker.name}" WHERE "{linker.owner_column}" = ?',
-                    (obj.id,),
-                )
-            self._insert_extras(connection, obj, obj.id)
+        for linker in relational.linker_table_schemas(type(obj)):
+            connection.execute(
+                f"DELETE FROM {_quote_identifier(linker.name)} WHERE "
+                f"{_quote_identifier(linker.owner_column)} = ?",
+                (obj.id,),
+            )
+        self._insert_extras(connection, obj, obj.id)
 
     def _insert_extras(self, connection, obj, i):
         """Insert the object's rows in its extension and linker tables"""
@@ -216,6 +327,10 @@ class SQLiteBackend(BackendBase):
         """
         self._ensure_tables(cls)
         main_schema = relational.main_table_schema(cls)
+        extension_schemas, linker_schemas = relational.family_table_schemas(cls)
+        existing_tables = self._ensure_existing_family_tables(
+            extension_schemas + linker_schemas
+        )
         # Leave NDARRAY columns out of the query; `load_obj_data` gets them lazily:
         columns = [
             column for column in main_schema.data_columns if column.dtype != "NDARRAY"
@@ -236,8 +351,6 @@ class SQLiteBackend(BackendBase):
         for column in main_schema.data_columns:
             if column.dtype == "NDARRAY":
                 obj_as_dict[column.name] = None  # signals lazy loading
-        existing_tables = self._existing_tables()
-        extension_schemas, linker_schemas = relational.family_table_schemas(cls)
         for schema in extension_schemas:
             if schema.name not in existing_tables:
                 continue
@@ -259,7 +372,8 @@ class SQLiteBackend(BackendBase):
                 continue
             rows = self.connection.execute(
                 _select_sql(linker.name, [linker.linked_column])
-                + f' WHERE "{linker.owner_column}" = ? ORDER BY "position"',
+                + f" WHERE {_quote_identifier(linker.owner_column)} = ? "
+                'ORDER BY "position"',
                 (i,),
             ).fetchall()
             if rows:
@@ -276,7 +390,8 @@ class SQLiteBackend(BackendBase):
         """Return the most recently saved object of Saveable class cls with the name"""
         self._ensure_tables(cls)
         row = self.connection.execute(
-            f'SELECT "id" FROM "{cls.table_name}" WHERE "name" = ? '
+            f"SELECT \"id\" FROM {_quote_identifier(cls.table_name)} "
+            'WHERE "name" = ? '
             'ORDER BY "id" DESC LIMIT 1',
             (name,),
         ).fetchone()
@@ -302,7 +417,7 @@ class SQLiteBackend(BackendBase):
         if table_name not in self._existing_tables():
             return False
         row = self.connection.execute(
-            f'SELECT 1 FROM "{table_name}" WHERE "id" = ?', (i,)
+            f"SELECT 1 FROM {_quote_identifier(table_name)} WHERE \"id\" = ?", (i,)
         ).fetchone()
         return row is not None
 
@@ -311,20 +426,210 @@ class SQLiteBackend(BackendBase):
         if table_name not in self._existing_tables():
             return 1
         row = self.connection.execute(
-            f'SELECT COALESCE(MAX("id"), 0) + 1 FROM "{table_name}"'
+            f"SELECT COALESCE(MAX(\"id\"), 0) + 1 "
+            f"FROM {_quote_identifier(table_name)}"
         ).fetchone()
         return row[0]
 
     # ------- schema  ------- #
 
+    def _initialize_schema_metadata(self):
+        """Create and validate the small, backend-owned schema metadata table."""
+        metadata_table = _quote_identifier(METADATA_TABLE)
+        with self.connection as connection:
+            connection.execute(
+                f"CREATE TABLE IF NOT EXISTS {metadata_table} ("
+                '"key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)'
+            )
+            row = connection.execute(
+                f"SELECT \"value\" FROM {metadata_table} "
+                'WHERE "key" = ?',
+                ("schema_version",),
+            ).fetchone()
+            if row is None:
+                # Databases made by pre-release versions of this backend did not
+                # carry a version. Their tables are validated and additively migrated
+                # by `_ensure_tables` before use.
+                connection.execute(
+                    f"INSERT INTO {metadata_table} (\"key\", \"value\") "
+                    'VALUES (?, ?)',
+                    ("schema_version", str(SCHEMA_VERSION)),
+                )
+                return
+            try:
+                database_version = int(row[0])
+            except (TypeError, ValueError):
+                raise DataBaseError(
+                    f"Invalid ixdat schema version {row[0]!r} in {self.db_path}."
+                )
+            if database_version != SCHEMA_VERSION:
+                relation = "newer" if database_version > SCHEMA_VERSION else "older"
+                raise DataBaseError(
+                    f"The database {self.db_path} uses {relation} ixdat schema "
+                    f"version {database_version}; this ixdat supports version "
+                    f"{SCHEMA_VERSION}. Migrate the database before opening it."
+                )
+
     def _ensure_tables(self, cls):
-        """Create the tables needed by a Saveable class, if they don't yet exist"""
+        """Create, validate, and additively migrate tables needed by ``cls``."""
         if cls in self._ensured_classes:
             return
+        existing_tables = self._existing_tables()
+        ensured_definitions = []
         with self.connection as connection:
             for schema in relational.table_schemas_of(cls):
-                connection.execute(_create_table_sql(schema))
+                if schema.name in existing_tables:
+                    self._validate_or_migrate_table(connection, schema)
+                else:
+                    connection.execute(_create_table_sql(schema))
+                    existing_tables.add(schema.name)
+                self._ensure_indexes(connection, schema)
+                ensured_definitions.append((schema.name, _create_table_sql(schema)))
+        self._ensured_schema_definitions.update(ensured_definitions)
         self._ensured_classes.add(cls)
+
+    def _ensure_existing_family_tables(self, schemas):
+        """Validate subclass tables and return the current table-name set."""
+        existing_tables = self._existing_tables()
+        ensured_definitions = []
+        with self.connection as connection:
+            for schema in schemas:
+                schema_definition = (schema.name, _create_table_sql(schema))
+                if (
+                    schema.name not in existing_tables
+                    or schema_definition in self._ensured_schema_definitions
+                ):
+                    continue
+                self._validate_or_migrate_table(connection, schema)
+                self._ensure_indexes(connection, schema)
+                ensured_definitions.append(schema_definition)
+        self._ensured_schema_definitions.update(ensured_definitions)
+        return existing_tables
+
+    def _validate_or_migrate_table(self, connection, schema):
+        """Add missing nullable columns and reject incompatible table layouts."""
+        table_info = {
+            row[1]: {"type": row[2].upper(), "not_null": row[3], "pk": row[5]}
+            for row in connection.execute(
+                f"PRAGMA table_info({_quote_identifier(schema.name)})"
+            ).fetchall()
+        }
+        if isinstance(schema, relational.LinkerTableSchema):
+            expected_names = {
+                schema.owner_column,
+                "position",
+                schema.linked_column,
+            }
+            if not expected_names.issubset(table_info):
+                self._incompatible_schema(
+                    schema.name,
+                    "linker columns are missing or use obsolete names",
+                )
+            for column_name in expected_names:
+                column = table_info[column_name]
+                if column["type"] != "INTEGER" or not column["not_null"]:
+                    self._incompatible_schema(
+                        schema.name,
+                        f"linker column {column_name!r} must be a non-null INTEGER",
+                    )
+            expected_pk = [schema.owner_column, "position"]
+            actual_pk = [
+                name
+                for name, info in sorted(
+                    table_info.items(), key=lambda item: item[1]["pk"] or 999
+                )
+                if info["pk"]
+            ]
+            if actual_pk != expected_pk:
+                self._incompatible_schema(
+                    schema.name,
+                    f"primary key is {actual_pk}, expected {expected_pk}",
+                )
+            self._validate_foreign_key(
+                connection,
+                schema.name,
+                schema.owner_column,
+                schema.owner_table,
+                "id",
+            )
+            self._validate_foreign_key(
+                connection,
+                schema.name,
+                schema.linked_column,
+                schema.linked_table,
+                "id",
+            )
+            return
+
+        for column in schema.columns:
+            if column.name not in table_info:
+                if column.name == "id":
+                    self._incompatible_schema(
+                        schema.name, 'primary-key column "id" missing'
+                    )
+                connection.execute(
+                    f"ALTER TABLE {_quote_identifier(schema.name)} ADD COLUMN "
+                    + _column_definition(column, include_primary_key=False)
+                )
+                continue
+            actual = table_info[column.name]
+            expected_type = column.dtype or ""
+            if expected_type and actual["type"] != expected_type:
+                self._incompatible_schema(
+                    schema.name,
+                    f"column {column.name!r} has type {actual['type']!r}, "
+                    f"expected {expected_type!r}",
+                )
+            if column.name == "id" and not actual["pk"]:
+                self._incompatible_schema(schema.name, 'column "id" is not primary key')
+            if column.foreign_key:
+                self._validate_foreign_key(
+                    connection, schema.name, column.name, *column.foreign_key
+                )
+
+    def _validate_foreign_key(
+        self, connection, table_name, column_name, foreign_table, foreign_column
+    ):
+        """Require one expected foreign-key relationship on an existing table."""
+        foreign_keys = connection.execute(
+            f"PRAGMA foreign_key_list({_quote_identifier(table_name)})"
+        ).fetchall()
+        relationship = (column_name, foreign_table, foreign_column)
+        actual_relationships = {(row[3], row[2], row[4]) for row in foreign_keys}
+        if relationship not in actual_relationships:
+            self._incompatible_schema(
+                table_name,
+                f"foreign key {column_name!r} -> "
+                f"{foreign_table!r}.{foreign_column!r} is missing",
+            )
+
+    def _incompatible_schema(self, table_name, reason):
+        """Raise an actionable error for a migration that cannot be done safely."""
+        raise DataBaseError(
+            f"Incompatible schema for table {table_name!r} in {self.db_path}: "
+            f"{reason}. A manual database migration is required."
+        )
+
+    @staticmethod
+    def _ensure_indexes(connection, schema):
+        """Create indexes used by name lookup, dispatch, and reverse relationships."""
+        if isinstance(schema, relational.LinkerTableSchema):
+            indexed_columns = [(schema.linked_column,)]
+        else:
+            column_names = set(schema.column_names)
+            indexed_columns = []
+            if "name" in column_names:
+                indexed_columns.append(("name", "id"))
+            for discriminator in ("technique", "series_type", "calculator_type"):
+                if discriminator in column_names:
+                    indexed_columns.append((discriminator,))
+        for columns in indexed_columns:
+            index_name = "ixdat_" + schema.name + "_" + "_".join(columns)
+            column_sql = ", ".join(_quote_identifier(column) for column in columns)
+            connection.execute(
+                f"CREATE INDEX IF NOT EXISTS {_quote_identifier(index_name)} "
+                f"ON {_quote_identifier(schema.name)} ({column_sql})"
+            )
 
     def _existing_tables(self):
         """Return the set of names of the tables in the database"""
@@ -361,7 +666,12 @@ class SQLiteBackend(BackendBase):
             np.save(buffer, np.asarray(value), allow_pickle=False)
             return sqlite3.Binary(buffer.getvalue())
         if column.dtype == "JSON":
-            return json.dumps(value)
+            # Readers frequently expose numpy scalars and arrays in otherwise
+            # JSON-compatible metadata. Use ixdat's shared normalization so both
+            # built-in backends accept the same scientific metadata values.
+            from ..tools import to_jsonable
+
+            return json.dumps(to_jsonable(value))
         if isinstance(value, np.generic):
             return value.item()
         if isinstance(value, (dict, list, tuple, np.ndarray)):
@@ -404,41 +714,53 @@ def _create_table_sql(schema):
     """Return the CREATE TABLE statement for a table or linker table schema"""
     if isinstance(schema, relational.LinkerTableSchema):
         return (
-            f'CREATE TABLE IF NOT EXISTS "{schema.name}" (\n'
-            f'    "{schema.owner_column}" INTEGER NOT NULL '
-            f'REFERENCES "{schema.owner_table}"("id"),\n'
+            f"CREATE TABLE IF NOT EXISTS {_quote_identifier(schema.name)} (\n"
+            f"    {_quote_identifier(schema.owner_column)} INTEGER NOT NULL "
+            f"REFERENCES {_quote_identifier(schema.owner_table)}(\"id\"),\n"
             f'    "position" INTEGER NOT NULL,\n'
-            f'    "{schema.linked_column}" INTEGER NOT NULL '
-            f'REFERENCES "{schema.linked_table}"("id"),\n'
-            f'    PRIMARY KEY ("{schema.owner_column}", "position")\n'
+            f"    {_quote_identifier(schema.linked_column)} INTEGER NOT NULL "
+            f"REFERENCES {_quote_identifier(schema.linked_table)}(\"id\"),\n"
+            f"    PRIMARY KEY ({_quote_identifier(schema.owner_column)}, "
+            '"position")\n'
             ")"
         )
-    column_definitions = []
-    for column in schema.columns:
-        definition = f'"{column.name}"'
-        if column.dtype:
-            definition += " " + column.dtype
-        if column.name == "id":
-            definition += " PRIMARY KEY"
-        if column.foreign_key:
-            foreign_table, foreign_column = column.foreign_key
-            definition += f' REFERENCES "{foreign_table}"("{foreign_column}")'
-        column_definitions.append("    " + definition)
+    column_definitions = [
+        "    " + _column_definition(column) for column in schema.columns
+    ]
     return (
-        f'CREATE TABLE IF NOT EXISTS "{schema.name}" (\n'
+        f"CREATE TABLE IF NOT EXISTS {_quote_identifier(schema.name)} (\n"
         + ",\n".join(column_definitions)
         + "\n)"
     )
 
 
+def _column_definition(column, include_primary_key=True):
+    """Return the DDL fragment defining one regular table column."""
+    definition = _quote_identifier(column.name)
+    if column.dtype:
+        definition += " " + column.dtype
+    if include_primary_key and column.name == "id":
+        definition += " PRIMARY KEY"
+    if column.foreign_key:
+        foreign_table, foreign_column = column.foreign_key
+        definition += (
+            f" REFERENCES {_quote_identifier(foreign_table)}"
+            f"({_quote_identifier(foreign_column)})"
+        )
+    return definition
+
+
 def _insert_sql(table_name, column_names):
     """Return a parametrized INSERT statement for the named table and columns"""
-    columns = ", ".join(f'"{name}"' for name in column_names)
+    columns = ", ".join(_quote_identifier(name) for name in column_names)
     placeholders = ", ".join("?" for _ in column_names)
-    return f'INSERT INTO "{table_name}" ({columns}) VALUES ({placeholders})'
+    return (
+        f"INSERT INTO {_quote_identifier(table_name)} ({columns}) "
+        f"VALUES ({placeholders})"
+    )
 
 
 def _select_sql(table_name, column_names):
     """Return a SELECT statement for the named table and columns"""
-    columns = ", ".join(f'"{name}"' for name in column_names)
-    return f'SELECT {columns} FROM "{table_name}"'
+    columns = ", ".join(_quote_identifier(name) for name in column_names)
+    return f"SELECT {columns} FROM {_quote_identifier(table_name)}"

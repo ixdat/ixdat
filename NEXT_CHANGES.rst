@@ -104,7 +104,9 @@ database
   primary key, and ordered many-to-many relationships (e.g. a measurement's data
   series) map to linker tables. Numerical data is stored in numpy-format blob
   columns which are only queried when the data is actually accessed, keeping
-  ixdat's laziness intact.
+  ixdat's laziness intact. A complete object graph is saved in one transaction,
+  frequently queried columns are indexed, and an internal schema version enables
+  validation and safe additive migration of existing database files.
 
 - ``Saveable.load(name)`` has been added as the by-name counterpart to
   ``Saveable.get(id)``: e.g. ``Measurement.load("my measurement")`` returns the

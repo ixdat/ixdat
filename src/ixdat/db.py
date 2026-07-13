@@ -21,6 +21,8 @@ Note on terminology:
     see: https://github.com/ixdat/ixdat/pull/1#discussion_r546400793
 """
 
+from contextlib import contextmanager
+
 from .exceptions import DataBaseError
 from .backends import BACKEND_CLASSES, database_backends
 from .tools import thing_is_close
@@ -45,16 +47,31 @@ class DataBase:
         """Save a Saveable object with the backend"""
         return self.backend.save(obj)
 
+    @contextmanager
+    def temporary_backend(self, backend=None):
+        """Temporarily select a backend and always restore the previous one.
+
+        Building lazy ixdat objects requires the selected backend to be active while
+        ``from_dict`` creates their placeholder children. Keeping that state change in
+        one exception-safe context prevents a failed load from changing where later
+        objects are saved or loaded.
+        """
+        old_backend = self.backend
+        self.set_backend(backend or old_backend)
+        try:
+            yield self.backend
+        finally:
+            self.set_backend(old_backend)
+
     def get(self, cls, i, backend=None):
         """Select and return object of Saveable class cls with id=i from the backend"""
-        backend = backend or self.backend
-        obj = backend.get(cls, i)
-        # obj will already have obj.id = i and obj.backend = self.backend from backend
-        return obj
+        with self.temporary_backend(backend) as selected_backend:
+            return selected_backend.get(cls, i)
 
-    def load(self, cls, name):
+    def load(self, cls, name, backend=None):
         """Select and return object of Saveable class cls with name=name from backend"""
-        return self.backend.load(cls, name)
+        with self.temporary_backend(backend) as selected_backend:
+            return selected_backend.load(cls, name)
 
     def load_obj_data(self, obj):
         """Load and return the numerical data (obj.data) for a Saveable object"""
@@ -90,7 +107,7 @@ DB = DataBase()  # initate the database. It functions as a global "constant"
 
 def change_database(db_name, **db_kwargs):
     """Change the backend specifying which database objects are saved to/loaded from"""
-    DB.set_backend(db_name, **db_kwargs)
+    return DB.set_backend(db_name, **db_kwargs)
 
 
 def get_database_name():
@@ -404,25 +421,19 @@ class Saveable:
     @classmethod
     def get(cls, i, backend=None):
         """Open an object of cls given its id (the table is cls.table_name)"""
-        old_backend = DB.backend
-        DB.set_backend(backend or old_backend)
-        obj = DB.get(cls, i)  # gets it from the requested backend.
-        DB.set_backend(old_backend)
-        return obj
+        return DB.get(cls, i, backend=backend)
 
     @classmethod
     def load(cls, name, backend=None):
         """Open the most recently saved object of cls with the given name"""
-        old_backend = DB.backend
-        DB.set_backend(backend or old_backend)
-        obj = DB.load(cls, name)  # loads it from the requested backend.
-        DB.set_backend(old_backend)
-        return obj
+        return DB.load(cls, name, backend=backend)
 
     def load_data(self, db=None):
         """Load the data of the object, if ixdat in its laziness hasn't done so yet"""
-        db = db or self.db
-        return db.load_obj_data(self)
+        # Objects remember the backend they came from. This matters when an object
+        # was loaded with ``get(..., backend=...)`` without changing the global DB.
+        data_source = db or self.backend
+        return data_source.load_obj_data(self)
 
 
 class PlaceHolderObject:
