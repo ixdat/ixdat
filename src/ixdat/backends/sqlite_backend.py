@@ -227,12 +227,6 @@ class SQLiteBackend(BackendBase):
             return "skip"
         return "insert"
 
-    def add_row(self, obj):
-        """Insert the object's rows in its main, extension, and linker tables"""
-        self._ensure_tables(type(obj))
-        with self.connection as connection:
-            return self._add_row(connection, obj)
-
     def _add_row(self, connection, obj):
         """Insert one object's rows using an existing transaction."""
         main_schema = relational.main_table_schema(type(obj))
@@ -246,12 +240,6 @@ class SQLiteBackend(BackendBase):
         i = cursor.lastrowid
         self._insert_extras(connection, obj, i)
         return i
-
-    def update_row(self, obj):
-        """Update the object's rows in its main, extension, and linker tables"""
-        self._ensure_tables(type(obj))
-        with self.connection as connection:
-            self._update_row(connection, obj)
 
     def _update_row(self, connection, obj):
         """Update one object's rows using an existing transaction."""
@@ -420,16 +408,6 @@ class SQLiteBackend(BackendBase):
             f"SELECT 1 FROM {_quote_identifier(table_name)} WHERE \"id\" = ?", (i,)
         ).fetchone()
         return row is not None
-
-    def get_next_available_id(self, table_name, obj=None):
-        """Return the next available id for a given table"""
-        if table_name not in self._existing_tables():
-            return 1
-        row = self.connection.execute(
-            f"SELECT COALESCE(MAX(\"id\"), 0) + 1 "
-            f"FROM {_quote_identifier(table_name)}"
-        ).fetchone()
-        return row[0]
 
     # ------- schema  ------- #
 

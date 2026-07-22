@@ -73,10 +73,6 @@ class DataBase:
         with self.temporary_backend(backend) as selected_backend:
             return selected_backend.load(cls, name)
 
-    def load_obj_data(self, obj):
-        """Load and return the numerical data (obj.data) for a Saveable object"""
-        return self.backend.load_obj_data(obj)
-
     def set_backend(self, backend_name, **db_kwargs):
         """Change backend to the class given by backend_name initiated with db_kwargs"""
         if not isinstance(backend_name, str):
