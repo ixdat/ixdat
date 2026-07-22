@@ -1,40 +1,42 @@
 """This module derives a relational database schema from ixdat's Saveable classes
 
-Every Saveable class already describes its own persistence declaratively:
+Every Saveable class already says how it should be saved:
 
-- ``table_name`` names the main table of the class,
-- ``column_attrs`` names the attributes stored as columns of the main table,
-- ``extra_column_attrs`` names one-to-one *extension tables* which add columns
-  for inheriting classes without changing the main table (e.g. the
+- ``table_name`` is the name of its main table,
+- ``column_attrs`` are the attributes stored as columns of that table,
+- ``extra_column_attrs`` names *extension tables*: one extra table per subclass
+  that adds its own columns without changing the shared main table (e.g. the
   "ec_measurements" table adds "ec_technique" to rows of "measurement"), and
-- ``extra_linkers`` names many-to-many *linker tables* which relate rows of the
-  main table to rows of another table in an ordered way (e.g. the
-  "measurement_series" table relates a measurement to its data series).
+- ``extra_linkers`` names *linker tables*, which record ordered references from
+  a row to several rows of another table (e.g. "measurement_series" records
+  which data series belong to which measurement, and in what order).
 
-This module turns that metadata into explicit, dialect-free table descriptions
-(`TableSchema` and `LinkerTableSchema`), which a relational backend (see
-:class:`~ixdat.backends.sqlite_backend.SQLiteBackend`) translates into DDL and
-queries. It is the successor to the table definitions proposed in
-https://github.com/ixdat/ixdat/pull/75, but derives the schema from the class
-attributes which ixdat already maintains instead of introducing new ones.
+This module turns that information into plain table descriptions (`TableSchema`
+and `LinkerTableSchema`) that don't depend on any particular database - a
+backend (see :class:`~ixdat.backends.sqlite_backend.SQLiteBackend`) then turns
+those into real SQL. This does the same job PR #75
+(https://github.com/ixdat/ixdat/pull/75) set out to do, but by reading the
+class attributes ixdat already has instead of asking every class to redeclare
+its columns in a new format.
 
-Class inheritance maps to the database as follows: all classes sharing a
-``table_name`` (e.g. all Measurement subclasses) share the main table, and each
-subclass stores its additional attributes in its extension tables, joined on the
-main table's primary key. A row's concrete class is not stored explicitly; it is
-recovered by the classes' own ``from_dict`` dispatch (on "technique",
-"series_type" or "calculator_type"), exactly as for the directory backend.
+Classes that share a ``table_name`` (e.g. every Measurement subclass) share one
+main table; each subclass's own extra attributes go in its own extension table,
+linked back to the main table's id. Which subclass a row belongs to isn't
+stored as a separate column - it's worked out the same way the directory
+backend already does it, from a column like "technique" or "calculator_type".
 
-Columns have a *logical type*, used by backends to decide how a value is encoded:
+Each column also has a *logical type*, which tells a backend how to store a
+value:
 
-- "INTEGER", "REAL", "TEXT": scalars, stored natively,
+- "INTEGER", "REAL", "TEXT": plain numbers/text, stored as-is,
 - "JSON": dicts and lists, stored as JSON text,
-- "NDARRAY": numpy arrays, stored as binary blobs and loaded lazily,
-- None: unspecified; stored as whatever scalar type the value has.
+- "NDARRAY": numpy arrays, stored as a binary blob and only loaded when needed,
+- None: no fixed type; stored as whatever type the value already is.
 
-The logical types of ixdat's known column attributes are collected here in
-``COLUMN_TYPES``; attributes not listed are stored dynamically, so a class with
-new str/int/float attributes works without any registration.
+``COLUMN_TYPES`` below lists the logical type for every attribute name ixdat
+already knows about. Anything not listed still works - it's just stored using
+whatever scalar type Python gives it - so a new class with a plain str/int/float
+attribute needs no changes here.
 """
 
 COLUMN_TYPES = {
@@ -217,11 +219,12 @@ def main_table_schema(cls):
 def extension_table_schemas(cls):
     """Return the list of TableSchema of the extension tables of a Saveable class
 
-    Note: this reads `cls.extra_column_attrs` directly, i.e. only what `cls` itself
-    declares. A class inheriting from more than one table-defining class (such as
-    `ECMSMeasurement`) has its own `extra_column_attrs` *replace* rather than merge
-    with its parents', so it writes only to the extension table it declares itself.
-    See the "Known limitation" section in docs/source/diving_deeper/backend.rst.
+    Only looks at what `cls` itself declares in `extra_column_attrs`, not what its
+    parent classes declare. Usually fine, since a class only overrides this if it
+    needs its own extra columns - but a class inheriting from *two* table-defining
+    classes (like `ECMSMeasurement`) ends up only writing to its own extension
+    table, not its other parent's. See the "Known limitation" section of
+    docs/source/diving_deeper/backend.rst.
     """
     schemas = []
     for table_name, attrs in (cls.extra_column_attrs or {}).items():
@@ -269,14 +272,15 @@ def saveable_classes():
 def family_table_schemas(cls):
     """Return the extension and linker tables of all classes sharing cls's main table
 
-    When loading a row, the concrete class is not known in advance (e.g.
-    `Measurement.get(i)` may need to build an ECMSMeasurement), so a backend
-    collects the row's attributes from every extension and linker table that any
-    class sharing the main table defines. Each row only has entries in the
-    tables its concrete class wrote, so no wrong attributes are picked up.
+    Before reading a row, we don't yet know which subclass it actually is (a row
+    in "measurement" could turn out to be an ECMSMeasurement, say), so a backend
+    needs to check the extension/linker tables of every class that could share
+    this main table, not just `cls`. A row will only actually have entries in the
+    tables its real class wrote to, so checking extra tables is harmless.
 
-    Only classes that have been imported are found. Importing ixdat imports all
-    of its own techniques, so this is only a consideration for external plugins.
+    Only classes that have already been imported can be found this way. Importing
+    ixdat imports all of its own techniques, so this only matters for external
+    plugin classes that haven't been imported yet.
 
     Returns:
         (list of TableSchema, list of LinkerTableSchema): The extension table

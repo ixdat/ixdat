@@ -49,12 +49,13 @@ class DataBase:
 
     @contextmanager
     def temporary_backend(self, backend=None):
-        """Temporarily select a backend and always restore the previous one.
+        """Switch to a backend for the duration of the `with` block, then switch back.
 
-        Building lazy ixdat objects requires the selected backend to be active while
-        ``from_dict`` creates their placeholder children. Keeping that state change in
-        one exception-safe context prevents a failed load from changing where later
-        objects are saved or loaded.
+        Loading an object needs its backend to be the active one, since building
+        its lazy child objects happens through that global setting. Using a
+        `with`-block guarantees the old backend is restored even if loading fails
+        partway through, so a failed load can't leave later saves/loads pointed at
+        the wrong database.
         """
         old_backend = self.backend
         self.set_backend(backend or old_backend)
@@ -426,8 +427,8 @@ class Saveable:
 
     def load_data(self, db=None):
         """Load the data of the object, if ixdat in its laziness hasn't done so yet"""
-        # Objects remember the backend they came from. This matters when an object
-        # was loaded with ``get(..., backend=...)`` without changing the global DB.
+        # use the backend this object actually came from, not necessarily the
+        # current global one (e.g. if it was loaded with get(..., backend=...)):
         data_source = db or self.backend
         return data_source.load_obj_data(self)
 

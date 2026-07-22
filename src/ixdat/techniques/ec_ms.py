@@ -16,12 +16,10 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     extra_column_attrs = {
         "ecms_measurements": {"ec_technique", "tspan_bg"},
     }
-    # FIXME: It would be much more elegant if this carried over automatically from
-    #  *both* parents, by appending the table columns. Because it doesn't, this class
-    #  writes only to "ecms_measurements", never to ECMeasurement's "ec_measurements",
-    #  so a database query that joins only "ec_measurements" will miss ECMS rows. See
-    #  the "Known limitation" section in docs/source/diving_deeper/backend.rst and
-    #  https://github.com/ixdat/ixdat/pull/75 for the (still open) proper fix.
+    # FIXME: this fully replaces ECMeasurement's extra_column_attrs rather than
+    #  adding to it, so saving an ECMSMeasurement never writes a row to
+    #  "ec_measurements" - only to "ecms_measurements" here. See the "Known
+    #  limitation" section of docs/source/diving_deeper/backend.rst.
 
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter

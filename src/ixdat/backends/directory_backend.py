@@ -161,9 +161,9 @@ class DirBackend(BackendBase):
                     continue
                 if name_from_path(path) != fixed_name:
                     continue
-                # Filename escaping is not one-to-one: for example, ``a/b`` and
-                # the literal name ``a_DIV_b`` have the same escaped form. Check
-                # the authoritative name in the row before accepting a candidate.
+                # two different real names can produce the same escaped file name
+                # (e.g. "a/b" and the literal name "a_DIV_b"), so before accepting
+                # this file, double check its real, un-escaped name inside it:
                 with open(path, "r") as file:
                     row = json.load(file)
                 if row.get("name") != name:
@@ -203,6 +203,8 @@ class DirBackend(BackendBase):
             self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
             obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
+        # metadata dicts can contain numpy numbers/arrays, which json.dump can't
+        # write directly, so convert those to plain Python values first:
         from ..tools import to_jsonable
 
         with open(folder / file_name, "w") as f:

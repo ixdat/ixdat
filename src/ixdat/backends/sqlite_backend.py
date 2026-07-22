@@ -1,13 +1,13 @@
 """This module implements an SQLite database backend for ixdat
 
-The SQLite backend saves ixdat objects to, and loads them from, a proper
-relational database in a single local file. The schema is not written by hand:
-it is derived from the table metadata that every Saveable class already defines
-(see :module:`~ixdat.backends.relational`). Tables are created on demand with
-``CREATE TABLE IF NOT EXISTS``, so any Saveable class - including ones defined
-in external plugins - can be saved without registration here.
+Saves and loads ixdat objects using Python's built-in ``sqlite3`` module, so no
+extra dependency is needed. The table layout isn't written by hand - it's built
+from the same table info each Saveable class already carries (see
+:module:`~ixdat.backends.relational`). Tables are created the first time they're
+needed, so any Saveable class, including ones from external plugins, works here
+without extra setup.
 
-Use it like any other ixdat backend::
+Basic usage::
 
     from ixdat.db import change_database
 
@@ -15,22 +15,21 @@ Use it like any other ixdat backend::
     measurement.save()
     ...
     loaded = Measurement.get(1)
-    # or, by name:
-    loaded = Measurement.load("my measurement")
+    loaded = Measurement.load("my measurement")  # or, by name
 
-Numerical data (numpy arrays) is stored in NDARRAY (numpy-format blob) columns,
-which are excluded from queries until the data is actually needed - keeping
-ixdat's laziness intact: `Measurement.get()` touches only metadata, and each
-DataSeries fetches its array from the database the first time `.data` is
-accessed.
+Numeric arrays (numpy data) are stored as blobs and are only read from the
+database when ``.data`` is actually accessed, so opening an object stays fast
+even in a large project.
 
-Saving an object and all of its referenced children is one transaction. Existing
-tables are checked against a versioned schema when they are first used; new nullable
-columns are added automatically, while changes which cannot be migrated without
-ambiguity raise :class:`~ixdat.exceptions.DataBaseError`.
+Saving an object and everything it references happens in one transaction, so a
+crash partway through can't leave the database half-written. The first time a
+table is used, it's checked against what the current Saveable class expects;
+missing columns are added automatically, and anything that can't be changed
+safely raises a :class:`~ixdat.exceptions.DataBaseError` instead of silently
+doing the wrong thing.
 
-Note that an SQLiteBackend's connection belongs to the thread that created the
-backend, as is the default for python's sqlite3 module.
+Note: one SQLiteBackend belongs to the thread that created it - this is just how
+Python's sqlite3 module works. Make a separate backend instance per thread.
 """
 
 import json
@@ -144,9 +143,10 @@ class SQLiteBackend(BackendBase):
         original_states = []
         root_result = None
         try:
-            # The plan is in child-first order, so every foreign-key target is
-            # inserted before the row which refers to it. One connection context
-            # makes the complete object graph a single transaction.
+            # Children come before their parents in "plan", so by the time we
+            # insert a row, anything it points to already has its id. Doing all
+            # inserts/updates on one connection makes them one transaction: if
+            # anything below fails, SQLite rolls every row in "plan" back.
             with self.connection as connection:
                 for planned_obj, action in plan:
                     if action == "skip":
@@ -164,8 +164,9 @@ class SQLiteBackend(BackendBase):
                     if planned_obj is obj:
                         root_result = result
         except Exception:
-            # A rollback removes inserted rows; keep the corresponding in-memory
-            # objects honest by restoring their pre-save identities as well.
+            # The database rollback undoes the inserted rows; undo the matching
+            # id/backend changes on the in-memory objects too, so they don't end
+            # up claiming to be saved when they aren't.
             for saved_obj, old_backend, old_id in reversed(original_states):
                 saved_obj._backend = old_backend
                 saved_obj._id = old_id
@@ -175,19 +176,22 @@ class SQLiteBackend(BackendBase):
     def _build_save_plan(self, root, force, no_updates):
         """Return unique objects in child-first order with insert/update actions."""
         plan = []
-        visited = set()
-        visiting = set()
+        visited = set()  # objects already added to "plan"
+        visiting = set()  # objects currently being visited, i.e. above us in the walk
         existing_tables = self._existing_tables()
 
         def visit(obj, updates_forbidden):
             object_key = id(obj)
             if object_key in visited:
-                return
+                return  # already planned (e.g. two parents sharing one child)
             if object_key in visiting:
+                # we're already in the middle of visiting this object further up
+                # the call stack, i.e. it refers back to itself somewhere
                 raise DataBaseError(
                     f"Can't save a cyclic object graph rooted at {root!r}."
                 )
             visiting.add(object_key)
+            # visit every child first, so they end up earlier in "plan"
             if obj.child_attrs:
                 for child_list_name in obj.child_attrs:
                     for child_obj in getattr(obj, child_list_name) or []:
@@ -270,6 +274,8 @@ class SQLiteBackend(BackendBase):
 
     def _insert_extras(self, connection, obj, i):
         """Insert the object's rows in its extension and linker tables"""
+        # extension tables hold the extra columns of a subclass, one row per object,
+        # keyed by the same id as the main table row:
         for schema in relational.extension_table_schemas(type(obj)):
             columns = schema.data_columns
             values = [
@@ -281,6 +287,8 @@ class SQLiteBackend(BackendBase):
                 ),
                 [i] + values,
             )
+        # linker tables hold one row per reference to another object, e.g. one row
+        # per data series a measurement owns, in the order they should be read back:
         for linker in relational.linker_table_schemas(type(obj)):
             identities = getattr(obj, linker.id_attr)
             if identities is None:
@@ -308,10 +316,12 @@ class SQLiteBackend(BackendBase):
     def get(self, cls, i):
         """Return the object of Saveable class cls built from the rows with id=i
 
-        The object's attributes are collected from cls's main table and from the
-        extension and linker tables of every class sharing that main table (only
-        the tables its concrete class wrote have rows with its id). Numerical
-        data is not loaded here - it is loaded lazily via `load_obj_data`.
+        We don't know the row's exact subclass before reading it (an id=5 in
+        "measurement" could be a plain ECMeasurement or an ECMSMeasurement), so we
+        check the extension/linker tables of every class that shares cls's main
+        table, not just cls's own. Only the tables the row's real class wrote to
+        will actually have a row for this id; the rest are skipped. Numerical data
+        isn't loaded here - see `load_obj_data`.
         """
         self._ensure_tables(cls)
         main_schema = relational.main_table_schema(cls)
@@ -425,9 +435,8 @@ class SQLiteBackend(BackendBase):
                 ("schema_version",),
             ).fetchone()
             if row is None:
-                # Databases made by pre-release versions of this backend did not
-                # carry a version. Their tables are validated and additively migrated
-                # by `_ensure_tables` before use.
+                # no version stored yet: an older database, or a brand new one.
+                # Either way, _ensure_tables() will check/fix each table as it's used.
                 connection.execute(
                     f"INSERT INTO {metadata_table} (\"key\", \"value\") "
                     'VALUES (?, ?)',
@@ -450,6 +459,8 @@ class SQLiteBackend(BackendBase):
 
     def _ensure_tables(self, cls):
         """Create, validate, and additively migrate tables needed by ``cls``."""
+        # this only needs doing once per class per backend instance, since a table
+        # doesn't change shape again while this backend stays open:
         if cls in self._ensured_classes:
             return
         existing_tables = self._existing_tables()
@@ -467,7 +478,13 @@ class SQLiteBackend(BackendBase):
         self._ensured_classes.add(cls)
 
     def _ensure_existing_family_tables(self, schemas):
-        """Validate subclass tables and return the current table-name set."""
+        """Validate subclass tables and return the current table-name set.
+
+        Called from `get()`, which - unlike `_ensure_tables()` - needs to check
+        tables belonging to *other* classes than the one it was asked for (see the
+        comment in `get()`). We track each table by its exact expected DDL here
+        rather than by class, since several classes can share one such table.
+        """
         existing_tables = self._existing_tables()
         ensured_definitions = []
         with self.connection as connection:
@@ -477,7 +494,7 @@ class SQLiteBackend(BackendBase):
                     schema.name not in existing_tables
                     or schema_definition in self._ensured_schema_definitions
                 ):
-                    continue
+                    continue  # table doesn't exist yet, or was already checked
                 self._validate_or_migrate_table(connection, schema)
                 self._ensure_indexes(connection, schema)
                 ensured_definitions.append(schema_definition)
@@ -493,6 +510,8 @@ class SQLiteBackend(BackendBase):
             ).fetchall()
         }
         if isinstance(schema, relational.LinkerTableSchema):
+            # linker tables aren't migrated column-by-column like regular tables
+            # below: if their shape is wrong at all, we just ask for a manual fix.
             expected_names = {
                 schema.owner_column,
                 "position",
@@ -539,12 +558,15 @@ class SQLiteBackend(BackendBase):
             )
             return
 
+        # regular (main/extension) table: check each expected column one by one.
         for column in schema.columns:
             if column.name not in table_info:
                 if column.name == "id":
                     self._incompatible_schema(
                         schema.name, 'primary-key column "id" missing'
                     )
+                # a new column is always safe to add: it's nullable, so existing
+                # rows just get NULL for it - nothing to fill in or guess at.
                 connection.execute(
                     f"ALTER TABLE {_quote_identifier(schema.name)} ADD COLUMN "
                     + _column_definition(column, include_primary_key=False)
@@ -644,9 +666,8 @@ class SQLiteBackend(BackendBase):
             np.save(buffer, np.asarray(value), allow_pickle=False)
             return sqlite3.Binary(buffer.getvalue())
         if column.dtype == "JSON":
-            # Readers frequently expose numpy scalars and arrays in otherwise
-            # JSON-compatible metadata. Use ixdat's shared normalization so both
-            # built-in backends accept the same scientific metadata values.
+            # metadata dicts sometimes contain numpy numbers/arrays, which plain
+            # json.dumps can't handle - convert those to normal Python values first:
             from ..tools import to_jsonable
 
             return json.dumps(to_jsonable(value))
@@ -672,7 +693,13 @@ class SQLiteBackend(BackendBase):
         return value
 
     def _dereference(self, value):
-        """Turn a `short_identity` into an id, requiring that it refers to self"""
+        """Turn a reference to another object into a plain id, for storing as a FK
+
+        An id-holding attribute (e.g. `s_ids`) can hold either a plain int id, or,
+        if the referenced object isn't in this backend yet, a `(backend, id)` pair
+        (`Saveable.short_identity`). Only the plain-int case can actually be saved
+        as a foreign key here, so this unwraps that pair and checks it points here.
+        """
         if (
             isinstance(value, tuple)
             and len(value) == 2
