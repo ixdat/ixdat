@@ -73,6 +73,42 @@ the previous backend because objects loaded from it may still need its connectio
 lazy data. An ``SQLiteBackend`` connection belongs to the thread which created it;
 create a separate backend instance per thread.
 
+Known limitation: multiply-inheriting classes and extension tables
+--------------------------------------------------------------------
+
+A ``Saveable`` class which inherits from more than one other table-defining class
+(for example ``ECMSMeasurement``, which inherits from both ``ECMeasurement`` and
+``MSMeasurement``) declares its own ``extra_column_attrs``, which *replaces* rather
+than merges with the ``extra_column_attrs`` of each parent. In practice this means
+such a class writes only to the one extension table it declares itself (e.g.
+``ecms_measurements``), not to the extension tables of its other parents (e.g.
+``ec_measurements``) — even though the row is, semantically, also an EC measurement.
+
+Round-tripping is unaffected: every attribute is still saved and reloaded correctly,
+because classes with this shape (``ECMSMeasurement``, ``MSSpectroMeasurement``, ...)
+already duplicate the small number of overlapping columns into their own extension
+table by hand. What breaks is a query that joins against only *one* parent's
+extension table expecting it to be exhaustive, for example::
+
+    -- misses every ECMSMeasurement row, though they are EC measurements too:
+    SELECT m.id, m.name, e.ec_technique
+    FROM measurement m
+    JOIN ec_measurements e ON e.id = m.id
+
+Filter or group by ``measurement.technique`` instead of joining a single extension
+table when you want "every measurement of a given family", or ``UNION`` across the
+extension tables of the classes you care about.
+
+This is not new to the SQLite backend: it is a limitation of how ``Saveable``
+resolves ``extra_column_attrs`` across multiple inheritance
+(``ixdat.db.Saveable.get_main_dict``/``as_dict``), so it equally affects
+``obj.as_dict()`` on the directory backend for any class which does not manually
+duplicate its overlapping columns the way ``ECMSMeasurement`` does today. Properly
+merging table definitions across multiple inheritance was the central open question
+of `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_ and remains unresolved;
+fixing it belongs in ``Saveable`` itself; it is out of scope for the database
+backends.
+
 The directory backend
 ---------------------
 

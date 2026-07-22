@@ -130,3 +130,17 @@ database
   loading, load-by-name, row sharing between composed measurements and their
   components, spectra, SQL analytics on the database file with pandas,
   in-place updates, and plotting straight from the database.
+
+- Known limitation: a ``Saveable`` class inheriting from more than one
+  table-defining class (e.g. ``ECMSMeasurement``, which inherits from both
+  ``ECMeasurement`` and ``MSMeasurement``) writes only to the one extension table
+  it declares itself (``ecms_measurements``), not to its other parents'
+  (``ec_measurements``), because ``extra_column_attrs`` is replaced rather than
+  merged across multiple inheritance. Round trips are unaffected, but a query
+  that joins a single ancestor's extension table expecting it to be exhaustive
+  will miss such rows; filter/group by ``measurement.technique`` or ``UNION``
+  across extension tables instead. This is a pre-existing property of
+  ``Saveable`` (it equally affects ``as_dict()`` on the directory backend) and
+  was the central open question of
+  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_; see the "Known
+  limitation" section of ``docs/source/diving_deeper/backend.rst`` for details.

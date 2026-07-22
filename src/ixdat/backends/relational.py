@@ -215,7 +215,14 @@ def main_table_schema(cls):
 
 
 def extension_table_schemas(cls):
-    """Return the list of TableSchema of the extension tables of a Saveable class"""
+    """Return the list of TableSchema of the extension tables of a Saveable class
+
+    Note: this reads `cls.extra_column_attrs` directly, i.e. only what `cls` itself
+    declares. A class inheriting from more than one table-defining class (such as
+    `ECMSMeasurement`) has its own `extra_column_attrs` *replace* rather than merge
+    with its parents', so it writes only to the extension table it declares itself.
+    See the "Known limitation" section in docs/source/diving_deeper/backend.rst.
+    """
     schemas = []
     for table_name, attrs in (cls.extra_column_attrs or {}).items():
         columns = [

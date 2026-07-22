@@ -170,6 +170,11 @@ part("8. The database speaks SQL: instant analytics over everything saved")
 # --------------------------------------------------------------------------- #
 
 print("All measurements, joined with their EC details and series counts:\n")
+# NOTE: this join only finds pure ECMeasurement rows, like the ones saved above.
+# An ECMSMeasurement writes its ec_technique to "ecms_measurements" instead of
+# "ec_measurements" - see the "Known limitation" section of
+# docs/source/diving_deeper/backend.rst - so a query meant to cover every EC-ish
+# measurement should filter on measurement.technique or UNION both tables.
 print(
     pd.read_sql_query(
         """

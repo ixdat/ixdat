@@ -17,8 +17,11 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         "ecms_measurements": {"ec_technique", "tspan_bg"},
     }
     # FIXME: It would be much more elegant if this carried over automatically from
-    #  *both* parents, by appending the table columns...
-    #  We'll see how the problem changes with the metaprogramming work.
+    #  *both* parents, by appending the table columns. Because it doesn't, this class
+    #  writes only to "ecms_measurements", never to ECMeasurement's "ec_measurements",
+    #  so a database query that joins only "ec_measurements" will miss ECMS rows. See
+    #  the "Known limitation" section in docs/source/diving_deeper/backend.rst and
+    #  https://github.com/ixdat/ixdat/pull/75 for the (still open) proper fix.
 
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter

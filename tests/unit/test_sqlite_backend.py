@@ -59,6 +59,21 @@ class TestRelationalSchema:
             "tspan_bg",
         }
 
+    def test_multiply_inheriting_class_only_gets_its_own_extension_table(self):
+        """Known limitation: `extra_column_attrs` is shadowed, not merged, across
+        multiple inheritance (see the "Known limitation" section of
+        docs/source/diving_deeper/backend.rst). `ECMSMeasurement` inherits from both
+        `ECMeasurement` and `MSMeasurement`, but its own `extra_column_attrs`
+        replaces `ECMeasurement`'s rather than adding to it, so `ec_measurements` -
+        the extension table `ECMeasurement` itself declares - is absent here.
+        """
+        extension_table_names = {
+            schema.name
+            for schema in relational.extension_table_schemas(ECMSMeasurement)
+        }
+        assert extension_table_names == {"ecms_measurements"}
+        assert "ec_measurements" not in extension_table_names
+
     def test_linker_tables(self):
         linkers = {
             schema.name: schema
@@ -150,6 +165,38 @@ class TestSQLiteBackend:
         assert loaded.RE_vs_RHE == 0.72
         assert loaded.A_el == 0.196
         assert loaded.R_Ohm is None
+
+    def test_multiply_inheriting_measurement_round_trips_but_skips_parent_table(
+        self, sqlite_backend
+    ):
+        """Known limitation, documented in docs/source/diving_deeper/backend.rst:
+        `ECMSMeasurement` (inherits from `ECMeasurement` and `MSMeasurement`) writes
+        only to its own extension table. Round-tripping the object is unaffected -
+        `ec_technique` survives via `ecms_measurements` - but a query joining only
+        `ec_measurements` would miss this row, since no row is written there.
+        """
+        tseries = TimeSeries(
+            name="t", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
+        )
+        ecms = ECMSMeasurement(
+            name="synthetic ecms",
+            technique="EC-MS",
+            tstamp=1.6e9,
+            series_list=[tseries],
+            ec_technique="Cyclic Voltammetry Advanced",
+        )
+        i = ecms.save()
+
+        loaded = Measurement.get(i)
+        assert isinstance(loaded, ECMSMeasurement)
+        assert loaded.ec_technique == "Cyclic Voltammetry Advanced"  # round trip OK
+
+        existing_tables = sqlite_backend._existing_tables()
+        assert "ec_measurements" not in existing_tables  # never created: no writer
+        row = sqlite_backend.connection.execute(
+            'SELECT 1 FROM "ecms_measurements" WHERE "id" = ?', (i,)
+        ).fetchone()
+        assert row is not None  # the data lives here instead
 
     def test_load_returns_newest_with_name(self, sqlite_backend):
         DataSeries(name="twin", unit_name="V", data=np.array([1.0])).save()
