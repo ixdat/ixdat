@@ -139,6 +139,15 @@ database
   ``field_ids`` property its ``extra_linkers`` refer to, and its ``xseries`` no
   longer crashes on a lazily loaded (placeholder) field.
 
+- Fixed saving of ``ECOpticalMeasurement``, which raised an ``AttributeError`` on
+  any backend: its ``extra_linkers`` refer to a ``ref_id``, but no such property
+  existed, and its reference spectrum was missing from ``child_attrs``, so it was
+  not saved before the measurement which refers to it. It also no longer raises an
+  ``AttributeError`` from ``reference_spectrum`` when it was initiated without one
+  (which is normal - a reference spectrum can be chosen afterwards with
+  ``set_reference_spectrum``); ``reference_spectrum`` and ``ref_id`` are then
+  ``None``, and the measurement saves and loads without a reference.
+
 - A comprehensive demo of the SQLite backend has been added as
   ``development_scripts/demo_sqlite_backend.py``. It runs on data files shipped
   in the repository and shows saving, schema generation with foreign keys, lazy

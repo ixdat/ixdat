@@ -60,6 +60,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
     extra_linkers = SpectroECMeasurement.extra_linkers.copy()
     extra_linkers.update({"ec_optical_measurements": ("spectrums", "ref_id")})
+    child_attrs = SpectroECMeasurement.child_attrs + ["reference_spectrum_list"]
 
     def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
@@ -68,6 +69,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             self._reference_spectrum = reference_spectrum
         elif ref_id:
             self._reference_spectrum = PlaceHolderObject(ref_id, cls=Spectrum)
+        else:
+            # a reference spectrum can also be set later, with set_reference_spectrum:
+            self._reference_spectrum = None
         self.tracked_wavelengths = []
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
@@ -80,6 +84,21 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         if isinstance(self._reference_spectrum, PlaceHolderObject):
             self._reference_spectrum = self._reference_spectrum.get_object()
         return self._reference_spectrum
+
+    # FIXME: The attribute below is needed in order to correctly pass the reference
+    #   spectrum between objects using its id, because "child_attrs" only works on
+    #   lists. Same as SpectroMeasurement.spectrum_series_list.
+    @property
+    def reference_spectrum_list(self):
+        """The reference spectrum in a list, or an empty list if there is none"""
+        return [self.reference_spectrum] if self._reference_spectrum else []
+
+    @property
+    def ref_id(self):
+        """The id of the reference spectrum, or None if there is none"""
+        if not self._reference_spectrum:
+            return None
+        return self.reference_spectrum.short_identity
 
     def set_reference_spectrum(
         self,

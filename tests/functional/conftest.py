@@ -3,10 +3,14 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import numpy as np
 from pytest import fixture
 
-from ixdat import Measurement
+from ixdat import Measurement, Spectrum
+from ixdat.data_series import DataSeries, Field, TimeSeries
 from ixdat.db import DB, change_database
+from ixdat.spectra import SpectrumSeries
+from ixdat.techniques.spectroelectrochemistry import ECOpticalMeasurement
 
 # FIXME The size of this data file is at present one of the largest contributors to the
 # time it takes to run the test suite. We should consider cutting it down or replacing
@@ -48,3 +52,50 @@ def composed_measurement(ec_measurement):
     measurement1 = ec_measurement.select(cycle=1)
     measurement2 = ec_measurement.select(cycle=3)
     return measurement1 + measurement2
+
+
+@fixture(scope="function")
+def ec_optical_measurement():
+    """Fixture that sets up a synthetic EC-Optical measurement
+
+    Unlike the other measurements here this one is built rather than read, since
+    ixdat ships no EC-Optical data file. What makes it worth testing is that it
+    refers to two different spectrum objects: a `SpectrumSeries` with the spectra
+    and a single `Spectrum` used as the reference for optical density.
+    """
+    tseries = TimeSeries(
+        name="t", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
+    )
+    wavelength = DataSeries(
+        name="wavelength / nm", unit_name="nm", data=np.linspace(400, 700, 4)
+    )
+    spectrum_series = SpectrumSeries(
+        name="optical spectra",
+        technique="EC-Optical",
+        tstamp=1.6e9,
+        field=Field(
+            name="spectra",
+            unit_name="counts",
+            data=np.array([[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]]),
+            axes_series=[tseries, wavelength],
+        ),
+    )
+    reference_spectrum = Spectrum(
+        name="ref spectrum",
+        technique="optical",
+        tstamp=1.6e9,
+        field=Field(
+            name="reference",
+            unit_name="counts",
+            data=np.array([1.0, 1.0, 1.0, 1.0]),
+            axes_series=[wavelength],
+        ),
+    )
+    return ECOpticalMeasurement(
+        name="synthetic EC-Optical",
+        technique="EC-Optical",
+        tstamp=1.6e9,
+        series_list=[tseries],
+        spectrum_series=spectrum_series,
+        reference_spectrum=reference_spectrum,
+    )

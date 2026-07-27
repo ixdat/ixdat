@@ -1,5 +1,7 @@
 """"Tests that an ECMeasurement read from test data behaves as it should"""
 
+import numpy as np
+
 from ixdat import Measurement
 
 
@@ -31,3 +33,13 @@ class TestBackends:
         ec_measurement.save()
         loaded = Measurement.load(ec_measurement.name)
         assert ec_measurement == loaded
+
+    def test_round_trip_of_ec_optical(self, ec_optical_measurement, fresh_backend):
+        """Test that both of an EC-Optical measurement's spectrum references survive"""
+        id_ = ec_optical_measurement.save()
+        loaded = Measurement.get(id_)
+        assert np.allclose(loaded.spectra.data, ec_optical_measurement.spectra.data)
+        assert loaded.reference_spectrum.name == "ref spectrum"
+        assert np.allclose(
+            loaded.reference_spectrum.y, ec_optical_measurement.reference_spectrum.y
+        )

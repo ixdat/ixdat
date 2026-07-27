@@ -15,8 +15,9 @@ from ixdat.db import DB, change_database
 from ixdat.exceptions import DataBaseError
 from ixdat.measurement_base import Calculator
 from ixdat.calculators.ec_calculators import ECCalibration
-from ixdat.spectra import MultiSpectrum
+from ixdat.spectra import MultiSpectrum, SpectrumSeries
 from ixdat.techniques.ec_ms import ECMSMeasurement
+from ixdat.techniques.spectroelectrochemistry import ECOpticalMeasurement
 
 
 @pytest.fixture
@@ -27,6 +28,47 @@ def sqlite_backend(tmp_path):
     yield DB.backend
     DB.backend.close()
     DB.set_backend(original_backend)
+
+
+def _ec_optical_measurement(reference_spectrum="build one"):
+    """Return a synthetic ECOpticalMeasurement, evt. without a reference spectrum"""
+    tseries = TimeSeries(
+        name="t", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
+    )
+    wavelength = DataSeries(
+        name="wavelength / nm", unit_name="nm", data=np.linspace(400, 700, 4)
+    )
+    spectrum_series = SpectrumSeries(
+        name="optical spectra",
+        technique="EC-Optical",
+        tstamp=1.6e9,
+        field=Field(
+            name="spectra",
+            unit_name="counts",
+            data=np.array([[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]]),
+            axes_series=[tseries, wavelength],
+        ),
+    )
+    if reference_spectrum == "build one":
+        reference_spectrum = Spectrum(
+            name="ref spectrum",
+            technique="optical",
+            tstamp=1.6e9,
+            field=Field(
+                name="reference",
+                unit_name="counts",
+                data=np.array([1.0, 1.0, 1.0, 1.0]),
+                axes_series=[wavelength],
+            ),
+        )
+    return ECOpticalMeasurement(
+        name="synthetic EC-Optical",
+        technique="EC-Optical",
+        tstamp=1.6e9,
+        series_list=[tseries],
+        spectrum_series=spectrum_series,
+        reference_spectrum=reference_spectrum,
+    )
 
 
 class TestRelationalSchema:
@@ -255,6 +297,33 @@ class TestSQLiteBackend:
             'SELECT 1 FROM "ecms_measurements" WHERE "id" = ?', (i,)
         ).fetchone()
         assert row is not None  # the data lives here instead
+
+    def test_ec_optical_measurement_round_trip(self, sqlite_backend):
+        """The reference spectrum is a single-reference linker, not a list"""
+        measurement = _ec_optical_measurement()
+        i = measurement.save()
+
+        loaded = Measurement.get(i)
+        assert isinstance(loaded, ECOpticalMeasurement)
+        # both spectrum references survive: the spectrum series and the reference
+        assert np.allclose(loaded.spectra.data, measurement.spectra.data)
+        assert loaded.reference_spectrum.name == "ref spectrum"
+        assert np.allclose(loaded.reference_spectrum.y, [1.0, 1.0, 1.0, 1.0])
+        # the reference is stored as one row of its linker table, at position 0:
+        assert sqlite_backend.connection.execute(
+            'SELECT "position", "spectrums_id" FROM "ec_optical_measurements" '
+            'WHERE "measurement_id" = ?',
+            (i,),
+        ).fetchall() == [(0, loaded.reference_spectrum.id)]
+
+    def test_ec_optical_measurement_without_a_reference_spectrum(self, sqlite_backend):
+        """A reference spectrum can be set later, so saving without one must work"""
+        measurement = _ec_optical_measurement(reference_spectrum=None)
+        assert measurement.reference_spectrum is None
+        assert measurement.ref_id is None
+
+        loaded = Measurement.get(measurement.save())
+        assert loaded.reference_spectrum is None
 
     def test_load_returns_newest_with_name(self, sqlite_backend):
         DataSeries(name="twin", unit_name="V", data=np.array([1.0])).save()
