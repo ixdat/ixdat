@@ -65,6 +65,39 @@ version. On first use, ixdat validates each table against the schema derived fro
 incompatible column type, primary key, relationship, or newer schema version raises a
 ``DataBaseError`` instead of risking a misread or partial write.
 
+Defining the tables of a ``Saveable`` class
+-------------------------------------------
+
+The relational schema is not written by hand. It is derived, by
+``ixdat.backends.relational``, from the table metadata every ``Saveable`` class
+already carries: ``table_name`` and ``column_attrs`` for the main table,
+``extra_column_attrs`` for extension tables, and ``extra_linkers`` for linker tables.
+
+Two further class attributes tell a relational backend how to store each column.
+Both are optional, and both are *merged* over a class's ancestry, so a class only
+declares what it introduces itself::
+
+    class XRFSpectrum(Spectrum):
+        extra_column_attrs = {"xrf_spectrums": {"excitation_energy", "detector_gains"}}
+        column_types = {"excitation_energy": "REAL", "detector_gains": "JSON"}
+        column_references = {"calibration_id": "calculator"}
+
+``column_types`` gives the type of a column's value: ``"INTEGER"``, ``"REAL"`` and
+``"TEXT"`` are stored as-is, ``"JSON"`` is for dicts and lists, and ``"NDARRAY"`` is
+for numpy arrays, which are stored as a blob and loaded only on access. A column
+which is not listed has no fixed type and is stored as whatever type its value
+already has, so a plain str/int/float column needs no declaration. Saving a dict,
+list, or array to such a column raises a ``DataBaseError`` naming the column, rather
+than guessing.
+
+``column_references`` names the columns which hold the id of a single row of another
+table; these become integer foreign keys to that table's ``id``. A reference to
+*several* rows of another table belongs in ``extra_linkers`` instead.
+
+Because this lives on the classes rather than in a table inside ixdat, a ``Saveable``
+class defined in a plugin or a user's own script gets its tables built correctly
+without any change to ixdat.
+
 Connections and threads
 -----------------------
 

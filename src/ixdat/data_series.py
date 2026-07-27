@@ -21,6 +21,7 @@ class DataSeries(Saveable):
 
     table_name = "data_series"
     column_attrs = {"name", "unit_name", "data", "series_type"}
+    column_types = {"unit_name": "TEXT", "series_type": "TEXT", "data": "NDARRAY"}
     series_type = "series"
 
     def __init__(self, name, unit_name, data):
@@ -71,6 +72,7 @@ class TimeSeries(DataSeries):
     """Class to store time data. These are characterized by having a tstamp"""
 
     extra_column_attrs = {"tstamps": {"tstamp"}}
+    column_types = {"tstamp": "REAL"}
     series_type = "tseries"
 
     def __init__(self, name, unit_name, data, tstamp):

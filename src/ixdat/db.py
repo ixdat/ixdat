@@ -126,6 +126,14 @@ class Saveable:
     `extra_column_attrs` to add extra columns via an auxiliary table without changing
     the main table name.
 
+    A class can also say what *type* of value each of its columns holds, with
+    `column_types`, and which columns hold the id of a row of another table, with
+    `column_references`. Relational backends need this to build their tables (see
+    :module:`~ixdat.backends.relational`); backends which just serialize each object
+    on its own, like the directory backend, ignore it. Both are optional: a column
+    which isn't in `column_types` holds whatever type its value already has, which
+    is all a plain str/int/float attribute needs.
+
     ixdat is lazy, only loading things when needed. Correspondingly, all of the columns
     of table mentioned above should refer to (lists of) id's and not actual objects of
     other ixdat classes.
@@ -143,6 +151,18 @@ class Saveable:
             to represent the "extra" attributes, for double-inheriting classes.
         linkers (dict): {table_name: (reference_table, attr)} for defining
             the connections between objects.
+        column_types (dict): {attr: type_name} giving the type of the value stored
+            in a column, for the columns where it matters. The type names are
+            "INTEGER", "REAL", "TEXT" for plain numbers and text, "JSON" for dicts
+            and lists, and "NDARRAY" for numpy arrays. A column left out here has no
+            fixed type. Unlike `extra_column_attrs`, this is *merged* over the
+            inheriting classes, so a class only declares the columns it adds itself.
+        column_references (dict): {attr: table_name} for the columns which hold the
+            id of a single row of another table, e.g. {"field_id": "data_series"}.
+            The column referred to is always that table's "id". Also merged over the
+            inheriting classes. Note that this is for a column of *this* class's
+            table; a reference stored as rows of its own table goes in
+            `extra_linkers` instead.
 
     Object attributes:
         backend (Backend): the backend where the object is saved. For a
@@ -163,6 +183,10 @@ class Saveable:
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
     extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
+    # every ixdat table has a name. Inheriting classes add the types of the columns
+    # they introduce themselves; get_column_types() merges them back together:
+    column_types = {"name": "TEXT"}
+    column_references = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     # TODO: derive child_attrs somehow from the above class attributes, and have it in
     #   a way where it's easy to tell which id goes with which attribute, i.e. s_ids
     #   goes with series_list
@@ -409,6 +433,36 @@ class Saveable:
             for table, (ref_table, attr) in cls.extra_linkers.items():
                 all_attrs.add(attr)
         return all_attrs
+
+    @classmethod
+    def get_column_types(cls):
+        """Return {attr: type_name} for all of cls's columns which have a fixed type
+
+        Each class in cls's ancestry contributes the columns it declares itself in
+        `column_types`, with the more specific class winning where they disagree.
+        Merging like this means a class only has to name the columns it adds, and,
+        unlike `extra_column_attrs`, that a class inheriting from two table-defining
+        classes gets the column types of both.
+        """
+        return cls._merged_class_dict("column_types")
+
+    @classmethod
+    def get_column_references(cls):
+        """Return {attr: table_name} for all of cls's columns which hold a foreign id
+
+        Merged over the inheriting classes, exactly like `get_column_types`.
+        """
+        return cls._merged_class_dict("column_references")
+
+    @classmethod
+    def _merged_class_dict(cls, attr):
+        """Return the dict class attribute `attr` merged over cls's ancestry"""
+        merged = {}
+        for ancestor in reversed(cls.__mro__):
+            # __dict__, rather than getattr, so that each ancestor contributes only
+            # what it declares itself, and the reversed order decides the winner:
+            merged.update(ancestor.__dict__.get(attr) or {})
+        return merged
 
     @classmethod
     def from_dict(cls, obj_as_dict):

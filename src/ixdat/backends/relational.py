@@ -9,7 +9,10 @@ Every Saveable class already says how it should be saved:
   "ec_measurements" table adds "ec_technique" to rows of "measurement"), and
 - ``extra_linkers`` names *linker tables*, which record ordered references from
   a row to several rows of another table (e.g. "measurement_series" records
-  which data series belong to which measurement, and in what order).
+  which data series belong to which measurement, and in what order),
+- ``column_types`` gives the *logical type* of the columns where it matters, and
+- ``column_references`` names the columns which hold the id of a row of another
+  table (e.g. a spectrum's "field_id" refers to the "data_series" table).
 
 This module turns that information into plain table descriptions (`TableSchema`
 and `LinkerTableSchema`) that don't depend on any particular database - a
@@ -25,55 +28,29 @@ linked back to the main table's id. Which subclass a row belongs to isn't
 stored as a separate column - it's worked out the same way the directory
 backend already does it, from a column like "technique" or "calculator_type".
 
-Each column also has a *logical type*, which tells a backend how to store a
-value:
+A column's *logical type* tells a backend how to store its value:
 
 - "INTEGER", "REAL", "TEXT": plain numbers/text, stored as-is,
 - "JSON": dicts and lists, stored as JSON text,
 - "NDARRAY": numpy arrays, stored as a binary blob and only loaded when needed,
 - None: no fixed type; stored as whatever type the value already is.
 
-``COLUMN_TYPES`` below lists the logical type for every attribute name ixdat
-already knows about. Anything not listed still works - it's just stored using
-whatever scalar type Python gives it - so a new class with a plain str/int/float
-attribute needs no changes here.
+A class states these in ``column_types``, alongside the ``column_attrs`` that
+introduce the columns, and they are merged over the class's ancestry by
+``Saveable.get_column_types()``. A column left out still works - it's just
+stored using whatever scalar type Python gives it - so a new class with a plain
+str/int/float attribute needs to declare nothing. ``column_references``, merged
+the same way by ``Saveable.get_column_references()``, says which columns hold
+the id of a row of another table, and thus become foreign keys.
+
+Keeping this on the classes, rather than in a table here, is what lets a class
+outside of ixdat define columns of any type without ixdat knowing about it.
 """
 
-COLUMN_TYPES = {
-    # numpy data, stored as a blob and loaded lazily:
-    "data": "NDARRAY",
-    # json-serializable dicts and lists:
-    "metadata": "JSON",
-    "aliases": "JSON",
-    "tspan_bg": "JSON",
-    # known floats:
-    "tstamp": "REAL",
-    "bg": "REAL",
-    "F": "REAL",
-    "RE_vs_RHE": "REAL",
-    "A_el": "REAL",
-    "R_Ohm": "REAL",
-    # known strings:
-    "name": "TEXT",
-    "technique": "TEXT",
-    "ec_technique": "TEXT",
-    "unit_name": "TEXT",
-    "series_type": "TEXT",
-    "sample_name": "TEXT",
-    "calculator_type": "TEXT",
-    "mol": "TEXT",
-    "mass": "TEXT",
-    "cal_type": "TEXT",
-    # single references to rows of other tables:
-    "field_id": "INTEGER",
-    "spectrum_id": "INTEGER",
-}
+from ..exceptions import DataBaseError
 
-FOREIGN_KEY_COLUMNS = {
-    # {column attribute: the (table, column) its value refers to}
-    "field_id": ("data_series", "id"),
-    "spectrum_id": ("spectrums", "id"),
-}
+
+KNOWN_COLUMN_TYPES = ("INTEGER", "REAL", "TEXT", "JSON", "NDARRAY")
 
 
 class ColumnSchema:
@@ -200,19 +177,35 @@ def _ordered(attrs):
     return sorted(attrs, key=lambda attr: (attr != "name", attr))
 
 
-def _column(attr):
-    """Return the ColumnSchema for a column attribute"""
-    return ColumnSchema(
-        attr,
-        dtype=COLUMN_TYPES.get(attr),
-        foreign_key=FOREIGN_KEY_COLUMNS.get(attr),
-    )
+def _columns(cls, attrs):
+    """Return the ColumnSchemas for the named column attributes of a Saveable class"""
+    types = cls.get_column_types()
+    references = cls.get_column_references()
+    columns = []
+    for attr in _ordered(attrs):
+        dtype = types.get(attr)
+        if dtype and dtype not in KNOWN_COLUMN_TYPES:
+            raise DataBaseError(
+                f"{cls.__name__} gives its column '{attr}' the unknown type "
+                f"'{dtype}'. The types a column can have are "
+                f"{', '.join(KNOWN_COLUMN_TYPES)}."
+            )
+        referenced_table = references.get(attr)
+        columns.append(
+            ColumnSchema(
+                attr,
+                # a column holding another row's id is that id's type:
+                dtype="INTEGER" if referenced_table else dtype,
+                foreign_key=(referenced_table, "id") if referenced_table else None,
+            )
+        )
+    return columns
 
 
 def main_table_schema(cls):
     """Return the TableSchema of the main table of a Saveable class"""
     columns = [ColumnSchema("id", dtype="INTEGER")]
-    columns += [_column(attr) for attr in _ordered(cls.column_attrs or [])]
+    columns += _columns(cls, cls.column_attrs or [])
     return TableSchema(cls.table_name, columns)
 
 
@@ -231,7 +224,7 @@ def extension_table_schemas(cls):
         columns = [
             ColumnSchema("id", dtype="INTEGER", foreign_key=(cls.table_name, "id"))
         ]
-        columns += [_column(attr) for attr in _ordered(attrs)]
+        columns += _columns(cls, attrs)
         schemas.append(TableSchema(table_name, columns, extends=cls.table_name))
     return schemas
 

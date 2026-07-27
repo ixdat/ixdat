@@ -83,6 +83,7 @@ class ECMeasurement(Measurement):
             "ec_technique",
         }
     }
+    column_types = {"ec_technique": "TEXT"}
     control_series_name = "raw_potential"
     essential_series_names = ("t", "raw_potential", "raw_current")
     selection_series_names = ("file_number", "loop_number", "cycle number", "Ns")

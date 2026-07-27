@@ -89,6 +89,64 @@ class TestRelationalSchema:
         assert component_linker.owner_column == "measurement_id"
         assert component_linker.linked_column == "linked_measurement_id"
 
+    def test_column_types_come_from_the_declaring_class(self):
+        """Each column's type is the one declared by the class which adds it"""
+        columns = {
+            column.name: column
+            for column in relational.main_table_schema(DataSeries).columns
+        }
+        assert columns["data"].dtype == "NDARRAY"  # declared by DataSeries
+        assert columns["name"].dtype == "TEXT"  # inherited from Saveable
+
+    def test_column_types_are_merged_over_multiple_inheritance(self):
+        """Unlike extra_column_attrs, column_types of *both* parents carry over"""
+        types = ECMSMeasurement.get_column_types()
+        assert types["ec_technique"] == "TEXT"  # from ECMeasurement
+        assert types["tspan_bg"] == "JSON"  # from ECMSMeasurement itself
+        assert types["aliases"] == "JSON"  # from Measurement
+        # and a class only has to declare what it adds itself:
+        assert ECMSMeasurement.__dict__["column_types"] == {"tspan_bg": "JSON"}
+
+    def test_column_references_become_foreign_keys(self):
+        columns = {
+            column.name: column
+            for column in relational.main_table_schema(Spectrum).columns
+        }
+        assert columns["field_id"].foreign_key == ("data_series", "id")
+        # a column referring to another row always holds that row's integer id:
+        assert columns["field_id"].dtype == "INTEGER"
+
+    def test_a_class_outside_ixdat_can_declare_its_own_column_types(self):
+        """A plugin class gets its columns typed without ixdat knowing about it"""
+
+        class PluginMeasurement(Measurement):
+            extra_column_attrs = {"plugin_measurements": {"instrument_settings"}}
+            column_types = {"instrument_settings": "JSON"}
+
+        (schema,) = relational.extension_table_schemas(PluginMeasurement)
+        (column,) = schema.data_columns
+        assert column.name == "instrument_settings"
+        assert column.dtype == "JSON"
+
+    def test_unknown_column_type_is_rejected(self):
+        # a stand-in rather than a real Saveable subclass, since a class with a
+        # broken column type would stay in Saveable.__subclasses__() for the rest
+        # of the session and break the schema of every test after this one:
+        class MistypedClass:
+            table_name = "mistyped"
+            column_attrs = {"whoops"}
+
+            @classmethod
+            def get_column_types(cls):
+                return {"whoops": "NDARAY"}  # typo for "NDARRAY"
+
+            @classmethod
+            def get_column_references(cls):
+                return {}
+
+        with pytest.raises(DataBaseError, match="unknown type"):
+            relational.main_table_schema(MistypedClass)
+
     def test_family_table_schemas(self):
         """All classes sharing a main table contribute to the family schema"""
         extension_schemas, linker_schemas = relational.family_table_schemas(
@@ -236,7 +294,7 @@ class TestSQLiteBackend:
         assert sqlite_backend._encode(ColumnSchema("x"), np.float64(1.5)) == 1.5
 
     def test_dynamic_column_rejects_containers(self, sqlite_backend):
-        """Containers require a logical type registered in relational.COLUMN_TYPES"""
+        """Containers require a logical type declared in the class's column_types"""
         with pytest.raises(DataBaseError):
             sqlite_backend._encode(ColumnSchema("unregistered"), {"nested": "dict"})
 

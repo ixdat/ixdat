@@ -48,6 +48,13 @@ class Spectrum(Saveable):
         "sample_name",
         "field_id",
     }
+    column_types = {
+        "technique": "TEXT",
+        "metadata": "JSON",
+        "tstamp": "REAL",
+        "sample_name": "TEXT",
+    }
+    column_references = {"field_id": "data_series"}
     child_attrs = ["fields"]
     essential_series_names = []
 
@@ -359,6 +366,12 @@ class MultiSpectrum(Saveable):
         "metadata",
         "tstamp",
         "sample_name",
+    }
+    column_types = {
+        "technique": "TEXT",
+        "metadata": "JSON",
+        "tstamp": "REAL",
+        "sample_name": "TEXT",
     }
     extra_linkers = {"multispectrum_fields": ("data_series", "field_ids")}
     child_attrs = ["fields"]
@@ -854,6 +867,7 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 class SpectroMeasurement(Measurement):
     child_attrs = ["spectrum_series_list"] + Measurement.child_attrs
     extra_column_attrs = {"spectro_measurements": {"spectrum_id"}}
+    column_references = {"spectrum_id": "spectrums"}
 
     def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)

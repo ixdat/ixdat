@@ -99,14 +99,29 @@ database
   ``Saveable`` class already defines (``table_name``, ``column_attrs``,
   ``extra_column_attrs`` and ``extra_linkers``) by the new dialect-agnostic module
   ``ixdat.backends.relational``, realizing the "proper table definitions" goal of
-  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_ without new class-level
-  machinery. Class inheritance maps to extension tables joined on the main table's
+  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_. Class inheritance maps to
+  extension tables joined on the main table's
   primary key, and ordered many-to-many relationships (e.g. a measurement's data
   series) map to linker tables. Numerical data is stored in numpy-format blob
   columns which are only queried when the data is actually accessed, keeping
   ixdat's laziness intact. A complete object graph is saved in one transaction,
   frequently queried columns are indexed, and an internal schema version enables
   validation and safe additive migration of existing database files.
+
+- Two optional class attributes have been added to ``Saveable`` for the table
+  metadata a relational backend needs but the older backends never did:
+  ``column_types``, giving the type of a column's value ("INTEGER", "REAL",
+  "TEXT", "JSON" or "NDARRAY"), and ``column_references``, naming the columns
+  which hold the id of a row of another table (e.g.
+  ``{"field_id": "data_series"}``), which become foreign keys. Both are optional
+  - a column with no declared type holds whatever type its value already has, so
+  a plain str/int/float column needs no declaration. Unlike
+  ``extra_column_attrs``, both are *merged* over a class's ancestry (by
+  ``Saveable.get_column_types()`` and ``Saveable.get_column_references()``), so a
+  class only declares the columns it introduces itself and a multiply-inheriting
+  class gets the declarations of all of its parents. Because this information
+  lives on the classes, a ``Saveable`` class defined outside of ixdat can have
+  columns of any type without ixdat having to know about it.
 
 - ``Saveable.load(name)`` has been added as the by-name counterpart to
   ``Saveable.get(id)``: e.g. ``Measurement.load("my measurement")`` returns the

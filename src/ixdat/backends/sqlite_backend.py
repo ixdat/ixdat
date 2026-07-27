@@ -676,9 +676,9 @@ class SQLiteBackend(BackendBase):
         if isinstance(value, (dict, list, tuple, np.ndarray)):
             raise DataBaseError(
                 f"Can't save value {value!r} in the dynamically typed column "
-                f"'{column.name}'. If this column should hold dicts/lists or "
-                "numpy arrays, add it to COLUMN_TYPES in ixdat.backends.relational "
-                "as 'JSON' or 'NDARRAY', respectively."
+                f"'{column.name}'. If this column should hold dicts/lists or numpy "
+                f"arrays, give it the type 'JSON' or 'NDARRAY', respectively, in "
+                "the `column_types` of the class which defines the column."
             )
         return value
 
