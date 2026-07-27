@@ -1,4 +1,5 @@
 from .backend_base import BackendBase
+from ..exceptions import DataBaseError
 
 
 class MemoryBackend(BackendBase):
@@ -29,6 +30,17 @@ class MemoryBackend(BackendBase):
     def get(self, cls, i):
         """Return an object of a specified class and id by looking up in memory"""
         return self.objects[cls.table_name][i]
+
+    def load(self, cls, name):
+        """Return the most recently saved object of cls with the given name"""
+        objects_by_id = self.objects.get(cls.table_name, {})
+        # id's count up as objects are saved, so the highest one is the newest:
+        for i in sorted(objects_by_id, reverse=True):
+            if objects_by_id[i].name == name:
+                return objects_by_id[i]
+        raise DataBaseError(
+            f"{self} has no object named '{name}' in table '{cls.table_name}'"
+        )
 
     def save(self, obj):
         """Save the object into memory, and change its backend to this backend."""

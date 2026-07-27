@@ -79,8 +79,12 @@ class SQLiteBackend(BackendBase):
             directory = Path(directory or config.standard_data_directory)
             project_name = project_name or config.default_project_name
             self.db_path = directory / (project_name + DATABASE_FILE_SUFFIX)
+        self._resolved_path = None  # what identifies this database, see __eq__
         if not self._is_memory:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            # resolved once here: two backends on one file must compare and hash
+            # alike however their paths were written, and resolving hits the disk
+            self._resolved_path = self.db_path.resolve()
         self.connection = sqlite3.connect(self.db_path)
         self.connection.execute("PRAGMA foreign_keys = ON")
         self._closed = False
@@ -121,7 +125,18 @@ class SQLiteBackend(BackendBase):
         if self._is_memory or other._is_memory:
             # Separate ":memory:" connections are separate databases.
             return False
-        return other.db_path.resolve() == self.db_path.resolve()
+        return other._resolved_path == self._resolved_path
+
+    def __hash__(self):
+        """Hash by the database file, so that equal backends hash alike
+
+        Defining __eq__ sets __hash__ to None unless it is defined too, which would
+        make this backend unhashable. Saveable does the same thing for the same
+        reason. Two ":memory:" backends are never equal, so they hash by identity.
+        """
+        if self._is_memory:
+            return object.__hash__(self)
+        return hash(self._resolved_path)
 
     # ------- saving  ------- #
 

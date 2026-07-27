@@ -25,7 +25,7 @@ from contextlib import contextmanager
 
 from .exceptions import DataBaseError
 from .backends import BACKEND_CLASSES, database_backends
-from .tools import thing_is_close
+from .tools import deprecate, thing_is_close
 
 
 class DataBase:
@@ -479,12 +479,23 @@ class Saveable:
         """Open the most recently saved object of cls with the given name"""
         return DB.load(cls, name, backend=backend)
 
-    def load_data(self, db=None):
-        """Load the data of the object, if ixdat in its laziness hasn't done so yet"""
-        # use the backend this object actually came from, not necessarily the
-        # current global one (e.g. if it was loaded with get(..., backend=...)):
-        data_source = db or self.backend
-        return data_source.load_obj_data(self)
+    @deprecate(
+        "0.3.0",
+        "`load_data` now takes the backend to load from, rather than a DataBase. "
+        "Use `backend=` instead of `db=`.",
+        "0.4.0",
+        kwarg_name="db",
+    )
+    def load_data(self, backend=None, db=None):
+        """Load the data of the object, if ixdat in its laziness hasn't done so yet
+
+        Args:
+            backend (Backend): The backend to load the data from. By default, the
+                backend this object came from, which is not necessarily the active
+                one (e.g. if it was loaded with `get(..., backend=...)`).
+            db (Backend): DEPRECATED alias for `backend`.
+        """
+        return (backend or db or self.backend).load_obj_data(self)
 
 
 class PlaceHolderObject:

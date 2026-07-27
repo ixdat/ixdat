@@ -8,6 +8,7 @@ import pytest
 from ixdat import Measurement, Spectrum
 from ixdat.backends import relational
 from ixdat.backends.directory_backend import DirBackend
+from ixdat.backends.memory_backend import MemoryBackend
 from ixdat.backends.relational import ColumnSchema
 from ixdat.backends.sqlite_backend import METADATA_TABLE, SCHEMA_VERSION, SQLiteBackend
 from ixdat.data_series import DataSeries, Field, TimeSeries, ValueSeries
@@ -479,6 +480,16 @@ class TestSQLiteBackend:
                 "PRAGMA foreign_key_check"
             ).fetchall() == []
 
+    def test_backends_can_be_used_in_sets_and_dicts(self, sqlite_backend, tmp_path):
+        """Defining __eq__ without __hash__ would make the backend unhashable"""
+        with SQLiteBackend(db_path=sqlite_backend.db_path) as same_file:
+            with SQLiteBackend(db_path=tmp_path / "other.sqlite") as other_file:
+                # two connections to one file are one database, and hash alike:
+                assert {sqlite_backend, same_file} == {sqlite_backend}
+                assert len({sqlite_backend, other_file}) == 2
+                # a backend can be a dict key, e.g. to group objects by database:
+                assert {sqlite_backend: "here"}[same_file] == "here"
+
     def test_in_memory_database_uses_sqlite_convention(self):
         with SQLiteBackend(db_path=":memory:") as first_backend:
             i = first_backend.save(
@@ -564,6 +575,34 @@ class TestSQLiteBackend:
         }
         assert "ixdat_measurement_name_id" in indexes
         assert "ixdat_measurement_technique" in indexes
+
+
+def test_memory_backend_load_by_name():
+    """`load` is implemented for the memory backend too, not just the real ones"""
+    backend = MemoryBackend()
+    backend.save(DataSeries(name="twin", unit_name="V", data=np.array([1.0])))
+    newest = DataSeries(name="twin", unit_name="A", data=np.array([2.0]))
+    backend.save(newest)
+
+    assert backend.load(DataSeries, "twin") is newest
+    with pytest.raises(DataBaseError):
+        backend.load(DataSeries, "no series has this name")
+
+
+def test_load_data_takes_a_backend_and_deprecates_db(tmp_path):
+    """`load_data(db=...)` used to take a DataBase; it now takes a backend"""
+    original_backend = DB.backend
+    with SQLiteBackend(db_path=tmp_path / "data.sqlite") as backend:
+        DB.set_backend(backend)
+        try:
+            series = DataSeries(name="s", unit_name="V", data=np.array([1.0, 2.0]))
+            loaded = DataSeries.get(series.save())
+            assert np.array_equal(loaded.load_data(), [1.0, 2.0])
+            assert np.array_equal(loaded.load_data(backend), [1.0, 2.0])
+            with pytest.deprecated_call():
+                assert np.array_equal(loaded.load_data(db=backend), [1.0, 2.0])
+        finally:
+            DB.set_backend(original_backend)
 
 
 def test_directory_load_uses_exact_unescaped_name(tmp_path):

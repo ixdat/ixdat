@@ -139,6 +139,15 @@ database
   ``field_ids`` property its ``extra_linkers`` refer to, and its ``xseries`` no
   longer crashes on a lazily loaded (placeholder) field.
 
+- ``Saveable.load_data`` now takes the ``backend`` to load from, rather than a
+  ``DataBase``, matching what it has actually needed since it started using the
+  backend an object came from (which is not necessarily the active one). The old
+  ``db`` keyword still works but is deprecated.
+
+- ``BackendBase.load`` is now implemented by the memory backend as well, so
+  ``Measurement.load("my measurement")`` works there instead of raising a bare
+  ``NotImplementedError``.
+
 - Fixed loading of ``MSCalibration`` and ``MSBackgroundSet``. Both saved without
   complaint but could not be loaded again on any backend: their serialization
   names the referenced objects by id (``ms_cal_result_ids`` and
