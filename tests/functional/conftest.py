@@ -7,6 +7,12 @@ import numpy as np
 from pytest import fixture
 
 from ixdat import Measurement, Spectrum
+from ixdat.calculators.ms_calculators import (
+    MSBackgroundSet,
+    MSCalibration,
+    MSCalResult,
+    MSConstantBackground,
+)
 from ixdat.data_series import DataSeries, Field, TimeSeries
 from ixdat.db import DB, change_database
 from ixdat.spectra import SpectrumSeries
@@ -52,6 +58,32 @@ def composed_measurement(ec_measurement):
     measurement1 = ec_measurement.select(cycle=1)
     measurement2 = ec_measurement.select(cycle=3)
     return measurement1 + measurement2
+
+
+@fixture(scope="function")
+def ms_calibration():
+    """Fixture that sets up an MS calibration with two sensitivity factors"""
+    return MSCalibration(
+        name="test ms calibration",
+        tstamp=1.6e9,
+        ms_cal_results=[
+            MSCalResult(name="O2 at M32", mol="O2", mass="M32", F=1.5),
+            MSCalResult(name="H2 at M2", mol="H2", mass="M2", F=3.0),
+        ],
+    )
+
+
+@fixture(scope="function")
+def ms_background_set():
+    """Fixture that sets up a set of constant MS backgrounds"""
+    return MSBackgroundSet(
+        name="test ms backgrounds",
+        tstamp=1.6e9,
+        bg_list=[
+            MSConstantBackground(name="M32 background", mass="M32", bg=1e-12),
+            MSConstantBackground(name="M2 background", mass="M2", bg=2e-12),
+        ],
+    )
 
 
 @fixture(scope="function")

@@ -139,6 +139,17 @@ database
   ``field_ids`` property its ``extra_linkers`` refer to, and its ``xseries`` no
   longer crashes on a lazily loaded (placeholder) field.
 
+- Fixed loading of ``MSCalibration`` and ``MSBackgroundSet``. Both saved without
+  complaint but could not be loaded again on any backend: their serialization
+  names the referenced objects by id (``ms_cal_result_ids`` and
+  ``ms_constant_bg_ids``), which their ``__init__`` did not accept, so loading
+  raised a ``TypeError``. They now take those id's, just like ``Measurement``
+  takes ``s_ids``, and hold the referenced ``MSCalResult`` /
+  ``MSConstantBackground`` objects as placeholders until they are used, so a
+  calibration can be loaded without loading every sensitivity factor. Their id
+  properties also now use ``short_identity`` rather than ``id``, so a reference to
+  an object in another backend is no longer silently recorded as a bare id.
+
 - Fixed saving of ``ECOpticalMeasurement``, which raised an ``AttributeError`` on
   any backend: its ``extra_linkers`` refer to a ``ref_id``, but no such property
   existed, and its reference spectrum was missing from ``child_attrs``, so it was

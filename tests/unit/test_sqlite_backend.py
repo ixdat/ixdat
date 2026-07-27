@@ -11,10 +11,11 @@ from ixdat.backends.directory_backend import DirBackend
 from ixdat.backends.relational import ColumnSchema
 from ixdat.backends.sqlite_backend import METADATA_TABLE, SCHEMA_VERSION, SQLiteBackend
 from ixdat.data_series import DataSeries, Field, TimeSeries, ValueSeries
-from ixdat.db import DB, change_database
+from ixdat.db import DB, PlaceHolderObject, change_database
 from ixdat.exceptions import DataBaseError
 from ixdat.measurement_base import Calculator
 from ixdat.calculators.ec_calculators import ECCalibration
+from ixdat.calculators.ms_calculators import MSCalibration, MSCalResult
 from ixdat.spectra import MultiSpectrum, SpectrumSeries
 from ixdat.techniques.ec_ms import ECMSMeasurement
 from ixdat.techniques.spectroelectrochemistry import ECOpticalMeasurement
@@ -297,6 +298,30 @@ class TestSQLiteBackend:
             'SELECT 1 FROM "ecms_measurements" WHERE "id" = ?', (i,)
         ).fetchone()
         assert row is not None  # the data lives here instead
+
+    def test_ms_calibration_results_are_loaded_lazily(self, sqlite_backend):
+        """A loaded MS calibration knows its results' id's before loading them"""
+        calibration = MSCalibration(
+            name="lazy calibration",
+            ms_cal_results=[MSCalResult(name="O2 at M32", mol="O2", mass="M32", F=1.5)],
+        )
+        i = calibration.save()
+
+        loaded = Calculator.get(i)
+        assert all(
+            isinstance(result, PlaceHolderObject)
+            for result in loaded._ms_cal_results  # not fetched by get()...
+        )
+        assert loaded.ms_cal_result_ids  # ...and not by asking for their id's...
+        assert all(
+            isinstance(result, PlaceHolderObject)
+            for result in loaded._ms_cal_results
+        )
+        assert loaded.ms_cal_results[0].F == 1.5  # ...but available on demand
+        assert not any(
+            isinstance(result, PlaceHolderObject)
+            for result in loaded._ms_cal_results
+        )
 
     def test_ec_optical_measurement_round_trip(self, sqlite_backend):
         """The reference spectrum is a single-reference linker, not a list"""

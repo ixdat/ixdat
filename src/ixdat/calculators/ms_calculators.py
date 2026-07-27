@@ -10,7 +10,7 @@ import json
 import numpy as np
 from ..plugins import plugins
 from ..tools import deprecate
-from ..db import Saveable
+from ..db import Saveable, PlaceHolderObject, fill_object_list
 from ..data_series import ValueSeries
 from ..measurement_base import Calculator
 from ..exceptions import QuantificationError, SeriesNotFoundError
@@ -72,6 +72,7 @@ class MSBackgroundSet(Calculator):
         self,
         name=None,
         bg_list=None,
+        ms_constant_bg_ids=None,
         technique="MS",
         tstamp=None,
         measurement=None,
@@ -82,6 +83,9 @@ class MSBackgroundSet(Calculator):
             name (str): Optional name of the instance
             bg_list (list of Saveable background objects): The backgrounds. Max one per
                 mass.
+            ms_constant_bg_ids (list of int): The id's of the constant backgrounds,
+                used when loading from a database instead of `bg_list`. The
+                `MSConstantBackground`s are then only loaded when they are needed.
             tstamp (float, optional): Absolute time at which the backgrounds were taken
             measurement (Measurement, optional): Measurement from which the backgorunds
                 were calculated.
@@ -89,10 +93,10 @@ class MSBackgroundSet(Calculator):
         super().__init__(
             name=name, technique=technique, tstamp=tstamp, measurement=measurement
         )
-        self.constant_bg_list = []
-        for bg in bg_list:
+        constant_bg_list = []
+        for bg in bg_list or []:
             if type(bg) is MSConstantBackground:
-                self.constant_bg_list.append(bg)
+                constant_bg_list.append(bg)
             # elif type(bg) is OtherBackgroundClassWhenItIsReady:
             #   self.other_bacground_list.append(bg)
             else:
@@ -100,6 +104,9 @@ class MSBackgroundSet(Calculator):
                     f"Initiating an MSBackgoundSet with a background list including {bg}"
                     ", which is not a recognized MS background type. Skipping that one."
                 )
+        self._constant_bg_list = fill_object_list(
+            constant_bg_list, ms_constant_bg_ids, cls=MSConstantBackground
+        )
 
     @classmethod
     def from_measurement_point(cls, measurement, tspan, mass_list=None):
@@ -119,8 +126,17 @@ class MSBackgroundSet(Calculator):
         return cls(bg_list=bg_list, tstamp=tstamp, measurement=measurement)
 
     @property
+    def constant_bg_list(self):
+        """List of the MSConstantBackgrounds, one per mass"""
+        for i, bg in enumerate(self._constant_bg_list):
+            if isinstance(bg, PlaceHolderObject):
+                self._constant_bg_list[i] = bg.get_object()
+        return self._constant_bg_list
+
+    @property
     def ms_constant_bg_ids(self):
-        return [cal.id for cal in self.constant_bg_list]
+        """List of the id's of the MSConstantBackgrounds, without loading any of them"""
+        return [bg.short_identity for bg in self._constant_bg_list]
 
     @property
     def bg_list(self):
@@ -284,6 +300,7 @@ class MSCalibration(Calculator):
         tstamp=None,  # FIXME: No need to have both a date and a tstamp?
         setup=None,
         ms_cal_results=None,
+        ms_cal_result_ids=None,
         technique="MS",
         measurement=None,
     ):
@@ -307,6 +324,9 @@ class MSCalibration(Calculator):
             F (float): Sensitivity factor, for a single sensitivity factor calibration
             ms_cal_results (list of MSCalResult): The mass spec calibrations, required
                unless mol, mass and F are given.
+            ms_cal_result_ids (list of int): The id's of the mass spec calibrations,
+               used when loading from a database instead of `ms_cal_results`. The
+               `MSCalResult`s are then only loaded when they are needed.
             name (str): Name of the ms_calibration. Optional.
             date (str): Date of the ms_calibration. Optional.
             setup (str): Name of the setup where the ms_calibration is made. Optional.
@@ -330,6 +350,7 @@ class MSCalibration(Calculator):
                     "mol, mass, and F, *and* a ms_cal_results list. Choose one."
                 )
             ms_cal_results = [MSCalResult(mol, mass, F)]
+        ms_cal_results = ms_cal_results or []
         for i, cal in enumerate(ms_cal_results):
             if isinstance(cal, MSCalibration):
                 warnings.warn(
@@ -347,7 +368,9 @@ class MSCalibration(Calculator):
 
         self.date = date
         self.setup = setup
-        self.ms_cal_results = ms_cal_results or []
+        self._ms_cal_results = fill_object_list(
+            ms_cal_results, ms_cal_result_ids, cls=MSCalResult
+        )
 
     @classmethod
     @deprecate(
@@ -577,8 +600,17 @@ class MSCalibration(Calculator):
         return cal
 
     @property
+    def ms_cal_results(self):
+        """List of the MSCalResults with the sensitivity factors"""
+        for i, cal in enumerate(self._ms_cal_results):
+            if isinstance(cal, PlaceHolderObject):
+                self._ms_cal_results[i] = cal.get_object()
+        return self._ms_cal_results
+
+    @property
     def ms_cal_result_ids(self):
-        return [cal.id for cal in self.ms_cal_results]
+        """List of the id's of the MSCalResults, without loading any of them"""
+        return [cal.short_identity for cal in self._ms_cal_results]
 
     @property
     def mol_list(self):

@@ -3,6 +3,8 @@
 import numpy as np
 
 from ixdat import Measurement
+from ixdat.calculators.ms_calculators import MSBackgroundSet, MSCalibration
+from ixdat.measurement_base import Calculator
 
 
 #  If tox crashes when trying to import matplotlib, see:
@@ -33,6 +35,25 @@ class TestBackends:
         ec_measurement.save()
         loaded = Measurement.load(ec_measurement.name)
         assert ec_measurement == loaded
+
+    def test_round_trip_of_ms_calibration(self, ms_calibration, fresh_backend):
+        """Test that an MS calibration's sensitivity factors survive a round trip"""
+        loaded = Calculator.get(ms_calibration.save())
+        assert isinstance(loaded, MSCalibration)
+        assert sorted((cal.mol, cal.mass, cal.F) for cal in loaded.ms_cal_results) == [
+            ("H2", "M2", 3.0),
+            ("O2", "M32", 1.5),
+        ]
+        assert loaded.get_F("O2", "M32") == 1.5
+
+    def test_round_trip_of_ms_background_set(self, ms_background_set, fresh_backend):
+        """Test that a set of MS backgrounds survives a round trip"""
+        loaded = Calculator.get(ms_background_set.save())
+        assert isinstance(loaded, MSBackgroundSet)
+        assert sorted((bg.mass, bg.bg) for bg in loaded.bg_list) == [
+            ("M2", 2e-12),
+            ("M32", 1e-12),
+        ]
 
     def test_round_trip_of_ec_optical(self, ec_optical_measurement, fresh_backend):
         """Test that both of an EC-Optical measurement's spectrum references survive"""
