@@ -112,8 +112,7 @@ class TestRelationalSchema:
         the extension table `ECMeasurement` itself declares - is absent here.
         """
         extension_table_names = {
-            schema.name
-            for schema in relational.extension_table_schemas(ECMSMeasurement)
+            schema.name for schema in relational.extension_table_schemas(ECMSMeasurement)
         }
         assert extension_table_names == {"ecms_measurements"}
         assert "ec_measurements" not in extension_table_names
@@ -193,9 +192,7 @@ class TestRelationalSchema:
 
     def test_family_table_schemas(self):
         """All classes sharing a main table contribute to the family schema"""
-        extension_schemas, linker_schemas = relational.family_table_schemas(
-            DataSeries
-        )
+        extension_schemas, linker_schemas = relational.family_table_schemas(DataSeries)
         # TimeSeries extends the data_series table with the tstamps table:
         assert "tstamps" in {schema.name for schema in extension_schemas}
         # Field links data_series rows to their axes' data_series rows:
@@ -315,13 +312,11 @@ class TestSQLiteBackend:
         )
         assert loaded.ms_cal_result_ids  # ...and not by asking for their id's...
         assert all(
-            isinstance(result, PlaceHolderObject)
-            for result in loaded._ms_cal_results
+            isinstance(result, PlaceHolderObject) for result in loaded._ms_cal_results
         )
         assert loaded.ms_cal_results[0].F == 1.5  # ...but available on demand
         assert not any(
-            isinstance(result, PlaceHolderObject)
-            for result in loaded._ms_cal_results
+            isinstance(result, PlaceHolderObject) for result in loaded._ms_cal_results
         )
 
     def test_ec_optical_measurement_round_trip(self, sqlite_backend):
@@ -437,19 +432,23 @@ class TestSQLiteBackend:
         with pytest.raises(TypeError):
             measurement.save()
 
-        assert sqlite_backend.connection.execute(
-            'SELECT COUNT(*) FROM "data_series"'
-        ).fetchone()[0] == 0
-        assert sqlite_backend.connection.execute(
-            'SELECT COUNT(*) FROM "measurement"'
-        ).fetchone()[0] == 0
+        assert (
+            sqlite_backend.connection.execute(
+                'SELECT COUNT(*) FROM "data_series"'
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            sqlite_backend.connection.execute(
+                'SELECT COUNT(*) FROM "measurement"'
+            ).fetchone()[0]
+            == 0
+        )
         assert series._backend is original_backend
         assert series._id is original_id
 
     def test_reopen_and_lazy_load_from_inactive_backend(self, sqlite_backend):
-        series = DataSeries(
-            name="persistent", unit_name="V", data=np.array([1.0, 2.0])
-        )
+        series = DataSeries(name="persistent", unit_name="V", data=np.array([1.0, 2.0]))
         measurement = Measurement(
             name="persistent graph", technique="simple", series_list=[series]
         )
@@ -476,9 +475,10 @@ class TestSQLiteBackend:
             )
             assert first_id != second_id
             assert DataSeries.get(second_id, backend=sqlite_backend).name == "second"
-            assert sqlite_backend.connection.execute(
-                "PRAGMA foreign_key_check"
-            ).fetchall() == []
+            assert (
+                sqlite_backend.connection.execute("PRAGMA foreign_key_check").fetchall()
+                == []
+            )
 
     def test_backends_can_be_used_in_sets_and_dicts(self, sqlite_backend, tmp_path):
         """Defining __eq__ without __hash__ would make the backend unhashable"""
@@ -504,8 +504,7 @@ class TestSQLiteBackend:
         db_path = tmp_path / "legacy.sqlite"
         connection = sqlite3.connect(db_path)
         connection.execute(
-            'CREATE TABLE "data_series" '
-            '("id" INTEGER PRIMARY KEY, "name" TEXT)'
+            'CREATE TABLE "data_series" ' '("id" INTEGER PRIMARY KEY, "name" TEXT)'
         )
         connection.close()
 
@@ -515,9 +514,8 @@ class TestSQLiteBackend:
             )
             backend.save(series)
             columns = {
-                row[1] for row in backend.connection.execute(
-                    'PRAGMA table_info("data_series")'
-                )
+                row[1]
+                for row in backend.connection.execute('PRAGMA table_info("data_series")')
             }
             assert {"id", "name", "unit_name", "series_type", "data"} <= columns
             assert backend.connection.execute(
@@ -535,9 +533,7 @@ class TestSQLiteBackend:
 
         with SQLiteBackend(db_path=db_path) as backend:
             with pytest.raises(DataBaseError, match="manual database migration"):
-                backend.save(
-                    DataSeries(name="x", unit_name="V", data=np.array([1.0]))
-                )
+                backend.save(DataSeries(name="x", unit_name="V", data=np.array([1.0])))
 
     def test_newer_schema_version_is_rejected(self, tmp_path):
         db_path = tmp_path / "future.sqlite"
@@ -610,9 +606,7 @@ def test_directory_load_uses_exact_unescaped_name(tmp_path):
     backend = DirBackend(directory=tmp_path, project_name="name_collision")
     DB.set_backend(backend)
     try:
-        slash_id = DataSeries(
-            name="a/b", unit_name="V", data=np.array([1.0])
-        ).save()
+        slash_id = DataSeries(name="a/b", unit_name="V", data=np.array([1.0])).save()
         DataSeries(name="a_DIV_b", unit_name="A", data=np.array([2.0])).save()
         assert DataSeries.load("a/b").id == slash_id
 

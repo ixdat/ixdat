@@ -216,9 +216,7 @@ class SQLiteBackend(BackendBase):
             plan.append(
                 (
                     obj,
-                    self._save_action(
-                        obj, force, updates_forbidden, existing_tables
-                    ),
+                    self._save_action(obj, force, updates_forbidden, existing_tables),
                 )
             )
 
@@ -230,8 +228,7 @@ class SQLiteBackend(BackendBase):
         row_exists = False
         if obj.backend is self and obj.table_name in existing_tables:
             row_exists = self.connection.execute(
-                f"SELECT 1 FROM {_quote_identifier(obj.table_name)} "
-                'WHERE "id" = ?',
+                f"SELECT 1 FROM {_quote_identifier(obj.table_name)} " 'WHERE "id" = ?',
                 (obj.id,),
             ).fetchone()
         if row_exists:
@@ -271,12 +268,12 @@ class SQLiteBackend(BackendBase):
         )
         connection.execute(
             f"UPDATE {_quote_identifier(main_schema.name)} "
-            f"SET {assignments} WHERE \"id\" = ?",
+            f'SET {assignments} WHERE "id" = ?',
             values + [obj.id],
         )
         for schema in relational.extension_table_schemas(type(obj)):
             connection.execute(
-                f"DELETE FROM {_quote_identifier(schema.name)} WHERE \"id\" = ?",
+                f'DELETE FROM {_quote_identifier(schema.name)} WHERE "id" = ?',
                 (obj.id,),
             )
         for linker in relational.linker_table_schemas(type(obj)):
@@ -297,9 +294,7 @@ class SQLiteBackend(BackendBase):
                 self._encode(column, getattr(obj, column.name)) for column in columns
             ]
             connection.execute(
-                _insert_sql(
-                    schema.name, ["id"] + [column.name for column in columns]
-                ),
+                _insert_sql(schema.name, ["id"] + [column.name for column in columns]),
                 [i] + values,
             )
         # linker tables hold one row per reference to another object, e.g. one row
@@ -403,7 +398,7 @@ class SQLiteBackend(BackendBase):
         """Return the most recently saved object of Saveable class cls with the name"""
         self._ensure_tables(cls)
         row = self.connection.execute(
-            f"SELECT \"id\" FROM {_quote_identifier(cls.table_name)} "
+            f'SELECT "id" FROM {_quote_identifier(cls.table_name)} '
             'WHERE "name" = ? '
             'ORDER BY "id" DESC LIMIT 1',
             (name,),
@@ -430,7 +425,7 @@ class SQLiteBackend(BackendBase):
         if table_name not in self._existing_tables():
             return False
         row = self.connection.execute(
-            f"SELECT 1 FROM {_quote_identifier(table_name)} WHERE \"id\" = ?", (i,)
+            f'SELECT 1 FROM {_quote_identifier(table_name)} WHERE "id" = ?', (i,)
         ).fetchone()
         return row is not None
 
@@ -445,16 +440,14 @@ class SQLiteBackend(BackendBase):
                 '"key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)'
             )
             row = connection.execute(
-                f"SELECT \"value\" FROM {metadata_table} "
-                'WHERE "key" = ?',
+                f'SELECT "value" FROM {metadata_table} ' 'WHERE "key" = ?',
                 ("schema_version",),
             ).fetchone()
             if row is None:
                 # no version stored yet: an older database, or a brand new one.
                 # Either way, _ensure_tables() will check/fix each table as it's used.
                 connection.execute(
-                    f"INSERT INTO {metadata_table} (\"key\", \"value\") "
-                    'VALUES (?, ?)',
+                    f'INSERT INTO {metadata_table} ("key", "value") ' "VALUES (?, ?)",
                     ("schema_version", str(SCHEMA_VERSION)),
                 )
                 return
@@ -736,10 +729,10 @@ def _create_table_sql(schema):
         return (
             f"CREATE TABLE IF NOT EXISTS {_quote_identifier(schema.name)} (\n"
             f"    {_quote_identifier(schema.owner_column)} INTEGER NOT NULL "
-            f"REFERENCES {_quote_identifier(schema.owner_table)}(\"id\"),\n"
+            f'REFERENCES {_quote_identifier(schema.owner_table)}("id"),\n'
             f'    "position" INTEGER NOT NULL,\n'
             f"    {_quote_identifier(schema.linked_column)} INTEGER NOT NULL "
-            f"REFERENCES {_quote_identifier(schema.linked_table)}(\"id\"),\n"
+            f'REFERENCES {_quote_identifier(schema.linked_table)}("id"),\n'
             f"    PRIMARY KEY ({_quote_identifier(schema.owner_column)}, "
             '"position")\n'
             ")"
