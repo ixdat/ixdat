@@ -481,8 +481,7 @@ class Saveable:
 
     @deprecate(
         "0.3.0",
-        "`load_data` now takes the backend to load from, rather than a DataBase. "
-        "Use `backend=` instead of `db=`.",
+        "`load_data` takes the backend to load the data from. Pass it as `backend=`.",
         "0.4.0",
         kwarg_name="db",
     )
