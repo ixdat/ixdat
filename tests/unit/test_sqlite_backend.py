@@ -32,6 +32,19 @@ def sqlite_backend(tmp_path):
     DB.set_backend(original_backend)
 
 
+class MistypedMeasurement(Measurement):
+    """A class whose column type is a typo, used by two tests below
+
+    Defined at module level, since a Saveable subclass stays in
+    `Saveable.__subclasses__()` for the rest of the session once it exists. That
+    is the point: the tests check that its presence leaves every other
+    measurement loadable.
+    """
+
+    extra_column_attrs = {"mistyped_measurements": {"whoops"}}
+    column_types = {"whoops": "NDARAY"}  # typo for "NDARRAY"
+
+
 def _ec_optical_measurement(reference_spectrum="build one"):
     """Return a synthetic ECOpticalMeasurement, evt. without a reference spectrum"""
     tseries = TimeSeries(
@@ -172,23 +185,24 @@ class TestRelationalSchema:
         assert column.dtype == "JSON"
 
     def test_unknown_column_type_is_rejected(self):
-        # a stand-in rather than a real Saveable subclass, since a class with a
-        # broken column type would stay in Saveable.__subclasses__() for the rest
-        # of the session and break the schema of every test after this one:
-        class MistypedClass:
-            table_name = "mistyped"
-            column_attrs = {"whoops"}
-
-            @classmethod
-            def get_column_types(cls):
-                return {"whoops": "NDARAY"}  # typo for "NDARRAY"
-
-            @classmethod
-            def get_column_references(cls):
-                return {}
-
         with pytest.raises(DataBaseError, match="unknown type"):
-            relational.main_table_schema(MistypedClass)
+            relational.extension_table_schemas(MistypedMeasurement)
+
+    def test_a_broken_class_does_not_break_its_relatives(self):
+        """Only the misdeclared class itself raises, so other rows still load
+
+        `MistypedMeasurement` shares the "measurement" main table with every
+        other measurement, and it stays in `Saveable.__subclasses__()` for the
+        rest of the session. Describing the family's tables skips it.
+        """
+        extension_schemas, _ = relational.family_table_schemas(Measurement)
+        table_names = {schema.name for schema in extension_schemas}
+        assert "mistyped_measurements" not in table_names
+        assert "ec_measurements" in table_names  # the healthy ones are all there
+
+        # ...and asking about the broken class by name still raises:
+        with pytest.raises(DataBaseError, match="unknown type"):
+            relational.family_table_schemas(MistypedMeasurement)
 
     def test_family_table_schemas(self):
         """All classes sharing a main table contribute to the family schema"""
@@ -345,6 +359,31 @@ class TestSQLiteBackend:
 
         loaded = Measurement.get(measurement.save())
         assert loaded.reference_spectrum is None
+
+    def test_a_broken_sibling_class_does_not_block_saving_or_loading(
+        self, sqlite_backend
+    ):
+        """`MistypedMeasurement` shares the "measurement" table with these rows"""
+        measurement = Measurement(
+            name="healthy",
+            technique="simple",
+            series_list=[
+                TimeSeries(
+                    name="t", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
+                )
+            ],
+        )
+        i = measurement.save()
+        assert Measurement.get(i).name == "healthy"
+        assert Measurement.load("healthy").name == "healthy"
+        # the report covers the healthy classes:
+        report = sqlite_backend.schema_report()
+        assert 'CREATE TABLE IF NOT EXISTS "measurement"' in report
+        assert "mistyped_measurements" not in report
+
+        # saving the broken class itself raises, naming it:
+        with pytest.raises(DataBaseError, match="MistypedMeasurement"):
+            MistypedMeasurement(name="broken", technique="simple").save()
 
     def test_load_returns_newest_with_name(self, sqlite_backend):
         DataSeries(name="twin", unit_name="V", data=np.array([1.0])).save()

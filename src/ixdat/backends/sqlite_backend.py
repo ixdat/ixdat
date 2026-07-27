@@ -653,12 +653,20 @@ class SQLiteBackend(BackendBase):
         This is the full relational schema of ixdat's data model, derived from
         the classes' table metadata - whether or not the tables have (yet) been
         created in this database.
+
+        A class whose own table metadata is broken is left out of the report,
+        which stays readable for every other class. Its error is raised when that
+        class is itself saved or loaded.
         """
         statements = {}
         for cls in relational.saveable_classes():
             if not cls.table_name:
                 continue
-            for schema in relational.table_schemas_of(cls):
+            try:
+                schemas = relational.table_schemas_of(cls)
+            except DataBaseError:
+                continue
+            for schema in schemas:
                 statements.setdefault(schema.name, _create_table_sql(schema))
         return ";\n\n".join(statements.values()) + ";"
 

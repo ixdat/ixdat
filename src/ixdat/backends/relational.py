@@ -275,6 +275,10 @@ def family_table_schemas(cls):
     ixdat imports all of its own techniques, so this only matters for external
     plugin classes that haven't been imported yet.
 
+    A class whose own table metadata is broken is skipped here, so that one
+    misdeclared class doesn't stop every other row of the shared main table from
+    being read. Its error is raised when that class is itself saved or loaded.
+
     Returns:
         (list of TableSchema, list of LinkerTableSchema): The extension table
             and linker table descriptions, deduplicated by table name.
@@ -284,8 +288,15 @@ def family_table_schemas(cls):
     for family_cls in saveable_classes():
         if family_cls.table_name != cls.table_name:
             continue
-        for schema in extension_table_schemas(family_cls):
+        try:
+            found_extensions = extension_table_schemas(family_cls)
+            found_linkers = linker_table_schemas(family_cls)
+        except DataBaseError:
+            if family_cls is cls:
+                raise  # cls is the class we were asked about, so it must be right
+            continue  # a sibling of cls; the row being read doesn't need it
+        for schema in found_extensions:
             extension_schemas.setdefault(schema.name, schema)
-        for schema in linker_table_schemas(family_cls):
+        for schema in found_linkers:
             linker_schemas.setdefault(schema.name, schema)
     return list(extension_schemas.values()), list(linker_schemas.values())
