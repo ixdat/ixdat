@@ -42,7 +42,7 @@ class MistypedMeasurement(Measurement):
     """
 
     extra_column_attrs = {"mistyped_measurements": {"whoops"}}
-    column_types = {"whoops": "NDARAY"}  # typo for "NDARRAY"
+    column_types = {"whoops": "NDARAY"}  # invalid: column types are Python types
 
 
 def _ec_optical_measurement(reference_spectrum="build one"):
@@ -105,30 +105,43 @@ class TestRelationalSchema:
         assert schema.column_names[:2] == ["id", "name"]
 
     def test_extension_table(self):
-        (schema,) = relational.extension_table_schemas(ECMSMeasurement)
+        schemas = {
+            schema.name: schema
+            for schema in relational.extension_table_schemas(ECMSMeasurement)
+        }
+        schema = schemas["ecms_measurements"]
         assert schema.name == "ecms_measurements"
         assert schema.extends == "measurement"
         # the extension table's id is a foreign key to the main table:
         assert schema.columns[0].name == "id"
         assert schema.columns[0].foreign_key == ("measurement", "id")
-        assert {column.name for column in schema.data_columns} == {
-            "ec_technique",
-            "tspan_bg",
+        assert {column.name for column in schema.data_columns} == {"tspan_bg"}
+
+    def test_extension_tables_merge_over_multiple_inheritance(self):
+        """Each ancestor contributes its extension table without repeated columns."""
+        schemas = {
+            schema.name: schema
+            for schema in relational.extension_table_schemas(ECMSMeasurement)
+        }
+        assert set(schemas) == {"ec_measurements", "ecms_measurements"}
+        assert {column.name for column in schemas["ec_measurements"].data_columns} == {
+            "ec_technique"
+        }
+        assert {column.name for column in schemas["ecms_measurements"].data_columns} == {
+            "tspan_bg"
         }
 
-    def test_multiply_inheriting_class_only_gets_its_own_extension_table(self):
-        """Known limitation: `extra_column_attrs` is shadowed, not merged, across
-        multiple inheritance (see the "Known limitation" section of
-        docs/source/diving_deeper/backend.rst). `ECMSMeasurement` inherits from both
-        `ECMeasurement` and `MSMeasurement`, but its own `extra_column_attrs`
-        replaces `ECMeasurement`'s rather than adding to it, so `ec_measurements` -
-        the extension table `ECMeasurement` itself declares - is absent here.
-        """
-        extension_table_names = {
-            schema.name for schema in relational.extension_table_schemas(ECMSMeasurement)
-        }
-        assert extension_table_names == {"ecms_measurements"}
-        assert "ec_measurements" not in extension_table_names
+    def test_collecting_all_attrs_does_not_modify_main_table_metadata(self):
+        """Linker attributes stay out of the main table schema."""
+        original_column_attrs = Measurement.column_attrs.copy()
+
+        all_attrs = Measurement.get_all_column_attrs()
+
+        assert {"s_ids", "m_ids", "c_ids"} <= all_attrs
+        assert Measurement.column_attrs == original_column_attrs
+        assert not {"s_ids", "m_ids", "c_ids"} & set(
+            relational.main_table_schema(Measurement).column_names
+        )
 
     def test_linker_tables(self):
         linkers = {
@@ -151,17 +164,17 @@ class TestRelationalSchema:
             column.name: column
             for column in relational.main_table_schema(DataSeries).columns
         }
-        assert columns["data"].dtype == "NDARRAY"  # declared by DataSeries
-        assert columns["name"].dtype == "TEXT"  # inherited from Saveable
+        assert columns["data"].dtype is np.ndarray  # declared by DataSeries
+        assert columns["name"].dtype is str  # inherited from Saveable
 
     def test_column_types_are_merged_over_multiple_inheritance(self):
-        """Unlike extra_column_attrs, column_types of *both* parents carry over"""
+        """Column types from the full ancestry carry over."""
         types = ECMSMeasurement.get_column_types()
-        assert types["ec_technique"] == "TEXT"  # from ECMeasurement
-        assert types["tspan_bg"] == "JSON"  # from ECMSMeasurement itself
-        assert types["aliases"] == "JSON"  # from Measurement
+        assert types["ec_technique"] is str  # from ECMeasurement
+        assert types["tspan_bg"] is list  # from ECMSMeasurement itself
+        assert types["aliases"] is dict  # from Measurement
         # and a class only has to declare what it adds itself:
-        assert ECMSMeasurement.__dict__["column_types"] == {"tspan_bg": "JSON"}
+        assert ECMSMeasurement.__dict__["column_types"] == {"tspan_bg": list}
 
     def test_column_references_become_foreign_keys(self):
         columns = {
@@ -170,23 +183,30 @@ class TestRelationalSchema:
         }
         assert columns["field_id"].foreign_key == ("data_series", "id")
         # a column referring to another row always holds that row's integer id:
-        assert columns["field_id"].dtype == "INTEGER"
+        assert columns["field_id"].dtype is int
 
     def test_a_class_outside_ixdat_can_declare_its_own_column_types(self):
         """A plugin class gets its columns typed without ixdat knowing about it"""
 
         class PluginMeasurement(Measurement):
             extra_column_attrs = {"plugin_measurements": {"instrument_settings"}}
-            column_types = {"instrument_settings": "JSON"}
+            column_types = {"instrument_settings": dict}
 
         (schema,) = relational.extension_table_schemas(PluginMeasurement)
         (column,) = schema.data_columns
         assert column.name == "instrument_settings"
-        assert column.dtype == "JSON"
+        assert column.dtype is dict
 
     def test_unknown_column_type_is_rejected(self):
         with pytest.raises(DataBaseError, match="unknown type"):
             relational.extension_table_schemas(MistypedMeasurement)
+
+    def test_metadata_for_an_unknown_column_is_rejected(self):
+        class UnknownColumnMeasurement(Measurement):
+            column_references = {"missing_id": "calculator"}
+
+        with pytest.raises(DataBaseError, match="unknown column.*missing_id"):
+            relational.main_table_schema(UnknownColumnMeasurement)
 
     def test_a_broken_class_does_not_break_its_relatives(self):
         """Only the misdeclared class itself raises, so other rows still load
@@ -279,15 +299,10 @@ class TestSQLiteBackend:
         assert loaded.A_el == 0.196
         assert loaded.R_Ohm is None
 
-    def test_multiply_inheriting_measurement_round_trips_but_skips_parent_table(
+    def test_multiply_inheriting_measurement_populates_each_extension_table(
         self, sqlite_backend
     ):
-        """Known limitation, documented in docs/source/diving_deeper/backend.rst:
-        `ECMSMeasurement` (inherits from `ECMeasurement` and `MSMeasurement`) writes
-        only to its own extension table. Round-tripping the object is unaffected -
-        `ec_technique` survives via `ecms_measurements` - but a query joining only
-        `ec_measurements` would miss this row, since no row is written there.
-        """
+        """An EC-MS row carries its EC and EC-MS attributes in separate tables."""
         tseries = TimeSeries(
             name="t", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
         )
@@ -302,14 +317,21 @@ class TestSQLiteBackend:
 
         loaded = Measurement.get(i)
         assert isinstance(loaded, ECMSMeasurement)
-        assert loaded.ec_technique == "Cyclic Voltammetry Advanced"  # round trip OK
+        assert loaded.ec_technique == "Cyclic Voltammetry Advanced"
 
-        existing_tables = sqlite_backend._existing_tables()
-        assert "ec_measurements" not in existing_tables  # never created: no writer
-        row = sqlite_backend.connection.execute(
-            'SELECT 1 FROM "ecms_measurements" WHERE "id" = ?', (i,)
-        ).fetchone()
-        assert row is not None  # the data lives here instead
+        assert sqlite_backend.connection.execute(
+            'SELECT "ec_technique" FROM "ec_measurements" WHERE "id" = ?', (i,)
+        ).fetchone() == ("Cyclic Voltammetry Advanced",)
+        assert sqlite_backend.connection.execute(
+            'SELECT "tspan_bg" FROM "ecms_measurements" WHERE "id" = ?', (i,)
+        ).fetchone() == (None,)
+        ecms_columns = {
+            row[1]
+            for row in sqlite_backend.connection.execute(
+                'PRAGMA table_info("ecms_measurements")'
+            )
+        }
+        assert "ec_technique" not in ecms_columns
 
     def test_ms_calibration_results_are_loaded_lazily(self, sqlite_backend):
         """A loaded MS calibration knows its results' id's before loading them"""
@@ -406,15 +428,18 @@ class TestSQLiteBackend:
             Measurement.get(999)
 
     def test_codecs(self, sqlite_backend):
-        json_column = ColumnSchema("metadata", dtype="JSON")
+        json_column = ColumnSchema("metadata", dtype=dict)
         value = {"a": np.int64(1), "b": np.array([1.5, 2.5])}
         encoded = sqlite_backend._encode(json_column, value)
         assert sqlite_backend._decode(json_column, encoded) == {
             "a": 1,
             "b": [1.5, 2.5],
         }
+        tuple_column = ColumnSchema("range", dtype=tuple)
+        encoded = sqlite_backend._encode(tuple_column, (1.0, 2.0))
+        assert sqlite_backend._decode(tuple_column, encoded) == (1.0, 2.0)
 
-        array_column = ColumnSchema("data", dtype="NDARRAY")
+        array_column = ColumnSchema("data", dtype=np.ndarray)
         data = np.linspace(0, 1, 5)
         encoded = sqlite_backend._encode(array_column, data)
         assert np.array_equal(sqlite_backend._decode(array_column, encoded), data)
@@ -519,12 +544,28 @@ class TestSQLiteBackend:
                 == []
             )
 
+    def test_equivalent_connection_does_not_duplicate_a_saved_object(
+        self, sqlite_backend
+    ):
+        series = DataSeries(name="shared", unit_name="V", data=np.array([1.0]))
+        series_id = sqlite_backend.save(series)
+
+        with SQLiteBackend(db_path=sqlite_backend.db_path) as second_backend:
+            loaded = DataSeries.get(series_id, backend=second_backend)
+            assert loaded.backend == sqlite_backend
+            assert loaded.short_identity == series_id
+            assert sqlite_backend.save(loaded) is None
+            assert sqlite_backend.connection.execute(
+                'SELECT COUNT(*) FROM "data_series" WHERE "id" = ?', (series_id,)
+            ).fetchone() == (1,)
+
     def test_backends_can_be_used_in_sets_and_dicts(self, sqlite_backend, tmp_path):
         """Defining __eq__ without __hash__ would make the backend unhashable"""
         with SQLiteBackend(db_path=sqlite_backend.db_path) as same_file:
             with SQLiteBackend(db_path=tmp_path / "other.sqlite") as other_file:
                 # two connections to one file are one database, and hash alike:
                 assert {sqlite_backend, same_file} == {sqlite_backend}
+                assert sqlite_backend.address == same_file.address
                 assert len({sqlite_backend, other_file}) == 2
                 # a backend can be a dict key, e.g. to group objects by database:
                 assert {sqlite_backend: "here"}[same_file] == "here"

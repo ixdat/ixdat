@@ -44,11 +44,11 @@ class Measurement(Saveable):
         "tstamp",
     }
     column_types = {
-        "technique": "TEXT",
-        "metadata": "JSON",
-        "aliases": "JSON",
-        "sample_name": "TEXT",
-        "tstamp": "REAL",
+        "technique": str,
+        "metadata": dict,
+        "aliases": dict,
+        "sample_name": str,
+        "tstamp": float,
     }
     extra_linkers = {
         "component_measurements": ("measurement", "m_ids"),
@@ -1448,9 +1448,9 @@ class Calculator(Saveable):
     calculator_type = None  # to be overwritten
     column_attrs = {"name", "technique", "tstamp", "calculator_type"}
     column_types = {
-        "technique": "TEXT",
-        "tstamp": "REAL",
-        "calculator_type": "TEXT",
+        "technique": str,
+        "tstamp": float,
+        "calculator_type": str,
     }
 
     def __init__(self, *, name=None, technique=None, tstamp=None, measurement=None):

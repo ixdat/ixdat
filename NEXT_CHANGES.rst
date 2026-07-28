@@ -92,99 +92,25 @@ tools
 database
 ^^^^^^^^
 
-- The ``SQLiteBackend`` (``change_database("sqlite", db_path=...)``) has been added
-  for saving ixdat objects to, and loading them from, a relational database in a
-  single local SQLite file. It requires no new dependencies (python's built-in
-  ``sqlite3`` is used). The schema is derived from the table metadata which every
-  ``Saveable`` class already defines (``table_name``, ``column_attrs``,
-  ``extra_column_attrs`` and ``extra_linkers``) by the new dialect-agnostic module
-  ``ixdat.backends.relational``, realizing the "proper table definitions" goal of
-  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_. Class inheritance maps to
-  extension tables joined on the main table's
-  primary key, and ordered many-to-many relationships (e.g. a measurement's data
-  series) map to linker tables. Numerical data is stored in numpy-format blob
-  columns which are only queried when the data is actually accessed, keeping
-  ixdat's laziness intact. A complete object graph is saved in one transaction,
-  frequently queried columns are indexed, and an internal schema version enables
-  validation and safe additive migration of existing database files.
+- ``SQLiteBackend`` stores ixdat objects in one local SQLite file using Python's
+  built-in ``sqlite3`` module. The schema is derived from ``Saveable`` metadata by
+  the database-independent ``ixdat.backends.relational`` module, continuing the
+  table-definition work in
+  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_. Saves are transactional,
+  relationships use foreign keys, arrays remain lazy, and existing tables receive
+  safe additive migrations.
 
-- Two optional class attributes have been added to ``Saveable`` for the table
-  metadata a relational backend needs but the older backends never did:
-  ``column_types``, giving the type of a column's value ("INTEGER", "REAL",
-  "TEXT", "JSON" or "NDARRAY"), and ``column_references``, naming the columns
-  which hold the id of a row of another table (e.g.
-  ``{"field_id": "data_series"}``), which become foreign keys. Both are optional
-  - a column with no declared type holds whatever type its value already has, so
-  a plain str/int/float column needs no declaration. Unlike
-  ``extra_column_attrs``, both are *merged* over a class's ancestry (by
-  ``Saveable.get_column_types()`` and ``Saveable.get_column_references()``), so a
-  class only declares the columns it introduces itself and a multiply-inheriting
-  class gets the declarations of all of its parents. Because this information
-  lives on the classes, a ``Saveable`` class defined outside of ixdat can have
-  columns of any type without ixdat having to know about it.
+- ``Saveable`` gained optional ``column_types`` and ``column_references`` metadata.
+  Classes declare Python value types, and relational backends map them to their
+  storage types. Extension columns, linkers, types, and references merge over class
+  ancestry, so multiply-inheriting classes retain each parent's tables without
+  repeating columns.
 
-- ``Saveable.load(name)`` has been added as the by-name counterpart to
-  ``Saveable.get(id)``: e.g. ``Measurement.load("my measurement")`` returns the
-  most recently saved measurement with that name. It is implemented for both the
-  directory backend and the new SQLite backend, and ``DataBase.load`` is now wired
-  through to the active backend.
+- ``Saveable.load(name)`` now returns the newest exact name match on the memory,
+  directory, and SQLite backends. Explicit-backend loads preserve the active
+  database and keep lazy children and arrays connected to their source backend.
 
-- Fixed several latent inconsistencies in the ``Saveable`` table metadata which
-  only matter to relational backends: linker-table references now use the actual
-  table names (``measurement``, ``calculator``, ``spectrums``),
-  ``MultiSpectrum.extra_linkers`` uses a tuple instead of a set, misspelled
-  auxiliary table names (``ec_meaurements``, ``ecms_meaurements``) are corrected,
-  ``Sample`` and ``LabLog`` define ``column_attrs`` as sets, and
-  ``MSConstantBackground`` now saves its ``name``. ``MultiSpectrum`` gained the
-  ``field_ids`` property its ``extra_linkers`` refer to, and its ``xseries`` no
-  longer crashes on a lazily loaded (placeholder) field.
-
-- ``Saveable.load_data`` now takes the ``backend`` to load from, rather than a
-  ``DataBase``, matching what it has actually needed since it started using the
-  backend an object came from (which is not necessarily the active one). The old
-  ``db`` keyword still works but is deprecated.
-
-- ``BackendBase.load`` is now implemented by the memory backend as well, so
-  ``Measurement.load("my measurement")`` works there instead of raising a bare
-  ``NotImplementedError``.
-
-- Fixed loading of ``MSCalibration`` and ``MSBackgroundSet``. Both saved without
-  complaint but could not be loaded again on any backend: their serialization
-  names the referenced objects by id (``ms_cal_result_ids`` and
-  ``ms_constant_bg_ids``), which their ``__init__`` did not accept, so loading
-  raised a ``TypeError``. They now take those id's, just like ``Measurement``
-  takes ``s_ids``, and hold the referenced ``MSCalResult`` /
-  ``MSConstantBackground`` objects as placeholders until they are used, so a
-  calibration can be loaded without loading every sensitivity factor. Their id
-  properties also now use ``short_identity`` rather than ``id``, so a reference to
-  an object in another backend is no longer silently recorded as a bare id.
-
-- Fixed saving of ``ECOpticalMeasurement``, which raised an ``AttributeError`` on
-  any backend: its ``extra_linkers`` refer to a ``ref_id``, but no such property
-  existed, and its reference spectrum was missing from ``child_attrs``, so it was
-  not saved before the measurement which refers to it. It also no longer raises an
-  ``AttributeError`` from ``reference_spectrum`` when it was initiated without one
-  (which is normal - a reference spectrum can be chosen afterwards with
-  ``set_reference_spectrum``); ``reference_spectrum`` and ``ref_id`` are then
-  ``None``, and the measurement saves and loads without a reference.
-
-- A comprehensive demo of the SQLite backend has been added as
-  ``development_scripts/demo_sqlite_backend.py``. It runs on data files shipped
-  in the repository and shows saving, schema generation with foreign keys, lazy
-  loading, load-by-name, row sharing between composed measurements and their
-  components, spectra, SQL analytics on the database file with pandas,
-  in-place updates, and plotting straight from the database.
-
-- Known limitation: a ``Saveable`` class inheriting from more than one
-  table-defining class (e.g. ``ECMSMeasurement``, which inherits from both
-  ``ECMeasurement`` and ``MSMeasurement``) writes only to the one extension table
-  it declares itself (``ecms_measurements``), not to its other parents'
-  (``ec_measurements``), because ``extra_column_attrs`` is replaced rather than
-  merged across multiple inheritance. Round trips are unaffected, but a query
-  that joins a single ancestor's extension table expecting it to be exhaustive
-  will miss such rows; filter/group by ``measurement.technique`` or ``UNION``
-  across extension tables instead. This is a pre-existing property of
-  ``Saveable`` (it equally affects ``as_dict()`` on the directory backend) and
-  was the central open question of
-  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_; see the "Known
-  limitation" section of ``docs/source/diving_deeper/backend.rst`` for details.
+- Persistence fixes cover existing table metadata, lazy ``MultiSpectrum`` fields,
+  ``MSCalibration``, ``MSBackgroundSet``, and ``ECOpticalMeasurement`` references.
+  ``development_scripts/demo_sqlite_backend.py`` demonstrates the complete backend
+  workflow on repository test data.

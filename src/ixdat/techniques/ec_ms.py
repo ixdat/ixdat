@@ -14,14 +14,9 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
     """Class for raw EC-MS functionality. Parents: ECMeasurement and MSMeasurement"""
 
     extra_column_attrs = {
-        "ecms_measurements": {"ec_technique", "tspan_bg"},
+        "ecms_measurements": {"tspan_bg"},
     }
-    # "ec_technique" needs no entry here: it carries over from ECMeasurement
-    column_types = {"tspan_bg": "JSON"}
-    # FIXME: this fully replaces ECMeasurement's extra_column_attrs rather than
-    #  adding to it, so saving an ECMSMeasurement never writes a row to
-    #  "ec_measurements" - only to "ecms_measurements" here. See the "Known
-    #  limitation" section of docs/source/diving_deeper/backend.rst.
+    column_types = {"tspan_bg": list}
 
     default_plotter = ECMSPlotter
     default_exporter = ECMSExporter

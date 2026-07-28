@@ -126,7 +126,7 @@ class Saveable:
     `extra_column_attrs` to add extra columns via an auxiliary table without changing
     the main table name.
 
-    A class can also say what *type* of value each of its columns holds, with
+    A class can also say what Python type of value each of its columns holds, with
     `column_types`, and which columns hold the id of a row of another table, with
     `column_references`. Relational backends need this to build their tables (see
     :module:`~ixdat.backends.relational`); backends which just serialize each object
@@ -148,21 +148,21 @@ class Saveable:
         column_attrs (set of str): {attr} where attr is the name of the column in the
             table and also the name of the attribute of the class.
         extra_column_attrs (dict): {table_name: {attr}} for auxiliary tables
-            to represent the "extra" attributes, for double-inheriting classes.
-        linkers (dict): {table_name: (reference_table, attr)} for defining
-            the connections between objects.
-        column_types (dict): {attr: type_name} giving the type of the value stored
-            in a column, for the columns where it matters. The type names are
-            "INTEGER", "REAL", "TEXT" for plain numbers and text, "JSON" for dicts
-            and lists, and "NDARRAY" for numpy arrays. A column left out here has no
-            fixed type. Unlike `extra_column_attrs`, this is *merged* over the
-            inheriting classes, so a class only declares the columns it adds itself.
+            containing subclass attributes. Definitions are merged over the class
+            ancestry, so each class only declares the tables and columns it adds.
+        extra_linkers (dict): {table_name: (reference_table, attr)} for defining
+            the connections between objects. Also merged over the class ancestry.
+        column_types (dict): {attr: python_type} giving the type of the value stored
+            in a column, for the columns where it matters. Supported types are
+            ``int``, ``float``, ``str``, ``dict``, ``list``, ``tuple``, and
+            ``numpy.ndarray``. A column left out here has no fixed type. Definitions
+            are merged over the inheriting classes, so a class only declares the
+            columns it adds itself.
         column_references (dict): {attr: table_name} for the columns which hold the
             id of a single row of another table, e.g. {"field_id": "data_series"}.
             The column referred to is always that table's "id". Also merged over the
-            inheriting classes. Note that this is for a column of *this* class's
-            table; a reference stored as rows of its own table goes in
-            `extra_linkers` instead.
+            inheriting classes. This is for a column of *this* class's table; a
+            reference stored as rows of its own table goes in `extra_linkers`.
 
     Object attributes:
         backend (Backend): the backend where the object is saved. For a
@@ -178,14 +178,12 @@ class Saveable:
 
     db = DB
     table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
-    # TODO: restructure column_attrs, extra_column_attrs, extra_linkers so that they are
-    #  sufficient to fully define the tables in an SQL backend
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
     extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     # every ixdat table has a name. Inheriting classes add the types of the columns
     # they introduce themselves; get_column_types() merges them back together:
-    column_types = {"name": "TEXT"}
+    column_types = {"name": str}
     column_references = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
     # TODO: derive child_attrs somehow from the above class attributes, and have it in
     #   a way where it's easy to tell which id goes with which attribute, i.e. s_ids
@@ -240,7 +238,7 @@ class Saveable:
         This is (usually) sufficient to tell if two objects refer to the same thing,
         when used together with the class attribute table_name
         """
-        if self.backend is DB.backend:
+        if self.backend == DB.backend:
             return self.id
         return self.backend, self.id
 
@@ -326,25 +324,13 @@ class Saveable:
 
         exclude = exclude or []
         self_as_dict = self.get_main_dict(exclude=exclude)
-        if self.extra_column_attrs:
-            # FIXME: comprehension best as loop. Will be redone with proper table defs.
-            aux_tables_dict = {
-                table_name: {
-                    attr: getattr(self, attr) for attr in extras if attr not in exclude
-                }
-                for table_name, extras in self.extra_column_attrs.items()
-            }
-            for aux_dict in aux_tables_dict.values():
-                self_as_dict.update(**aux_dict)
-        if self.extra_linkers:
-            # FIXME: comprehension best as loop. Will be redone with proper table defs.
-            linker_tables_dict = {
-                (table_name, linked_table_name): {attr: getattr(self, attr)}
-                for table_name, (linked_table_name, attr) in self.extra_linkers.items()
-                if attr not in exclude
-            }
-            for linked_attrs in linker_tables_dict.values():
-                self_as_dict.update(**linked_attrs)
+        for attrs in self.get_extra_column_attrs().values():
+            for attr in attrs:
+                if attr not in exclude:
+                    self_as_dict[attr] = getattr(self, attr)
+        for _, attr in self.get_extra_linkers().values():
+            if attr not in exclude:
+                self_as_dict[attr] = getattr(self, attr)
 
         return self_as_dict
 
@@ -372,14 +358,9 @@ class Saveable:
         if not len(self_as_dict) == len(other_as_dict):
             # If they don't have the same number of items, they are not equal:
             return False
-        if self.extra_linkers:
-            linker_id_names = [
-                id_name
-                for (
-                    linker_table_name,
-                    (linked_table_name, id_name),
-                ) in self.extra_linkers.items()
-            ]  # FIXME: This will be made much simpler with coming metaprogramming
+        extra_linkers = self.get_extra_linkers()
+        if extra_linkers:
+            linker_id_names = {id_name for _, id_name in extra_linkers.values()}
         else:
             linker_id_names = []
         for key in self_as_dict:
@@ -425,14 +406,39 @@ class Saveable:
     @classmethod
     def get_all_column_attrs(cls):
         """List all attributes of objects of cls that correspond to table columns"""
-        all_attrs = cls.column_attrs
-        if cls.extra_column_attrs:
-            for table, attrs in cls.extra_column_attrs.items():
-                all_attrs = all_attrs.union(attrs)
-        if cls.extra_linkers:
-            for table, (ref_table, attr) in cls.extra_linkers.items():
-                all_attrs.add(attr)
+        all_attrs = set(cls.column_attrs or ())
+        for attrs in cls.get_extra_column_attrs().values():
+            all_attrs.update(attrs)
+        for _, attr in cls.get_extra_linkers().values():
+            all_attrs.add(attr)
         return all_attrs
+
+    @classmethod
+    def get_extra_column_attrs(cls):
+        """Return extension-table columns merged over ``cls``'s ancestry.
+
+        Each class declares only the extension tables and columns it introduces.
+        Columns declared for the same table are combined. Ancestors with a different
+        main table describe a separate persistence model and are left out.
+        """
+        merged = {}
+        for ancestor in reversed(cls.__mro__):
+            if getattr(ancestor, "table_name", None) != cls.table_name:
+                continue
+            for table_name, attrs in (
+                ancestor.__dict__.get("extra_column_attrs") or {}
+            ).items():
+                merged.setdefault(table_name, set()).update(attrs)
+        return merged
+
+    @classmethod
+    def get_extra_linkers(cls):
+        """Return linker-table definitions merged over ``cls``'s ancestry."""
+        merged = {}
+        for ancestor in reversed(cls.__mro__):
+            if getattr(ancestor, "table_name", None) == cls.table_name:
+                merged.update(ancestor.__dict__.get("extra_linkers") or {})
+        return merged
 
     @classmethod
     def get_column_types(cls):
@@ -440,9 +446,8 @@ class Saveable:
 
         Each class in cls's ancestry contributes the columns it declares itself in
         `column_types`, with the more specific class winning where they disagree.
-        Merging like this means a class only has to name the columns it adds, and,
-        unlike `extra_column_attrs`, that a class inheriting from two table-defining
-        classes gets the column types of both.
+        Merging lets a class name only the columns it adds. A class inheriting from
+        two table-defining classes gets the column types of both.
         """
         return cls._merged_class_dict("column_types")
 
@@ -530,7 +535,7 @@ class PlaceHolderObject:
     @property
     def short_identity(self):
         """Placeholder also has a short_identity to check equivalence without loading"""
-        if self.backend is DB.backend:
+        if self.backend == DB.backend:
             return self.id
         return self.backend, self.id
 

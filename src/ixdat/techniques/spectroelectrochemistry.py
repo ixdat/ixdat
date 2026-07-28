@@ -58,8 +58,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
     default_plotter = ECOpticalPlotter
 
-    extra_linkers = SpectroECMeasurement.extra_linkers.copy()
-    extra_linkers.update({"ec_optical_measurements": ("spectrums", "ref_id")})
+    extra_linkers = {"ec_optical_measurements": ("spectrums", "ref_id")}
     child_attrs = SpectroECMeasurement.child_attrs + ["reference_spectrum_list"]
 
     def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):

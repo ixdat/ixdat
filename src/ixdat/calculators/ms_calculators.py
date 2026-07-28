@@ -35,7 +35,7 @@ class MSConstantBackground(Saveable):
 
     table_name = "ms_constant_backgrounds"
     column_attrs = {"name", "mass", "bg"}
-    column_types = {"mass": "TEXT", "bg": "REAL"}
+    column_types = {"mass": str, "bg": float}
 
     def __init__(
         self,
@@ -208,7 +208,7 @@ class MSCalResult(Saveable):
 
     table_name = "ms_cal_results"
     column_attrs = {"name", "mol", "mass", "cal_type", "F"}
-    column_types = {"mol": "TEXT", "mass": "TEXT", "cal_type": "TEXT", "F": "REAL"}
+    column_types = {"mol": str, "mass": str, "cal_type": str, "F": float}
 
     def __init__(
         self,

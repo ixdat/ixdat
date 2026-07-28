@@ -9,7 +9,7 @@ file and shows off everything you gain by doing so:
 3.  loading is lazy - metadata first, numerical data only on demand
 4.  objects come back by name or id, as the class they were saved as,
     with their calculators (e.g. calibrations) intact
-5.  measurements built from other measurements share rows - no data duplication
+5.  measurements built from other measurements reuse their existing data rows
 6.  every ixdat data family works: measurements, spectra, calculators, ...
 7.  the database speaks SQL: query it with pandas or any SQLite tool
 8.  rows can be updated in place
@@ -121,7 +121,7 @@ part("5. Objects come back by name, as what they were, calibration included")
 
 by_name = Measurement.load("Pt_poly_cv_CUT.mpt")
 print(f"Measurement.load('Pt_poly_cv_CUT.mpt') -> {by_name!r}")
-print(f"  class: {type(by_name).__name__} (not just a generic Measurement)")
+print(f"  concrete class: {type(by_name).__name__}")
 print(f"  calculators: {by_name.calculator_list}")
 print(f"  equal to what was saved:  by_name == ec  is  {by_name == ec}")
 
@@ -133,7 +133,7 @@ print(
 )
 
 # --------------------------------------------------------------------------- #
-part("6. Composed measurements share rows - data is never duplicated")
+part("6. Composed measurements reuse their component data rows")
 # --------------------------------------------------------------------------- #
 
 composed = ec.select(cycle=1) + ec.select(cycle=3)
@@ -144,17 +144,15 @@ n_references, n_series = con.execute(
     "SELECT COUNT(*), COUNT(DISTINCT data_series_id) FROM measurement_series"
 ).fetchone()
 n_measurements = con.execute("SELECT COUNT(*) FROM measurement").fetchone()[0]
-print(f"  {n_measurements} measurements now reference series "
-      f"{n_references} times ...")
+print(f"  {n_measurements} measurements now reference series {n_references} times ...")
 print(f"  ... but only {n_series} distinct data series (arrays) are stored:")
 print("  the composed measurement and its components *share* rows.")
 
 reloaded_composed = Measurement.get(composed_id)
-print(f"\nRound trip of the composed measurement: "
-      f"{reloaded_composed == composed}")
+print(f"\nRound trip of the composed measurement: {reloaded_composed == composed}")
 
 # --------------------------------------------------------------------------- #
-part("7. Not just measurements: every ixdat data family gets its tables")
+part("7. Spectra and other ixdat data families use the same backend")
 # --------------------------------------------------------------------------- #
 
 xrd = Spectrum.read(TEST_DATA_DIR / "xrd/twotheta_2th.xy", reader="xrdxy")
@@ -162,19 +160,16 @@ xrd_id = xrd.save()
 loaded_xrd = type(xrd).get(xrd_id)
 print(f"Saved and reloaded {loaded_xrd!r}")
 print(f"  class: {type(loaded_xrd).__name__}, equal: {loaded_xrd == xrd}")
-print("  (spectra live in their own tables: multispectrum, data_series, "
-      "field_axes, ...)")
+print(
+    "  (spectra live in their own tables: multispectrum, data_series, "
+    "field_axes, ...)"
+)
 
 # --------------------------------------------------------------------------- #
 part("8. The database speaks SQL: instant analytics over everything saved")
 # --------------------------------------------------------------------------- #
 
 print("All measurements, joined with their EC details and series counts:\n")
-# NOTE: this join only finds pure ECMeasurement rows, like the ones saved above.
-# An ECMSMeasurement writes its ec_technique to "ecms_measurements" instead of
-# "ec_measurements" - see the "Known limitation" section of
-# docs/source/diving_deeper/backend.rst - so a query meant to cover every EC-ish
-# measurement should filter on measurement.technique or UNION both tables.
 print(
     pd.read_sql_query(
         """
@@ -209,9 +204,10 @@ part("9. Rows can be updated in place")
 loaded_ec.name = "Pt_poly_cv_CUT.mpt (analyzed 2026-07-02)"
 DB.backend.save(loaded_ec, force=True)
 print(f"Renamed and updated row id={loaded_ec.id}. The database now says:")
-print("  " + str(con.execute(
+updated_name = con.execute(
     "SELECT name FROM measurement WHERE id = ?", (loaded_ec.id,)
-).fetchone()[0]))
+).fetchone()[0]
+print(f"  {updated_name}")
 
 # --------------------------------------------------------------------------- #
 part("10. The whole schema of ixdat's data model, generated from the classes")

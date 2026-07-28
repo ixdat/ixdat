@@ -49,10 +49,10 @@ class Spectrum(Saveable):
         "field_id",
     }
     column_types = {
-        "technique": "TEXT",
-        "metadata": "JSON",
-        "tstamp": "REAL",
-        "sample_name": "TEXT",
+        "technique": str,
+        "metadata": dict,
+        "tstamp": float,
+        "sample_name": str,
     }
     column_references = {"field_id": "data_series"}
     child_attrs = ["fields"]
@@ -368,10 +368,10 @@ class MultiSpectrum(Saveable):
         "sample_name",
     }
     column_types = {
-        "technique": "TEXT",
-        "metadata": "JSON",
-        "tstamp": "REAL",
-        "sample_name": "TEXT",
+        "technique": str,
+        "metadata": dict,
+        "tstamp": float,
+        "sample_name": str,
     }
     extra_linkers = {"multispectrum_fields": ("data_series", "field_ids")}
     child_attrs = ["fields"]

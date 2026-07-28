@@ -10,47 +10,53 @@ Every Saveable class already says how it should be saved:
 - ``extra_linkers`` names *linker tables*, which record ordered references from
   a row to several rows of another table (e.g. "measurement_series" records
   which data series belong to which measurement, and in what order),
-- ``column_types`` gives the *logical type* of the columns where it matters, and
+- ``column_types`` gives the Python type of the columns where it matters, and
 - ``column_references`` names the columns which hold the id of a row of another
   table (e.g. a spectrum's "field_id" refers to the "data_series" table).
 
 This module turns that information into plain table descriptions (`TableSchema`
 and `LinkerTableSchema`) that don't depend on any particular database - a
 backend (see :class:`~ixdat.backends.sqlite_backend.SQLiteBackend`) then turns
-those into real SQL. This does the same job PR #75
-(https://github.com/ixdat/ixdat/pull/75) set out to do, but by reading the
-class attributes ixdat already has instead of asking every class to redeclare
-its columns in a new format.
+those into real SQL. This continues the work started in PR #75
+(https://github.com/ixdat/ixdat/pull/75), using ixdat's existing class
+attributes as the source of truth.
 
 Classes that share a ``table_name`` (e.g. every Measurement subclass) share one
 main table; each subclass's own extra attributes go in its own extension table,
-linked back to the main table's id. Which subclass a row belongs to isn't
-stored as a separate column - it's worked out the same way the directory
-backend already does it, from a column like "technique" or "calculator_type".
+linked back to the main table's id. The backend determines a row's subclass the
+same way the directory backend does, from a column like "technique" or
+"calculator_type".
 
-A column's *logical type* tells a backend how to store its value:
-
-- "INTEGER", "REAL", "TEXT": plain numbers/text, stored as-is,
-- "JSON": dicts and lists, stored as JSON text,
-- "NDARRAY": numpy arrays, stored as a binary blob and only loaded when needed,
-- None: no fixed type; stored as whatever type the value already is.
+A column's Python type tells a backend how to store its value. The SQLite backend
+maps ``int``, ``float``, and ``str`` to scalar columns, ``dict``, ``list``, and
+``tuple`` to JSON, and ``numpy.ndarray`` to a lazily loaded binary payload. ``None``
+means that a column has no fixed type.
 
 A class states these in ``column_types``, alongside the ``column_attrs`` that
 introduce the columns, and they are merged over the class's ancestry by
-``Saveable.get_column_types()``. A column left out still works - it's just
-stored using whatever scalar type Python gives it - so a new class with a plain
-str/int/float attribute needs to declare nothing. ``column_references``, merged
-the same way by ``Saveable.get_column_references()``, says which columns hold
-the id of a row of another table, and thus become foreign keys.
+``Saveable.get_column_types()``. An undeclared scalar column uses its runtime
+Python type, so a new class with a plain str/int/float attribute needs no type
+declaration. ``column_references``, merged the same way by
+``Saveable.get_column_references()``, says which columns hold the id of a row of
+another table, and thus become foreign keys.
 
-Keeping this on the classes, rather than in a table here, is what lets a class
-outside of ixdat define columns of any type without ixdat knowing about it.
+Keeping this on the classes lets external ixdat classes define columns of any
+supported type through their own declarations.
 """
+
+import numpy as np
 
 from ..exceptions import DataBaseError
 
 
-KNOWN_COLUMN_TYPES = ("INTEGER", "REAL", "TEXT", "JSON", "NDARRAY")
+KNOWN_COLUMN_TYPES = (int, float, str, dict, list, tuple, np.ndarray)
+
+
+def _type_name(dtype):
+    """Return a readable name for a declared Python column type."""
+    if isinstance(dtype, str):
+        return dtype
+    return getattr(dtype, "__name__", repr(dtype))
 
 
 class ColumnSchema:
@@ -62,7 +68,7 @@ class ColumnSchema:
         Args:
             name (str): The name of the column, which is also the name of the
                 attribute of the Saveable class that it stores
-            dtype (str or None): The logical type of the column (see module
+            dtype (type or None): The Python type of the column (see module
                 docstring). None means unspecified/dynamic.
             foreign_key (tuple or None): The (table_name, column_name) that this
                 column's values refer to, if it is a foreign key
@@ -162,7 +168,7 @@ class LinkerTableSchema:
 
     @property
     def is_list(self):
-        """Whether the attribute holds a list of id's rather than a single id"""
+        """Whether the attribute holds a list of ids or one id."""
         return self.id_attr.endswith("_ids")
 
     def __repr__(self):
@@ -177,6 +183,32 @@ def _ordered(attrs):
     return sorted(attrs, key=lambda attr: (attr != "name", attr))
 
 
+def _validate_column_metadata(cls):
+    """Reject type or reference declarations for columns the class does not store."""
+    stored_attrs = set(cls.column_attrs or ())
+    for attrs in cls.get_extra_column_attrs().values():
+        stored_attrs.update(attrs)
+
+    declarations = {
+        "column_types": cls.get_column_types(),
+        "column_references": cls.get_column_references(),
+    }
+    for metadata_name, metadata in declarations.items():
+        unknown_attrs = set(metadata) - stored_attrs
+        if unknown_attrs:
+            raise DataBaseError(
+                f"{cls.__name__} declares {metadata_name} for unknown column(s): "
+                f"{', '.join(sorted(unknown_attrs))}."
+            )
+    for attr, dtype in declarations["column_types"].items():
+        if dtype is not None and dtype not in KNOWN_COLUMN_TYPES:
+            raise DataBaseError(
+                f"{cls.__name__} gives its column '{attr}' the unknown type "
+                f"{_type_name(dtype)!r}. The types a column can have are "
+                f"{', '.join(_type_name(known) for known in KNOWN_COLUMN_TYPES)}."
+            )
+
+
 def _columns(cls, attrs):
     """Return the ColumnSchemas for the named column attributes of a Saveable class"""
     types = cls.get_column_types()
@@ -184,18 +216,12 @@ def _columns(cls, attrs):
     columns = []
     for attr in _ordered(attrs):
         dtype = types.get(attr)
-        if dtype and dtype not in KNOWN_COLUMN_TYPES:
-            raise DataBaseError(
-                f"{cls.__name__} gives its column '{attr}' the unknown type "
-                f"'{dtype}'. The types a column can have are "
-                f"{', '.join(KNOWN_COLUMN_TYPES)}."
-            )
         referenced_table = references.get(attr)
         columns.append(
             ColumnSchema(
                 attr,
                 # a column holding another row's id is that id's type:
-                dtype="INTEGER" if referenced_table else dtype,
+                dtype=int if referenced_table else dtype,
                 foreign_key=(referenced_table, "id") if referenced_table else None,
             )
         )
@@ -204,36 +230,28 @@ def _columns(cls, attrs):
 
 def main_table_schema(cls):
     """Return the TableSchema of the main table of a Saveable class"""
-    columns = [ColumnSchema("id", dtype="INTEGER")]
+    _validate_column_metadata(cls)
+    columns = [ColumnSchema("id", dtype=int)]
     columns += _columns(cls, cls.column_attrs or [])
     return TableSchema(cls.table_name, columns)
 
 
 def extension_table_schemas(cls):
-    """Return the list of TableSchema of the extension tables of a Saveable class
-
-    Only looks at what `cls` itself declares in `extra_column_attrs`, not what its
-    parent classes declare. Usually fine, since a class only overrides this if it
-    needs its own extra columns - but a class inheriting from *two* table-defining
-    classes (like `ECMSMeasurement`) ends up only writing to its own extension
-    table, not its other parent's. See the "Known limitation" section of
-    docs/source/diving_deeper/backend.rst.
-    """
+    """Return the extension-table schemas of a Saveable class and its ancestors."""
+    _validate_column_metadata(cls)
     schemas = []
-    for table_name, attrs in (cls.extra_column_attrs or {}).items():
-        columns = [
-            ColumnSchema("id", dtype="INTEGER", foreign_key=(cls.table_name, "id"))
-        ]
+    for table_name, attrs in cls.get_extra_column_attrs().items():
+        columns = [ColumnSchema("id", dtype=int, foreign_key=(cls.table_name, "id"))]
         columns += _columns(cls, attrs)
         schemas.append(TableSchema(table_name, columns, extends=cls.table_name))
     return schemas
 
 
 def linker_table_schemas(cls):
-    """Return the list of LinkerTableSchema of the linker tables of a Saveable class"""
+    """Return the linker-table schemas of a Saveable class and its ancestors."""
     return [
         LinkerTableSchema(table_name, cls.table_name, linked_table, id_attr)
-        for table_name, (linked_table, id_attr) in (cls.extra_linkers or {}).items()
+        for table_name, (linked_table, id_attr) in cls.get_extra_linkers().items()
     ]
 
 
@@ -265,11 +283,10 @@ def saveable_classes():
 def family_table_schemas(cls):
     """Return the extension and linker tables of all classes sharing cls's main table
 
-    Before reading a row, we don't yet know which subclass it actually is (a row
-    in "measurement" could turn out to be an ECMSMeasurement, say), so a backend
-    needs to check the extension/linker tables of every class that could share
-    this main table, not just `cls`. A row will only actually have entries in the
-    tables its real class wrote to, so checking extra tables is harmless.
+    Before reading a row, its exact subclass is unknown (a row in "measurement"
+    could be an ECMSMeasurement, for example). A backend therefore checks the
+    extension/linker tables of every class that shares this main table. A row has
+    entries only in the tables its concrete class wrote to.
 
     Only classes that have already been imported can be found this way. Importing
     ixdat imports all of its own techniques, so this only matters for external

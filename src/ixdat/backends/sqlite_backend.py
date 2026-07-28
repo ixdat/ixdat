@@ -48,6 +48,15 @@ from ..exceptions import DataBaseError
 DATABASE_FILE_SUFFIX = ".sqlite"
 SCHEMA_VERSION = 1
 METADATA_TABLE = "_ixdat_metadata"
+SQLITE_TYPES = {
+    int: "INTEGER",
+    float: "REAL",
+    str: "TEXT",
+    dict: "JSON",
+    list: "JSON",
+    tuple: "JSON",
+    np.ndarray: "NDARRAY",
+}
 
 
 def _quote_identifier(identifier):
@@ -100,7 +109,7 @@ class SQLiteBackend(BackendBase):
     @property
     def address(self):
         """The path to the SQLite database file"""
-        return str(self.db_path)
+        return str(self.db_path if self._is_memory else self._resolved_path)
 
     def close(self):
         """Close the connection to the database file"""
@@ -226,7 +235,7 @@ class SQLiteBackend(BackendBase):
     def _save_action(self, obj, force, updates_forbidden, existing_tables):
         """Return ``insert``, ``update``, or ``skip`` for one planned object."""
         row_exists = False
-        if obj.backend is self and obj.table_name in existing_tables:
+        if obj.backend == self and obj.table_name in existing_tables:
             row_exists = self.connection.execute(
                 f"SELECT 1 FROM {_quote_identifier(obj.table_name)} " 'WHERE "id" = ?',
                 (obj.id,),
@@ -339,9 +348,11 @@ class SQLiteBackend(BackendBase):
         existing_tables = self._ensure_existing_family_tables(
             extension_schemas + linker_schemas
         )
-        # Leave NDARRAY columns out of the query; `load_obj_data` gets them lazily:
+        # Leave ndarray columns out; `load_obj_data` gets them lazily:
         columns = [
-            column for column in main_schema.data_columns if column.dtype != "NDARRAY"
+            column
+            for column in main_schema.data_columns
+            if column.dtype is not np.ndarray
         ]
         row = self.connection.execute(
             _select_sql(main_schema.name, [column.name for column in columns])
@@ -357,7 +368,7 @@ class SQLiteBackend(BackendBase):
             for column, value in zip(columns, row)
         }
         for column in main_schema.data_columns:
-            if column.dtype == "NDARRAY":
+            if column.dtype is np.ndarray:
                 obj_as_dict[column.name] = None  # signals lazy loading
         for schema in extension_schemas:
             if schema.name not in existing_tables:
@@ -410,10 +421,10 @@ class SQLiteBackend(BackendBase):
         return self.get(cls, row[0])
 
     def load_obj_data(self, obj):
-        """Return the numerical data of an object, from its NDARRAY column"""
+        """Return the numerical data of an object from its ndarray column."""
         main_schema = relational.main_table_schema(type(obj))
         for column in main_schema.data_columns:
-            if column.dtype == "NDARRAY":
+            if column.dtype is np.ndarray:
                 row = self.connection.execute(
                     _select_sql(main_schema.name, [column.name]) + ' WHERE "id" = ?',
                     (obj.id,),
@@ -581,7 +592,7 @@ class SQLiteBackend(BackendBase):
                 )
                 continue
             actual = table_info[column.name]
-            expected_type = column.dtype or ""
+            expected_type = SQLITE_TYPES.get(column.dtype, "")
             if expected_type and actual["type"] != expected_type:
                 self._incompatible_schema(
                     schema.name,
@@ -677,11 +688,11 @@ class SQLiteBackend(BackendBase):
         value = self._dereference(value)
         if value is None:
             return None
-        if column.dtype == "NDARRAY":
+        if column.dtype is np.ndarray:
             buffer = BytesIO()
             np.save(buffer, np.asarray(value), allow_pickle=False)
             return sqlite3.Binary(buffer.getvalue())
-        if column.dtype == "JSON":
+        if column.dtype in (dict, list, tuple):
             # metadata dicts sometimes contain numpy numbers/arrays, which plain
             # json.dumps can't handle - convert those to normal Python values first:
             from ..tools import to_jsonable
@@ -693,7 +704,7 @@ class SQLiteBackend(BackendBase):
             raise DataBaseError(
                 f"Can't save value {value!r} in the dynamically typed column "
                 f"'{column.name}'. If this column should hold dicts/lists or numpy "
-                f"arrays, give it the type 'JSON' or 'NDARRAY', respectively, in "
+                f"arrays, give it the type dict/list or numpy.ndarray in "
                 "the `column_types` of the class which defines the column."
             )
         return value
@@ -702,10 +713,11 @@ class SQLiteBackend(BackendBase):
         """Return the python representation of a value, per its column's dtype"""
         if value is None:
             return None
-        if column.dtype == "NDARRAY":
+        if column.dtype is np.ndarray:
             return np.load(BytesIO(value), allow_pickle=False)
-        if column.dtype == "JSON":
-            return json.loads(value)
+        if column.dtype in (dict, list, tuple):
+            decoded = json.loads(value)
+            return tuple(decoded) if column.dtype is tuple else decoded
         return value
 
     def _dereference(self, value):
@@ -759,7 +771,7 @@ def _column_definition(column, include_primary_key=True):
     """Return the DDL fragment defining one regular table column."""
     definition = _quote_identifier(column.name)
     if column.dtype:
-        definition += " " + column.dtype
+        definition += " " + SQLITE_TYPES[column.dtype]
     if include_primary_key and column.name == "id":
         definition += " PRIMARY KEY"
     if column.foreign_key:

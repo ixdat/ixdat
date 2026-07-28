@@ -72,31 +72,41 @@ The relational schema is not written by hand. It is derived, by
 ``ixdat.backends.relational``, from the table metadata every ``Saveable`` class
 already carries: ``table_name`` and ``column_attrs`` for the main table,
 ``extra_column_attrs`` for extension tables, and ``extra_linkers`` for linker tables.
+The extension and linker definitions are merged over class ancestry. Each class
+declares the tables and columns it introduces, and multiply-inheriting classes retain
+the definitions of every parent.
 
 Two further class attributes tell a relational backend how to store each column.
-Both are optional, and both are *merged* over a class's ancestry, so a class only
-declares what it introduces itself::
+Both are optional and follow the same ancestry-merging rule::
 
     class XRFSpectrum(Spectrum):
-        extra_column_attrs = {"xrf_spectrums": {"excitation_energy", "detector_gains"}}
-        column_types = {"excitation_energy": "REAL", "detector_gains": "JSON"}
+        extra_column_attrs = {
+            "xrf_spectrums": {
+                "excitation_energy", "detector_gains", "calibration_id"
+            }
+        }
+        column_types = {"excitation_energy": float, "detector_gains": list}
         column_references = {"calibration_id": "calculator"}
 
-``column_types`` gives the type of a column's value: ``"INTEGER"``, ``"REAL"`` and
-``"TEXT"`` are stored as-is, ``"JSON"`` is for dicts and lists, and ``"NDARRAY"`` is
-for numpy arrays, which are stored as a blob and loaded only on access. A column
-which is not listed has no fixed type and is stored as whatever type its value
-already has, so a plain str/int/float column needs no declaration. Saving a dict,
-list, or array to such a column raises a ``DataBaseError`` naming the column, rather
-than guessing.
+``column_types`` gives the Python type of a column's value. Supported declarations
+are ``int``, ``float``, ``str``, ``dict``, ``list``, ``tuple``, and
+``numpy.ndarray``. Each relational backend maps these to its own storage types.
+SQLite stores containers as JSON and arrays as blobs loaded on access. A column
+which is not listed has no fixed type and stores its scalar value directly. Saving
+a container or array to an untyped column raises a ``DataBaseError`` naming the
+column.
 
 ``column_references`` names the columns which hold the id of a single row of another
 table; these become integer foreign keys to that table's ``id``. A reference to
 *several* rows of another table belongs in ``extra_linkers`` instead.
 
-Because this lives on the classes rather than in a table inside ixdat, a ``Saveable``
-class defined in a plugin or a user's own script gets its tables built correctly
-without any change to ixdat.
+Keeping this information on the classes lets a ``Saveable`` class in a plugin or
+user script define its own relational tables directly.
+
+Extension tables represent inheritance without repeating parent columns. For example,
+``ECMSMeasurement`` contributes ``tspan_bg`` to ``ecms_measurements`` and inherits
+``ec_technique`` from ``ECMeasurement`` in ``ec_measurements``. Both tables use the
+measurement's main-table id as their primary and foreign key.
 
 Connections and threads
 -----------------------
@@ -105,42 +115,6 @@ Call ``backend.close()`` when finished. Switching the global database does not c
 the previous backend because objects loaded from it may still need its connection for
 lazy data. An ``SQLiteBackend`` connection belongs to the thread which created it;
 create a separate backend instance per thread.
-
-Known limitation: multiply-inheriting classes and extension tables
---------------------------------------------------------------------
-
-A ``Saveable`` class which inherits from more than one other table-defining class
-(for example ``ECMSMeasurement``, which inherits from both ``ECMeasurement`` and
-``MSMeasurement``) declares its own ``extra_column_attrs``, which *replaces* rather
-than merges with the ``extra_column_attrs`` of each parent. In practice this means
-such a class writes only to the one extension table it declares itself (e.g.
-``ecms_measurements``), not to the extension tables of its other parents (e.g.
-``ec_measurements``) — even though the row is, semantically, also an EC measurement.
-
-Round-tripping is unaffected: every attribute is still saved and reloaded correctly,
-because classes with this shape (``ECMSMeasurement``, ``MSSpectroMeasurement``, ...)
-already duplicate the small number of overlapping columns into their own extension
-table by hand. What breaks is a query that joins against only *one* parent's
-extension table expecting it to be exhaustive, for example::
-
-    -- misses every ECMSMeasurement row, though they are EC measurements too:
-    SELECT m.id, m.name, e.ec_technique
-    FROM measurement m
-    JOIN ec_measurements e ON e.id = m.id
-
-Filter or group by ``measurement.technique`` instead of joining a single extension
-table when you want "every measurement of a given family", or ``UNION`` across the
-extension tables of the classes you care about.
-
-This is not new to the SQLite backend: it is a limitation of how ``Saveable``
-resolves ``extra_column_attrs`` across multiple inheritance
-(``ixdat.db.Saveable.get_main_dict``/``as_dict``), so it equally affects
-``obj.as_dict()`` on the directory backend for any class which does not manually
-duplicate its overlapping columns the way ``ECMSMeasurement`` does today. Properly
-merging table definitions across multiple inheritance was the central open question
-of `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_ and remains unresolved;
-fixing it belongs in ``Saveable`` itself; it is out of scope for the database
-backends.
 
 The directory backend
 ---------------------
