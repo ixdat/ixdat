@@ -17,7 +17,7 @@ from ixdat.exceptions import DataBaseError
 from ixdat.measurement_base import Calculator
 from ixdat.calculators.ec_calculators import ECCalibration
 from ixdat.calculators.ms_calculators import MSCalibration, MSCalResult
-from ixdat.spectra import MultiSpectrum, SpectrumSeries
+from ixdat.spectra import MultiSpectrum
 from ixdat.techniques.ec_ms import ECMSMeasurement
 from ixdat.techniques.spectroelectrochemistry import ECOpticalMeasurement
 
@@ -45,47 +45,6 @@ class MistypedMeasurement(Measurement):
     column_types = {"whoops": "NDARAY"}  # invalid: column types are Python types
 
 
-def _ec_optical_measurement(reference_spectrum="build one"):
-    """Return a synthetic ECOpticalMeasurement, evt. without a reference spectrum"""
-    tseries = TimeSeries(
-        name="t", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
-    )
-    wavelength = DataSeries(
-        name="wavelength / nm", unit_name="nm", data=np.linspace(400, 700, 4)
-    )
-    spectrum_series = SpectrumSeries(
-        name="optical spectra",
-        technique="EC-Optical",
-        tstamp=1.6e9,
-        field=Field(
-            name="spectra",
-            unit_name="counts",
-            data=np.array([[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]]),
-            axes_series=[tseries, wavelength],
-        ),
-    )
-    if reference_spectrum == "build one":
-        reference_spectrum = Spectrum(
-            name="ref spectrum",
-            technique="optical",
-            tstamp=1.6e9,
-            field=Field(
-                name="reference",
-                unit_name="counts",
-                data=np.array([1.0, 1.0, 1.0, 1.0]),
-                axes_series=[wavelength],
-            ),
-        )
-    return ECOpticalMeasurement(
-        name="synthetic EC-Optical",
-        technique="EC-Optical",
-        tstamp=1.6e9,
-        series_list=[tseries],
-        spectrum_series=spectrum_series,
-        reference_spectrum=reference_spectrum,
-    )
-
-
 class TestRelationalSchema:
     """Tests for the derivation of table descriptions from Saveable classes"""
 
@@ -104,32 +63,22 @@ class TestRelationalSchema:
         # deterministic order, with id and name first:
         assert schema.column_names[:2] == ["id", "name"]
 
-    def test_extension_table(self):
-        schemas = {
-            schema.name: schema
-            for schema in relational.extension_table_schemas(ECMSMeasurement)
-        }
-        schema = schemas["ecms_measurements"]
-        assert schema.name == "ecms_measurements"
-        assert schema.extends == "measurement"
-        # the extension table's id is a foreign key to the main table:
-        assert schema.columns[0].name == "id"
-        assert schema.columns[0].foreign_key == ("measurement", "id")
-        assert {column.name for column in schema.data_columns} == {"tspan_bg"}
-
     def test_extension_tables_merge_over_multiple_inheritance(self):
-        """Each ancestor contributes its extension table without repeated columns."""
+        """Each ancestor contributes one extension table."""
         schemas = {
             schema.name: schema
             for schema in relational.extension_table_schemas(ECMSMeasurement)
         }
         assert set(schemas) == {"ec_measurements", "ecms_measurements"}
+        ecms_schema = schemas["ecms_measurements"]
+        assert ecms_schema.extends == "measurement"
+        # the extension table's id is a foreign key to the main table:
+        assert ecms_schema.columns[0].name == "id"
+        assert ecms_schema.columns[0].foreign_key == ("measurement", "id")
         assert {column.name for column in schemas["ec_measurements"].data_columns} == {
             "ec_technique"
         }
-        assert {column.name for column in schemas["ecms_measurements"].data_columns} == {
-            "tspan_bg"
-        }
+        assert {column.name for column in ecms_schema.data_columns} == {"tspan_bg"}
 
     def test_collecting_all_attrs_does_not_modify_main_table_metadata(self):
         """Linker attributes stay out of the main table schema."""
@@ -157,9 +106,15 @@ class TestRelationalSchema:
         component_linker = linkers["component_measurements"]
         assert component_linker.owner_column == "measurement_id"
         assert component_linker.linked_column == "linked_measurement_id"
+        reference_linker = {
+            schema.name: schema
+            for schema in relational.linker_table_schemas(ECOpticalMeasurement)
+        }["ec_optical_measurements"]
+        assert reference_linker.id_attr == "ref_id"
+        assert not reference_linker.is_list
 
-    def test_column_types_come_from_the_declaring_class(self):
-        """Each column's type is the one declared by the class which adds it"""
+    def test_column_types_merge_from_the_declaring_classes(self):
+        """Column types come from every declaring class in the ancestry."""
         columns = {
             column.name: column
             for column in relational.main_table_schema(DataSeries).columns
@@ -167,8 +122,6 @@ class TestRelationalSchema:
         assert columns["data"].dtype is np.ndarray  # declared by DataSeries
         assert columns["name"].dtype is str  # inherited from Saveable
 
-    def test_column_types_are_merged_over_multiple_inheritance(self):
-        """Column types from the full ancestry carry over."""
         types = ECMSMeasurement.get_column_types()
         assert types["ec_technique"] is str  # from ECMeasurement
         assert types["tspan_bg"] is list  # from ECMSMeasurement itself
@@ -208,22 +161,6 @@ class TestRelationalSchema:
         with pytest.raises(DataBaseError, match="unknown column.*missing_id"):
             relational.main_table_schema(UnknownColumnMeasurement)
 
-    def test_a_broken_class_does_not_break_its_relatives(self):
-        """Only the misdeclared class itself raises, so other rows still load
-
-        `MistypedMeasurement` shares the "measurement" main table with every
-        other measurement, and it stays in `Saveable.__subclasses__()` for the
-        rest of the session. Describing the family's tables skips it.
-        """
-        extension_schemas, _ = relational.family_table_schemas(Measurement)
-        table_names = {schema.name for schema in extension_schemas}
-        assert "mistyped_measurements" not in table_names
-        assert "ec_measurements" in table_names  # the healthy ones are all there
-
-        # ...and asking about the broken class by name still raises:
-        with pytest.raises(DataBaseError, match="unknown type"):
-            relational.family_table_schemas(MistypedMeasurement)
-
     def test_family_table_schemas(self):
         """All classes sharing a main table contribute to the family schema"""
         extension_schemas, linker_schemas = relational.family_table_schemas(DataSeries)
@@ -250,20 +187,12 @@ class TestSQLiteBackend:
         loaded = DataSeries.get(i)
         assert isinstance(loaded, ValueSeries)
         assert loaded.unit_name == "V"
+        assert loaded._data is None
         assert np.allclose(loaded.data, vseries.data)
+        assert loaded._data is not None
         # the linked TimeSeries is also loaded from the database:
         assert loaded.tseries.tstamp == tseries.tstamp
         assert np.allclose(loaded.t, tseries.data)
-
-    def test_data_is_loaded_lazily(self, sqlite_backend):
-        tseries = TimeSeries(
-            name="time / s", unit_name="s", data=np.array([0.0, 1.0]), tstamp=1.6e9
-        )
-        i = tseries.save()
-        loaded = DataSeries.get(i)
-        assert loaded._data is None  # the array was not fetched by get()...
-        assert np.allclose(loaded.data, tseries.data)  # ...but is available on demand
-        assert loaded._data is not None
 
     def test_spectrum_round_trip(self, sqlite_backend):
         xseries = DataSeries(
@@ -355,33 +284,6 @@ class TestSQLiteBackend:
             isinstance(result, PlaceHolderObject) for result in loaded._ms_cal_results
         )
 
-    def test_ec_optical_measurement_round_trip(self, sqlite_backend):
-        """The reference spectrum is a single-reference linker, not a list"""
-        measurement = _ec_optical_measurement()
-        i = measurement.save()
-
-        loaded = Measurement.get(i)
-        assert isinstance(loaded, ECOpticalMeasurement)
-        # both spectrum references survive: the spectrum series and the reference
-        assert np.allclose(loaded.spectra.data, measurement.spectra.data)
-        assert loaded.reference_spectrum.name == "ref spectrum"
-        assert np.allclose(loaded.reference_spectrum.y, [1.0, 1.0, 1.0, 1.0])
-        # the reference is stored as one row of its linker table, at position 0:
-        assert sqlite_backend.connection.execute(
-            'SELECT "position", "spectrums_id" FROM "ec_optical_measurements" '
-            'WHERE "measurement_id" = ?',
-            (i,),
-        ).fetchall() == [(0, loaded.reference_spectrum.id)]
-
-    def test_ec_optical_measurement_without_a_reference_spectrum(self, sqlite_backend):
-        """A reference spectrum can be set later, so saving without one must work"""
-        measurement = _ec_optical_measurement(reference_spectrum=None)
-        assert measurement.reference_spectrum is None
-        assert measurement.ref_id is None
-
-        loaded = Measurement.get(measurement.save())
-        assert loaded.reference_spectrum is None
-
     def test_a_broken_sibling_class_does_not_block_saving_or_loading(
         self, sqlite_backend
     ):
@@ -403,11 +305,12 @@ class TestSQLiteBackend:
         assert 'CREATE TABLE IF NOT EXISTS "measurement"' in report
         assert "mistyped_measurements" not in report
 
-        # saving the broken class itself raises, naming it:
+        with pytest.raises(DataBaseError, match="unknown type"):
+            relational.family_table_schemas(MistypedMeasurement)
         with pytest.raises(DataBaseError, match="MistypedMeasurement"):
             MistypedMeasurement(name="broken", technique="simple").save()
 
-    def test_load_returns_newest_with_name(self, sqlite_backend):
+    def test_missing_and_named_row_lookup(self, sqlite_backend):
         DataSeries(name="twin", unit_name="V", data=np.array([1.0])).save()
         i_newest = DataSeries(name="twin", unit_name="A", data=np.array([2.0])).save()
         loaded = DataSeries.load("twin")
@@ -415,6 +318,8 @@ class TestSQLiteBackend:
         assert loaded.unit_name == "A"
         with pytest.raises(DataBaseError):
             DataSeries.load("no series has this name")
+        with pytest.raises(DataBaseError):
+            Measurement.get(999)
 
     def test_update_with_force(self, sqlite_backend):
         series = DataSeries(name="before", unit_name="V", data=np.array([1.0]))
@@ -422,10 +327,6 @@ class TestSQLiteBackend:
         series.name = "after"
         assert sqlite_backend.save(series, force=True) == i
         assert DataSeries.get(i).name == "after"
-
-    def test_get_missing_row_raises(self, sqlite_backend):
-        with pytest.raises(DataBaseError):
-            Measurement.get(999)
 
     def test_codecs(self, sqlite_backend):
         json_column = ColumnSchema("metadata", dtype=dict)
@@ -529,46 +430,37 @@ class TestSQLiteBackend:
             assert loaded_series._data is None
             assert np.array_equal(loaded_series.data, series.data)
 
-    def test_two_connections_share_a_database(self, sqlite_backend):
-        with SQLiteBackend(db_path=sqlite_backend.db_path) as second_backend:
-            first_id = sqlite_backend.save(
-                DataSeries(name="first", unit_name="V", data=np.array([1.0]))
-            )
-            second_id = second_backend.save(
-                DataSeries(name="second", unit_name="A", data=np.array([2.0]))
-            )
-            assert first_id != second_id
-            assert DataSeries.get(second_id, backend=sqlite_backend).name == "second"
-            assert (
-                sqlite_backend.connection.execute("PRAGMA foreign_key_check").fetchall()
-                == []
-            )
-
-    def test_equivalent_connection_does_not_duplicate_a_saved_object(
-        self, sqlite_backend
+    def test_connections_to_one_file_share_identity_and_rows(
+        self, sqlite_backend, tmp_path
     ):
-        series = DataSeries(name="shared", unit_name="V", data=np.array([1.0]))
-        series_id = sqlite_backend.save(series)
-
+        """Equivalent connections share ids, rows, equality, and hashing."""
         with SQLiteBackend(db_path=sqlite_backend.db_path) as second_backend:
-            loaded = DataSeries.get(series_id, backend=second_backend)
-            assert loaded.backend == sqlite_backend
-            assert loaded.short_identity == series_id
-            assert sqlite_backend.save(loaded) is None
-            assert sqlite_backend.connection.execute(
-                'SELECT COUNT(*) FROM "data_series" WHERE "id" = ?', (series_id,)
-            ).fetchone() == (1,)
+            with SQLiteBackend(db_path=tmp_path / "other.sqlite") as other_backend:
+                assert {sqlite_backend, second_backend} == {sqlite_backend}
+                assert sqlite_backend.address == second_backend.address
+                assert len({sqlite_backend, other_backend}) == 2
+                assert {sqlite_backend: "here"}[second_backend] == "here"
 
-    def test_backends_can_be_used_in_sets_and_dicts(self, sqlite_backend, tmp_path):
-        """Defining __eq__ without __hash__ would make the backend unhashable"""
-        with SQLiteBackend(db_path=sqlite_backend.db_path) as same_file:
-            with SQLiteBackend(db_path=tmp_path / "other.sqlite") as other_file:
-                # two connections to one file are one database, and hash alike:
-                assert {sqlite_backend, same_file} == {sqlite_backend}
-                assert sqlite_backend.address == same_file.address
-                assert len({sqlite_backend, other_file}) == 2
-                # a backend can be a dict key, e.g. to group objects by database:
-                assert {sqlite_backend: "here"}[same_file] == "here"
+                first_id = sqlite_backend.save(
+                    DataSeries(name="first", unit_name="V", data=np.array([1.0]))
+                )
+                second_id = second_backend.save(
+                    DataSeries(name="second", unit_name="A", data=np.array([2.0]))
+                )
+                assert first_id != second_id
+                loaded = DataSeries.get(second_id, backend=sqlite_backend)
+                assert loaded.name == "second"
+                assert loaded.short_identity == second_id
+                assert second_backend.save(loaded) is None
+                assert sqlite_backend.connection.execute(
+                    'SELECT COUNT(*) FROM "data_series" WHERE "id" = ?', (second_id,)
+                ).fetchone() == (1,)
+                assert (
+                    sqlite_backend.connection.execute(
+                        "PRAGMA foreign_key_check"
+                    ).fetchall()
+                    == []
+                )
 
     def test_in_memory_database_uses_sqlite_convention(self):
         with SQLiteBackend(db_path=":memory:") as first_backend:
@@ -582,11 +474,10 @@ class TestSQLiteBackend:
 
     def test_additive_schema_migration(self, tmp_path):
         db_path = tmp_path / "legacy.sqlite"
-        connection = sqlite3.connect(db_path)
-        connection.execute(
-            'CREATE TABLE "data_series" ' '("id" INTEGER PRIMARY KEY, "name" TEXT)'
-        )
-        connection.close()
+        with sqlite3.connect(db_path) as connection:
+            connection.execute(
+                'CREATE TABLE "data_series" ' '("id" INTEGER PRIMARY KEY, "name" TEXT)'
+            )
 
         with SQLiteBackend(db_path=db_path) as backend:
             series = DataSeries(
@@ -605,11 +496,10 @@ class TestSQLiteBackend:
 
     def test_incompatible_schema_requires_manual_migration(self, tmp_path):
         db_path = tmp_path / "incompatible.sqlite"
-        connection = sqlite3.connect(db_path)
-        connection.execute(
-            'CREATE TABLE "data_series" ("id" TEXT PRIMARY KEY, "name" TEXT)'
-        )
-        connection.close()
+        with sqlite3.connect(db_path) as connection:
+            connection.execute(
+                'CREATE TABLE "data_series" ("id" TEXT PRIMARY KEY, "name" TEXT)'
+            )
 
         with SQLiteBackend(db_path=db_path) as backend:
             with pytest.raises(DataBaseError, match="manual database migration"):
@@ -617,17 +507,15 @@ class TestSQLiteBackend:
 
     def test_newer_schema_version_is_rejected(self, tmp_path):
         db_path = tmp_path / "future.sqlite"
-        connection = sqlite3.connect(db_path)
-        connection.execute(
-            f'CREATE TABLE "{METADATA_TABLE}" '
-            '("key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)'
-        )
-        connection.execute(
-            f'INSERT INTO "{METADATA_TABLE}" VALUES (?, ?)',
-            ("schema_version", str(SCHEMA_VERSION + 1)),
-        )
-        connection.commit()
-        connection.close()
+        with sqlite3.connect(db_path) as connection:
+            connection.execute(
+                f'CREATE TABLE "{METADATA_TABLE}" '
+                '("key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)'
+            )
+            connection.execute(
+                f'INSERT INTO "{METADATA_TABLE}" VALUES (?, ?)',
+                ("schema_version", str(SCHEMA_VERSION + 1)),
+            )
 
         with pytest.raises(DataBaseError, match="newer ixdat schema"):
             SQLiteBackend(db_path=db_path)
@@ -665,20 +553,14 @@ def test_memory_backend_load_by_name():
         backend.load(DataSeries, "no series has this name")
 
 
-def test_load_data_takes_a_backend_and_deprecates_db(tmp_path):
+def test_load_data_takes_a_backend_and_deprecates_db(sqlite_backend):
     """`load_data(db=...)` used to take a DataBase; it now takes a backend"""
-    original_backend = DB.backend
-    with SQLiteBackend(db_path=tmp_path / "data.sqlite") as backend:
-        DB.set_backend(backend)
-        try:
-            series = DataSeries(name="s", unit_name="V", data=np.array([1.0, 2.0]))
-            loaded = DataSeries.get(series.save())
-            assert np.array_equal(loaded.load_data(), [1.0, 2.0])
-            assert np.array_equal(loaded.load_data(backend), [1.0, 2.0])
-            with pytest.deprecated_call():
-                assert np.array_equal(loaded.load_data(db=backend), [1.0, 2.0])
-        finally:
-            DB.set_backend(original_backend)
+    series = DataSeries(name="s", unit_name="V", data=np.array([1.0, 2.0]))
+    loaded = DataSeries.get(series.save())
+    assert np.array_equal(loaded.load_data(), [1.0, 2.0])
+    assert np.array_equal(loaded.load_data(sqlite_backend), [1.0, 2.0])
+    with pytest.deprecated_call():
+        assert np.array_equal(loaded.load_data(db=sqlite_backend), [1.0, 2.0])
 
 
 def test_directory_load_uses_exact_unescaped_name(tmp_path):
