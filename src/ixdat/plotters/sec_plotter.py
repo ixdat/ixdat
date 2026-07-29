@@ -2,6 +2,12 @@
 
 import matplotlib as mpl
 from . import ECPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter
+from .plot_spec import (
+    combine_plot_specs,
+    ec_measurement_spec,
+    spectrum_series_heatmap_spec,
+)
+from .renderers import _is_matplotlib_backend, get_renderer
 from ..exceptions import SeriesNotFoundError
 
 
@@ -26,6 +32,8 @@ class SECPlotter(SpectroMeasurementPlotter):
         cmap_name="inferno",
         make_colorbar=False,
         continuous=None,
+        backend=None,
+        figure=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with time as x-asis.
@@ -57,6 +65,8 @@ class SECPlotter(SpectroMeasurementPlotter):
                 if available. If the duration is not available, each spectrum heat plot
                 extends to the start of the next one.
                 Defaults to `measurement.spectrum_series.continuous`.
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
 
         Returns:
             list of Axes: axes=[spectra, potential, None, current]
@@ -66,6 +76,30 @@ class SECPlotter(SpectroMeasurementPlotter):
                 axes[3] is the bottom right axis with electrode current
         """
         measurement = measurement or self.measurement
+
+        if not _is_matplotlib_backend(backend):
+            heatmap_spec = spectrum_series_heatmap_spec(
+                measurement.spectrum_series,
+                field=field,
+                tspan=tspan,
+                xspan=xspan,
+                cmap_name=cmap_name,
+                make_colorbar=make_colorbar,
+                continuous=continuous,
+            )
+            ec_spec = ec_measurement_spec(
+                measurement,
+                tspan=tspan,
+                U_name=kwargs.get("U_name"),
+                J_name=kwargs.get("J_name"),
+                U_color=kwargs.get("U_color"),
+                J_color=kwargs.get("J_color"),
+                line_style=kwargs.get("linestyle", kwargs.get("ls")),
+                line_width=kwargs.get("linewidth", kwargs.get("lw")),
+            )
+            plot_spec = combine_plot_specs(heatmap_spec, ec_spec)
+            plot_spec.row_heights = [3, 2]
+            return get_renderer(backend).render(plot_spec, figure=figure)
 
         if not axes:
             axes = self.new_two_panel_axes(

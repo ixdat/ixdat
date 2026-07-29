@@ -1,6 +1,8 @@
 """Plotter for XRD spectra."""
 
 from .base_mpl_plotter import MPLPlotter
+from .plot_spec import xrd_spectrum_spec
+from .renderers import _is_matplotlib_backend, get_renderer
 
 
 class XRDSpectrumPlotter(MPLPlotter):
@@ -10,15 +12,25 @@ class XRDSpectrumPlotter(MPLPlotter):
         super().__init__()
         self.spectrum = spectrum
 
-    def plot(self, *, spectrum=None, ax=None, **kwargs):
+    def plot(self, *, spectrum=None, ax=None, backend=None, figure=None, **kwargs):
         """Plot intensity vs x with a shaded y+/-e band if error data is present.
 
         Args:
             spectrum (XRDSpectrum): Defaults to self.spectrum.
             ax (mpl.Axis): Axis to plot on. A new one is made by default.
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
             kwargs: Passed to ax.plot() for the intensity line.
         """
         spectrum = spectrum or self.spectrum
+        if not _is_matplotlib_backend(backend):
+            plot_spec = xrd_spectrum_spec(
+                spectrum,
+                color=kwargs.get("color"),
+                line_style=kwargs.get("linestyle", kwargs.get("ls")),
+                line_width=kwargs.get("linewidth", kwargs.get("lw")),
+            )
+            return get_renderer(backend).render(plot_spec, figure=figure)
         if not ax:
             ax = self.new_ax()
         x = spectrum.x

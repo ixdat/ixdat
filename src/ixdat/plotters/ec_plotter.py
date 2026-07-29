@@ -3,6 +3,8 @@
 import warnings
 import numpy as np
 from . import MPLPlotter, color_axis
+from .plot_spec import ec_measurement_spec, ec_vs_potential_spec
+from .renderers import _is_matplotlib_backend, get_renderer
 from ..tools import deprecate
 from ..exceptions import SeriesNotFoundError
 
@@ -40,6 +42,8 @@ class ECPlotter(MPLPlotter):
         J_str=None,
         V_color=None,
         axes=None,
+        backend=None,
+        figure=None,
         **plot_kwargs,
     ):
         """Plot two variables on two y-axes vs time
@@ -55,6 +59,8 @@ class ECPlotter(MPLPlotter):
             tspan (iter of float): The timespan (wrt to measurement.tstamp) to plot.
             axes (list of matplotlib.Axis): Two axes to plot on, if not the default
                 new twinx()'d axes. axes[0] is for `U_name` and axes[1] for `J_name`.
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
             U_name (string): The name of the ValueSeries to plot on the left y-axis.
                 Defaults to measurement.V_str, which for an ECMeasurement is the name
                 of its most calibrated/correct potential.
@@ -80,6 +86,19 @@ class ECPlotter(MPLPlotter):
         U_name = U_name or V_str
         J_name = J_name or J_str
         U_color = U_color or V_color
+
+        if not _is_matplotlib_backend(backend):
+            plot_spec = ec_measurement_spec(
+                measurement,
+                tspan=tspan,
+                U_name=U_name,
+                J_name=J_name,
+                U_color=U_color,
+                J_color=J_color,
+                line_style=plot_kwargs.get("linestyle", plot_kwargs.get("ls")),
+                line_width=plot_kwargs.get("linewidth", plot_kwargs.get("lw")),
+            )
+            return get_renderer(backend).render(plot_spec, figure=figure)
 
         # apply defaults.
         U_name = U_name or measurement.U_name
@@ -122,6 +141,8 @@ class ECPlotter(MPLPlotter):
         U_name=None,
         J_name=None,
         ax=None,
+        backend=None,
+        figure=None,
         **plot_kwargs,
     ):
         """Plot an ECMeasurement with electrode potential on the x-axis.
@@ -146,6 +167,8 @@ class ECPlotter(MPLPlotter):
             U_name (str): Name of the x-axis variable. Defaults to calibrated potential
             J_name (str): Name of the y-axis variable. Defaults to normalized current.
             ax (matplotlib.pyplot.Axis): The axis to plot on, if not a new one.
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
             **plot_kwargs (dict): Additional key-word arguments are passed to
                 matplotlib's plot() function. See below for a few examples
 
@@ -159,6 +182,17 @@ class ECPlotter(MPLPlotter):
         measurement = measurement or self.measurement
         U_name = U_name or measurement.U_name
         J_name = J_name or measurement.J_name
+        if not _is_matplotlib_backend(backend):
+            plot_spec = ec_vs_potential_spec(
+                measurement,
+                tspan=tspan,
+                U_name=U_name,
+                J_name=J_name,
+                color=plot_kwargs.get("color"),
+                line_style=plot_kwargs.get("linestyle", plot_kwargs.get("ls")),
+                line_width=plot_kwargs.get("linewidth", plot_kwargs.get("lw")),
+            )
+            return get_renderer(backend).render(plot_spec, figure=figure)
         t_v, v = measurement.grab(U_name, tspan=tspan)
         t_j, j = measurement.grab(J_name, tspan=tspan)
 

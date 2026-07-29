@@ -1,5 +1,13 @@
 import warnings
 from . import MPLPlotter, MSPlotter, color_axis
+from .plot_spec import (
+    combine_plot_specs,
+    ms_measurement_spec,
+    spectrum_series_heatmap_spec,
+    time_series_spec,
+)
+from .renderers import _is_matplotlib_backend, get_renderer
+from .ms_plotter import STANDARD_COLORS as MS_STANDARD_COLORS
 from ..data_series import Field
 import numpy as np
 
@@ -38,6 +46,8 @@ class TPMSPlotter(MPLPlotter):
         logdata=None,
         legend=True,
         emphasis="top",
+        backend=None,
+        figure=None,
         **kwargs,
     ):
         """Make a two panel plot with mass spec data on top panel and meta data on bottom
@@ -93,6 +103,8 @@ class TPMSPlotter(MPLPlotter):
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels, "one figure" to plot all in
                 one figure
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -105,6 +117,64 @@ class TPMSPlotter(MPLPlotter):
         """
 
         measurement = measurement or self.measurement
+
+        if not _is_matplotlib_backend(backend):
+            T_name = T_name or measurement.T_name
+            P_name = P_name or measurement.P_name
+            T_names = T_names or [T_name]
+            P_names = P_names or [P_name]
+            ms_spec = ms_measurement_spec(
+                measurement,
+                mass_list=mass_list,
+                mass_lists=mass_lists,
+                mol_list=mol_list,
+                mol_lists=mol_lists,
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                unit=unit,
+                x_unit=x_unit,
+                logplot=logplot,
+                logdata=logdata,
+                color_map={**MS_STANDARD_COLORS, **STANDARD_COLORS},
+                line_style=kwargs.get("linestyle", kwargs.get("ls")),
+                line_width=kwargs.get("linewidth", kwargs.get("lw")),
+            )
+            colors = dict(STANDARD_COLORS)
+            if T_color:
+                colors[T_name] = T_color
+            if P_color:
+                colors[P_name] = P_color
+            T_label, T_factors = _get_meta_label_and_factors(
+                measurement,
+                T_names,
+                meta_units=TP_units,
+            )
+            P_label, P_factors = _get_meta_label_and_factors(
+                measurement,
+                P_names,
+                meta_units=TP_units,
+            )
+            tp_spec = time_series_spec(
+                measurement,
+                left_names=T_names,
+                right_names=P_names,
+                tspan=tspan,
+                left_label=T_label,
+                right_label=P_label,
+                colors=colors,
+                value_factors={**T_factors, **P_factors},
+                x_unit=x_unit,
+                line_style=kwargs.get("linestyle", kwargs.get("ls")),
+                line_width=kwargs.get("linewidth", kwargs.get("lw")),
+            )
+            plot_spec = combine_plot_specs(ms_spec, tp_spec)
+            plot_spec.show_legend = legend
+            plot_spec.row_heights = {
+                "top": [3, 2],
+                "bottom": [2, 3],
+            }.get(emphasis, [1, 1])
+            return get_renderer(backend).render(plot_spec, figure=figure)
 
         if not axes:
             axes = self.new_two_panel_axes(
@@ -619,6 +689,8 @@ class TPMSSpectroPlotter(MPLPlotter):
         vmin=None,
         vmax=None,
         emphasis="middle",
+        backend=None,
+        figure=None,
         **kwargs,
     ):
         """Make a three panel spectro TP-MS plot vs time and return the axis handles.
@@ -680,6 +752,8 @@ class TPMSSpectroPlotter(MPLPlotter):
 
             vmin (float): Value used to shift colours in the colorbar to lower values
             vmax (float): Value to shift colours in the colorbar to higher values
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -692,6 +766,65 @@ class TPMSSpectroPlotter(MPLPlotter):
                 axes[4] is bottom_right is pressure.
         """
         measurement = measurement or self.measurement
+
+        if not _is_matplotlib_backend(backend):
+            heatmap_spec = spectrum_series_heatmap_spec(
+                measurement.spectrum_series,
+                tspan=tspan,
+                xspan=xspan,
+                cmap_name=cmap_name,
+                make_colorbar=make_colorbar,
+                max_threshold=max_threshold,
+                min_threshold=min_threshold,
+                scanning_mask=scanning_mask,
+                vmin=vmin,
+                vmax=vmax,
+                x_unit=x_unit,
+            )
+            ms_spec = ms_measurement_spec(
+                measurement,
+                mass_list=mass_list,
+                mass_lists=mass_lists,
+                mol_list=mol_list,
+                mol_lists=mol_lists,
+                tspan=tspan,
+                tspan_bg=tspan_bg,
+                remove_background=remove_background,
+                unit=unit,
+                x_unit=x_unit,
+                logplot=logplot,
+                color_map={**MS_STANDARD_COLORS, **STANDARD_COLORS},
+                line_style=kwargs.get("linestyle", kwargs.get("ls")),
+                line_width=kwargs.get("linewidth", kwargs.get("lw")),
+            )
+            T_name = T_name or measurement.T_name
+            P_name = P_name or measurement.P_name
+            T_label, T_factors = _get_meta_label_and_factors(
+                measurement,
+                [T_name],
+                meta_units=meta_units,
+            )
+            P_label, P_factors = _get_meta_label_and_factors(
+                measurement,
+                [P_name],
+                meta_units=meta_units,
+            )
+            tp_spec = time_series_spec(
+                measurement,
+                left_names=[T_name],
+                right_names=[P_name],
+                tspan=tspan,
+                left_label=T_label,
+                right_label=P_label,
+                colors={T_name: T_color, P_name: P_color},
+                value_factors={**T_factors, **P_factors},
+                x_unit=x_unit,
+                line_style=kwargs.get("linestyle", kwargs.get("ls")),
+                line_width=kwargs.get("linewidth", kwargs.get("lw")),
+            )
+            plot_spec = combine_plot_specs(heatmap_spec, ms_spec, tp_spec)
+            plot_spec.show_legend = legend
+            return get_renderer(backend).render(plot_spec, figure=figure)
 
         if not axes:
             axes = self.new_three_panel_axes(
@@ -728,6 +861,7 @@ class TPMSSpectroPlotter(MPLPlotter):
             P_name=P_name,
             T_color=T_color,
             P_color=P_color,
+            TP_units=meta_units,
             **kwargs,
         )
 
@@ -1000,20 +1134,7 @@ def _get_y_unit_and_label(data_series, meta_units):
     Will be obsolete when pint is implemented"""
 
     name = data_series.name
-    if "temperatur" in name.lower():
-        ylabel = "temperature"
-    elif "flow" in name.lower():
-        ylabel = "flow rate"
-    elif "pressure" in name.lower():
-        ylabel = "pressure"
-    elif "current" in name.lower():
-        ylabel = "current"
-    elif "voltage" in name.lower():
-        ylabel = "voltage"
-    elif "power" in name.lower():
-        ylabel = "power"
-    else:
-        ylabel = " "
+    ylabel = _get_y_label(name)
 
     new_unit_name = data_series.unit.name
     if meta_units:
@@ -1028,6 +1149,43 @@ def _get_y_unit_and_label(data_series, meta_units):
     )
 
     return ylabel, y_unit_name, y_unit_factor
+
+
+def _get_y_label(name):
+    """Return the axis quantity described by a metadata series name."""
+    if "temperatur" in name.lower():
+        return "temperature"
+    elif "flow" in name.lower():
+        return "flow rate"
+    elif "pressure" in name.lower():
+        return "pressure"
+    elif "current" in name.lower():
+        return "current"
+    elif "voltage" in name.lower():
+        return "voltage"
+    elif "power" in name.lower():
+        return "power"
+    return " "
+
+
+def _get_meta_label_and_factors(measurement, names, meta_units=None):
+    """Return one unit-aware axis label and a scale factor for each series."""
+    factors = {}
+    y_label = "signal"
+    y_unit = "mixed"
+    for name in names:
+        data_series = measurement[name]
+        requested_unit = (meta_units or {}).get(name, data_series.unit.name)
+        if requested_unit == data_series.unit.name:
+            y_label = _get_y_label(data_series.name)
+            y_unit = data_series.unit.name
+            factors[name] = 1
+        else:
+            y_label, y_unit, factors[name] = _get_y_unit_and_label(
+                data_series,
+                meta_units=meta_units,
+            )
+    return f"{y_label} / [{y_unit.strip()}]", factors
 
 
 def _get_unit_factor_and_name(new_unit_name, from_unit_name):

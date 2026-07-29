@@ -8,6 +8,22 @@ from .plotting_tools import (
     calc_linear_background,
 )
 from .base_mpl_plotter import MPLPlotter
+from .backends import (
+    available_plotter_backends,
+    get_renderer,
+    register_plotter_backend,
+    unregister_plotter_backend,
+)
+from .plot_spec import (
+    AxisSpec,
+    ColorScaleSpec,
+    ErrorBand,
+    HeatmapTrace,
+    LineTrace,
+    PanelSpec,
+    PlotSpec,
+)
+from .renderers import MatplotlibRenderer, PlotlyRenderer
 from .value_plotter import ValuePlotter
 from .spectrum_plotter import (
     SpectrumPlotter,

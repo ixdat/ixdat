@@ -1,6 +1,8 @@
 """Classes for plotting measurement data"""
 
 from . import MPLPlotter
+from .plot_spec import value_measurement_spec
+from .renderers import _is_matplotlib_backend, get_renderer
 from ..exceptions import SeriesNotFoundError
 
 
@@ -23,6 +25,8 @@ class ValuePlotter(MPLPlotter):
         ax=None,
         legend=True,
         logscale=False,
+        backend=None,
+        figure=None,
     ):
         """Plot a measurement's values vs time
 
@@ -33,23 +37,35 @@ class ValuePlotter(MPLPlotter):
             tspan (timespan): The timespan to include in the file, defaults to all of it
             legend (bool): Whether to include a legend. Defaults to True.
             logscale (bool): Whether to use a log-scaled y-axis. Defaults to False.
+            backend (str): ``"matplotlib"`` or ``"plotly"``.
+            figure: Plotly figure to add the plot to.
         """
         measurement = measurement or self.measurement
-        if not ax:
-            ax = self.new_ax()
-        v_list = v_list or measurement.value_names
+        if _is_matplotlib_backend(backend):
+            if not ax:
+                ax = self.new_ax()
+            v_list = v_list or measurement.value_names
 
-        for v_name in v_list:
-            try:
-                v, t = measurement.grab(v_name, tspan=tspan)
-            except SeriesNotFoundError as e:
-                print(f"WARNING!!! {e}")
-                continue
-            ax.plot(v, t, label=v_name)
+            for v_name in v_list:
+                try:
+                    v, t = measurement.grab(v_name, tspan=tspan)
+                except SeriesNotFoundError as e:
+                    print(f"WARNING!!! {e}")
+                    continue
+                ax.plot(v, t, label=v_name)
 
-        if legend:
-            ax.legend()
-        if logscale:
-            ax.set_yscale("log")
+            if legend:
+                ax.legend()
+            if logscale:
+                ax.set_yscale("log")
 
-        return ax
+            return ax
+
+        plot_spec = value_measurement_spec(
+            measurement,
+            v_list=v_list,
+            tspan=tspan,
+            logscale=logscale,
+        )
+        plot_spec.show_legend = legend
+        return get_renderer(backend).render(plot_spec, figure=figure)
