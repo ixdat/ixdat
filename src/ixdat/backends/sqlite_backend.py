@@ -1,35 +1,10 @@
-"""This module implements an SQLite database backend for ixdat
+"""SQLite storage backend for ixdat.
 
-Saves and loads ixdat objects using Python's built-in ``sqlite3`` module, so no
-extra dependency is needed. The table layout isn't written by hand - it's built
-from the same table info each Saveable class already carries (see
-:module:`~ixdat.backends.relational`). Tables are created the first time they're
-needed, so any Saveable class, including ones from external plugins, works here
-without extra setup.
+SQLiteBackend stores complete ixdat object graphs in one SQLite file using the
+table descriptions from ixdat.backends.relational.
 
-Basic usage::
-
-    from ixdat.db import change_database
-
-    change_database("sqlite", db_path="my_project.sqlite")
-    measurement.save()
-    ...
-    loaded = Measurement.get(1)
-    loaded = Measurement.load("my measurement")  # or, by name
-
-Numeric arrays (numpy data) are stored as blobs and are only read from the
-database when ``.data`` is actually accessed, so opening an object stays fast
-even in a large project.
-
-Saving an object and everything it references happens in one transaction, so a
-crash partway through can't leave the database half-written. The first time a
-table is used, it's checked against what the current Saveable class expects;
-missing columns are added automatically, and anything that can't be changed
-safely raises a :class:`~ixdat.exceptions.DataBaseError` instead of silently
-doing the wrong thing.
-
-Note: one SQLiteBackend belongs to the thread that created it - this is just how
-Python's sqlite3 module works. Make a separate backend instance per thread.
+See :ref:`backend` for usage, persistence guarantees, schema updates, and
+connection lifetimes.
 """
 
 import json

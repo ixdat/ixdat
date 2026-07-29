@@ -1,47 +1,11 @@
-"""This module derives a relational database schema from ixdat's Saveable classes
+"""Derive backend-neutral table descriptions from Saveable metadata.
 
-Every Saveable class already says how it should be saved:
+This module converts the persistence information on Saveable classes into
+ColumnSchema, TableSchema, and LinkerTableSchema objects for relational
+backends.
 
-- ``table_name`` is the name of its main table,
-- ``column_attrs`` are the attributes stored as columns of that table,
-- ``extra_column_attrs`` names *extension tables*: one extra table per subclass
-  that adds its own columns without changing the shared main table (e.g. the
-  "ec_measurements" table adds "ec_technique" to rows of "measurement"), and
-- ``extra_linkers`` names *linker tables*, which record ordered references from
-  a row to several rows of another table (e.g. "measurement_series" records
-  which data series belong to which measurement, and in what order),
-- ``column_types`` gives the Python type of the columns where it matters, and
-- ``column_references`` names the columns which hold the id of a row of another
-  table (e.g. a spectrum's "field_id" refers to the "data_series" table).
-
-This module turns that information into plain table descriptions (`TableSchema`
-and `LinkerTableSchema`) that don't depend on any particular database - a
-backend (see :class:`~ixdat.backends.sqlite_backend.SQLiteBackend`) then turns
-those into real SQL. This continues the work started in PR #75
-(https://github.com/ixdat/ixdat/pull/75), using ixdat's existing class
-attributes as the source of truth.
-
-Classes that share a ``table_name`` (e.g. every Measurement subclass) share one
-main table; each subclass's own extra attributes go in its own extension table,
-linked back to the main table's id. The backend determines a row's subclass the
-same way the directory backend does, from a column like "technique" or
-"calculator_type".
-
-A column's Python type tells a backend how to store its value. The SQLite backend
-maps ``int``, ``float``, and ``str`` to scalar columns, ``dict``, ``list``, and
-``tuple`` to JSON, and ``numpy.ndarray`` to a lazily loaded binary payload. ``None``
-means that a column has no fixed type.
-
-A class states these in ``column_types``, alongside the ``column_attrs`` that
-introduce the columns, and they are merged over the class's ancestry by
-``Saveable.get_column_types()``. An undeclared scalar column uses its runtime
-Python type, so a new class with a plain str/int/float attribute needs no type
-declaration. ``column_references``, merged the same way by
-``Saveable.get_column_references()``, says which columns hold the id of a row of
-another table, and thus become foreign keys.
-
-Keeping this on the classes lets external ixdat classes define columns of any
-supported type through their own declarations.
+See :ref:`backend` for the persistence model, supported types, inheritance,
+and linked objects.
 """
 
 import numpy as np
