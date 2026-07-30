@@ -72,6 +72,46 @@ techniques
 plotters
 ^^^^^^^^
 
+- Supported plot methods accept ``backend="plotly"`` and return interactive Plotly
+  figures.
+  The shipped renderer supports generic, EC, MS, composite spectro-measurement,
+  time-resolved XRF, spectrum, and spectrum-series plots. Plotly labels escape angle
+  brackets so series names such as ``<I>`` render literally. A Python gallery and a
+  short notebook compare Matplotlib and Plotly.
+
+- Plotly links the x-axes of multi-panel time plots, hides upper time labels, and uses
+  unified time hover across every panel. Plotly figures use the Matplotlib canvas
+  aspect ratio, frame each panel with a black border, omit grid lines, and reserve
+  margins for axis titles and legends. Outward ticks space tick labels from each
+  panel border. Paired y-axes use each trace's color for the axis title, ticks, and
+  tick labels. The colored axes replace their trace legend entries. Spectro-TP-MS
+  mass traces use the MS color palette, and stacked Plotly spectra use distinct
+  trace colors. TP-MS temperature and pressure axes include their units, and
+  requested metadata-unit conversions scale both the labels and values. Composite
+  plots apply the requested time unit to every panel and follow Matplotlib's panel
+  proportions. Spectrum-series heatmaps follow their continuous or duration-based
+  layout. Common color, line-style, and line-width arguments reach Plotly traces.
+
+- Stacked Matplotlib plots use shared time axes attached to one explicit figure. The
+  bottom panel provides the visible time axis; upper panels hide their time labels.
+  Scientific scale text such as ``1e-9`` appears inside lower panels so adjacent
+  panels keep it visible.
+
+- ``PlotSpec`` describes panels, axes, lines, error bands, heatmaps, and continuous
+  color scales independently of a plotting library. A central adapter registry maps
+  Matplotlib plotter methods to these descriptions. Reader implementations continue
+  to assign Matplotlib plotters. A reader whose plotter has no adapter remains usable
+  through Matplotlib; a request for Plotly issues ``PlotterBackendWarning`` and
+  returns the Matplotlib result.
+
+- Additional renderers can be registered by name with
+  ``register_plotter_backend(name, renderer_class)``. ixdat ships the
+  ``"matplotlib"`` and ``"plotly"`` renderers. The Plotly renderer can configure a
+  plain ``plotly.graph_objects.Figure`` or add traces to a compatible ixdat subplot
+  figure. ``register_plotter_adapter()`` adds renderer coverage for a plotter method
+  without changing the Matplotlib plotter class. It can be used as a decorator on
+  the adapter function.
+
 - New ``NMRPlotter`` in ``ixdat.plotters.nmr_plotter``: subclasses
   ``SpectrumPlotter`` and inverts the x-axis so ``spec.plot()`` gives the
   standard NMR view out of the box.

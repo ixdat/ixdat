@@ -26,6 +26,7 @@ from .projects.samples import Sample
 from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
+from .plotters.backends import bind_plotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
 from .tools import tstamp_to_string, deprecate
 
@@ -150,6 +151,27 @@ class Measurement(Saveable):
         # TODO: ... but we need to think a bit more about how to most elegantly and
         #    dynamically choose plotters (Nice idea from Anna:
         #    https://github.com/ixdat/ixdat/issues/32)
+
+    @property
+    def plotter(self):
+        """Return the Matplotlib plotter attached to this measurement."""
+        return self._plotter
+
+    @plotter.setter
+    def plotter(self, plotter):
+        """Attach a Matplotlib plotter and connect its methods to other renderers.
+
+        :func:`~ixdat.plotters.backends.bind_plotter` wraps the public plot methods
+        on this plotter instance. The wrapper calls the original method for normal
+        Matplotlib plots. A request such as ``backend="plotly"`` uses a registered
+        adapter to build a ``PlotSpec`` for the selected renderer.
+
+        This setter runs whenever a measurement receives a plotter, including a
+        plotter supplied by a new reader or measurement class. Reader authors only
+        need to supply the Matplotlib plotter. Plotly support can be registered in a
+        separate adapter when it is available.
+        """
+        self._plotter = bind_plotter(plotter, owner=self)
 
     def __str__(self):
         """Return string representation"""

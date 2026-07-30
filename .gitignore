@@ -3,6 +3,7 @@
 development_scripts/**/*.png
 development_scripts/**/*.svg
 development_scripts/**/*.csv
+development_scripts/demo_plotly_backend.html
 docs/source/tutorials/tutorials_repo/**/*
 !docs/source/tutorials/tutorials_repo/**/
 !docs/source/tutorials/tutorials_repo/**/*.ipynb
