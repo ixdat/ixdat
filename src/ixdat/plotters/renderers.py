@@ -1,4 +1,16 @@
-"""Render backend-neutral plot descriptions."""
+"""Draw a ``PlotSpec`` with a selected figure library.
+
+A ``PlotSpec`` is a library-independent recipe containing panels, axes, and traces.
+A renderer turns that recipe into real figure objects. ``PlotlyRenderer`` creates
+interactive Plotly figures. ``MatplotlibRenderer`` creates Matplotlib axes for code
+that works directly with a ``PlotSpec``.
+
+Normal calls with ``backend="matplotlib"`` use the original technique plotters.
+They do not pass through ``MatplotlibRenderer``. Keeping ``MatplotlibRenderer`` gives
+tests and extension code one common way to draw a ``PlotSpec`` with Matplotlib. It
+also creates a second, smaller Matplotlib drawing path that covers the shared
+``PlotSpec`` features.
+"""
 
 from html import escape
 
@@ -11,10 +23,24 @@ _RENDERER_CLASSES = {}
 
 
 class MatplotlibRenderer:
-    """Turn a plot description into Matplotlib axes."""
+    """Draw a ``PlotSpec`` as Matplotlib axes.
+
+    This class serves code that starts with a ``PlotSpec``. Measurement and spectrum
+    calls using the Matplotlib backend call their original plotter methods directly,
+    preserving each technique's axes order, return type, and interactive behavior.
+
+    ``MatplotlibRenderer`` covers the common pieces represented by ``PlotSpec``:
+    panels, left and right y-axes, lines, error bands, heatmaps, color scales, and
+    legends. It is a compact reference renderer for tests and extensions.
+    """
 
     def render(self, plot_spec, axes=None):
-        """Render ``plot_spec`` and return one axis or a list of axes."""
+        """Draw ``plot_spec`` and return one Matplotlib axis or a list of axes.
+
+        Args:
+            plot_spec (PlotSpec): Panels, axes, and traces to draw.
+            axes: Optional Matplotlib axes to reuse.
+        """
         supplied_right_axes = []
         if axes is None:
             gridspec_kw = (
@@ -102,10 +128,19 @@ class MatplotlibRenderer:
 
 
 class PlotlyRenderer:
-    """Turn a plot description into an interactive Plotly figure."""
+    """Draw a ``PlotSpec`` as an interactive Plotly figure."""
 
     def render(self, plot_spec, figure=None):
-        """Render ``plot_spec`` and return a Plotly figure."""
+        """Draw ``plot_spec`` and return a ``plotly.graph_objects.Figure``.
+
+        A plain supplied figure receives the subplot layout required by the
+        description. A figure returned by the same ixdat plot method can receive
+        more traces.
+
+        Args:
+            plot_spec (PlotSpec): Panels, axes, and traces to draw.
+            figure: Optional Plotly figure to reuse.
+        """
         go, make_subplots = _import_plotly()
         panel_count = len(plot_spec.panels)
         secondary_y = [panel.right_axis is not None for panel in plot_spec.panels]
@@ -300,12 +335,16 @@ class PlotlyRenderer:
 
 
 def register_plotter_backend(name, renderer_class, overwrite=False):
-    """Register a class that renders :class:`~ixdat.plotters.plot_spec.PlotSpec`.
+    """Make a renderer class available through ``backend=name``.
+
+    A renderer class turns a :class:`~ixdat.plotters.plot_spec.PlotSpec` into figure
+    objects. It must provide ``render(plot_spec, **kwargs)``. Registering a renderer
+    makes it available to every plotter method that has an adapter.
 
     Args:
-        name (str): Name accepted by plotting methods as ``backend``.
-        renderer_class (type): Class with a ``render(plot_spec, ...)`` method.
-        overwrite (bool): Replace a renderer registered under the same name.
+        name (str): Name users pass to a plot method as ``backend``.
+        renderer_class (type): Class that draws a ``PlotSpec``.
+        overwrite (bool): Replace an extension renderer with the same name.
     """
     name = _normalize_backend_name(name)
     if not isinstance(renderer_class, type):
@@ -324,7 +363,7 @@ def register_plotter_backend(name, renderer_class, overwrite=False):
 
 
 def unregister_plotter_backend(name):
-    """Remove and return a registered renderer class."""
+    """Remove an extension renderer and return its class."""
     name = _normalize_backend_name(name)
     if name in ("matplotlib", "plotly"):
         raise ValueError(f"'{name}' is a built-in plotter backend.")
@@ -332,12 +371,12 @@ def unregister_plotter_backend(name):
 
 
 def available_plotter_backends():
-    """Return backend names accepted by plotting methods."""
+    """List the renderer names that plot methods accept as ``backend``."""
     return tuple(sorted(_RENDERER_CLASSES))
 
 
 def get_renderer(backend=None):
-    """Return the renderer named by ``backend``."""
+    """Create and return the renderer selected by ``backend``."""
     name = "matplotlib" if backend is None else _normalize_backend_name(backend)
     try:
         renderer_class = _RENDERER_CLASSES[name]
@@ -350,12 +389,12 @@ def get_renderer(backend=None):
 
 
 def _is_matplotlib_backend(backend):
-    """Return whether a backend selection uses ixdat's direct Matplotlib path."""
+    """Check whether this call should use its original Matplotlib plot method."""
     return backend is None or _normalize_backend_name(backend) == "matplotlib"
 
 
 def _set_matplotlib_axis(ax, axis_spec, direction):
-    """Apply an axis description to one Matplotlib axis."""
+    """Copy labels, color, scale, and direction from a description to one axis."""
     if direction == "x":
         if axis_spec.label:
             ax.set_xlabel(axis_spec.label)
@@ -375,12 +414,12 @@ def _set_matplotlib_axis(ax, axis_spec, direction):
 
 
 def _plotly_axis_type(scale):
-    """Translate a common scale name to Plotly."""
+    """Return Plotly's name for a linear or logarithmic scale."""
     return "log" if scale == "log" else "linear"
 
 
 def _validate_plotly_subplot_grid(figure, secondary_y):
-    """Check that a supplied Plotly subplot grid can hold the plot description."""
+    """Check that a supplied Plotly figure has the required rows and y-axes."""
     grid = figure._grid_ref
     compatible_rows = len(grid) == len(secondary_y) and all(
         len(row) == 1 for row in grid
@@ -399,7 +438,7 @@ def _validate_plotly_subplot_grid(figure, secondary_y):
 
 
 def _plotly_dash(line_style):
-    """Translate common Matplotlib line styles to Plotly."""
+    """Return Plotly's name for a common Matplotlib line style."""
     return {
         "-": "solid",
         "--": "dash",
@@ -413,7 +452,7 @@ def _plotly_dash(line_style):
 
 
 def _plotly_color(color):
-    """Translate Matplotlib's one-letter colors to CSS color names."""
+    """Turn a Matplotlib color value into a color Plotly accepts."""
     color = {
         "k": "black",
         "r": "red",
@@ -433,7 +472,7 @@ def _plotly_color(color):
 
 
 def _matplotlib_scaled_color(trace):
-    """Return a Matplotlib color sampled from a trace's color scale."""
+    """Choose a Matplotlib line color from a trace's continuous color scale."""
     if trace.color_value is None or not trace.color_range:
         return None
     from matplotlib import cm, colors
@@ -444,7 +483,7 @@ def _matplotlib_scaled_color(trace):
 
 
 def _plotly_scaled_color(trace):
-    """Return a Plotly color sampled from a trace's color scale."""
+    """Choose a Plotly line color from a trace's continuous color scale."""
     if trace.color_value is None or not trace.color_range:
         return None
     from plotly.colors import sample_colorscale
@@ -455,7 +494,7 @@ def _plotly_scaled_color(trace):
 
 
 def _add_matplotlib_colorbar(ax, color_scale):
-    """Add the continuous line-color scale to a Matplotlib axis."""
+    """Add a colorbar that explains continuous line colors on a Matplotlib axis."""
     from matplotlib import cm, colors
 
     normalizer = colors.Normalize(*color_scale.value_range)
@@ -467,7 +506,7 @@ def _add_matplotlib_colorbar(ax, color_scale):
 
 
 def _add_plotly_colorbar(figure, go, color_scale, row):
-    """Add the continuous line-color scale to a Plotly panel."""
+    """Add a colorbar that explains continuous line colors on a Plotly panel."""
     lower, upper = color_scale.value_range
     figure.add_trace(
         go.Scatter(
@@ -491,7 +530,7 @@ def _add_plotly_colorbar(figure, go, color_scale, row):
 
 
 def _rgba(color, alpha):
-    """Return a Plotly fill color."""
+    """Return a Plotly color string with the requested transparency."""
     color = _plotly_color(color or "black")
     try:
         from matplotlib.colors import to_rgb
@@ -506,7 +545,7 @@ def _rgba(color, alpha):
 
 
 def _import_plotly():
-    """Import Plotly or raise an installation-focused error."""
+    """Load Plotly when first used and explain how to install it when unavailable."""
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
@@ -519,12 +558,12 @@ def _import_plotly():
 
 
 def _escape_plotly_label(label):
-    """Escape label text that Plotly interprets as HTML."""
+    """Keep characters such as ``<`` visible in Plotly labels."""
     return None if label is None else escape(str(label))
 
 
 def _normalize_backend_name(name):
-    """Return the normalized form of a backend name."""
+    """Trim and lowercase a renderer name supplied by a user."""
     if not isinstance(name, str):
         raise TypeError("A plotter backend name must be a string.")
     name = name.strip().lower()

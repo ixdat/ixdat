@@ -1,4 +1,36 @@
-"""Built-in adapters from Matplotlib plotter calls to ``PlotSpec`` objects."""
+"""Describe supported plotter calls for renderers such as Plotly.
+
+An adapter connects one existing Matplotlib plot method to a ``PlotSpec`` builder.
+The adapter receives two values:
+
+``owner``
+    The measurement, spectrum, or spectrum series being plotted.
+``arguments``
+    A mapping from the original Matplotlib method's parameter names to the values
+    used for this call. Default values are included.
+
+Adding a reader for an existing data type requires no adapter work because the data
+type keeps its registered plotter. A reader that introduces a new plotter can add
+renderer support in three small steps:
+
+1. Write a function that accepts ``owner`` and ``arguments``.
+2. Reuse the nearest ``*_spec()`` builder, or compose a new ``PlotSpec``.
+3. Register the function for the plotter class and public method name.
+
+For example::
+
+    @register_plotter_adapter(NewPlotter, "plot_measurement")
+    def _new_measurement_adapter(owner, arguments):
+        return value_measurement_spec(
+            owner,
+            v_list=arguments["v_list"],
+            tspan=arguments["tspan"],
+        )
+
+Built-in adapters are imported during ixdat startup, so their registrations apply
+to every instance of the matching plotter class. The Matplotlib plotter remains the
+complete plotting path while an adapter is being developed.
+"""
 
 from .backends import register_plotter_adapter
 from .ec_plotter import ECPlotter
@@ -32,7 +64,7 @@ from .xrf_plotter import ECTRXRFPlotter, TRXRFPlotter
 
 
 def _keyword_arguments(arguments):
-    """Return ordinary and variadic keyword arguments in one dictionary."""
+    """Combine named parameters and values collected by ``**kwargs``."""
     parameters = dict(arguments)
     parameters.pop("args", None)
     for name in ("kwargs", "plot_kwargs"):
@@ -41,7 +73,7 @@ def _keyword_arguments(arguments):
 
 
 def _line_settings(parameters):
-    """Return the common line settings from plot keyword arguments."""
+    """Read common line style and width names from a plot call."""
     return {
         "line_style": parameters.get("linestyle", parameters.get("ls")),
         "line_width": parameters.get("linewidth", parameters.get("lw")),
@@ -49,17 +81,17 @@ def _line_settings(parameters):
 
 
 def _measurement(owner, parameters):
-    """Return the explicitly supplied measurement or the bound owner."""
+    """Choose the measurement given in the call, then fall back to ``owner``."""
     return parameters.get("measurement") or owner
 
 
 def _spectrum(owner, parameters):
-    """Return the explicitly supplied spectrum or the bound owner."""
+    """Choose the spectrum given in the call, then fall back to ``owner``."""
     return parameters.get("spectrum") or owner
 
 
 def _spectrum_series(owner, parameters):
-    """Return the explicitly supplied spectrum series or the bound owner."""
+    """Choose the spectrum series given in the call, then fall back to ``owner``."""
     return parameters.get("spectrum_series") or owner
 
 
@@ -112,7 +144,7 @@ def _ec_vs_potential_adapter(owner, arguments):
 
 
 def _ms_spec(measurement, parameters, color_map=None):
-    """Build an MS plot description from bound method arguments."""
+    """Describe an MS plot using the values from its Matplotlib method call."""
     return ms_measurement_spec(
         measurement,
         mass_list=parameters.get("mass_list"),
@@ -200,7 +232,7 @@ def _ecms_adapter(owner, arguments):
 
 
 def _sec_spec(measurement, parameters, field=None):
-    """Build a spectral heatmap and EC time plot."""
+    """Describe a spectral heatmap above an EC time plot."""
     heatmap_spec = spectrum_series_heatmap_spec(
         measurement.spectrum_series,
         field=field or parameters.get("field"),
@@ -241,7 +273,7 @@ def _ec_optical_adapter(owner, arguments):
 
 
 def _metadata_label_and_factors(measurement, names, meta_units=None):
-    """Return an axis label and scale factors for metadata series."""
+    """Build one unit label and the value conversion for each metadata series."""
     factors = {}
     y_label = "signal"
     y_unit = "mixed"
@@ -255,7 +287,7 @@ def _metadata_label_and_factors(measurement, names, meta_units=None):
 
 
 def _tp_spec(measurement, parameters, meta_units_name="TP_units"):
-    """Build temperature and pressure traces against time."""
+    """Describe temperature and pressure traces against time."""
     temperature_name = parameters.get("T_name") or measurement.T_name
     pressure_name = parameters.get("P_name") or measurement.P_name
     temperature_names = parameters.get("T_names") or [temperature_name]
@@ -338,7 +370,7 @@ def _tpms_spectro_adapter(owner, arguments):
 
 
 def _trxrf_spec(measurement, parameters):
-    """Build a selected XRF signal against time."""
+    """Describe the selected XRF signal against time."""
     y_name = parameters.get("y_name", "FF_over_I0")
     return time_series_spec(
         measurement,
@@ -447,7 +479,7 @@ def _stacked_adapter(owner, arguments):
 
 
 def _register_builtin_adapters():
-    """Register the plot methods covered by ixdat's shared plot descriptions."""
+    """Connect each supported built-in plot method to its adapter function."""
     registrations = (
         (ValuePlotter, "plot", _value_plot_adapter),
         (ValuePlotter, "plot_measurement", _value_measurement_adapter),

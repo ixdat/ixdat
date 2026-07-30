@@ -1,4 +1,14 @@
-"""Select renderers through adapters around ixdat's Matplotlib plotters."""
+"""Connect ixdat plot methods to optional figure libraries.
+
+An ixdat data object keeps its normal Matplotlib plotter. :func:`bind_plotter`
+adds ``backend`` and ``figure`` options to that plotter's public methods on the
+specific plotter instance. A call for another figure library follows a registered
+adapter, which describes the requested plot as a :class:`~ixdat.plotters.PlotSpec`.
+The selected renderer then draws that description.
+
+The Matplotlib plotter class keeps its original methods and signature. A new reader
+can assign its Matplotlib plotter first and add an adapter in a later change.
+"""
 
 from functools import wraps
 import inspect
@@ -16,7 +26,11 @@ _PLOTTER_ADAPTERS = {}
 
 
 class _AdapterArguments(dict):
-    """Carry bound method arguments and the names supplied by the caller."""
+    """Map each original method parameter to the value used for this plot call.
+
+    ``supplied`` records which parameter names the caller provided. The mapping also
+    contains default values from the Matplotlib method signature.
+    """
 
     def __init__(self, arguments, supplied):
         super().__init__(arguments)
@@ -24,19 +38,58 @@ class _AdapterArguments(dict):
 
 
 class PlotterBackendWarning(UserWarning):
-    """Warn that a plot uses Matplotlib after an unsupported backend request."""
+    """Tell the user that ixdat used Matplotlib because an adapter was unavailable."""
 
 
-def register_plotter_adapter(plotter_class, method_name, adapter, overwrite=False):
-    """Register a plot-description adapter for one plotter method.
+def register_plotter_adapter(
+    plotter_class,
+    method_name,
+    adapter=None,
+    overwrite=False,
+):
+    """Connect one Matplotlib plot method to ``PlotSpec`` creation.
 
-    The adapter receives the plotted object and the arguments bound to the original
-    Matplotlib method. It returns a backend-neutral ``PlotSpec``.
+    A plotter adapter is a function that describes one plot call without creating
+    Matplotlib or Plotly objects. ixdat passes it the measurement or spectrum being
+    plotted and a mapping of the original method's arguments. The adapter returns a
+    :class:`~ixdat.plotters.PlotSpec`, which any registered renderer can draw.
+
+    The function can be used as a decorator::
+
+        from ixdat.plotters import register_plotter_adapter
+        from ixdat.plotters.plot_spec import value_measurement_spec
+        from my_ixdat_extension import MyPlotter
+
+        @register_plotter_adapter(MyPlotter, "plot_measurement")
+        def my_plot_adapter(owner, args):
+            measurement = args["measurement"] or owner
+            return value_measurement_spec(
+                measurement,
+                v_list=args["v_list"],
+                tspan=args["tspan"],
+            )
+
+    Import the module containing this registration when ixdat starts. Built-in
+    adapters live in :mod:`ixdat.plotters.plot_adapters`.
+
+    Args:
+        plotter_class (type): Matplotlib plotter class that owns the method.
+        method_name (str): Public plot method, such as ``"plot_measurement"``.
+        adapter (callable): Function that returns a ``PlotSpec``. Omitting it returns
+            a decorator.
+        overwrite (bool): Replace a registration for the same class and method.
     """
     if not isinstance(plotter_class, type):
         raise TypeError("A plotter adapter owner must be a class.")
     if not isinstance(method_name, str) or not method_name:
         raise TypeError("A plotter adapter method name must be a non-empty string.")
+    if adapter is None:
+        return lambda adapter_function: register_plotter_adapter(
+            plotter_class,
+            method_name,
+            adapter_function,
+            overwrite=overwrite,
+        )
     if not callable(adapter):
         raise TypeError("A plotter adapter must be callable.")
     key = (plotter_class, method_name)
@@ -50,13 +103,26 @@ def register_plotter_adapter(plotter_class, method_name, adapter, overwrite=Fals
 
 
 def bind_plotter(plotter, owner):
-    """Add backend dispatch to the plotting methods of one bound plotter tree."""
+    """Connect a data object's plot methods to registered renderers.
+
+    ``owner`` is the measurement or spectrum that supplies the data. ``plotter`` is
+    the object's Matplotlib plotter. ixdat wraps public methods such as
+    ``plot_measurement()`` on this plotter instance and follows these routes:
+
+    - no ``backend``, or ``backend="matplotlib"``: call the original method;
+    - a registered backend with an adapter: build a ``PlotSpec`` and render it;
+    - a registered backend without an adapter: warn and call the original method.
+
+    Composite plotters often contain helpers such as ``ms_plotter``. This function
+    connects those child plotters to the same owner as well. Plotter classes and
+    reader classes need no renderer-specific methods.
+    """
     _bind_plotter(plotter, owner, visited=set())
     return plotter
 
 
 def _bind_plotter(plotter, owner, visited):
-    """Bind one plotter and any plotters to which it delegates."""
+    """Connect one plotter and each child plotter to the same data object."""
     if id(plotter) in visited:
         return
     visited.add(id(plotter))
@@ -78,7 +144,7 @@ def _bind_plotter(plotter, owner, visited):
         setattr(
             plotter,
             method_name,
-            _backend_dispatcher(
+            _renderer_routing_method(
                 plotter=plotter,
                 owner=owner,
                 method_name=method_name,
@@ -87,11 +153,11 @@ def _bind_plotter(plotter, owner, visited):
         )
 
 
-def _backend_dispatcher(plotter, owner, method_name, original_method):
-    """Return a bound plotting function with renderer selection."""
+def _renderer_routing_method(plotter, owner, method_name, original_method):
+    """Wrap one plot method so each backend request follows the correct route."""
 
     @wraps(original_method)
-    def dispatch(*args, backend=None, figure=None, **kwargs):
+    def route_plot_call(*args, backend=None, figure=None, **kwargs):
         if _is_matplotlib_backend(backend):
             return original_method(*args, **kwargs)
 
@@ -116,20 +182,20 @@ def _backend_dispatcher(plotter, owner, method_name, original_method):
         plot_spec = adapter(owner, adapter_arguments)
         return renderer.render(plot_spec, figure=figure)
 
-    dispatch._ixdat_original_plot_method = original_method
-    dispatch.__signature__ = _backend_signature(original_method)
-    dispatch.__doc__ = (
+    route_plot_call._ixdat_original_plot_method = original_method
+    route_plot_call.__signature__ = _backend_signature(original_method)
+    route_plot_call.__doc__ = (
         (original_method.__doc__ or "")
         + "\n\n"
         + "Renderer options:\n"
         + '    backend (str): Renderer name, such as "matplotlib" or "plotly".\n'
         + "    figure: Plotly figure to extend when using the Plotly backend.\n"
     )
-    return dispatch
+    return route_plot_call
 
 
 def _get_plotter_adapter(plotter_class, method_name):
-    """Return the closest adapter registered for a plotter class."""
+    """Find the adapter registered for this plotter or its nearest parent class."""
     for candidate in plotter_class.__mro__:
         adapter = _PLOTTER_ADAPTERS.get((candidate, method_name))
         if adapter is not None:
@@ -138,7 +204,7 @@ def _get_plotter_adapter(plotter_class, method_name):
 
 
 def _backend_signature(method):
-    """Expose renderer options on a bound plotting method."""
+    """Add ``backend`` and ``figure`` to the displayed method signature."""
     signature = inspect.signature(method)
     parameters = list(signature.parameters.values())
     insertion_index = next(
@@ -159,7 +225,7 @@ def _backend_signature(method):
 
 
 def _is_plot_method_name(name):
-    """Return whether an attribute is a public plotting entry point."""
+    """Identify public methods that a user can call to create a plot."""
     return not name.startswith("_") and (name.startswith("plot") or name == "heat_plot")
 
 

@@ -1,4 +1,9 @@
-"""Backend-neutral descriptions of plots."""
+"""Describe a plot without creating objects from a figure library.
+
+A ``PlotSpec`` is a recipe for a plot. It records panels, axes, and traces in plain
+Python objects. An adapter prepares this recipe from an ixdat plot method, and a
+renderer draws it with Plotly or another figure library.
+"""
 
 import numpy as np
 
@@ -22,7 +27,7 @@ MS_MIN_SIGNAL = 1e-14
 
 
 class AxisSpec:
-    """Describe one axis without referring to a plotting library."""
+    """Store the label, scale, direction, and color of one plot axis."""
 
     def __init__(self, label=None, scale="linear", inverted=False, color=None):
         self.label = label
@@ -32,7 +37,7 @@ class AxisSpec:
 
 
 class LineTrace:
-    """Describe one line."""
+    """Store the data and display settings for one line."""
 
     def __init__(
         self,
@@ -62,7 +67,7 @@ class LineTrace:
 
 
 class ErrorBand:
-    """Describe a filled interval around a line."""
+    """Store the lower and upper edges of a shaded uncertainty area."""
 
     def __init__(self, x, lower, upper, color=None, alpha=0.3, y_axis="left"):
         self.x = np.asarray(x)
@@ -74,7 +79,7 @@ class ErrorBand:
 
 
 class HeatmapTrace:
-    """Describe values shown as colors across two axes."""
+    """Store a value grid that a renderer shows as colors across two axes."""
 
     def __init__(
         self,
@@ -98,7 +103,7 @@ class HeatmapTrace:
 
 
 class ColorScaleSpec:
-    """Describe a continuous color scale shared by line traces."""
+    """Store the color key shared by lines whose color represents a value."""
 
     def __init__(self, label, value_range, colorscale, visible=True):
         self.label = label
@@ -108,7 +113,7 @@ class ColorScaleSpec:
 
 
 class PanelSpec:
-    """Describe one panel and the traces drawn in it."""
+    """Group the axes and traces shown in one subplot panel."""
 
     def __init__(
         self,
@@ -126,7 +131,7 @@ class PanelSpec:
 
 
 class PlotSpec:
-    """Describe a complete plot as a list of panels."""
+    """Store the complete library-independent recipe for one plot."""
 
     def __init__(
         self,
@@ -144,7 +149,7 @@ class PlotSpec:
 
 
 def combine_plot_specs(*plot_specs):
-    """Join complete plot descriptions into one multi-panel description."""
+    """Stack several plot recipes and give their panels one shared x-axis."""
     return PlotSpec(
         panels=[
             panel
@@ -170,7 +175,11 @@ def time_series_spec(
     line_width=None,
     show_legend=None,
 ):
-    """Describe named measurement values against time on one or two y-axes."""
+    """Build a plot recipe for named measurement values against time.
+
+    ``left_names`` appear on the left y-axis. Values in ``right_names`` share the
+    panel and use a right y-axis.
+    """
     traces = []
     colors = colors or {}
     value_factors = value_factors or {}
@@ -240,7 +249,7 @@ def value_measurement_spec(
     tspan=None,
     logscale=False,
 ):
-    """Describe a generic measurement's values against time."""
+    """Build a plot recipe for selected values from a generic measurement."""
     traces = []
     for v_name in v_list or measurement.value_names:
         try:
@@ -270,7 +279,7 @@ def ec_measurement_spec(
     line_style=None,
     line_width=None,
 ):
-    """Describe potential and current against time."""
+    """Build a two-y-axis plot recipe for potential and current against time."""
     U_name = U_name or measurement.U_name
     J_name = J_name or measurement.J_name
     U_color = U_color or "black"
@@ -318,7 +327,7 @@ def ec_vs_potential_spec(
     line_style=None,
     line_width=None,
 ):
-    """Describe current against potential."""
+    """Build a plot recipe for interpolated current against potential."""
     U_name = U_name or measurement.U_name
     J_name = J_name or measurement.J_name
     t_u, potential = measurement.grab(U_name, tspan=tspan)
@@ -360,7 +369,11 @@ def ms_measurement_spec(
     line_style=None,
     line_width=None,
 ):
-    """Describe mass signals or calibrated molecular fluxes against time."""
+    """Build an MS plot recipe from mass signals or calibrated molecular fluxes.
+
+    The function applies requested background removal, units, logarithmic scaling,
+    colors, and one or two y-axis groups before creating the line descriptions.
+    """
     quantified, value_groups = _ms_value_groups(
         measurement,
         mass_list,
@@ -455,7 +468,7 @@ def spectrum_spec(
     line_style=None,
     line_width=None,
 ):
-    """Describe a spectrum as one line."""
+    """Build a one-line plot recipe from a spectrum."""
     return PlotSpec(
         [
             PanelSpec(
@@ -478,7 +491,7 @@ def spectrum_spec(
 
 
 def xrd_spectrum_spec(spectrum, color=None, line_style=None, line_width=None):
-    """Describe an XRD spectrum with its error interval when present."""
+    """Build an XRD plot recipe and include its uncertainty area when available."""
     color = color or DEFAULT_LINE_COLORS[0]
     traces = [
         LineTrace(
@@ -528,7 +541,11 @@ def spectrum_series_heatmap_spec(
     x_unit=None,
     continuous=None,
 ):
-    """Describe a spectrum series as a heatmap."""
+    """Build a heatmap recipe from a spectrum series.
+
+    The function selects the requested time and scan ranges. Continuous series use
+    one heatmap. Discrete series use recorded or inferred spectrum durations.
+    """
     field = field or spectrum_series.field
     data = np.array(field.data, copy=True)
     xseries = field.axes_series[1]
@@ -645,7 +662,7 @@ def spectrum_series_waterfall_spec(
     t=None,
     t_name=None,
 ):
-    """Describe every spectrum as a line colored by its acquisition time."""
+    """Build a waterfall recipe with each spectrum colored by acquisition time."""
     field = field or spectrum_series.field
     x = field.axes_series[1].data
     t = np.asarray(t if t is not None else field.axes_series[0].t)
@@ -696,7 +713,7 @@ def spectrum_series_stacked_spec(
     line_style=None,
     line_width=None,
 ):
-    """Describe selected spectra offset along time or spectrum number."""
+    """Build stacked spectrum lines offset by time or spectrum number."""
     t_vec = spectrum_series.t
     index_list, t_list = get_indeces_and_times(
         t_vec,
@@ -781,7 +798,7 @@ def _ms_value_groups(
     mol_list,
     mol_lists,
 ):
-    """Return whether MS values are calibrated and group them by y-axis."""
+    """Choose calibrated or raw MS values and group them by y-axis."""
     if mol_list:
         return True, [mol_list]
     if mol_lists:
@@ -792,7 +809,7 @@ def _ms_value_groups(
 
 
 def _as_group_values(value, group_count, span=False):
-    """Repeat one setting or split settings supplied for two groups."""
+    """Give each y-axis group its matching setting."""
     if group_count == 1:
         return [value]
     if (
@@ -808,7 +825,7 @@ def _as_group_values(value, group_count, span=False):
 
 
 def _ms_unit_factor(unit, quantified, measurement):
-    """Return the numerical factor for a supported MS display unit."""
+    """Return the number that converts MS values to the requested display unit."""
     if quantified:
         factor = {
             "pmol/s": 1e12,
@@ -827,7 +844,7 @@ def _ms_unit_factor(unit, quantified, measurement):
 
 
 def _time_unit_factor(unit):
-    """Return the factor and label for a supported time unit."""
+    """Return the number and label used to show time in the requested unit."""
     unit = unit or "s"
     return {
         "s": 1,

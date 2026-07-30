@@ -62,10 +62,10 @@ A figure returned by the same ixdat plot method has a compatible subplot layout 
 can receive more traces. ixdat reports an incompatible subplot grid with a
 ``ValueError``.
 
-For Plotly and registered extension backends, an adapter describes the plotter call
-with a :class:`~ixdat.plotters.plot_spec.PlotSpec`. A plot specification contains
-panels, axes, line traces, error bands, heatmaps, and continuous color scales. The
-selected renderer translates those components into a plotting library's objects.
+For Plotly and registered extension backends, an adapter turns a plot method call
+into a :class:`~ixdat.plotters.plot_spec.PlotSpec`. A plot specification is a recipe
+containing panels, axes, line traces, error bands, heatmaps, and continuous color
+scales. The selected renderer draws that recipe with its figure library.
 
 Readers construct the appropriate ixdat data type and assign its Matplotlib plotter.
 A new reader gains the adapters registered for that plotter class. A new plotter works
@@ -73,6 +73,36 @@ through Matplotlib without any adapter. If a user requests Plotly for that plott
 ixdat issues a ``PlotterBackendWarning`` and returns the Matplotlib result. Plotly
 support can be added later by registering an adapter outside the Matplotlib plotter
 class.
+
+Adding an adapter for a new plotter
+...................................
+
+A reader that returns an existing measurement or spectrum type needs no plotting
+changes. The existing data type assigns its plotter, and ixdat finds adapters by
+plotter class and method name.
+
+A reader that introduces a new plotter can start with its Matplotlib implementation.
+The ``plotter`` property on ``Measurement``, ``Spectrum``, and ``MultiSpectrum``
+automatically connects the plotter's public methods to the adapter registry.
+
+Add another renderer in a separate adapter function::
+
+    from ixdat.plotters import register_plotter_adapter
+    from ixdat.plotters.plot_spec import value_measurement_spec
+    from my_ixdat_extension import MyPlotter
+
+    @register_plotter_adapter(MyPlotter, "plot_measurement")
+    def my_plot_adapter(owner, arguments):
+        measurement = arguments["measurement"] or owner
+        return value_measurement_spec(
+            measurement,
+            v_list=arguments["v_list"],
+            tspan=arguments["tspan"],
+        )
+
+``arguments`` uses the parameter names from ``MyPlotter.plot_measurement()`` and
+includes their default values. Import the module containing the registration when
+ixdat starts. Built-in registrations live in ``plotters/plot_adapters.py``.
 
 ixdat ships Matplotlib and Plotly renderers. Register another renderer class with
 ``register_plotter_backend(name, renderer_class)``. The class implements
@@ -82,6 +112,12 @@ Seaborn wherever the plot specification uses components that the renderer handle
 with ``register_plotter_adapter(plotter_class, method_name, adapter)``. The adapter
 receives the plotted data object and a mapping of arguments bound to the original
 Matplotlib method, then returns a ``PlotSpec``.
+
+Normal Matplotlib plot calls use the original technique plotter methods.
+``MatplotlibRenderer`` serves code that starts with a ``PlotSpec``, including tests
+and extension code. It draws the common ``PlotSpec`` features and forms a smaller
+second Matplotlib path. Technique-specific axes order, return values, and interactive
+behavior remain owned by the original plotters.
 
 The example ``development_scripts/demo_plotly_backend.py`` compares Matplotlib and
 Plotly for every supported Plotly path. It uses repository EC, NMR, and XRD data and
@@ -104,6 +140,11 @@ The ``plot_spec`` module
 
 .. automodule:: ixdat.plotters.plot_spec
     :members:
+
+The ``plot_adapters`` module
+............................
+
+.. automodule:: ixdat.plotters.plot_adapters
 
 The ``renderers`` module
 ........................

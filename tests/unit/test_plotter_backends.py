@@ -324,7 +324,7 @@ def test_default_plotter_is_unchanged(measurement):
     assert isinstance(measurement.plotter, ValuePlotter)
 
 
-def test_backend_dispatch_stays_outside_matplotlib_plotter_classes(measurement):
+def test_backend_routing_stays_outside_matplotlib_plotter_classes(measurement):
     """Bound data methods expose renderers while plotter classes stay Matplotlib-only."""
     assert "backend" not in inspect.signature(ValuePlotter.plot_measurement).parameters
     assert "backend" in inspect.signature(measurement.plot).parameters
@@ -352,7 +352,10 @@ def test_adapter_can_add_renderer_support_later(measurement, backend_name):
     class AdaptedPlotter(MatplotlibOnlyPlotter):
         pass
 
+    @register_plotter_adapter(AdaptedPlotter, "plot_measurement")
     def build_plot_spec(owner, arguments):
+        assert arguments["measurement"] is None
+        assert arguments["ax"] is None
         time, value = owner.grab("value")
         return PlotSpec(
             [
@@ -369,11 +372,6 @@ def test_adapter_can_add_renderer_support_later(measurement, backend_name):
         series_list=measurement.series_list,
         tstamp=measurement.tstamp,
         plotter=AdaptedPlotter(measurement=measurement),
-    )
-    register_plotter_adapter(
-        AdaptedPlotter,
-        "plot_measurement",
-        build_plot_spec,
     )
     register_plotter_backend(backend_name, ExampleRenderer)
 

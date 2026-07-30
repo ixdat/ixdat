@@ -100,12 +100,21 @@ class Spectrum(Saveable):
 
     @property
     def plotter(self):
-        """Return the spectrum's bound plotter."""
+        """Return the Matplotlib plotter attached to this spectrum."""
         return self._plotter
 
     @plotter.setter
     def plotter(self, plotter):
-        """Bind backend dispatch whenever the spectrum receives a plotter."""
+        """Attach a Matplotlib plotter and connect its methods to other renderers.
+
+        :func:`~ixdat.plotters.backends.bind_plotter` wraps the public plot methods
+        on this plotter instance. Matplotlib calls use the original methods. A
+        request for another renderer uses the adapter registered for the plotter
+        class and method name.
+
+        Spectrum readers and spectrum classes only need to assign their Matplotlib
+        plotter. They can gain Plotly support later through a separate adapter.
+        """
         self._plotter = bind_plotter(plotter, owner=self)
 
     @classmethod
@@ -376,12 +385,20 @@ class MultiSpectrum(Saveable):
 
     @property
     def plotter(self):
-        """Return the multi-spectrum's bound plotter."""
+        """Return the Matplotlib plotter attached to this multi-spectrum."""
         return self._plotter
 
     @plotter.setter
     def plotter(self, plotter):
-        """Bind backend dispatch whenever the multi-spectrum receives a plotter."""
+        """Attach a Matplotlib plotter and connect its methods to other renderers.
+
+        :func:`~ixdat.plotters.backends.bind_plotter` wraps the public methods on
+        this plotter instance. The original methods create Matplotlib axes.
+        Registered adapters describe the same calls for renderers such as Plotly.
+
+        A multi-spectrum reader can therefore assign its Matplotlib plotter without
+        implementing another renderer at the same time.
+        """
         self._plotter = bind_plotter(plotter, owner=self)
 
     def __init__(

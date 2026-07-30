@@ -109,7 +109,8 @@ plotters
   ``"matplotlib"`` and ``"plotly"`` renderers. The Plotly renderer can configure a
   plain ``plotly.graph_objects.Figure`` or add traces to a compatible ixdat subplot
   figure. ``register_plotter_adapter()`` adds renderer coverage for a plotter method
-  without changing the Matplotlib plotter class.
+  without changing the Matplotlib plotter class. It can be used as a decorator on
+  the adapter function.
 
 - New ``NMRPlotter`` in ``ixdat.plotters.nmr_plotter``: subclasses
   ``SpectrumPlotter`` and inverts the x-axis so ``spec.plot()`` gives the
