@@ -26,6 +26,7 @@ from .projects.samples import Sample
 from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
+from .plotters.backends import bind_plotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
 from .tools import tstamp_to_string, deprecate
 
@@ -150,6 +151,16 @@ class Measurement(Saveable):
         # TODO: ... but we need to think a bit more about how to most elegantly and
         #    dynamically choose plotters (Nice idea from Anna:
         #    https://github.com/ixdat/ixdat/issues/32)
+
+    @property
+    def plotter(self):
+        """Return the measurement's bound plotter."""
+        return self._plotter
+
+    @plotter.setter
+    def plotter(self, plotter):
+        """Bind backend dispatch whenever the measurement receives a plotter."""
+        self._plotter = bind_plotter(plotter, owner=self)
 
     def __str__(self):
         """Return string representation"""

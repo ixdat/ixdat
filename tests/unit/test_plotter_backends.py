@@ -1,5 +1,6 @@
 """Tests for backend-neutral plot descriptions and renderers."""
 
+import inspect
 from pathlib import Path
 
 from matplotlib import pyplot as plt
@@ -12,9 +13,12 @@ from ixdat.plotters import (
     AxisSpec,
     LineTrace,
     MatplotlibRenderer,
+    MPLPlotter,
     PanelSpec,
     PlotSpec,
+    PlotterBackendWarning,
     available_plotter_backends,
+    register_plotter_adapter,
     register_plotter_backend,
     unregister_plotter_backend,
 )
@@ -34,6 +38,22 @@ class ExampleRenderer:
 
     def render(self, plot_spec, **kwargs):
         return plot_spec
+
+
+class MatplotlibOnlyPlotter(MPLPlotter):
+    """Provide one plot method without a registered plot-description adapter."""
+
+    def __init__(self, measurement=None):
+        super().__init__()
+        self.measurement = measurement
+
+    def plot_measurement(self, measurement=None, ax=None):
+        measurement = measurement or self.measurement
+        if ax is None:
+            ax = self.new_ax()
+        time, value = measurement.grab("value")
+        ax.plot(time, value)
+        return ax
 
 
 @pytest.fixture
@@ -302,6 +322,65 @@ def backend_name():
 def test_default_plotter_is_unchanged(measurement):
     """Measurements keep their technique-specific Matplotlib plotter."""
     assert isinstance(measurement.plotter, ValuePlotter)
+
+
+def test_backend_dispatch_stays_outside_matplotlib_plotter_classes(measurement):
+    """Bound data methods expose renderers while plotter classes stay Matplotlib-only."""
+    assert "backend" not in inspect.signature(ValuePlotter.plot_measurement).parameters
+    assert "backend" in inspect.signature(measurement.plot).parameters
+
+
+def test_missing_adapter_warns_and_uses_matplotlib(measurement):
+    """A plotter without an adapter remains available through Matplotlib."""
+    measurement = Measurement(
+        name=measurement.name,
+        series_list=measurement.series_list,
+        tstamp=measurement.tstamp,
+        plotter=MatplotlibOnlyPlotter(measurement=measurement),
+    )
+
+    with pytest.warns(PlotterBackendWarning, match="Using Matplotlib"):
+        axis = measurement.plot(backend="plotly")
+
+    assert list(axis.lines[0].get_xdata()) == [0.0, 1.0]
+    assert list(axis.lines[0].get_ydata()) == [2.0, 3.0]
+
+
+def test_adapter_can_add_renderer_support_later(measurement, backend_name):
+    """A plotter gains renderer coverage through an external adapter."""
+
+    class AdaptedPlotter(MatplotlibOnlyPlotter):
+        pass
+
+    def build_plot_spec(owner, arguments):
+        time, value = owner.grab("value")
+        return PlotSpec(
+            [
+                PanelSpec(
+                    traces=[LineTrace(time, value, name="value")],
+                    x_axis=AxisSpec("time / [s]"),
+                    left_axis=AxisSpec("value / [A]"),
+                )
+            ]
+        )
+
+    adapted_measurement = Measurement(
+        name=measurement.name,
+        series_list=measurement.series_list,
+        tstamp=measurement.tstamp,
+        plotter=AdaptedPlotter(measurement=measurement),
+    )
+    register_plotter_adapter(
+        AdaptedPlotter,
+        "plot_measurement",
+        build_plot_spec,
+    )
+    register_plotter_backend(backend_name, ExampleRenderer)
+
+    result = adapted_measurement.plot(backend=backend_name)
+
+    assert isinstance(result, PlotSpec)
+    assert list(result.panels[0].traces[0].y) == [2.0, 3.0]
 
 
 def test_generic_matplotlib_path_keeps_its_existing_output(measurement):

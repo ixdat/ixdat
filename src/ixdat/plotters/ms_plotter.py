@@ -4,13 +4,6 @@ import warnings
 import numpy as np
 from ..data_series import Field
 from . import MPLPlotter
-from .plot_spec import (
-    MS_MIN_SIGNAL,
-    combine_plot_specs,
-    ms_measurement_spec,
-    spectrum_series_heatmap_spec,
-)
-from .renderers import _is_matplotlib_backend, get_renderer
 
 
 class MSPlotter(MPLPlotter):
@@ -39,8 +32,6 @@ class MSPlotter(MPLPlotter):
         logplot=True,
         logdata=False,
         legend=True,
-        backend=None,
-        figure=None,
         **kwargs,
     ):
         """Plot m/z signal vs time (MID) data and return the axis.
@@ -82,31 +73,9 @@ class MSPlotter(MPLPlotter):
             logdata (bool): Whether to plot the natural logarithm of MS data on a
                 linear scale (default False)
             legend (bool): Whether to use a legend for the MS data (default True)
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
-        if not _is_matplotlib_backend(backend):
-            plot_spec = ms_measurement_spec(
-                measurement,
-                mass_list=mass_list,
-                mass_lists=mass_lists,
-                mol_list=mol_list,
-                mol_lists=mol_lists,
-                tspan=tspan,
-                tspan_bg=tspan_bg,
-                remove_background=remove_background,
-                unit=unit,
-                x_unit=x_unit,
-                logplot=logplot,
-                logdata=logdata,
-                color_map=STANDARD_COLORS,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-            )
-            plot_spec.show_legend = legend
-            return get_renderer(backend).render(plot_spec, figure=figure)
         if remove_background is None:
             remove_background = not logplot
 
@@ -554,8 +523,6 @@ class MSSpectroPlotter(MPLPlotter):
         scanning_mask=None,
         vmin=None,
         vmax=None,
-        backend=None,
-        figure=None,
         **kwargs,
     ):
         """Plot m/z signal, mass spectra vs time (MID) data and return the axes of a two
@@ -617,56 +584,11 @@ class MSSpectroPlotter(MPLPlotter):
                 in measurement.spectrum_series.
             vmax (int or float): Shift maximum value in color bar. Default highest value
                 in measurement.spectrum_series.
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
 
         if logplot is None:
             logplot = not mol_lists and not mass_lists
-
-        measurement = measurement or self.measurement
-        if not _is_matplotlib_backend(backend):
-            ms_spec = ms_measurement_spec(
-                measurement,
-                mass_list=mass_list,
-                mass_lists=mass_lists,
-                mol_list=mol_list,
-                mol_lists=mol_lists,
-                tspan=tspan,
-                tspan_bg=tspan_bg,
-                remove_background=remove_background,
-                unit=unit,
-                x_unit=x_unit,
-                logplot=logplot,
-                logdata=logdata,
-                color_map=STANDARD_COLORS,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-            )
-            heatmap_spec = spectrum_series_heatmap_spec(
-                measurement.spectrum_series,
-                tspan=tspan,
-                xspan=xspan,
-                cmap_name=cmap_name,
-                make_colorbar=make_colorbar,
-                max_threshold=max_threshold,
-                min_threshold=min_threshold,
-                scanning_mask=scanning_mask,
-                vmin=vmin,
-                vmax=vmax,
-                x_unit=x_unit,
-            )
-            plot_specs = (
-                (ms_spec, heatmap_spec) if ms_data == "top" else (heatmap_spec, ms_spec)
-            )
-            plot_spec = combine_plot_specs(*plot_specs)
-            plot_spec.show_legend = legend
-            plot_spec.row_heights = {
-                "top": [3, 2],
-                "bottom": [2, 3],
-            }.get(emphasis, [1, 1])
-            return get_renderer(backend).render(plot_spec, figure=figure)
 
         if not axes:
             if ms_data == "top":
@@ -684,6 +606,8 @@ class MSSpectroPlotter(MPLPlotter):
                 n_top=n_top,
                 emphasis=emphasis,
             )
+
+        measurement = measurement or self.measurement
 
         if (
             mass_list
@@ -1007,7 +931,7 @@ class MSSpectroPlotter(MPLPlotter):
 #  ----- These are the standard colors for EC-MS plots! ------- #
 
 # So that the bottom half of the plot isn't wasted on log(noise)
-MIN_SIGNAL = MS_MIN_SIGNAL
+MIN_SIGNAL = 1e-14
 # TODO: This should probably be customizeable from a settings file.
 
 STANDARD_COLORS = {

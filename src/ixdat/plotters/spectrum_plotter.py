@@ -4,13 +4,6 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from . import MPLPlotter, add_colorbar
-from .plot_spec import (
-    spectrum_series_heatmap_spec,
-    spectrum_series_stacked_spec,
-    spectrum_series_waterfall_spec,
-    spectrum_spec,
-)
-from .renderers import _is_matplotlib_backend, get_renderer
 from .plotting_tools import get_indeces_and_times
 
 
@@ -21,45 +14,21 @@ class SpectrumPlotter(MPLPlotter):
         super().__init__()
         self.spectrum = spectrum
 
-    def plot(
-        self,
-        *,
-        spectrum=None,
-        ax=None,
-        backend=None,
-        figure=None,
-        inverted_x=False,
-        **kwargs,
-    ):
+    def plot(self, *, spectrum=None, ax=None, **kwargs):
         """Plot a spectrum as y (signal) vs x (scanning variable)
 
         Args:
             spectrum (Spectrum): The spectrum to plot if different from self.spectrum
             ax (mpl.Axis): The axis to plot on. A new one is made by default.
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
-            inverted_x (bool): Show large x values on the left.
             kwargs: additional key-word arguments are given to ax.plot()
         """
         spectrum = spectrum or self.spectrum
-        if _is_matplotlib_backend(backend):
-            if not ax:
-                ax = self.new_ax()
-            ax.plot(spectrum.x, spectrum.y, **kwargs)
-            ax.set_xlabel(spectrum.x_name)
-            ax.set_ylabel(spectrum.y_name)
-            if inverted_x:
-                ax.invert_xaxis()
-            return ax
-
-        plot_spec = spectrum_spec(
-            spectrum,
-            color=kwargs.get("color"),
-            inverted_x=inverted_x,
-            line_style=kwargs.get("linestyle", kwargs.get("ls")),
-            line_width=kwargs.get("linewidth", kwargs.get("lw")),
-        )
-        return get_renderer(backend).render(plot_spec, figure=figure)
+        if not ax:
+            ax = self.new_ax()
+        ax.plot(spectrum.x, spectrum.y, **kwargs)
+        ax.set_xlabel(spectrum.x_name)
+        ax.set_ylabel(spectrum.y_name)
+        return ax
 
 
 class SpectrumSeriesPlotter(MPLPlotter):
@@ -102,8 +71,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         vmax=None,
         scanning_mask=None,
         continuous=None,
-        backend=None,
-        figure=None,
     ):
         """
         Plot a spectrum series with `t` on the horizontal axis, `x` on the vertical axis,
@@ -140,29 +107,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 if available. If the duration is not available, each spectrum heat plot
                 extends to the start of the next one.
                 Defaults to the `spectrum_series.continuous`.
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
-        if not _is_matplotlib_backend(backend):
-            plot_spec = spectrum_series_heatmap_spec(
-                spectrum_series,
-                field=field,
-                tspan=tspan,
-                xspan=xspan,
-                cmap_name=cmap_name,
-                make_colorbar=make_colorbar,
-                t=t,
-                t_name=t_name,
-                max_threshold=max_threshold,
-                min_threshold=min_threshold,
-                vmin=vmin,
-                vmax=vmax,
-                scanning_mask=scanning_mask,
-                continuous=continuous,
-            )
-            return get_renderer(backend).render(plot_spec, figure=figure)
         data = field.data
 
         xseries = field.axes_series[1]
@@ -262,8 +209,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         make_colorbar=True,
         t=None,
         t_name=None,
-        backend=None,
-        figure=None,
     ):
         """Plot a SpectrumSeries as spectra colored by the time at which they are taken
 
@@ -281,22 +226,9 @@ class SpectrumSeriesPlotter(MPLPlotter):
             make_colorbar (bool): Whether to make a colorbar.
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
-
-        if not _is_matplotlib_backend(backend):
-            plot_spec = spectrum_series_waterfall_spec(
-                spectrum_series,
-                field=field,
-                cmap_name=cmap_name,
-                make_colorbar=make_colorbar,
-                t=t,
-                t_name=t_name,
-            )
-            return get_renderer(backend).render(plot_spec, figure=figure)
 
         data = field.data
         x = field.axes_series[1].data
@@ -337,9 +269,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
         scale_factor=1,
         y_values="time",
         ax=None,
-        color=None,
-        backend=None,
-        figure=None,
+        color="k",
         **kwargs,
     ):
         """Plot a selection of spectra, stacked
@@ -377,35 +307,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
             scale_factor: A factor to apply on top of the initial scaling
             y_values (str): What to plot on the y-axis. Options: "time", "n"
             ax (Axis): axis to plot on, if not a new axis
-            color (str): Color for every trace. Matplotlib defaults to black.
-                Plotly assigns a different color to each trace.
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
+            color (str): color of traces. Defaults to black.
             **kwargs: Additional key-word args are passed on to ax.plot()
         """
 
         spectrum_series = spectrum_series or self.spectrum_series
-
-        if not _is_matplotlib_backend(backend):
-            plot_spec = spectrum_series_stacked_spec(
-                spectrum_series,
-                dt=dt,
-                t_list=t_list,
-                dn=dn,
-                index_list=index_list,
-                average=average,
-                xspan=xspan,
-                xspan_bg=xspan_bg,
-                scale_mode=scale_mode,
-                scale_factor=scale_factor,
-                y_values=y_values,
-                color=color,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-            )
-            return get_renderer(backend).render(plot_spec, figure=figure)
-
-        color = color or "k"
 
         # whichever of the four were specified, we need t_list and index_list:
         t_vec = spectrum_series.t

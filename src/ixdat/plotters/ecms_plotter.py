@@ -1,9 +1,6 @@
 """Plotter for Electrochemistry - Mass Spectrometry"""
 
 from . import MPLPlotter, ECPlotter, MSPlotter
-from .plot_spec import combine_plot_specs, ec_measurement_spec, ms_measurement_spec
-from .renderers import _is_matplotlib_backend, get_renderer
-from .ms_plotter import STANDARD_COLORS
 from ..tools import deprecate
 
 
@@ -47,8 +44,6 @@ class ECMSPlotter(MPLPlotter):
         logplot=None,
         legend=True,
         emphasis="top",
-        backend=None,
-        figure=None,
         **kwargs,
     ):
         """Make an EC-MS plot vs time and return the axis handles.
@@ -101,8 +96,6 @@ class ECMSPlotter(MPLPlotter):
             legend (bool): Whether to use a legend for the MS data (default True)
             emphasis (str or None): "top" for bigger top panel, "bottom" for bigger
                 bottom panel, None for equal-sized panels
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -125,40 +118,6 @@ class ECMSPlotter(MPLPlotter):
         if removebackground is not None:
             # note removebackground can be set to `False`
             remove_background = removebackground
-
-        if not _is_matplotlib_backend(backend):
-            ms_spec = ms_measurement_spec(
-                measurement,
-                mass_list=mass_list,
-                mass_lists=mass_lists,
-                mol_list=mol_list,
-                mol_lists=mol_lists,
-                tspan=tspan,
-                tspan_bg=tspan_bg,
-                remove_background=remove_background,
-                unit=unit,
-                logplot=logplot,
-                color_map=STANDARD_COLORS,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-            )
-            ec_spec = ec_measurement_spec(
-                measurement,
-                tspan=tspan,
-                U_name=U_name,
-                J_name=J_name,
-                U_color=U_color,
-                J_color=J_color,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-            )
-            plot_spec = combine_plot_specs(ms_spec, ec_spec)
-            plot_spec.show_legend = legend
-            plot_spec.row_heights = {
-                "top": [3, 2],
-                "bottom": [2, 3],
-            }.get(emphasis, [1, 1])
-            return get_renderer(backend).render(plot_spec, figure=figure)
 
         if not axes:
             axes = self.new_two_panel_axes(

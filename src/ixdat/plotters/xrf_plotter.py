@@ -2,8 +2,6 @@
 
 from .base_mpl_plotter import MPLPlotter
 from .ec_plotter import ECPlotter
-from .plot_spec import combine_plot_specs, ec_measurement_spec, time_series_spec
-from .renderers import _is_matplotlib_backend, get_renderer
 
 
 class TRXRFPlotter(MPLPlotter):
@@ -15,14 +13,7 @@ class TRXRFPlotter(MPLPlotter):
         self.measurement = measurement
 
     def plot_measurement(
-        self,
-        measurement=None,
-        ax=None,
-        tspan=None,
-        y_name="FF_over_I0",
-        backend=None,
-        figure=None,
-        **kwargs,
+        self, measurement=None, ax=None, tspan=None, y_name="FF_over_I0", **kwargs
     ):
         """Plot FF_over_I0 signal vs time (MID) data and return the axis.
 
@@ -33,22 +24,9 @@ class TRXRFPlotter(MPLPlotter):
             y_name （list of str): The names of siganl in X-ray data, eg. "FF", "I0", "It"
                 to plot. Default to FF_over_I0, corresponding to a newly build data from
                 original lsit of data: FF/I0.
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
             kwargs: extra key-word args are passed on to matplotlib's plot()
         """
         measurement = measurement or self.measurement
-        if not _is_matplotlib_backend(backend):
-            plot_spec = time_series_spec(
-                measurement,
-                left_names=[y_name],
-                tspan=tspan,
-                left_label=y_name,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-                show_legend=False,
-            )
-            return get_renderer(backend).render(plot_spec, figure=figure)
 
         t, y = measurement.grab(y_name, tspan=tspan)
 
@@ -81,9 +59,7 @@ class ECTRXRFPlotter(MPLPlotter):
         J_name=None,
         U_color=None,
         J_color=None,
-        backend=None,
-        figure=None,
-        **kwargs,
+        **kwargs
     ):
         """Make an EC-TRXRF plot vs time and return the axis handles.
 
@@ -101,8 +77,6 @@ class ECTRXRFPlotter(MPLPlotter):
                 Defaults to the name of the series `measurement.current`
             U_color (str): The color to plot the variable given by 'V_str'
             J_color (str): The color to plot the variable given by 'J_str'
-            backend (str): ``"matplotlib"`` or ``"plotly"``.
-            figure: Plotly figure to add the plot to.
             kwargs (dict): Additional kwargs go to all calls of matplotlib's plot()
 
         Returns:
@@ -114,35 +88,10 @@ class ECTRXRFPlotter(MPLPlotter):
                 axes[3] is bottom_right is current.
         """
 
-        measurement = measurement or self.measurement
-        if not _is_matplotlib_backend(backend):
-            xrf_spec = time_series_spec(
-                measurement,
-                left_names=[y_name],
-                tspan=tspan,
-                left_label=y_name,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-                show_legend=False,
-            )
-            ec_spec = ec_measurement_spec(
-                measurement,
-                tspan=tspan,
-                U_name=U_name,
-                J_name=J_name,
-                U_color=U_color,
-                J_color=J_color,
-                line_style=kwargs.get("linestyle", kwargs.get("ls")),
-                line_width=kwargs.get("linewidth", kwargs.get("lw")),
-            )
-            return get_renderer(backend).render(
-                combine_plot_specs(xrf_spec, ec_spec),
-                figure=figure,
-            )
-
         if not axes:
             axes = self.new_two_panel_axes(n_bottom=2, n_top=1, emphasis=None)
 
+        measurement = measurement or self.measurement
         t, y = measurement.grab(y_name, tspan=tspan)
         time_name = measurement["FF_over_I0"].tseries.name
 

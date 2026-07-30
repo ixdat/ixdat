@@ -27,11 +27,11 @@ Select Plotly when calling a plot method::
     figure = measurement.plot(backend="plotly")
     figure.show()
 
-Supported plot methods accept the ``backend`` argument at plot time, so one
-measurement can produce Matplotlib and Plotly figures. Plotly support covers the
-default plots for generic, EC, MS, EC-MS, spectro-MS, spectroelectrochemistry, TP-MS,
-spectro-TP-MS, and time-resolved XRF measurements. It also covers spectra, NMR
-spectra, XRD spectra, and spectrum-series heatmap, waterfall, and stacked plots.
+Plot methods with a registered adapter accept the ``backend`` argument at plot time,
+so one measurement can produce Matplotlib and Plotly figures. Plotly support covers
+the default plots for generic, EC, MS, EC-MS, spectro-MS, spectroelectrochemistry,
+TP-MS, spectro-TP-MS, and time-resolved XRF measurements. It also covers spectra,
+NMR spectra, XRD spectra, and spectrum-series heatmap, waterfall, and stacked plots.
 Series names such as ``<I>`` appear as literal text in Plotly legends and axis titles.
 Multi-panel time plots link their x-axes and show the time label on the bottom panel.
 Hovering at one time reports values from traces in every panel. Plotly uses a 640 by
@@ -62,20 +62,26 @@ A figure returned by the same ixdat plot method has a compatible subplot layout 
 can receive more traces. ixdat reports an incompatible subplot grid with a
 ``ValueError``.
 
-For Plotly and registered extension backends, plot methods describe their output with
-a :class:`~ixdat.plotters.plot_spec.PlotSpec`. A plot specification contains panels,
-axes, line traces, error bands, heatmaps, and continuous color scales. The selected
-renderer translates those components into a plotting library's objects.
+For Plotly and registered extension backends, an adapter describes the plotter call
+with a :class:`~ixdat.plotters.plot_spec.PlotSpec`. A plot specification contains
+panels, axes, line traces, error bands, heatmaps, and continuous color scales. The
+selected renderer translates those components into a plotting library's objects.
 
-Readers construct the appropriate ixdat data type. A new reader gains the renderers
-supported by that data type. A new data type composes a plot specification when its
-visualization introduces new data selection.
+Readers construct the appropriate ixdat data type and assign its Matplotlib plotter.
+A new reader gains the adapters registered for that plotter class. A new plotter works
+through Matplotlib without any adapter. If a user requests Plotly for that plotter,
+ixdat issues a ``PlotterBackendWarning`` and returns the Matplotlib result. Plotly
+support can be added later by registering an adapter outside the Matplotlib plotter
+class.
 
 ixdat ships Matplotlib and Plotly renderers. Register another renderer class with
 ``register_plotter_backend(name, renderer_class)``. The class implements
 ``render(plot_spec, **kwargs)``. This single interface supports libraries such as
 Seaborn wherever the plot specification uses components that the renderer handles.
-``available_plotter_backends()`` returns registered names.
+``available_plotter_backends()`` returns registered names. Register plot coverage
+with ``register_plotter_adapter(plotter_class, method_name, adapter)``. The adapter
+receives the plotted data object and a mapping of arguments bound to the original
+Matplotlib method, then returns a ``PlotSpec``.
 
 The example ``development_scripts/demo_plotly_backend.py`` compares Matplotlib and
 Plotly for every supported Plotly path. It uses repository EC, NMR, and XRD data and

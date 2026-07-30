@@ -18,6 +18,7 @@ from .db import Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
+from .plotters.backends import bind_plotter
 from .exporters.spectrum_exporter import SpectrumExporter
 from .measurement_base import Measurement, get_combined_technique
 
@@ -96,6 +97,16 @@ class Spectrum(Saveable):
         self.plot = self.plotter.plot
         self.exporter = SpectrumExporter(spectrum=self)
         self.export = self.exporter.export
+
+    @property
+    def plotter(self):
+        """Return the spectrum's bound plotter."""
+        return self._plotter
+
+    @plotter.setter
+    def plotter(self, plotter):
+        """Bind backend dispatch whenever the spectrum receives a plotter."""
+        self._plotter = bind_plotter(plotter, owner=self)
 
     @classmethod
     def read(cls, path_to_file, reader, **kwargs):
@@ -362,6 +373,16 @@ class MultiSpectrum(Saveable):
     }
     extra_linkers = {"multispectrum_fields": {"data_series", "field_ids"}}
     child_attrs = ["fields"]
+
+    @property
+    def plotter(self):
+        """Return the multi-spectrum's bound plotter."""
+        return self._plotter
+
+    @plotter.setter
+    def plotter(self, plotter):
+        """Bind backend dispatch whenever the multi-spectrum receives a plotter."""
+        self._plotter = bind_plotter(plotter, owner=self)
 
     def __init__(
         self,
