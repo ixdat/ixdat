@@ -1,14 +1,13 @@
 """For use in development of the ivium reader. Requires access to sample data."""
 
-from pathlib import Path
+from tools_for_demos import DEMO_DATA_DIR
 import pandas as pd
 
 from ixdat import Measurement
 from ixdat.techniques import CyclicVoltammogram
 
-path_to_file = Path.home() / (
-    "Dropbox/ixdat_resources/test_data/ivium/ivium_test_dataset"
-)
+path_to_file = DEMO_DATA_DIR / "ivium/ivium_test_dataset"
+
 path_to_single_file = path_to_file.parent / (path_to_file.name + "_1")
 df = pd.read_csv(path_to_single_file, sep=r"\s+", header=1)
 

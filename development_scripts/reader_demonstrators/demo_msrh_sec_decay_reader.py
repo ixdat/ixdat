@@ -2,10 +2,10 @@
 MSRH = molecular science research hub, at Imperial College London.
 """
 
-from pathlib import Path
+from tools_for_demos import DEMO_DATA_DIR
 from ixdat import Measurement
 
-data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/sec"
+data_dir = DEMO_DATA_DIR / "sec"
 
 sec_meas = Measurement.read(
     # data_dir / "decay/PDtest-1.35-1OSP-SP.csv",
@@ -34,9 +34,10 @@ axes = sec_meas.plot_measurement(
 )
 # axes[0].get_figure().savefig("decay_vs_t.png")
 
-axes = sec_meas.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
-
-ax_w = sec_meas.plot_waterfall()
+if False:
+    # FIXME: AttributeError: module 'matplotlib.cm' has no attribute 'get_cmap'
+    axes = sec_meas.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
+    ax_w = sec_meas.plot_waterfall()
 
 # exit()
 # ax_w.get_figure().savefig("decay_waterfall.png")
