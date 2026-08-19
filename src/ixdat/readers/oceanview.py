@@ -224,3 +224,84 @@ class OceanViewTimeSeriesReader:
             return float(stamp.replace(",", "."))
         except Exception:
             return np.nan
+
+class OceanViewTimeSeriesReader_per_spectrum_t(OceanViewTimeSeriesReader):
+    """Same as OceanViewTimeSeriesReader, but anchors the returned
+    SpectrumSeries' time axis to the spectrometer's own recorded
+    acquisition time of the *first spectrum*, instead of the file header's
+    declared `Date:` time.
+
+    Why this matters: OceanView writes the file header a beat before the
+    first spectrum is actually acquired -- typically 1-3 seconds, the time
+    it takes to open the file and start capturing -- so
+    `OceanViewTimeSeriesReader`'s header-based tstamp systematically
+    understates when the data was actually taken (confirmed here: this
+    file's header says 18:51:43, but the first spectral data row's own
+    timestamp is 18:51:45.68, a 2.68s gap). That's usually harmless on its
+    own, but it matters when aligning against another instrument's
+    independently-recorded timestamps -- e.g. a potentiostat's `.nox` file
+    via `NovaNoxReader` -- since the resulting offset can be large enough,
+    relative to a fast transient, to make an optical response appear to
+    *precede* the electrochemical event that caused it.
+
+    Requires the data rows to carry a full absolute datetime (e.g.
+    "2026-08-05 18:51:45.681484"), not just a time-of-day -- true for the
+    QEP/OceanView exports this is designed for. If the first row's stamp
+    can't be parsed as a full datetime, this warns and falls back to the
+    header-based tstamp (i.e. behaves exactly like the parent class).
+    """
+
+    def read(self, path_to_file, name=None, cls=OpticalSpectrumSeries):
+        spectrum_series = super().read(path_to_file, name=name, cls=cls)
+
+        true_tstamp = self._true_first_spectrum_tstamp(path_to_file)
+        if true_tstamp is None:
+            warnings.warn(
+                f"{type(self).__name__}: could not parse a full datetime "
+                "('YYYY-MM-DD HH:MM:SS.ffffff') from the first spectral "
+                f"data row of {path_to_file} -- falling back to the header "
+                "Date: timestamp, same as OceanViewTimeSeriesReader."
+            )
+            return spectrum_series
+
+        # Mutate the *nested* TimeSeries inside the field, not the outer
+        # `spectrum_series.tstamp` attribute. `SpectrumSeries.field` is a
+        # lazy property (see ixdat.spectra.Spectrum.field) that re-anchors
+        # the field's time axis to `self.tstamp` whenever the two disagree
+        # by more than `t_tolerance`, via `time_shifted(...)`, which
+        # preserves absolute time (tstamp + data is invariant under the
+        # shift). So it doesn't matter that the outer `.tstamp` still holds
+        # the (wrong) header value: any later reconciliation just shifts
+        # `data` to compensate, carrying this fix's correct absolute times
+        # through. Setting the outer attribute instead would do nothing
+        # until the next reconciliation, and even then would only relabel
+        # t=0 without correcting the underlying absolute times.
+        spectrum_series.field.axes_series[0].tstamp = true_tstamp
+        return spectrum_series
+
+    @staticmethod
+    def _true_first_spectrum_tstamp(path_to_file):
+        """Return the Unix timestamp parsed directly from the first
+        spectral data row's own absolute timestamp column
+        ('YYYY-MM-DD HH:MM:SS.ffffff'), or None if the rows don't carry a
+        full datetime (e.g. time-of-day only, with no date part)."""
+        with open(path_to_file, encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+
+        start_idx = None
+        for i, ln in enumerate(lines):
+            if re.search(r"begin\s+spectral\s+data", ln, flags=re.I):
+                start_idx = i
+                break
+        if start_idx is None:
+            return None
+
+        for ln in lines[start_idx + 2:]:
+            if not ln.strip():
+                continue
+            stamp_str = ln.split("\t", 1)[0].strip()
+            try:
+                return datetime.strptime(stamp_str, "%Y-%m-%d %H:%M:%S.%f").timestamp()
+            except ValueError:
+                return None
+        return None

@@ -11,6 +11,7 @@ from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 # potentiostats
 from .biologic import BiologicReader
 from .autolab import NovaASCIIReader
+from .nova_nox import NovaNoxReader
 from .ivium import IviumDatasetReader
 from .chi import CHInstrumentsTXTReader
 from .nordic import NordicTDMSReader
@@ -45,7 +46,7 @@ from .qexafs import QexafsDATReader, B18TRXRFReader
 from .opus_ftir import OpusFTIRReader
 
 # optical
-from .oceanview import OceanViewTimeSeriesReader
+from .oceanview import OceanViewTimeSeriesReader,OceanViewTimeSeriesReader_per_spectrum_t  
 from .andor import AndorKineticsCSVReader
 
 # asimov
@@ -76,6 +77,7 @@ READER_CLASSES = {
     "b18_trxrf": B18TRXRFReader,
     "echemdb": EChemDBReader,
     "asimov": AsimovReader,
+    "nova_nox":NovaNoxReader,
 }
 
 
@@ -91,4 +93,5 @@ SPECTRUM_READER_CLASSES = {
     "oceanview": OceanViewTimeSeriesReader,
     "andor": AndorKineticsCSVReader,
     "bruker": BrukerNMRReader,
+    "oceanview_per_spectrum_t": OceanViewTimeSeriesReader_per_spectrum_t,
 }

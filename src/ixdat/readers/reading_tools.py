@@ -17,6 +17,7 @@ DEFAULT_READER_NAMES = {
     ".tsv": "zilien",
     ".xrdml": "xrdml",
     ".avg": "avantage",
+    ".nox": "nova_nox",
 }
 
 
