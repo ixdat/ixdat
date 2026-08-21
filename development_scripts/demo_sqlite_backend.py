@@ -230,8 +230,8 @@ print(
 print(f"  spectrum array before access: {lazy_optical_field._data}")
 print(f"  spectrum array after access:  shape={loaded_optical.spectra.data.shape}")
 
-# These are the table names that hold the pointers described above. They keep
-# relationships out of the main rows and allow lists to keep their order.
+# These tables hold the connections described above. The list relationships store a
+# position for each item. The single reference stores one spectrum id.
 print(
     "  relational paths: multispectrum_fields for XRD fields, field_axes for "
     "spectral axes, and ec_optical_measurements for the reference"

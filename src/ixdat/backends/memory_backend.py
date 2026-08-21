@@ -8,7 +8,7 @@ class MemoryBackend(BackendBase):
     This means that a Savable object can make a serializable representation of itself
     that includes the short_identity in the memory backend of objects that it
     references, and a new Savable object made from this representation can find the
-    original objects. See db.Savable.as_dict(), which ensures that "child objects"
+    original objects. See db.Saveable.as_dict(), which ensures that related objects
     are in memory.
     """
 
