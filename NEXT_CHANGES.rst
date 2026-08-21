@@ -98,7 +98,8 @@ database
   table-definition work in
   `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_. Saves are transactional,
   relationships use foreign keys, arrays remain lazy, and existing tables receive
-  safe additive migrations.
+  safe additive migrations. String-only object arrays from pandas are stored as
+  native NumPy Unicode arrays without enabling pickle.
 
 - ``Saveable`` gained optional ``column_types`` and ``column_references`` metadata.
   Classes declare Python value types, and relational backends map them to their

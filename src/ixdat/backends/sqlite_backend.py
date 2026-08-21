@@ -692,8 +692,15 @@ class SQLiteBackend(BackendBase):
         if value is None:
             return None
         if column.dtype is np.ndarray:
+            array = np.asarray(value)
+            # Pandas represents text columns as object arrays. NumPy can save the
+            # same strings without pickle once they use its native Unicode type.
+            if array.dtype == object and all(
+                isinstance(item, str) for item in array.flat
+            ):
+                array = array.astype(str)
             buffer = BytesIO()
-            np.save(buffer, np.asarray(value), allow_pickle=False)
+            np.save(buffer, array, allow_pickle=False)
             return sqlite3.Binary(buffer.getvalue())
         if column.dtype in (dict, list, tuple):
             # metadata dicts sometimes contain numpy numbers/arrays, which plain

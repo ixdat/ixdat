@@ -453,6 +453,24 @@ class TestSQLiteBackend:
         # numpy scalars are stored as their python equivalents:
         assert sqlite_backend._encode(ColumnSchema("x"), np.float64(1.5)) == 1.5
 
+    def test_string_object_array_round_trip(self, sqlite_backend):
+        """String arrays from pandas are saved safely without pickle."""
+        data = np.array(["1 µA", "10 µA", "100 µA"], dtype=object)
+        series = DataSeries(name="Current range", unit_name="A", data=data)
+
+        loaded = DataSeries.get(series.save())
+
+        assert loaded.data.dtype.kind == "U"
+        assert loaded.data.tolist() == data.tolist()
+
+    def test_non_string_object_array_is_rejected(self, sqlite_backend):
+        """SQLite does not enable pickle for arbitrary Python objects."""
+        array_column = ColumnSchema("data", dtype=np.ndarray)
+        data = np.array(["text", {"some": "object"}], dtype=object)
+
+        with pytest.raises(ValueError, match="Object arrays cannot be saved"):
+            sqlite_backend._encode(array_column, data)
+
     def test_dynamic_column_rejects_containers(self, sqlite_backend):
         """Containers require a logical type declared in the class's column_types"""
         with pytest.raises(DataBaseError):

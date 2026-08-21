@@ -136,9 +136,11 @@ are ``int``, ``float``, ``str``, ``dict``, ``list``, ``tuple``, and
 ``numpy.ndarray``. Each relational backend maps these to its own storage types.
 SQLite stores containers as JSON and arrays as blobs. As described above, the column
 named ``data`` stays in the file until its property is accessed; other array columns
-load with the object's ordinary values. A column which is not listed has no fixed
-type and stores its scalar value directly. Saving a container or array to an untyped
-column raises a ``DataBaseError`` naming the column.
+load with the object's ordinary values. Pandas represents text columns as object
+arrays. When every item in such an array is a string, SQLite stores it as a native
+NumPy Unicode array so that it can be loaded safely without pickle. A column which is
+not listed has no fixed type and stores its scalar value directly. Saving a container
+or array to an untyped column raises a ``DataBaseError`` naming the column.
 
 The key in ``relationships`` is the Python attribute holding the linked object.
 ``Relationship`` names the linked table and the attribute holding its saved id.
