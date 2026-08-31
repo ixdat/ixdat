@@ -11,6 +11,7 @@ from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 # potentiostats
 from .biologic import BiologicReader
 from .autolab import NovaASCIIReader
+
 from .ivium import IviumDatasetReader
 from .chi import CHInstrumentsTXTReader
 from .nordic import NordicTDMSReader
