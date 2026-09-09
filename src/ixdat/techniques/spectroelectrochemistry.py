@@ -546,13 +546,12 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             
             valid_index=valid_indices[0]
             
-            if sign[valid_index+1]>0 and sign[valid_index-1]<0:
-                anodic_mask=np.arange(len(t_spec))>valid_index
-                cathodic_mask=np.arange(len(t_spec))<valid_index
-                
-            elif sign[valid_index+1]<0 and sign[valid_index-1]>0:
-                anodic_mask=np.arange(len(t_spec))<valid_index
-                cathodic_mask=np.arange(len(t_spec))>valid_index
+            if sign[valid_index] > 0:
+                anodic_mask = np.arange(len(t_spec)) > valid_index
+                cathodic_mask = np.arange(len(t_spec)) < valid_index
+            else:  # sign[valid_index] < 0, guaranteed nonzero by the same-sign filter above
+                anodic_mask = np.arange(len(t_spec)) < valid_index
+                cathodic_mask = np.arange(len(t_spec)) > valid_index
             
             if direction==0:
                 t_spec=t_spec[anodic_mask]
