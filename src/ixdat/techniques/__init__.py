@@ -40,6 +40,7 @@ TECHNIQUE_CLASSES = {
     "MS_spectra": MSSpectrumSeries,
     "SEC": SpectroECMeasurement,
     "EC-Optical": ECOpticalMeasurement,
+    "CV-Optical": ECOpticalMeasurement,
     "EC-XAS": ECXASMeasurement,
     "MS-MS_spectra": MSSpectroMeasurement,
     "reactor": ReactorMeasurement,
