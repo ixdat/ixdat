@@ -7,7 +7,7 @@ case, TimeSeries, which must know its absolute (unix) timestamp.
 """
 
 import numpy as np
-from .db import Saveable
+from .db import Relationship, Saveable, same_short_identity
 from .tools import tstamp_to_string
 from .units import Unit
 from .exceptions import AxisError, BuildError
@@ -109,19 +109,22 @@ class Field(DataSeries):
     """Class for storing multi-dimensional data spanning 'axes'
 
     Characterized by a list of references to these axes, which are themselves also
-    DataSeries. This is represented in the extra linkers.
+    DataSeries. The ``axes_series`` relationship stores their ids in order.
     """
 
-    extra_linkers = {"field_axes": ("data_series", "a_ids")}
-    child_attrs = ["axes_series"]
+    relationships = {
+        "axes_series": Relationship(
+            "data_series", "a_ids", many=True, storage_table="field_axes"
+        )
+    }
     series_type = "field"
 
     def __init__(self, name, unit_name, data, a_ids=None, axes_series=None):
         """Initiate the Field and check that the supplied axes make sense.
 
         Args (in addition to those of parent, :class:`.DataSeries`):
-            a_ids (list of int): The ids of the corresponding axes DataSeries, if not
-                the series are not given directly as `axes_series`
+            a_ids (list): Local ids or ``(backend, id)`` references for the axes, if
+                the series are not given directly as ``axes_series``.
             axes_series (list of DataSeries): The DataSeries describing the axes which
                 the field's data spans, if available
         """
@@ -136,15 +139,27 @@ class Field(DataSeries):
         self._check_axes()  # raises an AxisError if something's wrong
 
     def get_axis_id(self, axis_number):
-        """Return the id of the `axis_number`'th axis of the data"""
+        """Return the backend-aware identity of one axis of the data."""
         if self._axes_series[axis_number]:
-            return self._axes_series[axis_number].id
-        return self._a_ids[axis_number]
+            return self._axes_series[axis_number].short_identity
+        identity = self._a_ids[axis_number]
+        if isinstance(identity, int):
+            backend = self.db.backend if self.backend_type == "none" else self.backend
+            return backend, identity
+        return identity
 
     def get_axis_series(self, axis_number):
         """Return the DataSeries of the `axis_number`'th axis of the data"""
         if not self._axes_series[axis_number]:
-            self._axes_series[axis_number] = DataSeries.get(i=self._a_ids[axis_number])
+            identity = self._a_ids[axis_number]
+            if isinstance(identity, int):
+                backend = (
+                    self.db.backend if self.backend_type == "none" else self.backend
+                )
+                i = identity
+            else:
+                backend, i = identity
+            self._axes_series[axis_number] = DataSeries.get(i=i, backend=backend)
             # And so as not have two id's for the axis_number'th axis:
             self._a_ids[axis_number] = None
         return self._axes_series[axis_number]
@@ -171,10 +186,18 @@ class Field(DataSeries):
                 f"{self!r} is {N}-D but initiated with {len(self._axes_series)} axes"
             )
         for n, (a_id, axis_series) in enumerate(zip(self._a_ids, self._axes_series)):
-            if a_id is not None and axis_series is not None and a_id != axis_series.id:
-                raise AxisError(
-                    f"{self!r} initiated with contradicting id's for {n}'th axis"
-                )
+            if a_id is not None and axis_series is not None:
+                if isinstance(a_id, int):
+                    same_axis = a_id == axis_series.id
+                else:
+                    backend, i = a_id
+                    same_axis = same_short_identity(
+                        (backend, i), axis_series.short_identity
+                    )
+                if not same_axis:
+                    raise AxisError(
+                        f"{self!r} initiated with contradicting id's for {n}'th axis"
+                    )
             elif a_id is None and axis_series is None:
                 raise AxisError(
                     f"{self!r} has no axis id for series or id for its {n}'th axis"
@@ -207,8 +230,9 @@ class Field(DataSeries):
 class ValueSeries(Field):
     """Class to store scalar values that are measured over time.
 
-    Characterized by a reference to the corresponding time series. This reference is
-    represented in relational databases as a row in an auxiliary linker table
+    Its one-item ``axes_series`` list points to the corresponding time series. A
+    relational backend stores this connection in the ``field_axes`` table, including
+    its position in the list.
     """
 
     series_type = "vseries"

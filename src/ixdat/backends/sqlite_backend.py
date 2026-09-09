@@ -22,7 +22,7 @@ from ..exceptions import DataBaseError
 
 DATABASE_FILE_SUFFIX = ".sqlite"
 SCHEMA_VERSION = 1
-METADATA_TABLE = "_ixdat_metadata"
+METADATA_TABLE_NAME = "_ixdat_metadata"
 SQLITE_TYPES = {
     int: "INTEGER",
     float: "REAL",
@@ -55,27 +55,41 @@ class SQLiteBackend(BackendBase):
             project_name (str): The project name for the default database file
         """
         self._is_memory = str(db_path) == ":memory:"
+        # SQLite gives each ":memory:" connection its own temporary database. Give
+        # each one a unique ixdat address so their saved-object identities stay apart.
+        self._memory_address = f":memory:{id(self)}" if self._is_memory else None
         if self._is_memory:
             self.db_path = ":memory:"
+            database_is_new = True
         elif db_path:
             self.db_path = Path(db_path)
+            database_is_new = (
+                not self.db_path.exists() or self.db_path.stat().st_size == 0
+            )
         else:
             directory = Path(directory or config.standard_data_directory)
             project_name = project_name or config.default_project_name
             self.db_path = directory / (project_name + DATABASE_FILE_SUFFIX)
-        self._resolved_path = None  # what identifies this database, see __eq__
+            database_is_new = (
+                not self.db_path.exists() or self.db_path.stat().st_size == 0
+            )
+        # The resolved path identifies file storage in shares_storage_with().
+        self._resolved_path = None
         if not self._is_memory:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
-            # resolved once here: two backends on one file must compare and hash
-            # alike however their paths were written, and resolving hits the disk
+            # Resolve once so differently written paths to one file identify the
+            # same storage without repeatedly accessing the filesystem.
             self._resolved_path = self.db_path.resolve()
         self.connection = sqlite3.connect(self.db_path)
+        # SQLite configures foreign-key checking per connection and leaves it off
+        # by default. Enable it here so every saved id must point to an existing row:
+        # https://www.sqlite.org/pragma.html#pragma_foreign_keys
         self.connection.execute("PRAGMA foreign_keys = ON")
         self._closed = False
         self._ensured_classes = set()
         self._ensured_schema_definitions = set()
         try:
-            self._initialize_schema_metadata()
+            self._initialize_schema_metadata(database_is_new)
         except Exception:
             self.close()
             raise
@@ -83,8 +97,8 @@ class SQLiteBackend(BackendBase):
 
     @property
     def address(self):
-        """The path to the SQLite database file"""
-        return str(self.db_path if self._is_memory else self._resolved_path)
+        """The file path, or the unique identity of an in-memory database."""
+        return self._memory_address if self._is_memory else str(self._resolved_path)
 
     def close(self):
         """Close the connection to the database file"""
@@ -92,16 +106,8 @@ class SQLiteBackend(BackendBase):
             self.connection.close()
             self._closed = True
 
-    def __enter__(self):
-        """Return this backend for use as a context manager."""
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Close the connection when leaving a context manager."""
-        self.close()
-
-    def __eq__(self, other):
-        """Two SQLiteBackends are equivalent if they use the same database file"""
+    def shares_storage_with(self, other):
+        """Return whether ``other`` reaches the same SQLite database."""
         if other is self:
             return True
         if other.__class__ is not self.__class__:
@@ -110,17 +116,6 @@ class SQLiteBackend(BackendBase):
             # Separate ":memory:" connections are separate databases.
             return False
         return other._resolved_path == self._resolved_path
-
-    def __hash__(self):
-        """Hash by the database file, so that equal backends hash alike
-
-        Defining __eq__ sets __hash__ to None unless it is defined too, which would
-        make this backend unhashable. Saveable does the same thing for the same
-        reason. Two ":memory:" backends are never equal, so they hash by identity.
-        """
-        if self._is_memory:
-            return object.__hash__(self)
-        return hash(self._resolved_path)
 
     # ------- saving  ------- #
 
@@ -137,7 +132,7 @@ class SQLiteBackend(BackendBase):
         plan = self._build_save_plan(obj, force=force, no_updates=no_updates)
         for planned_obj, action in plan:
             if action != "skip":
-                self._ensure_tables(type(planned_obj))
+                self._ensure_tables_for_save(type(planned_obj))
 
         original_states = []
         root_result = None
@@ -180,6 +175,9 @@ class SQLiteBackend(BackendBase):
         existing_tables = self._existing_tables()
 
         def visit(obj, updates_forbidden):
+            # Python's built-in id() identifies this exact in-memory object. That
+            # lets the walk detect a cycle even when two ixdat objects have equal
+            # saved values or database ids.
             object_key = id(obj)
             if object_key in visited:
                 return  # already planned (e.g. two parents sharing one child)
@@ -190,11 +188,10 @@ class SQLiteBackend(BackendBase):
                     f"Can't save a cyclic object graph rooted at {root!r}."
                 )
             visiting.add(object_key)
-            # visit every child first, so they end up earlier in "plan"
-            if obj.child_attrs:
-                for child_list_name in obj.child_attrs:
-                    for child_obj in getattr(obj, child_list_name) or []:
-                        visit(child_obj, updates_forbidden=True)
+            # Visit every related object first, so it appears earlier in the plan and
+            # has an id by the time this object stores the relationship.
+            for related_obj in obj.iter_related_objects():
+                visit(related_obj, updates_forbidden=True)
             visiting.remove(object_key)
             visited.add(object_key)
             plan.append(
@@ -210,7 +207,9 @@ class SQLiteBackend(BackendBase):
     def _save_action(self, obj, force, updates_forbidden, existing_tables):
         """Return ``insert``, ``update``, or ``skip`` for one planned object."""
         row_exists = False
-        if obj.backend == self and obj.table_name in existing_tables:
+        # Storage identity tells us where to look. This query separately confirms
+        # that the object's exact row is present through this connection.
+        if self.shares_storage_with(obj.backend) and obj.table_name in existing_tables:
             row_exists = self.connection.execute(
                 f"SELECT 1 FROM {_quote_identifier(obj.table_name)} " 'WHERE "id" = ?',
                 (obj.id,),
@@ -260,7 +259,13 @@ class SQLiteBackend(BackendBase):
                 f'DELETE FROM {_quote_identifier(schema.name)} WHERE "id" = ?',
                 (obj.id,),
             )
+        existing_tables = self._existing_tables()
         for linker in relational.linker_table_schemas(type(obj)):
+            # A connection table can be created before its linked table is needed.
+            # Until that linked table exists, this object cannot have any rows in the
+            # connection table to replace.
+            if linker.linked_table not in existing_tables:
+                continue
             connection.execute(
                 f"DELETE FROM {_quote_identifier(linker.name)} WHERE "
                 f"{_quote_identifier(linker.owner_column)} = ?",
@@ -287,7 +292,7 @@ class SQLiteBackend(BackendBase):
             identities = getattr(obj, linker.id_attr)
             if identities is None:
                 continue
-            if not linker.is_list:
+            if not linker.many:
                 identities = [identities]
             for position, identity in enumerate(identities):
                 linked_id = self._dereference(identity)
@@ -297,6 +302,13 @@ class SQLiteBackend(BackendBase):
                         f"not the id of a row saved in {self}. Do the referenced "
                         "objects live in another backend?"
                     )
+                # `connection` is the sqlite3 connection opened by this backend.
+                # For a measurement linked to a data series, `_insert_sql()` makes:
+                # INSERT INTO "measurement_series"
+                #     ("measurement_id", "position", "data_series_id")
+                #     VALUES (?, ?, ?)
+                # The values below give SQLite the measurement id, the series's
+                # place in the measurement's list, and the data-series id.
                 connection.execute(
                     _insert_sql(
                         linker.name,
@@ -314,20 +326,23 @@ class SQLiteBackend(BackendBase):
         "measurement" could be a plain ECMeasurement or an ECMSMeasurement), so we
         check the extension/linker tables of every class that shares cls's main
         table, not just cls's own. Only the tables the row's real class wrote to
-        will actually have a row for this id; the rest are skipped. Numerical data
-        isn't loaded here - see `load_obj_data`.
+        will actually have a row for this id; the rest are skipped. The ``data``
+        column is loaded when the object's ``.data`` is first used - see
+        `load_obj_data`.
         """
-        self._ensure_tables(cls)
         main_schema = relational.main_table_schema(cls)
         extension_schemas, linker_schemas = relational.family_table_schemas(cls)
-        existing_tables = self._ensure_existing_family_tables(
-            extension_schemas + linker_schemas
+        existing_tables = self._validate_existing_tables(
+            [main_schema] + extension_schemas + linker_schemas
         )
-        # Leave ndarray columns out; `load_obj_data` gets them lazily:
+        if main_schema.name not in existing_tables:
+            raise DataBaseError(
+                f"{self} has no table for objects of type {cls.__name__}."
+            )
+        # `data` has ixdat's lazy-loading property. Other NumPy-array columns load
+        # here with the rest of the object's values.
         columns = [
-            column
-            for column in main_schema.data_columns
-            if column.dtype is not np.ndarray
+            column for column in main_schema.data_columns if column.name != "data"
         ]
         row = self.connection.execute(
             _select_sql(main_schema.name, [column.name for column in columns])
@@ -343,8 +358,8 @@ class SQLiteBackend(BackendBase):
             for column, value in zip(columns, row)
         }
         for column in main_schema.data_columns:
-            if column.dtype is np.ndarray:
-                obj_as_dict[column.name] = None  # signals lazy loading
+            if column.name == "data":
+                obj_as_dict["data"] = None  # signals lazy loading
         for schema in extension_schemas:
             if schema.name not in existing_tables:
                 continue
@@ -373,7 +388,7 @@ class SQLiteBackend(BackendBase):
             if rows:
                 linked_ids = [row[0] for row in rows]
                 obj_as_dict[linker.id_attr] = (
-                    linked_ids if linker.is_list else linked_ids[0]
+                    linked_ids if linker.many else linked_ids[0]
                 )
         obj = cls.from_dict(obj_as_dict)
         obj.set_backend(self)
@@ -382,7 +397,12 @@ class SQLiteBackend(BackendBase):
 
     def load(self, cls, name):
         """Return the most recently saved object of Saveable class cls with the name"""
-        self._ensure_tables(cls)
+        main_schema = relational.main_table_schema(cls)
+        existing_tables = self._validate_existing_tables([main_schema])
+        if main_schema.name not in existing_tables:
+            raise DataBaseError(
+                f"{self} has no table for objects of type {cls.__name__}."
+            )
         row = self.connection.execute(
             f'SELECT "id" FROM {_quote_identifier(cls.table_name)} '
             'WHERE "name" = ? '
@@ -396,15 +416,19 @@ class SQLiteBackend(BackendBase):
         return self.get(cls, row[0])
 
     def load_obj_data(self, obj):
-        """Return the numerical data of an object from its ndarray column."""
+        """Return the value stored in an object's lazy ``data`` column."""
         main_schema = relational.main_table_schema(type(obj))
-        for column in main_schema.data_columns:
-            if column.dtype is np.ndarray:
-                row = self.connection.execute(
-                    _select_sql(main_schema.name, [column.name]) + ' WHERE "id" = ?',
-                    (obj.id,),
-                ).fetchone()
-                return self._decode(column, row[0]) if row else None
+        data_column = next(
+            (column for column in main_schema.data_columns if column.name == "data"),
+            None,
+        )
+        if data_column is None:
+            return None
+        row = self.connection.execute(
+            _select_sql(main_schema.name, ["data"]) + ' WHERE "id" = ?',
+            (obj.id,),
+        ).fetchone()
+        return self._decode(data_column, row[0]) if row else None
 
     def contains(self, table_name, i):
         """Check if id `i` is already a principle key in the table named `table_name`"""
@@ -417,42 +441,57 @@ class SQLiteBackend(BackendBase):
 
     # ------- schema  ------- #
 
-    def _initialize_schema_metadata(self):
-        """Create and validate the small, backend-owned schema metadata table."""
-        metadata_table = _quote_identifier(METADATA_TABLE)
-        with self.connection as connection:
-            connection.execute(
-                f"CREATE TABLE IF NOT EXISTS {metadata_table} ("
-                '"key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)'
+    def _initialize_schema_metadata(self, database_is_new):
+        """Record a new file's schema version or validate an existing file's."""
+        metadata_table = _quote_identifier(METADATA_TABLE_NAME)
+        if database_is_new:
+            with self.connection as connection:
+                connection.execute(
+                    f"CREATE TABLE {metadata_table} ("
+                    '"key" TEXT PRIMARY KEY, "value" TEXT NOT NULL)'
+                )
+                connection.execute(
+                    f'INSERT INTO {metadata_table} ("key", "value") VALUES (?, ?)',
+                    ("schema_version", str(SCHEMA_VERSION)),
+                )
+            return
+
+        if METADATA_TABLE_NAME not in self._existing_tables():
+            raise DataBaseError(
+                f"The existing database {self.db_path} has no ixdat schema version. "
+                "Copy its objects into a new database with an explicit migration."
             )
-            row = connection.execute(
+        try:
+            row = self.connection.execute(
                 f'SELECT "value" FROM {metadata_table} ' 'WHERE "key" = ?',
                 ("schema_version",),
             ).fetchone()
-            if row is None:
-                # no version stored yet: an older database, or a brand new one.
-                # Either way, _ensure_tables() will check/fix each table as it's used.
-                connection.execute(
-                    f'INSERT INTO {metadata_table} ("key", "value") ' "VALUES (?, ?)",
-                    ("schema_version", str(SCHEMA_VERSION)),
-                )
-                return
-            try:
-                database_version = int(row[0])
-            except (TypeError, ValueError):
-                raise DataBaseError(
-                    f"Invalid ixdat schema version {row[0]!r} in {self.db_path}."
-                )
-            if database_version != SCHEMA_VERSION:
-                relation = "newer" if database_version > SCHEMA_VERSION else "older"
-                raise DataBaseError(
-                    f"The database {self.db_path} uses {relation} ixdat schema "
-                    f"version {database_version}; this ixdat supports version "
-                    f"{SCHEMA_VERSION}. Migrate the database before opening it."
-                )
+        except sqlite3.DatabaseError as error:
+            raise DataBaseError(
+                f"The database {self.db_path} has invalid ixdat schema metadata."
+            ) from error
+        if row is None:
+            raise DataBaseError(
+                f"The database {self.db_path} has no ixdat schema version. "
+                "Copy its objects into a new database with an explicit migration."
+            )
+        try:
+            database_version = int(row[0])
+        except (TypeError, ValueError):
+            raise DataBaseError(
+                f"Invalid ixdat schema version {row[0]!r} in {self.db_path}."
+            )
+        if database_version != SCHEMA_VERSION:
+            relation = "newer" if database_version > SCHEMA_VERSION else "older"
+            raise DataBaseError(
+                f"The database {self.db_path} uses {relation} ixdat schema "
+                f"version {database_version}; this ixdat supports version "
+                f"{SCHEMA_VERSION}. Copy its objects into a new database using "
+                "a compatible ixdat version."
+            )
 
-    def _ensure_tables(self, cls):
-        """Create, validate, and additively migrate tables needed by ``cls``."""
+    def _ensure_tables_for_save(self, cls):
+        """Create or validate the current-version tables needed to save ``cls``."""
         # this only needs doing once per class per backend instance, since a table
         # doesn't change shape again while this backend stays open:
         if cls in self._ensured_classes:
@@ -462,7 +501,7 @@ class SQLiteBackend(BackendBase):
         with self.connection as connection:
             for schema in relational.table_schemas_of(cls):
                 if schema.name in existing_tables:
-                    self._validate_or_migrate_table(connection, schema)
+                    self._validate_table(connection, schema)
                 else:
                     connection.execute(_create_table_sql(schema))
                     existing_tables.add(schema.name)
@@ -471,32 +510,30 @@ class SQLiteBackend(BackendBase):
         self._ensured_schema_definitions.update(ensured_definitions)
         self._ensured_classes.add(cls)
 
-    def _ensure_existing_family_tables(self, schemas):
-        """Validate subclass tables and return the current table-name set.
+    def _validate_existing_tables(self, schemas):
+        """Validate existing tables without changing the database.
 
-        Called from `get()`, which - unlike `_ensure_tables()` - needs to check
-        tables belonging to *other* classes than the one it was asked for (see the
-        comment in `get()`). We track each table by its exact expected DDL here
-        rather than by class, since several classes can share one such table.
+        ``get()`` checks tables belonging to sibling classes before it knows the
+        exact class of a saved row. Missing sibling tables are fine. The caller
+        decides whether a missing main table means that the requested object type
+        has never been saved.
         """
         existing_tables = self._existing_tables()
         ensured_definitions = []
-        with self.connection as connection:
-            for schema in schemas:
-                schema_definition = (schema.name, _create_table_sql(schema))
-                if (
-                    schema.name not in existing_tables
-                    or schema_definition in self._ensured_schema_definitions
-                ):
-                    continue  # table doesn't exist yet, or was already checked
-                self._validate_or_migrate_table(connection, schema)
-                self._ensure_indexes(connection, schema)
-                ensured_definitions.append(schema_definition)
+        for schema in schemas:
+            schema_definition = (schema.name, _create_table_sql(schema))
+            if (
+                schema.name not in existing_tables
+                or schema_definition in self._ensured_schema_definitions
+            ):
+                continue  # table doesn't exist yet, or was already checked
+            self._validate_table(self.connection, schema)
+            ensured_definitions.append(schema_definition)
         self._ensured_schema_definitions.update(ensured_definitions)
         return existing_tables
 
-    def _validate_or_migrate_table(self, connection, schema):
-        """Add missing nullable columns and reject incompatible table layouts."""
+    def _validate_table(self, connection, schema):
+        """Require an existing table to match its current ixdat description."""
         table_info = {
             row[1]: {"type": row[2].upper(), "not_null": row[3], "pk": row[5]}
             for row in connection.execute(
@@ -504,8 +541,6 @@ class SQLiteBackend(BackendBase):
             ).fetchall()
         }
         if isinstance(schema, relational.LinkerTableSchema):
-            # linker tables aren't migrated column-by-column like regular tables
-            # below: if their shape is wrong at all, we just ask for a manual fix.
             expected_names = {
                 schema.owner_column,
                 "position",
@@ -555,17 +590,10 @@ class SQLiteBackend(BackendBase):
         # regular (main/extension) table: check each expected column one by one.
         for column in schema.columns:
             if column.name not in table_info:
-                if column.name == "id":
-                    self._incompatible_schema(
-                        schema.name, 'primary-key column "id" missing'
-                    )
-                # a new column is always safe to add: it's nullable, so existing
-                # rows just get NULL for it - nothing to fill in or guess at.
-                connection.execute(
-                    f"ALTER TABLE {_quote_identifier(schema.name)} ADD COLUMN "
-                    + _column_definition(column, include_primary_key=False)
+                self._incompatible_schema(
+                    schema.name,
+                    f"expected column {column.name!r} is missing",
                 )
-                continue
             actual = table_info[column.name]
             expected_type = SQLITE_TYPES.get(column.dtype, "")
             if expected_type and actual["type"] != expected_type:
@@ -664,8 +692,15 @@ class SQLiteBackend(BackendBase):
         if value is None:
             return None
         if column.dtype is np.ndarray:
+            array = np.asarray(value)
+            # Pandas represents text columns as object arrays. NumPy can save the
+            # same strings without pickle once they use its native Unicode type.
+            if array.dtype == object and all(
+                isinstance(item, str) for item in array.flat
+            ):
+                array = array.astype(str)
             buffer = BytesIO()
-            np.save(buffer, np.asarray(value), allow_pickle=False)
+            np.save(buffer, array, allow_pickle=False)
             return sqlite3.Binary(buffer.getvalue())
         if column.dtype in (dict, list, tuple):
             # metadata dicts sometimes contain numpy numbers/arrays, which plain
@@ -693,28 +728,6 @@ class SQLiteBackend(BackendBase):
         if column.dtype in (dict, list, tuple):
             decoded = json.loads(value)
             return tuple(decoded) if column.dtype is tuple else decoded
-        return value
-
-    def _dereference(self, value):
-        """Turn a reference to another object into a plain id, for storing as a FK
-
-        An id-holding attribute (e.g. `s_ids`) can hold either a plain int id, or,
-        if the referenced object isn't in this backend yet, a `(backend, id)` pair
-        (`Saveable.short_identity`). Only the plain-int case can actually be saved
-        as a foreign key here, so this unwraps that pair and checks it points here.
-        """
-        if (
-            isinstance(value, tuple)
-            and len(value) == 2
-            and isinstance(value[0], BackendBase)
-        ):
-            backend, i = value
-            if backend is self or backend == self:
-                return i
-            raise DataBaseError(
-                f"Can't save a reference to id={i} of {backend} in {self}. "
-                "Save the referenced object here first."
-            )
         return value
 
 

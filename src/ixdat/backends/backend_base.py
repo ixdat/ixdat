@@ -1,5 +1,7 @@
 """This module implements the simplest backend, which just counts objects."""
 
+from ..exceptions import DataBaseError
+
 
 class BackendBase:
     """Base class listing the functions that must be implemented in a database backend.
@@ -17,6 +19,12 @@ class BackendBase:
     a workflow should instead be initiated with MemoryBackend (backend="memory").
     Other backends imply an object is saved to or loaded form a database including
     ixdat's directory backend (backend="directory")
+
+    Every backend can be used as a context manager. A backend which owns a
+    long-lived resource can override close() to release it.
+
+    ``shares_storage_with()`` lets separate backend objects say that they reach
+    the same saved objects while remaining separate Python objects.
     """
 
     backend_type = "none"
@@ -26,6 +34,37 @@ class BackendBase:
     def __init__(self):
         """Initialize the backend with dict for {table_name (str): id_counter (int)}"""
         self.next_available_ids = {}
+
+    def close(self):
+        """Release resources owned by this backend, if any."""
+
+    def __enter__(self):
+        """Return this backend for use as a context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Release this backend's resources when leaving a context manager."""
+        self.close()
+
+    def shares_storage_with(self, other):
+        """Return whether this backend and ``other`` reach the same saved objects."""
+        return self is other
+
+    def _dereference(self, value):
+        """Return the local integer from a ``(backend, id)`` reference."""
+        if (
+            isinstance(value, tuple)
+            and len(value) == 2
+            and isinstance(value[0], BackendBase)
+        ):
+            backend, i = value
+            if self.shares_storage_with(backend):
+                return i
+            raise DataBaseError(
+                f"Can't save a reference to id={i} of {backend} in {self}. "
+                "Save the referenced object here first."
+            )
+        return value
 
     def get_next_available_id(self, table_name, obj=None):
         """Return the id counter for table_name, starting with 1."""

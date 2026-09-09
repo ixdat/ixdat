@@ -13,7 +13,13 @@ classes will be defined in the corresponding module in ./techniques/
 import warnings
 import json
 import numpy as np
-from .db import Saveable, PlaceHolderObject, fill_object_list
+from .db import (
+    Relationship,
+    Saveable,
+    PlaceHolderObject,
+    fill_object_list,
+    same_short_identity,
+)
 from .data_series import (
     DataSeries,
     TimeSeries,
@@ -50,13 +56,26 @@ class Measurement(Saveable):
         "sample_name": str,
         "tstamp": float,
     }
-    extra_linkers = {
-        "component_measurements": ("measurement", "m_ids"),
-        "measurement_calculators": ("calculator", "c_ids"),
-        "measurement_series": ("data_series", "s_ids"),
+    relationships = {
+        "component_measurements": Relationship(
+            "measurement",
+            "m_ids",
+            many=True,
+            storage_table="component_measurements",
+        ),
+        "calculator_list": Relationship(
+            "calculator",
+            "c_ids",
+            many=True,
+            storage_table="measurement_calculators",
+        ),
+        "series_list": Relationship(
+            "data_series",
+            "s_ids",
+            many=True,
+            storage_table="measurement_series",
+        ),
     }
-    child_attrs = ["component_measurements", "calculator_list", "series_list"]
-    # TODO: child_attrs should be derivable from extra_linkers?
 
     # ---- measurement class attributes, can be overwritten in inheriting classes ---- #
     control_technique_name = None
@@ -101,15 +120,14 @@ class Measurement(Saveable):
             name (str): The name of the measurement
             metadata (dict): Free-form measurement metadata. Must be json-compatible.
             technique (str): The measurement technique
-            s_ids (list of int): The id's of the measurement's DataSeries, if
-                to be loaded (instead of given directly in series_list)
+            s_ids (list): Local ids or ``(backend, id)`` references for the
+                measurement's DataSeries, if they are not given in ``series_list``.
             series_list (list of DataSeries): The measurement's DataSeries
-            c_ids (list of int): The id's of the measurement's calculators, if
-                to be loaded (instead of given directly in calculator_list)
+            c_ids (list): Local ids or ``(backend, id)`` references for calculators,
+                if they are not given in ``calculator_list``.
             calculator_list: The measurement's calculators
-            m_ids (list of int): The id's of the component measurements, if to be
-                loaded. None unless this is a combined measurement (typically
-                corresponding to more than one file).
+            m_ids (list): Local ids or ``(backend, id)`` references for component
+                measurements. None unless this is a combined measurement.
             component_measurements (list of Measurements): The measurements of which
                 this measurement is a combination
             aliases (dict): Alternative names for DataSeries for versatile access
@@ -491,11 +509,7 @@ class Measurement(Saveable):
 
     @property
     def m_ids(self):
-        """List of the id's of a combined measurement's component measurements
-        FIXME: m.id can be (backend, id) if it's not on the active backend.
-            This is as of now necessary to find it if you're only given self.as_dict()
-            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
-        """
+        """Backend-aware identities of the component measurements."""
         if not self._component_measurements:
             return None
         return [m.short_identity for m in self.component_measurements]
@@ -553,11 +567,7 @@ class Measurement(Saveable):
 
     @property
     def c_ids(self):
-        """List of the id's of the measurement's calculators
-        FIXME: c.id can be (backend, id) if it's not on the active backend.
-            This is as of now necessary to find it if you're only given self.as_dict()
-             see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
-        """
+        """Backend-aware identities of the measurement's calculators."""
         return [c.short_identity for c in self.calculator_list]
 
     def add_calculator(self, calculator):
@@ -647,11 +657,7 @@ class Measurement(Saveable):
 
     @property
     def s_ids(self):
-        """List of the id's of the measurement's DataSeries
-        FIXME: m.id can be (backend, id) if it's not on the active backend.
-            This is as of now necessary to find it if you're only given self.as_dict()
-            see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
-        """
+        """Backend-aware identities of the measurement's DataSeries."""
         return [series.short_identity for series in self._series_list]
 
     @property
@@ -1081,9 +1087,10 @@ class Measurement(Saveable):
         """Return a list of id's of component measurements to which `series` belongs."""
         m_id_list = []
         for m in self.component_measurements:
-            if series.short_identity in m.s_ids:
-                # FIXME: the whole id vs short_identity issue
-                #   see https://github.com/ixdat/ixdat/pull/11#discussion_r746632897
+            if any(
+                same_short_identity((backend, i), series.short_identity)
+                for backend, i in m.s_ids
+            ):
                 m_id_list.append(m.id)
         return m_id_list
 

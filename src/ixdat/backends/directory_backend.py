@@ -92,19 +92,21 @@ class DirBackend(BackendBase):
                 whether to save.
         """
         # First, we save any objects referenced by this object that need to survive a
-        # save-load cycle. These are listed in obj.child_attrs. They need to be saved
-        # first, so that they get their id's in this backend for the main object to
-        # correctly reference. This is done recursively.
-        if obj.child_attrs:
-            for child_list_name in obj.child_attrs:
-                # save any data objects first as this may change the references
-                child_list = getattr(obj, child_list_name) or []
-                for child_obj in child_list:
-                    self.save(child_obj, force=force, no_updates=True)
+        # save-load cycle. They need to be saved first, so that they get their ids in
+        # this backend for the main object to reference correctly.
+        for related_obj in obj.iter_related_objects():
+            self.save(related_obj, force=force, no_updates=True)
         # Now we're ready to save the main object.
         # The table_name is the table, the as_dict is the info for the row in the table.
         table_name = obj.table_name
         obj_as_dict = obj.as_dict()
+        reference_attrs = set(obj.get_column_references())
+        reference_attrs.update(
+            id_attr for _, id_attr in obj.get_extra_linkers().values()
+        )
+        for attr in reference_attrs:
+            if attr in obj_as_dict:
+                obj_as_dict[attr] = self._dereference_reference_value(obj_as_dict[attr])
         # check if it's already saved and decide what to do if so:
         if obj.backend is self and self.contains(table_name, obj.id):
             okay_to_update = not no_updates
@@ -126,6 +128,12 @@ class DirBackend(BackendBase):
             obj.set_id(i)
             obj.set_backend(self)
             return i
+
+    def _dereference_reference_value(self, value):
+        """Convert backend-aware references to ids for the directory files."""
+        if isinstance(value, list):
+            return [self._dereference_reference_value(item) for item in value]
+        return self._dereference(value)
 
     def save_data(self, data, table_name, i, fixed_name=None):
         """Save the data item of a given row, by default as .ix.npy
@@ -216,16 +224,31 @@ class DirBackend(BackendBase):
         folder = self.project_directory / table_name
         if not folder.exists():
             folder.mkdir()
+        old_metadata_paths = [
+            path
+            for path in folder.iterdir()
+            if path.suffix == self.metadata_suffix and id_from_path(path) == i
+        ]
         obj_as_dict.update({"id": i})
         fixed_name = fix_name_for_saving(obj_as_dict["name"])
         if "data" in obj_as_dict:
             self.save_data(obj_as_dict["data"], table_name, i, fixed_name)
             obj_as_dict["data"] = None  # FIXME this could instead point to the data.
         file_name = f"{i}_{fixed_name}{self.metadata_suffix}"
+        new_metadata_path = folder / file_name
         from ..tools import to_jsonable
 
-        with open(folder / file_name, "w") as f:
+        with open(new_metadata_path, "w") as f:
             json.dump(to_jsonable(obj_as_dict), f, indent=4)
+        # The saved name is part of the filename. Once the new file is complete,
+        # remove files left under an earlier name so loading by id finds one row.
+        for old_metadata_path in old_metadata_paths:
+            if old_metadata_path == new_metadata_path:
+                continue
+            old_metadata_path.unlink()
+            old_data_path = old_metadata_path.with_suffix(self.data_suffix)
+            if old_data_path.exists():
+                old_data_path.unlink()
 
     def get_row_as_dict(self, table_name, i):
         """Return the serialization of the object represented in row i of table_name"""
@@ -276,3 +299,7 @@ class DirBackend(BackendBase):
         ):
             return True
         return False
+
+    def shares_storage_with(self, other):
+        """Return whether ``other`` refers to the same directory."""
+        return self == other

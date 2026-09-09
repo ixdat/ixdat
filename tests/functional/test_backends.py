@@ -83,3 +83,44 @@ class TestBackends:
             assert np.allclose(loaded.reference_spectrum.y, np.ones(4))
         else:
             assert loaded.reference_spectrum is None
+
+    def test_force_updates_scalar_relationship(
+        self, ec_optical_measurement_factory, fresh_backend
+    ):
+        """A forced save writes changes through a one-object relationship."""
+        measurement = ec_optical_measurement_factory(with_reference=True)
+        measurement_id = measurement.save()
+
+        measurement.reference_spectrum.name = "updated reference"
+        measurement.reference_spectrum.field._data = np.full(4, 2.0)
+
+        # A normal repeated save follows ixdat's established no-update rule.
+        assert measurement.save() is None
+        loaded = Measurement.get(measurement_id)
+        assert loaded.reference_spectrum.name == "ref spectrum"
+        assert np.allclose(loaded.reference_spectrum.y, np.ones(4))
+
+        fresh_backend.save(measurement, force=True)
+        loaded = Measurement.get(measurement_id)
+        assert loaded.reference_spectrum.name == "updated reference"
+        assert np.allclose(loaded.reference_spectrum.y, np.full(4, 2.0))
+        if fresh_backend.backend_type == "directory":
+            spectrum_files = list(
+                (fresh_backend.project_directory / "spectrums").glob(
+                    f"{measurement.reference_spectrum.id}_*"
+                    f"{fresh_backend.metadata_suffix}"
+                )
+            )
+            assert len(spectrum_files) == 1
+
+        replacement = ec_optical_measurement_factory(
+            with_reference=True
+        ).reference_spectrum
+        replacement.name = "replacement reference"
+        replacement.field._data = np.full(4, 3.0)
+        measurement.set_reference_spectrum(spectrum=replacement)
+
+        fresh_backend.save(measurement, force=True)
+        loaded = Measurement.get(measurement_id)
+        assert loaded.reference_spectrum.name == "replacement reference"
+        assert np.allclose(loaded.reference_spectrum.y, np.full(4, 3.0))

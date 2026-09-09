@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
-from ..db import PlaceHolderObject
+from ..db import PlaceHolderObject, Relationship
 from ..spectra import Spectrum, SpectroMeasurement
 from ..data_series import Field, ValueSeries
 from ..exporters import SECExporter
@@ -58,8 +58,11 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
     default_plotter = ECOpticalPlotter
 
-    extra_linkers = {"ec_optical_measurements": ("spectrums", "ref_id")}
-    child_attrs = SpectroECMeasurement.child_attrs + ["reference_spectrum_list"]
+    relationships = {
+        "reference_spectrum": Relationship(
+            "spectrums", "ref_id", storage_table="ec_optical_measurements"
+        )
+    }
 
     def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
@@ -83,14 +86,6 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         if isinstance(self._reference_spectrum, PlaceHolderObject):
             self._reference_spectrum = self._reference_spectrum.get_object()
         return self._reference_spectrum
-
-    # FIXME: The attribute below is needed in order to correctly pass the reference
-    #   spectrum between objects using its id, because "child_attrs" only works on
-    #   lists. Same as SpectroMeasurement.spectrum_series_list.
-    @property
-    def reference_spectrum_list(self):
-        """The reference spectrum in a list, or an empty list if there is none"""
-        return [self.reference_spectrum] if self._reference_spectrum else []
 
     @property
     def ref_id(self):

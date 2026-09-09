@@ -52,7 +52,7 @@ class DataBase:
         """Switch to a backend for the duration of the `with` block, then switch back.
 
         Loading an object needs its backend to be the active one, since building
-        its lazy child objects happens through that global setting. Using a
+        its lazily loaded related objects happens through that global setting. Using a
         `with`-block guarantees the old backend is restored even if loading fails
         partway through, so a failed load can't leave later saves/loads pointed at
         the wrong database.
@@ -112,6 +112,60 @@ def get_database_name():
     return DB.backend.__class__.__name__
 
 
+class Relationship:
+    """Describe how a Saveable object refers to other Saveable objects.
+
+    The key in a class's ``relationships`` dictionary is the object attribute,
+    while this description connects it to the stored id attribute and table(s).
+
+    Args:
+        linked_table (str): The table containing the related object.
+        id_attr (str): The attribute which returns the related object's saved id,
+            or its ordered ids when ``many=True``.
+        many (bool): Whether the object attribute contains an ordered list.
+        storage_table (str or None): The table which stores the relationship. A
+            relationship containing many objects requires its own table of
+            connections. A relationship containing one object uses the owner's main
+            table when this is left out.
+        save_related (bool): Whether saving the owner also sends the related object
+            or objects through the backend's save process first. This gives new
+            related objects saved ids. A save with ``force=True`` also updates related
+            objects which are already saved.
+    """
+
+    def __init__(
+        self,
+        linked_table,
+        id_attr,
+        *,
+        many=False,
+        storage_table=None,
+        save_related=True,
+    ):
+        if many and not storage_table:
+            raise ValueError(
+                "A relationship containing many objects needs a storage_table."
+            )
+        self.linked_table = linked_table
+        self.id_attr = id_attr
+        self.many = many
+        self.storage_table = storage_table
+        self.save_related = save_related
+
+
+def same_short_identity(first, second):
+    """Return whether two ``(backend, id)`` references reach the same row.
+
+    A short identity contains a live backend object. Two backend objects can use
+    separate connections to the same storage, so comparing the tuples directly
+    can report a difference for references which reach the same row. The table is
+    supplied by the surrounding relationship or object class.
+    """
+    first_backend, first_id = first
+    second_backend, second_id = second
+    return first_id == second_id and first_backend.shares_storage_with(second_backend)
+
+
 class Saveable:
     """Base class for table-representing classes implementing database functionality.
 
@@ -121,18 +175,13 @@ class Saveable:
 
     At a minimum, the `table_name` and `column_attrs` class attributes need to be
     overwritten in inheriting classes to define the name and columns of the main
-    corresponding table. If an auxiliary table is needed to store lists of references
-    as rows, this should be represented in `linkers`. Sub-sub classes can use
-    `extra_column_attrs` to add extra columns via an auxiliary table without changing
-    the main table name.
+    corresponding table. Sub-sub classes can use `extra_column_attrs` to add extra
+    columns via an auxiliary table without changing the main table name.
 
     A class can also say what Python type of value each of its columns holds, with
-    `column_types`, and which columns hold the id of a row of another table, with
-    `column_references`. Relational backends need this to build their tables (see
-    :module:`~ixdat.backends.relational`); backends which just serialize each object
-    on its own, like the directory backend, ignore it. Both are optional: a column
-    which isn't in `column_types` holds whatever type its value already has, which
-    is all a plain str/int/float attribute needs.
+    `column_types`, and describe references to other Saveable objects with
+    `relationships`. SQL backends use this to build their tables (see
+    :module:`~ixdat.backends.relational`).
 
     ixdat is lazy, only loading things when needed. Correspondingly, all of the columns
     of table mentioned above should refer to (lists of) id's and not actual objects of
@@ -150,19 +199,20 @@ class Saveable:
         extra_column_attrs (dict): {table_name: {attr}} for auxiliary tables
             containing subclass attributes. Definitions are merged over the class
             ancestry, so each class only declares the tables and columns it adds.
-        extra_linkers (dict): {table_name: (reference_table, attr)} for defining
-            the connections between objects. Also merged over the class ancestry.
+        extra_linkers (dict): Older form of relationship metadata, kept so existing
+            external Saveable classes continue to work.
         column_types (dict): {attr: python_type} giving the type of the value stored
             in a column, for the columns where it matters. Supported types are
             ``int``, ``float``, ``str``, ``dict``, ``list``, ``tuple``, and
             ``numpy.ndarray``. A column left out here has no fixed type. Definitions
             are merged over the inheriting classes, so a class only declares the
             columns it adds itself.
-        column_references (dict): {attr: table_name} for the columns which hold the
-            id of a single row of another table, e.g. {"field_id": "data_series"}.
-            The column referred to is always that table's "id". Also merged over the
-            inheriting classes. This is for a column of *this* class's table; a
-            reference stored as rows of its own table goes in `extra_linkers`.
+        column_references (dict): Older form of single-reference metadata, kept so
+            existing external Saveable classes continue to work.
+        relationships (dict): {object_attr: Relationship} connecting a Python object
+            attribute to its stored id attribute. This also says whether the
+            relationship holds one object or many, which table stores its ids, and
+            whether its related objects join the same save process.
 
     Object attributes:
         backend (Backend): the backend where the object is saved. For a
@@ -180,15 +230,13 @@ class Saveable:
     table_name = None  # THIS MUST BE OVERWRITTEN IN INHERITING CLASSES
     column_attrs = None  # THIS SHOULD BE OVERWRITTEN IN INHERITING CLASSES
     extra_column_attrs = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
-    extra_linkers = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
+    extra_linkers = None  # LEGACY RELATIONSHIP DESCRIPTION
     # every ixdat table has a name. Inheriting classes add the types of the columns
     # they introduce themselves; get_column_types() merges them back together:
     column_types = {"name": str}
-    column_references = None  # THIS CAN BE OVERWRITTEN IN INHERITING CLASSES
-    # TODO: derive child_attrs somehow from the above class attributes, and have it in
-    #   a way where it's easy to tell which id goes with which attribute, i.e. s_ids
-    #   goes with series_list
-    child_attrs = None  # THIS SHOULD BE OVERWRITTEN IN CLASSES WITH DATA REFERENCES
+    column_references = None  # LEGACY SINGLE-REFERENCE DESCRIPTION
+    relationships = None  # THIS CAN BE OVERWRITTEN IN CLASSES WITH REFERENCES
+    child_attrs = None  # LEGACY LIST OF RELATED OBJECT ATTRIBUTES
 
     def __init__(self, backend=None, **self_as_dict):
         """Initialize a Saveable object from its dictionary serialization
@@ -228,23 +276,16 @@ class Saveable:
 
     @property
     def short_identity(self):
-        """short_identity is the backend if different from the active backend and the id
+        """Return ``(backend, id)`` so a reference says where its object lives.
 
-        FIXME: The overloaded return here is annoying and dangerous, but necessary for
-          `Measurement.from_dict(m.as_dict())` to work as a copy, since the call to
-          `fill_object_list` has to specify where the objects represented by
-          PlaceHolderObjects live. Note that calling save() on a Saveable object will
-          turn the backends into DB.backend, so this will only give id's when saving.
-        This is (usually) sufficient to tell if two objects refer to the same thing,
-        when used together with the class attribute table_name
+        Use :func:`same_short_identity` when comparing references from the same
+        table. Separate backend objects may connect to the same storage.
         """
-        if self.backend == DB.backend:
-            return self.id
         return self.backend, self.id
 
     @property
     def full_identity(self):
-        """The full immutable object short_identity as (str, str, str, int)
+        """Return the storage address, table, and id as an immutable tuple.
 
         Specifically: (backend_type, backend.address, table_name, id)
         """
@@ -294,6 +335,7 @@ class Saveable:
             exclude (list): List of attribute names to leave out of the dict
         """
         exclude = exclude or []
+        main_column_attrs = self.get_main_column_attrs()
         if self.column_attrs is None:
             raise DataBaseError(
                 f"{self!r} can't be serialized because the class "
@@ -301,7 +343,7 @@ class Saveable:
             )
         self_as_dict = {  # FIXME: probably better as loop, fix with table definitions.
             attr: getattr(self, attr)
-            for attr in self.column_attrs
+            for attr in main_column_attrs
             if attr not in exclude
         }
         return self_as_dict
@@ -309,18 +351,11 @@ class Saveable:
     def as_dict(self, exclude=None):
         """Return dict: serialization of the object main and auxiliary tables"""
 
-        # So that a new object initiated using the dictionary returned here
-        #   can find objects referenced by identities (i.e. s_ids for series_list),
-        #   we need to make sure they are saved in a real backend. Before adding the
-        #   id's to a list.
-        # FIXME: There would be a more precise and elegant way to do this if the id's
-        #   and corresponding attributes could be connected through class attributes.
-        #   To do with table definitions.
-        if self.child_attrs:
-            for child_object_list_name in self.child_attrs:
-                for child_obj in getattr(self, child_object_list_name):
-                    if child_obj.backend is database_backends["none"]:
-                        database_backends["memory"].save(child_obj)
+        # Save unsaved related objects in memory before reading their id attributes.
+        # This gives a dictionary copy enough information to find those objects again.
+        for related_obj in self.iter_related_objects():
+            if related_obj.backend is database_backends["none"]:
+                database_backends["memory"].save(related_obj)
 
         exclude = exclude or []
         self_as_dict = self.get_main_dict(exclude=exclude)
@@ -358,37 +393,49 @@ class Saveable:
         if not len(self_as_dict) == len(other_as_dict):
             # If they don't have the same number of items, they are not equal:
             return False
-        extra_linkers = self.get_extra_linkers()
-        if extra_linkers:
-            linker_id_names = {id_name for _, id_name in extra_linkers.values()}
-        else:
-            linker_id_names = []
+        linker_id_names = {id_name for _, id_name in self.get_extra_linkers().values()}
+        relationship_id_names = {
+            relationship.id_attr for relationship in self.get_relationships().values()
+        }
         for key in self_as_dict:
             # Here we go through the values
             if key not in other_as_dict:
                 # other.as_dict() must have all the keys of self.as_dict() to be equal
                 return False
-            if key in linker_id_names:
-                # So, we don't want the linker names.
-                # FIXME: Right now there's no way to figure out what the property (named
-                #   in child_attrs) is called from the id_name :( ... so we have to
-                #   pass here and do a new loop with the child_attrs.
-                pass
+            if key in linker_id_names or key in relationship_id_names:
+                continue
 
             if not thing_is_close(self_as_dict[key], other_as_dict[key]):
                 # Then the values aren't close (for floats and np arrays) or aren't
                 # equal (for all else)
                 return False
 
-        # Now we have to go through the owned Saveable objects:
-        if self.child_attrs:
-            for object_list_name in self.child_attrs:
-                object_list = getattr(self, object_list_name)
-                other_object_list = getattr(other, object_list_name)
-                # These two object lists need to have every corresponding element equal:
-                for object, other_object in zip(object_list, other_object_list):
-                    if object != other_object:
-                        return False
+        compared_attrs = set()
+        for object_attr, relationship in self.get_relationships().items():
+            compared_attrs.add(object_attr)
+            object_list = self._related_object_list(object_attr, relationship)
+            other_object_list = other._related_object_list(object_attr, relationship)
+            if len(object_list) != len(other_object_list):
+                return False
+            if any(
+                obj != other_obj
+                for obj, other_obj in zip(object_list, other_object_list)
+            ):
+                return False
+
+        # Compare objects declared with the older child_attrs metadata as well.
+        for object_attr in self.child_attrs or ():
+            if object_attr in compared_attrs:
+                continue
+            object_list = self._legacy_child_list(object_attr)
+            other_object_list = other._legacy_child_list(object_attr)
+            if len(object_list) != len(other_object_list):
+                return False
+            if any(
+                obj != other_obj
+                for obj, other_obj in zip(object_list, other_object_list)
+            ):
+                return False
 
         # If False hasn't been returned yet, then self and other are functionally equal.
         return True
@@ -403,15 +450,51 @@ class Saveable:
         db = db or self.db
         return db.save(self)
 
+    def _related_object_list(self, object_attr, relationship):
+        """Return one relationship's value as a list for traversal/comparison."""
+        value = getattr(self, object_attr)
+        if relationship.many:
+            return list(value or ())
+        return [] if value is None else [value]
+
+    def _legacy_child_list(self, object_attr):
+        """Return an older child_attrs value as a list."""
+        value = getattr(self, object_attr)
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple, set)):
+            return list(value)
+        return [value]
+
+    def iter_related_objects(self):
+        """Yield objects which should be saved before this object."""
+        relationship_attrs = set()
+        for object_attr, relationship in self.get_relationships().items():
+            relationship_attrs.add(object_attr)
+            if relationship.save_related:
+                yield from self._related_object_list(object_attr, relationship)
+        for object_attr in self.child_attrs or ():
+            if object_attr not in relationship_attrs:
+                yield from self._legacy_child_list(object_attr)
+
     @classmethod
     def get_all_column_attrs(cls):
         """List all attributes of objects of cls that correspond to table columns"""
-        all_attrs = set(cls.column_attrs or ())
+        all_attrs = set(cls.get_main_column_attrs())
         for attrs in cls.get_extra_column_attrs().values():
             all_attrs.update(attrs)
         for _, attr in cls.get_extra_linkers().values():
             all_attrs.add(attr)
         return all_attrs
+
+    @classmethod
+    def get_main_column_attrs(cls):
+        """Return columns stored in the object's main table."""
+        attrs = set(cls.column_attrs or ())
+        for relationship in cls.get_relationships().values():
+            if not relationship.many and relationship.storage_table is None:
+                attrs.add(relationship.id_attr)
+        return attrs
 
     @classmethod
     def get_extra_column_attrs(cls):
@@ -429,16 +512,36 @@ class Saveable:
                 ancestor.__dict__.get("extra_column_attrs") or {}
             ).items():
                 merged.setdefault(table_name, set()).update(attrs)
+        for relationship in cls.get_relationships().values():
+            if not relationship.many and relationship.storage_table:
+                merged.setdefault(relationship.storage_table, set()).add(
+                    relationship.id_attr
+                )
         return merged
 
     @classmethod
     def get_extra_linkers(cls):
-        """Return linker-table definitions merged over ``cls``'s ancestry."""
+        """Return old and new connection-table definitions for ``cls``.
+
+        The two-item tuples are the format used by the older ``extra_linkers`` API.
+        New relationships are converted to that format for existing backend code.
+        """
         merged = {}
         for ancestor in reversed(cls.__mro__):
             if getattr(ancestor, "table_name", None) == cls.table_name:
                 merged.update(ancestor.__dict__.get("extra_linkers") or {})
+        for relationship in cls.get_relationships().values():
+            if relationship.many:
+                merged[relationship.storage_table] = (
+                    relationship.linked_table,
+                    relationship.id_attr,
+                )
         return merged
+
+    @classmethod
+    def get_relationships(cls):
+        """Return Relationship definitions merged over ``cls``'s ancestry."""
+        return cls._merged_class_dict("relationships")
 
     @classmethod
     def get_column_types(cls):
@@ -453,11 +556,16 @@ class Saveable:
 
     @classmethod
     def get_column_references(cls):
-        """Return {attr: table_name} for all of cls's columns which hold a foreign id
+        """Return {id_attr: table_name} for ids which point to another table.
 
-        Merged over the inheriting classes, exactly like `get_column_types`.
+        This combines older ``column_references`` declarations with relationships
+        containing one object.
         """
-        return cls._merged_class_dict("column_references")
+        references = cls._merged_class_dict("column_references")
+        for relationship in cls.get_relationships().values():
+            if not relationship.many:
+                references[relationship.id_attr] = relationship.linked_table
+        return references
 
     @classmethod
     def _merged_class_dict(cls, attr):
@@ -509,9 +617,9 @@ class PlaceHolderObject:
         """Initiate a PlaceHolderObject with info for loading the real obj when needed
 
         Args:
-            identity (int or tuple): The id (principle key) of the object represented OR
-                the short identity, i.e. a tuple of the id and the backend. In the later
-                case, identity[1] overrides a backend if given
+            identity (int or tuple): A local integer id or the ``(backend, id)``
+                returned by ``short_identity``. A backend in the tuple takes priority
+                over the separate ``backend`` argument.
             cls (class): Class inheriting from Saveable and thus specifiying the table
             backend (Backend, optional): by default, placeholders objects must live in
                 the active backend. This is the case if loaded with get().
@@ -534,9 +642,7 @@ class PlaceHolderObject:
 
     @property
     def short_identity(self):
-        """Placeholder also has a short_identity to check equivalence without loading"""
-        if self.backend == DB.backend:
-            return self.id
+        """Return an identity that can be checked without loading the real object."""
         return self.backend, self.id
 
 
@@ -547,20 +653,24 @@ def fill_object_list(object_list, obj_ids, cls=None):
         object_list (list of objects or None): The objects already known,
             in a list. This is the list to be appended to. If None, an empty
             list will be appended to.
-        obj_ids (list of ints or None): The id's of objects to ensure are in
-            the list. Any id in obj_ids not already represented in object_list
-            is added to the list as a PlaceHolderObject
+        obj_ids (list or None): Local ids or ``(backend, id)`` references to ensure
+            are represented. Missing references become PlaceHolderObjects.
         cls (Saveable class): the class remembered by any PlaceHolderObjects
             added to the object_list, so that eventually the right object will
             be loaded. Must be specified if object_list is empty.
     """
     cls = cls or object_list[0].__class__
     object_list = object_list or []
-    provided_series_ids = [s.id for s in object_list]
     if not obj_ids:
         return object_list
     for identity in obj_ids:
-        if identity not in provided_series_ids:
+        if isinstance(identity, int):
+            backend, i = DB.backend, identity
+        else:
+            backend, i = identity
+        if not any(
+            same_short_identity(obj.short_identity, (backend, i)) for obj in object_list
+        ):
             object_list.append(PlaceHolderObject(identity=identity, cls=cls))
     return object_list
 

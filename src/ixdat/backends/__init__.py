@@ -21,6 +21,6 @@ BACKEND_CLASSES = {
 # FIXME: should automate that all initiated backends get added to database_backends?
 database_backends = {
     "none": BackendBase(),  # Just assigns id's but doesn't keep track.
-    "memory": MemoryBackend(),  # Keeps track so child objects can be passed around
+    "memory": MemoryBackend(),  # Keeps related objects available by id
     "directory": DirBackend(),  # Saves json files, stand-in for SQL, mainly for testing
 }

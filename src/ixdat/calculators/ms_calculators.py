@@ -10,7 +10,7 @@ import json
 import numpy as np
 from ..plugins import plugins
 from ..tools import deprecate
-from ..db import Saveable, PlaceHolderObject, fill_object_list
+from ..db import Relationship, Saveable, PlaceHolderObject, fill_object_list
 from ..data_series import ValueSeries
 from ..measurement_base import Calculator
 from ..exceptions import QuantificationError, SeriesNotFoundError
@@ -58,15 +58,14 @@ class MSConstantBackground(Saveable):
 class MSBackgroundSet(Calculator):
     calculator_type = "MS background"
 
-    extra_linkers = {
-        "ms_background_constants": ("ms_constant_backgrounds", "ms_constant_bg_ids")
-        # Additional types of backgrounds would go here
+    relationships = {
+        "constant_bg_list": Relationship(
+            "ms_constant_backgrounds",
+            "ms_constant_bg_ids",
+            many=True,
+            storage_table="ms_background_constants",
+        )
     }
-    child_attrs = [
-        "constant_bg_list",
-        # Additional background types would go here.
-        # FIXME: This repeats info in extra_linkers. Should be possible to combine. #75.
-    ]
 
     def __init__(
         self,
@@ -83,9 +82,8 @@ class MSBackgroundSet(Calculator):
             name (str): Optional name of the instance
             bg_list (list of Saveable background objects): The backgrounds. Max one per
                 mass.
-            ms_constant_bg_ids (list of int): The id's of the constant backgrounds,
-                used when loading from a database instead of `bg_list`. The
-                `MSConstantBackground`s are then only loaded when they are needed.
+            ms_constant_bg_ids (list): Local ids or ``(backend, id)`` references for
+                the constant backgrounds. These are used when ``bg_list`` is absent.
             tstamp (float, optional): Absolute time at which the backgrounds were taken
             measurement (Measurement, optional): Measurement from which the backgorunds
                 were calculated.
@@ -285,10 +283,14 @@ class MSCalibration(Calculator):
 
     calculator_type = "MS calibration"
 
-    extra_linkers = {"ms_calibration_results": ("ms_cal_results", "ms_cal_result_ids")}
-    child_attrs = [
-        "ms_cal_results",
-    ]
+    relationships = {
+        "ms_cal_results": Relationship(
+            "ms_cal_results",
+            "ms_cal_result_ids",
+            many=True,
+            storage_table="ms_calibration_results",
+        )
+    }
 
     def __init__(
         self,
@@ -324,9 +326,8 @@ class MSCalibration(Calculator):
             F (float): Sensitivity factor, for a single sensitivity factor calibration
             ms_cal_results (list of MSCalResult): The mass spec calibrations, required
                unless mol, mass and F are given.
-            ms_cal_result_ids (list of int): The id's of the mass spec calibrations,
-               used when loading from a database instead of `ms_cal_results`. The
-               `MSCalResult`s are then only loaded when they are needed.
+            ms_cal_result_ids (list): Local ids or ``(backend, id)`` references for
+               the mass spec calibrations, used when ``ms_cal_results`` is absent.
             name (str): Name of the ms_calibration. Optional.
             date (str): Date of the ms_calibration. Optional.
             setup (str): Name of the setup where the ms_calibration is made. Optional.

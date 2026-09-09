@@ -63,18 +63,18 @@ class TableSchema:
     table (see module docstring).
     """
 
-    def __init__(self, name, columns, extends=None):
+    def __init__(self, name, columns, base_table=None):
         """Initiate a table description
 
         Args:
             name (str): The name of the table
             columns (list of ColumnSchema): The columns, starting with "id"
-            extends (str or None): The name of the main table this table
-                extends, if it is an extension table
+            base_table (str or None): The name of the main table this extension
+                table adds values to
         """
         self.name = name
         self.columns = columns
-        self.extends = extends
+        self.base_table = base_table
 
     @property
     def column_names(self):
@@ -90,16 +90,16 @@ class TableSchema:
 
 
 class LinkerTableSchema:
-    """The description of a many-to-many linker table
+    """The description of a table which stores connections between saved objects
 
     A linker table relates rows of an owner table to rows of a linked table,
-    preserving order. For example, "measurement_series" has the columns
+    preserving order for a list. For example, "measurement_series" has the columns
     (measurement_id, position, data_series_id), and each of its rows represents
     a measurement's ownership of one data series. Its rows are built from and
-    loaded into the id-list attribute (e.g. "s_ids") of the owner class.
+    loaded into the id attribute (e.g. "s_ids") of the owner class.
     """
 
-    def __init__(self, name, owner_table, linked_table, id_attr):
+    def __init__(self, name, owner_table, linked_table, id_attr, many):
         """Initiate a linker table description
 
         Args:
@@ -107,14 +107,17 @@ class LinkerTableSchema:
             owner_table (str): The name of the owning main table
             linked_table (str): The name of the table linked to
             id_attr (str): The attribute of the owner class with the id or
-                ordered id's of the linked rows. By ixdat convention, id-list
-                attributes end in "_ids" (e.g. "s_ids") while single-reference
-                attributes end in "_id" (e.g. "ref_id").
+                ordered ids of the linked rows
+            many (bool): Whether the id attribute holds an ordered list. New
+                ``Relationship`` definitions provide this directly. Older
+                ``extra_linkers`` definitions use their established ``_ids`` naming
+                rule.
         """
         self.name = name
         self.owner_table = owner_table
         self.linked_table = linked_table
         self.id_attr = id_attr
+        self.many = many
 
     @property
     def owner_column(self):
@@ -130,11 +133,6 @@ class LinkerTableSchema:
             return "linked_" + self.linked_table + "_id"
         return self.linked_table + "_id"
 
-    @property
-    def is_list(self):
-        """Whether the attribute holds a list of ids or one id."""
-        return self.id_attr.endswith("_ids")
-
     def __repr__(self):
         return (
             f"LinkerTableSchema('{self.name}', "
@@ -149,7 +147,7 @@ def _ordered(attrs):
 
 def _validate_column_metadata(cls):
     """Reject type or reference declarations for columns the class does not store."""
-    stored_attrs = set(cls.column_attrs or ())
+    stored_attrs = set(cls.get_main_column_attrs())
     for attrs in cls.get_extra_column_attrs().values():
         stored_attrs.update(attrs)
 
@@ -196,7 +194,7 @@ def main_table_schema(cls):
     """Return the TableSchema of the main table of a Saveable class"""
     _validate_column_metadata(cls)
     columns = [ColumnSchema("id", dtype=int)]
-    columns += _columns(cls, cls.column_attrs or [])
+    columns += _columns(cls, cls.get_main_column_attrs())
     return TableSchema(cls.table_name, columns)
 
 
@@ -207,14 +205,29 @@ def extension_table_schemas(cls):
     for table_name, attrs in cls.get_extra_column_attrs().items():
         columns = [ColumnSchema("id", dtype=int, foreign_key=(cls.table_name, "id"))]
         columns += _columns(cls, attrs)
-        schemas.append(TableSchema(table_name, columns, extends=cls.table_name))
+        schemas.append(TableSchema(table_name, columns, base_table=cls.table_name))
     return schemas
 
 
 def linker_table_schemas(cls):
-    """Return the linker-table schemas of a Saveable class and its ancestors."""
+    """Return the connection-table schemas of a Saveable class and its ancestors.
+
+    New relationships state ``many`` directly. Older ``extra_linkers`` declarations
+    keep their established rule: an id attribute ending in ``_ids`` contains a list.
+    """
+    many_by_table = {
+        relationship.storage_table: relationship.many
+        for relationship in cls.get_relationships().values()
+        if relationship.many
+    }
     return [
-        LinkerTableSchema(table_name, cls.table_name, linked_table, id_attr)
+        LinkerTableSchema(
+            table_name,
+            cls.table_name,
+            linked_table,
+            id_attr,
+            many=many_by_table.get(table_name, id_attr.endswith("_ids")),
+        )
         for table_name, (linked_table, id_attr) in cls.get_extra_linkers().items()
     ]
 
