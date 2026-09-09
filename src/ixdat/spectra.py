@@ -801,6 +801,8 @@ class SpectrumSeries(Spectrum):
 
         if isinstance(other, Measurement):
             return add_spectrum_series_to_measurement(other, self)
+        
+    
 
 
 def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):

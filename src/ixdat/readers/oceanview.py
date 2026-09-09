@@ -27,6 +27,7 @@ class OceanViewTimeSeriesReader:
         name=None,
         spectra_type=None,  # spectra type is Intensity by default
         boxcar_width=None,  # boxcar width for data smoothing. Width is 1 by default.
+        average_every=1,
         cls=OpticalSpectrumSeries,
     ):
         path_to_file = Path(path_to_file)
@@ -76,20 +77,40 @@ class OceanViewTimeSeriesReader:
         # ---- Parse spectra and relative times ----
         spectra = []
         rel_times = []
+        
+        spectra_sum = np.zeros(len(wavelengths), dtype=np.float64)
+        time_sum = 0
+        count = 0
+        
         for ln in data_lines:
 
             # Robust handling of separators
             stamp_str, vals = self._split_stamp(ln)
 
             rel_sec = self._parse_row_time(stamp_str)
-            rel_times.append(rel_sec)
+            #rel_times.append(rel_sec)
             vals = [float(v.replace(",", ".")) for v in vals.split()]
 
             if len(vals) >= len(wavelengths):
-                spectra.append(vals[len(vals) - len(wavelengths) :])
-            else:
-                spectra.append(vals)
-
+                vals=vals[len(vals) - len(wavelengths) :]
+            #else:
+            #    spectra.append(vals)
+        
+            spectra_sum+=vals
+            time_sum += rel_sec
+            count+=1
+            
+            if count==average_every:
+                spectra.append(spectra_sum/average_every)
+                rel_times.append(time_sum/average_every)
+                # Reset
+                spectra_sum.fill(0)
+                time_sum = 0
+                count = 0
+        if count>0:
+            spectra.append(spectra_sum/count)
+            rel_times.append(time_sum/count)
+        
         y_matrix = np.stack(spectra)
 
         # ---- Apply smoothing ----
