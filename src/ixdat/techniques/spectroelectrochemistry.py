@@ -520,8 +520,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                 sign[:-1] != sign[1:]
             )[0] + 1
                    
+            valid_indices = []
             if len(turning_indices) >= 1:
-                valid_indices=[]
                 for idx in turning_indices:
                     if idx<N_points or len(t_spec)-idx<N_points:
                         continue
