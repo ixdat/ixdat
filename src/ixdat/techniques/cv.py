@@ -59,7 +59,7 @@ class CyclicVoltammogram(ECMeasurement):
             return self.select(key)
         return super().__getitem__(key)
 
-    def redefine_cycle(self, start_potential=None, redox=None, N_points=5, turning_point=False, gradient_tolerance=1e-4, N_sep=10):
+    def redefine_cycle(self, start_potential=None, redox=None, N_points=5, turning_point=False, N_sep=10):
         """Build `cycle` which iterates when passing through start_potential
 
         Args:
