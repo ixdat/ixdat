@@ -505,6 +505,7 @@ class ECOpticalPlotter(SECPlotter):
 
         cmap = plt.get_cmap(cmap_name)
         norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
+        t_v, v = measurement.grab(measurement.U_name)
 
         if not axes:
             axes = self.new_two_panel_axes()
@@ -515,8 +516,8 @@ class ECOpticalPlotter(SECPlotter):
             except SeriesNotFoundError:
                 measurement.track_wavelength(x)
                 t, y = measurement.grab(wl_str, tspan=tspan)
-            v = measurement.U
-            axes[0].plot(v, y, color=cmap(norm(x)), label=wl_str)
+            v_interp = np.interp(t, t_v, v)
+            axes[0].plot(v_interp, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
         axes[0].set_ylabel(r"$\Delta$O.D.")
 
