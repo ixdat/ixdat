@@ -9,7 +9,6 @@ from ..exporters import SECExporter
 from ..plotters import SECPlotter, ECOpticalPlotter
 from scipy.spatial.distance import pdist, squareform
 from scipy.signal import find_peaks
-from scipy.ndimage import uniform_filter1d
 import copy
 
 
@@ -61,11 +60,13 @@ class OpticalSpectrumSeries(SpectrumSeries):
         average_number=10,
         field=None,
     ):
-        """Return a ValueSeries of averaged spectra for either an OpticalSpectrumSeries or specific field containing spectral data.
+        """Return a ValueSeries of averaged spectra for either an OpticalSpectrumSeries
+        or specific field containing spectral data.
 
         Args:
             average_number (int) : The number of spectra to average. 10 by default.
-            field (field) : The spectra data to average, if not included in the measurement
+            field (field) : The spectra data to average, if not included in the
+                measurement
         Returns ValueSeries: An optical spectrum series containing averaged spectra
         """
         spectrum = self
@@ -81,8 +82,9 @@ class OpticalSpectrumSeries(SpectrumSeries):
             time = spectra_field.axes_series[0].data
 
         for index in range(0, len(spectra) - average_number, average_number):
-            averaged_spectra.append(spectra[index : index + average_number].mean(axis=0))
-            averaged_time.append(time[index : index + average_number].mean(axis=0))
+            window_end = index + average_number
+            averaged_spectra.append(spectra[index:window_end].mean(axis=0))
+            averaged_time.append(time[index:window_end].mean(axis=0))
 
         averaged_spectra = np.array(averaged_spectra)
         averaged_time = np.array(averaged_time)
@@ -113,7 +115,6 @@ class OpticalSpectrumSeries(SpectrumSeries):
         )
 
         return averaged_uvvis_series
-    
 
 
 class ECOpticalMeasurement(SpectroECMeasurement):
@@ -139,7 +140,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
         SpectroECMeasurement.__init__(self, **kwargs)
 
-        if spectra_type == None:
+        if spectra_type is None:
             spectra_type = self.spectrum_series.spectra_type
         self.spectra_type = spectra_type
 
@@ -402,7 +403,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         wlmin=None,
         wlmax=None,
     ):
-        """Return the difference of two delta optical density Spectra given a point and reference point (the one at the given point, and the next one measured).
+        """Return the difference of two delta optical density Spectra given a point and
+        reference point (the one at the given point, and the next one measured).
 
         Provide exactly one of V, t, and index, and at most one of V_ref, t_ref, and
         index_ref. For V and V_ref to work, the potential in the measurement must be
@@ -430,9 +432,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                 raise ValueError("Need one of t, V, or index.")
 
         wl = measurement.wavelength.data
-        if wlmin == None:
+        if wlmin is None:
             wlmin = np.min(wl)
-        if wlmax == None:
+        if wlmax is None:
             wlmax = np.max(wl)
         mask = (wl >= wlmin) & (wl <= wlmax)
 
@@ -445,7 +447,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
         dOD_diff = dOD2.y - dOD1.y
 
-        if normalise == True:
+        if normalise:
             dOD_diff_max = np.max((np.abs(dOD_diff[mask])))
             print(dOD_diff_max)
             dOD_diff = dOD_diff / dOD_diff_max
@@ -475,7 +477,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         t_ref=None,
         index_ref=None,
         direction=None,
-        N_points=10
+        N_points=10,
     ):
         """Return a ValueSeries for the dOD for a specific cycle.
         If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
@@ -487,7 +489,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum
-            direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is full cycle. Full cycle by default.
+            direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is
+                full cycle. Full cycle by default.
         Returns ValueSeries: The dOD value of the spectrum at wl.
         """
         self._check_direction(direction)
@@ -510,55 +513,54 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             mask = cycle == 1
         dOD = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
         dOD_data = dOD.data[mask]
-        t_spec=measurement.spectra.axes_series[0].data[mask]
-        
+        t_spec = measurement.spectra.axes_series[0].data[mask]
+
         if direction == 0 or direction == 1:
             U_interp = np.interp(t_spec, measurement.t, measurement.U)
             dUdt = np.gradient(U_interp)
             sign = np.sign(dUdt)
-            
-            turning_indices = np.where(
-                sign[:-1] != sign[1:]
-            )[0] + 1
-                   
+
+            turning_indices = np.where(sign[:-1] != sign[1:])[0] + 1
+
             valid_indices = []
             if len(turning_indices) >= 1:
                 for idx in turning_indices:
-                    if idx<N_points or len(t_spec)-idx<N_points:
+                    if idx < N_points or len(t_spec) - idx < N_points:
                         continue
-                    next_points = sign[idx:idx + N_points]
-                
+                    window_end = idx + N_points
+                    next_points = sign[idx:window_end]
+
                     if len(next_points) > 0:
                         if len(next_points) > 0:
-                            same_sign = (np.all(next_points==sign[idx]))
-                            if same_sign and sign[idx]!=0:
+                            same_sign = np.all(next_points == sign[idx])
+                            if same_sign and sign[idx] != 0:
                                 valid_indices.append(idx)
-                            
-            #For SEC, you should only have 1 turning point per cycle
-            if len(valid_indices)>1:
+
+            # For SEC, you should only have 1 turning point per cycle
+            if len(valid_indices) > 1:
                 raise ValueError(
-                    "Multiple turning points detected. Set cycle limits so that there is only one turning point per cycle"
+                    "Multiple turning points detected. Set cycle limits so that "
+                    "there is only one turning point per cycle"
                 )
             if len(valid_indices) == 0:
-                raise ValueError(
-                    "No valid turning point detected in this cycle."
-                )
-            
-            valid_index=valid_indices[0]
-            
+                raise ValueError("No valid turning point detected in this cycle.")
+
+            valid_index = valid_indices[0]
+
             if sign[valid_index] > 0:
                 anodic_mask = np.arange(len(t_spec)) > valid_index
                 cathodic_mask = np.arange(len(t_spec)) < valid_index
-            else:  # sign[valid_index] < 0, guaranteed nonzero by the same-sign filter above
+            else:
+                # sign[valid_index] < 0, guaranteed nonzero by the same-sign filter above
                 anodic_mask = np.arange(len(t_spec)) < valid_index
                 cathodic_mask = np.arange(len(t_spec)) > valid_index
-            
-            if direction==0:
-                t_spec=t_spec[anodic_mask]
-                dOD_data=dOD_data[anodic_mask]
-            elif direction==1:
-                t_spec=t_spec[cathodic_mask]
-                dOD_data=dOD_data[cathodic_mask]
+
+            if direction == 0:
+                t_spec = t_spec[anodic_mask]
+                dOD_data = dOD_data[anodic_mask]
+            elif direction == 1:
+                t_spec = t_spec[cathodic_mask]
+                dOD_data = dOD_data[cathodic_mask]
 
         tseries = TimeSeries(
             name=measurement.spectra.axes_series[0].name,
@@ -591,7 +593,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         wlmax=None,
         step=1,
         cycle_field=None,
-        N_points=None
+        N_points=None,
     ):
         """Return a ValueSeries of dOD difference spectra for a specific cycle.
         If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
@@ -603,7 +605,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum
-            direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is full cycle. Full cycle by default.
+            direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is
+                full cycle. Full cycle by default.
             normalise (bool): Whether or not to normalise spectra. Defaults to true
             wlmin (float): minimum wavelength to consider
             wlmax (float): maximum wavelength to consider
@@ -626,37 +629,38 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                 t_ref=t_ref,
                 index_ref=index_ref,
                 direction=direction,
-                N_points=N_points
+                N_points=N_points,
             )
 
         wl = dOD_cycle.axes_series[1].data
 
         # trim data to ignore regions outside of detection range before normalising
-        if wlmin == None:
+        if wlmin is None:
             wlmin = np.min(wl)
-        if wlmax == None:
+        if wlmax is None:
             wlmax = np.max(wl)
 
         dOD_diff = dOD_cycle.data[step::step] - dOD_cycle.data[0:-step:step]
 
         dOD_diff = np.array(dOD_diff)
 
-        if normalise == True:
+        if normalise:
             # Select wavelength range
             wl_range = (wl >= wlmin) & (wl <= wlmax)
             max_vals = np.max(dOD_diff[:, wl_range], axis=1)
-            dOD_diff = dOD_diff/ max_vals[:, np.newaxis]
+            dOD_diff = dOD_diff / max_vals[:, np.newaxis]
             dOD_diff = np.ma.masked_invalid(dOD_diff)
-            
-            # dOD_diff=dOD_diff[:,wl_range] values outside of wavelength range are non-physical
+
+            # dOD_diff=dOD_diff[:,wl_range] values outside of wavelength range are non-
+            # physical
 
         indices = np.arange(step, len(dOD_cycle.data), step)
-        
+
         tseries = TimeSeries(
-        name=dOD_cycle.axes_series[0].name,
-        unit_name=dOD_cycle.axes_series[0].unit_name,
-        data=dOD_cycle.axes_series[0].data[indices],
-        tstamp=dOD_cycle.axes_series[0].tstamp,
+            name=dOD_cycle.axes_series[0].name,
+            unit_name=dOD_cycle.axes_series[0].unit_name,
+            data=dOD_cycle.axes_series[0].data[indices],
+            tstamp=dOD_cycle.axes_series[0].tstamp,
         )
 
         field = Field(
@@ -696,7 +700,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         min_region_width=2,
         min_region_separation=2,
         converged_spectrum_form="average",
-        n_start = 3
+        n_start=3,
     ):
         """Return a ValueSeries of convergent dOD spectra.
         If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
@@ -709,29 +713,43 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum
-            direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is full cycle. Full cycle by default.
+            direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is
+                full cycle. Full cycle by default.
             normalise (bool): Whether or not to normalise spectra. Defaults to true
             step (int): the step size for difference spectra. 1 by default
             wlmin (float): minimum wavelength to consider. 400nm by default.
             wlmax (float): maximum wavelength to consider. 900 nm by default
-            conv_limt (float): the limit for convergence of spectra. Set to 0.01 by default.
-            convergence_metric (str) : the choice of distance algorithm to pass to pdist. Correlation by default.
+            conv_limt (float): the limit for convergence of spectra. Set to 0.01 by
+                default.
+            convergence_metric (str) : the choice of distance algorithm to pass to pdist.
+                Correlation by default.
             smooth_distances (bool) : whether to smooth the distance array (used to find
                 similar spectra) with a Savitzky-Golay filter before peak-finding.
             window_length (int) : the window length to pass to the Savitzky-Golay
                 filter when smooth_distances is True. 4 by default.
             polyorder (int) : the polynomial order to pass to the Savitzky-Golay
                 filter when smooth_distances is True. 3 by default.
-            prominence (float): To be passed to find_peaks. How far the peak protrudes from the rest
-            threshold (float) : To be passed to find_peaks. The required threshold of peaks, the vertical distance to its neighboring samples
-            distance (float) : To be passed to find_peaks. The required minimum horizontal distance in samples between neighbouring peaks. Smaller peaks are removed first until the condition is met.
+            prominence (float): To be passed to find_peaks. How far the peak protrudes
+                from the rest
+            threshold (float) : To be passed to find_peaks. The required threshold of
+                peaks, the vertical distance to its neighboring samples
+            distance (float) : To be passed to find_peaks. The required minimum
+                horizontal distance in samples between neighbouring peaks. Smaller peaks
+                    are
+                removed first until the condition is met.
             height (float) : To be passed to find_peaks. The required height of peaks.
-            min_region_width (int) : Minimum number of points in a convergent region. 2 by default.
-            min_region_separation (int) : The minimum number of spectra that need to be between two convergent regions.
-            converged_spectrum_form (str) : The way the converged spectra are handled. "average" returns an average spectrum over the convergent region.
-        Returns: The set of convergent spectra for the specific cycle, the potentials at which they occur, and the plot of the distances used for the convergence criterion
+            min_region_width (int) : Minimum number of points in a convergent region. 2
+                by default.
+            min_region_separation (int) : The minimum number of spectra that need to be
+                between two convergent regions.
+            converged_spectrum_form (str) : The way the converged spectra are handled.
+                "average" returns an average spectrum over the convergent region.
+        Returns: The set of convergent spectra for the specific cycle, the potentials at
+            which they occur, and the plot of the distances used for the convergence
+            criterion
         """
-        # FIX: if data is noisy, does not meet convergence criterion. Smoothing doesn't seem to help much either.
+        # FIX: if data is noisy, does not meet convergence criterion. Smoothing doesn't
+        # seem to help much either.
 
         measurement = self
         if diff_spectra_field is None:
@@ -753,14 +771,17 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         wl = spectra_field.axes_series[1].data
         spectra = spectra_field.data
 
-        # The spectra will be nonsense outside of the region in which we can actually detect signals. For the CHEAC spectrometer, this is between 400 and 900 nm.
-        # To make the convergence maths work, we must neglect spectra outside of this region
+        # The spectra will be nonsense outside of the region in which we can actually
+        # detect signals. For the CHEAC spectrometer, this is between 400 and 900 nm.
+        # To make the convergence maths work, we must neglect spectra outside of this
+        # region
         wl_range = (wl >= wlmin) & (wl <= wlmax)
         spectra = spectra[:, wl_range]
 
         # find the stastistical difference between each spectrum
         distance_matrix = squareform(pdist(spectra, convergence_metric))
-        # Adjacent distances - the distance between each successive spectrum is on the offset diagonal of the above matrix
+        # Adjacent distances - the distance between each successive spectrum is on the
+        # offset diagonal of the above matrix
         adjacent_distances = np.diag(distance_matrix, k=1)
 
         # spectra=np.array(spectra)
@@ -768,14 +789,13 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         # adjacent_distances=np.sqrt(np.mean(diff_of_spectra**2, axis=1))
 
         # Apply smoothing if necessary. Aids peak detection.
-        if smooth_distances == True:
+        if smooth_distances:
             from scipy.signal import savgol_filter
+
             adjacent_distances = savgol_filter(
-                adjacent_distances,
-                window_length=window_length,
-                polyorder=polyorder
+                adjacent_distances, window_length=window_length, polyorder=polyorder
             )
-    
+
         # use find_peaks to identify the minima of the adjacent_distances
         mins, _ = find_peaks(
             -adjacent_distances,
@@ -784,25 +804,22 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             distance=distance,
             height=height,
         )
-        # Ensure the minima are at indices where the adjacent_distance is below the convergence limit
+        # Ensure the minima are at indices where the adjacent_distance is below the
+        # convergence limit
         mins = mins[adjacent_distances[mins] < conv_limit]
-        
-        
-        #check to see if first point is a miminum
+
+        # check to see if first point is a miminum
 
         if len(adjacent_distances) >= n_start:
             start_gradient = np.gradient(adjacent_distances[:n_start])
-        
-            if (
-                adjacent_distances[0] < conv_limit
-                and np.all(start_gradient > 0)
-            ):
+
+            if adjacent_distances[0] < conv_limit and np.all(start_gradient > 0):
                 mins = np.insert(mins, 0, 0)
 
-        # The convergent spectra will likely persist over a timeframe. Noisy data may incraese this timespan. Identify the regions where spectra are convergent.
+        # The convergent spectra will likely persist over a timeframe. Noisy data may
+        # incraese this timespan. Identify the regions where spectra are convergent.
         regions = np.split(mins, np.where(np.diff(mins) > min_region_separation)[0] + 1)
-        
-            
+
         # Discard regions of smaller width than min_region_width (noise)
         regions = [r for r in regions if len(r) >= min_region_width]
 
@@ -820,7 +837,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                 "potential", tspan=(start_time, end_time)
             )
             if converged_spectrum_form == "average":
-                convergent_spectra.append(spectra[r[0] : r[-1] + 1].mean(axis=0))
+                region_start = r[0]
+                region_end = r[-1] + 1
+                convergent_spectra.append(spectra[region_start:region_end].mean(axis=0))
                 potentials.append(potentials_array.mean())
                 time_convergence.append(times.mean())
             if converged_spectrum_form == "raw":
@@ -834,18 +853,19 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                 raise ValueError("converged_spectrum_form must be average or raw")
             timespans.append((start_time, end_time))
             potentialspans.append((potentials_array[0], potentials_array[-1]))
-        
-        if normalise == True:
+
+        if normalise:
             convergent_spectra = np.asarray(convergent_spectra)
             # Select wavelength range
             min_vals = np.min(convergent_spectra, axis=1)
             max_vals = np.max(convergent_spectra, axis=1)
             ranges = max_vals - min_vals
             ranges[ranges == 0] = np.nan
-            dOD_diff = (convergent_spectra - min_vals[:, np.newaxis]) / ranges[:, np.newaxis]
+            dOD_diff = (convergent_spectra - min_vals[:, np.newaxis]) / ranges[
+                :, np.newaxis
+            ]
             dOD_diff = np.ma.masked_invalid(dOD_diff)
-        
-        
+
         wl_series = copy.copy(spectra_field.axes_series[1])
         wl_series._data = wl_series.data[wl_range]
 
@@ -883,26 +903,30 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         t_ref2=None,
         index_ref2=None,
         direction=None,
-        N_points=None
+        N_points=None,
     ):
-        """Takes an ECOpticalMeasurement and returns the irreversible changes in absorbance between the two cycles.
+        """Takes an ECOpticalMeasurement and returns the irreversible changes in
+        absorbance between the two cycles.
         Used to check for system stability.
 
         Args:
             J_name (str): Name of the cycle series
-            cycle_1 (int) : the cycle number for the first cycle of interest. Defaults to cycle 1.
-            cycle_2 (int) : the cycle number for the second cycle of interest. Defaults to cycle 2.
+            cycle_1 (int) : the cycle number for the first cycle of interest. Defaults to
+                cycle 1.
+            cycle_2 (int) : the cycle number for the second cycle of interest. Defaults
+                to cycle 2.
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum
-        Returns ValueSeries: The difference spectrum of the dOD of the two cycles , and the difference CVs of the two cycles (CyclicVoltammogramDiff).
+        Returns ValueSeries: The difference spectrum of the dOD of the two cycles , and
+            the difference CVs of the two cycles (CyclicVoltammogramDiff).
         """
 
         measurement = self
 
-        if cycle_1 == None:
+        if cycle_1 is None:
             cycle_1 = 1
-        if cycle_2 == None:
+        if cycle_2 is None:
             cycle_2 = 2
 
         # Get optical data for the two cycles:
@@ -914,7 +938,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             index_ref=index_ref1,
             cycle_number=cycle_1,
             direction=direction,
-            N_points=N_points
+            N_points=N_points,
         )
         dOD_cycle_2 = measurement.get_dOD_cycle(
             J_name=J_name,
@@ -923,7 +947,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             index_ref=index_ref2,
             cycle_number=cycle_2,
             direction=direction,
-            N_points=N_points
+            N_points=N_points,
         )
 
         # Make sure fields contain same number of points
@@ -966,27 +990,33 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         bounds_bool=False,
         noise_bound=0,
     ):
-        """Return a ValueSeries of fitting coefficients for a set of convergent spectra found for a measurement.
+        """Return a ValueSeries of fitting coefficients for a set of convergent spectra
+        found for a measurement.
         cycle_data and converged_data must be provided
             Note: If data is too noisy, it may not meet convergence criterion.
-            Note 2: Ensure wlmin and wlmax are consistent between fit_convergent_spectra and get_convergent_spectra
+            Note 2: Ensure wlmin and wlmax are consistent between fit_convergent_spectra
+                and get_convergent_spectra
 
         Args:
             cycle_data=output of get_dOD_cycle
             converged_data=output of get_convergent_spectra
             wlmin (float): minimum wavelength to consider. 400nm by default.
             wlmax (float): maximum wavelength to consider. 900 nm by default
-            bounds_bool (bool) : switch to apply a physicality constraint such that the components must increase as the spectral intensity is always increasing
-                                The strictness of this constraint removes some flexibility so in real data one might relax it to say that the next component can only be the noise threshold below the previous component.
+            bounds_bool (bool) : switch to apply a physicality constraint such that the
+                components must increase as the spectral intensity is always increasing
+                                The strictness of this constraint removes some
+                                    flexibility so in real data one might relax it to say
+                                    that the next component can only be the noise
+                                        threshold
+                                    below the previous component.
                                 False by default
             noise_bound (float) : the noise bound of the system. 0 by default
-        Returns: The set of fitting coefficients, the reconstructed spectra from the fit, and the residuals for the spectra
+        Returns: The set of fitting coefficients, the reconstructed spectra from the fit,
+            and the residuals for the spectra
         """
         from scipy.optimize import lsq_linear
 
-        measurement = self
-
-        if cycle_data == None or converged_data == None:
+        if cycle_data is None or converged_data is None:
             raise ValueError("Cycle_data and converged_data must be provided")
 
         # make sure axes match
@@ -1004,8 +1034,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         coefficients = []
 
         for i, spectrum in enumerate(cycle):
-            # if i>0 the lower bound of each component is the fit results of the previous iteration
-            if bounds_bool == True:
+            # if i>0 the lower bound of each component is the fit results of the previous
+            # iteration
+            if bounds_bool:
                 if i > 0:
                     bounds = (
                         np.asarray(coefficients[i - 1]) - noise_bound / 1000,
@@ -1122,7 +1153,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         self.tracked_wavelengths.append(dOD_name)  # For the exporter.
 
         return dOD_vseries
-    
+
     def denoise_spectra(
         self,
         spectra_field=None,
@@ -1132,23 +1163,30 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         sg_poly_order=3,
         normalise=False,
         wlmin=None,
-        wlmax=None
+        wlmax=None,
     ):
-        """Return a ValueSeries of denoised spectra for either a specific field containing spectral data or for the spectra in a measurement.
+        """Return a ValueSeries of denoised spectra for either a specific field
+        containing spectral data or for the spectra in a measurement.
 
         Args:
             spectra_field (str) : the field containing the data for denoising
-            denoise_method (str): The method to use for denoising spectra. PCA (principal component analysis) by default. See https://www.nature.com/articles/s41598-018-32713-7
-            PCA_n_components (float): The value of explained variance to pass to PCA. 0.99 by default (use the number of components such that the amount of variance that needs to be explained is greater than 99%)
-            sg_window (int) : the window size to use for the Savitzky-Golay filter. 10 by default.
-            sg_poly_order (int) : the order of the polynomial used to fit the data in the window. 3 by default.
+            denoise_method (str): The method to use for denoising spectra. PCA (principal
+                component analysis) by default. See
+                https://www.nature.com/articles/s41598-018-32713-7
+            PCA_n_components (float): The value of explained variance to pass to PCA.
+                0.99 by default (use the number of components such that the amount of
+                variance that needs to be explained is greater than 99%)
+            sg_window (int) : the window size to use for the Savitzky-Golay filter. 10 by
+                default.
+            sg_poly_order (int) : the order of the polynomial used to fit the data in the
+                window. 3 by default.
         Returns ValueSeries: The field containing denoised spectra.
         """
-        
-        if spectra_field==None:
-            spectra_field=self.spectra
-        
-        spectra=spectra_field.data
+
+        if spectra_field is None:
+            spectra_field = self.spectra
+
+        spectra = spectra_field.data
 
         if denoise_method == "PCA":
             from sklearn.decomposition import PCA
@@ -1168,21 +1206,23 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             spectra_denoised = savgol_filter(
                 spectra, window_length=sg_window, polyorder=sg_poly_order, axis=1
             )
-        if normalise == True:
+        if normalise:
             # Select wavelength range
             wl = spectra_field.axes_series[1].data
             # trim data to ignore regions outside of detection range before normalising
-            if wlmin == None:
+            if wlmin is None:
                 wlmin = np.min(wl)
-            if wlmax == None:
+            if wlmax is None:
                 wlmax = np.max(wl)
             wl_range = (wl >= wlmin) & (wl <= wlmax)
-            
+
             min_vals = np.min(spectra_denoised[:, wl_range], axis=1)
             max_vals = np.max(spectra_denoised[:, wl_range], axis=1)
             ranges = max_vals - min_vals
             ranges[ranges == 0] = np.nan
-            spectra_denoised = (spectra_denoised - min_vals[:, np.newaxis]) / ranges[:, np.newaxis]
+            spectra_denoised = (spectra_denoised - min_vals[:, np.newaxis]) / ranges[
+                :, np.newaxis
+            ]
             spectra_denoised = np.ma.masked_invalid(spectra_denoised)
 
         spectra_denoised = Field(
@@ -1193,5 +1233,3 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         )
 
         return spectra_denoised
-
-    

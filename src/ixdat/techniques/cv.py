@@ -59,7 +59,9 @@ class CyclicVoltammogram(ECMeasurement):
             return self.select(key)
         return super().__getitem__(key)
 
-    def redefine_cycle(self, start_potential=None, redox=None, N_points=5, turning_point=False, N_sep=10):
+    def redefine_cycle(
+        self, start_potential=None, redox=None, N_points=5, turning_point=False, N_sep=10
+    ):
         """Build `cycle` which iterates when passing through start_potential
 
         Args:
@@ -78,65 +80,62 @@ class CyclicVoltammogram(ECMeasurement):
         """
         self.start_potential = start_potential
         self.redox = redox
-        if turning_point==True:
+        if turning_point:
 
             t = self.t
             v = self.U
             N = len(v)
-    
+
             # Calculate dU/dt
             dUdt = np.gradient(v, t)
-            
+
             sign = np.sign(dUdt)
-    
+
             if redox is True:
                 # Negative -> positive
-                turning_indices = np.where(
-                    (sign[:-1] <= 0) & (sign[1:] > 0)
-                )[0] + 1
-    
+                turning_indices = np.where((sign[:-1] <= 0) & (sign[1:] > 0))[0] + 1
+
             elif redox is False:
                 # Positive -> negative
-                turning_indices = np.where(
-                    (sign[:-1] >= 0) & (sign[1:] < 0)
-                )[0] + 1
-    
+                turning_indices = np.where((sign[:-1] >= 0) & (sign[1:] < 0))[0] + 1
+
             else:
                 # Either direction
-                turning_indices = np.where(
-                    sign[:-1] != sign[1:]
-                )[0] + 1
-    
+                turning_indices = np.where(sign[:-1] != sign[1:])[0] + 1
+
             if len(turning_indices) > 1:
                 valid_indices = []
-    
+
                 for idx in turning_indices[1:]:
                     if valid_indices and idx - valid_indices[-1] < N_sep:
                         continue
-                    next_points = dUdt[idx:idx + N_points]
-                
+                    window_end = idx + N_points
+                    next_points = dUdt[idx:window_end]
+
                     if len(next_points) > 0:
                         if redox is True:
-                            same_sign = (np.all(next_points > 0))
+                            same_sign = np.all(next_points > 0)
                         elif redox is False:
-                            same_sign = (np.all(next_points < 0))
+                            same_sign = np.all(next_points < 0)
+                        else:
+                            same_sign = np.all(np.sign(next_points) == sign[idx])
                         if same_sign:
                             valid_indices.append(idx)
-    
+
                 turning_indices = np.asarray(valid_indices)
-    
+
             cycle_vec = np.zeros(N)
-    
+
             for c, idx in enumerate(turning_indices, start=1):
                 cycle_vec[idx:] = c
-    
+
             new_cycle_series = ValueSeries(
                 name="cycle",
                 unit_name="",
                 data=cycle_vec,
                 tseries=self.potential.tseries,
             )
-        
+
         elif start_potential is None:
             old_cycle_series = self["cycle_number"]
             new_cycle_series = ValueSeries(
