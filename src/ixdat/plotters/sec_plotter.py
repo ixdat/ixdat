@@ -418,7 +418,7 @@ class ECOpticalPlotter(SECPlotter):
         )
         return axes
     
-    def plot_wavelengths_vs_CV(
+    def plot_wavelengths_vs_cv(
         self,
         *,
         measurement=None,
@@ -443,23 +443,24 @@ class ECOpticalPlotter(SECPlotter):
             **kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement
         """
-        
+
         measurement = measurement or self.measurement
         wavelengths = wavelengths or measurement.tracked_wavelengths
-        
+
         if not axes:
             fig, ax = plt.subplots()
             ax_current = ax.twinx()
             axes = ax, ax_current
-        
 
         cmap = plt.get_cmap(cmap_name)
         norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
         t_v, v = measurement.grab("potential")
-        
+
         # Plot CV on right-hand axis
-        self.ec_plotter.plot_vs_potential(ax=ax_current, tspan=tspan, **kwargs)
-            
+        self.ec_plotter.plot_vs_potential(
+            measurement=measurement, ax=ax_current, tspan=tspan, **kwargs
+        )
+
         for wl_str in wavelengths:
             x = float(wl_str[1:])
             try:
@@ -472,9 +473,57 @@ class ECOpticalPlotter(SECPlotter):
         ax.legend()
         ax.set_xlabel(measurement.U_name)
         ax.set_ylabel(r"$\Delta$O.D.")
-        
+
         return axes
-    
+
+    def plot_wavelengths_vs_potential(
+        self,
+        *,
+        measurement=None,
+        wavelengths=None,
+        axes=None,
+        cmap_name="jet",
+        tspan=None,
+        **kwargs,
+    ):
+        """Plot the dO.D. for specific wavelength in the top panel vs potential
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            wavelengths (list of str): The names of the wavelengths to track as strings,
+                e.g. "w400" for 400 nm
+            axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
+            tspan (timespan): The timespan to plot
+            **kwargs: Additional key-word arguments are passed on to
+                ECPlotter.plot_vs_potential
+        """
+        measurement = measurement or self.measurement
+        wavelengths = wavelengths or measurement.tracked_wavelengths
+
+        cmap = plt.get_cmap(cmap_name)
+        norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
+
+        if not axes:
+            axes = self.new_two_panel_axes()
+        for wl_str in wavelengths:
+            x = float(wl_str[1:])
+            try:
+                t, y = measurement.grab(wl_str, tspan=tspan)
+            except SeriesNotFoundError:
+                measurement.track_wavelength(x)
+                t, y = measurement.grab(wl_str, tspan=tspan)
+            v = measurement.U
+            axes[0].plot(v, y, color=cmap(norm(x)), label=wl_str)
+        axes[0].legend()
+        axes[0].set_ylabel(r"$\Delta$O.D.")
+
+        self.ec_plotter.plot_vs_potential(
+            measurement=measurement, ax=axes[1], tspan=tspan, **kwargs
+        )
+        return axes
 
     def plot_waterfall_cycle(
         self,

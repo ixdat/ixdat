@@ -156,7 +156,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         self.plot_convergent_spectra = self.plotter.plot_convergent_spectra
         self.plot_fit_and_residuals = self.plotter.plot_fit_and_residuals
         self.plot_fit_reconstruction = self.plotter.plot_fit_reconstruction
-        self.plot_wavelengths_vs_CV = self.plotter.plot_wavelengths_vs_CV
+        self.plot_wavelengths_vs_cv = self.plotter.plot_wavelengths_vs_cv
+        self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
         self.technique = "EC-Optical"
 
     @property
