@@ -775,13 +775,14 @@ class ECOpticalPlotter(SECPlotter):
         conv_limit=0.01,
         convergence_metric="correlation",
         smooth_distances=None,
-        smooth_spectra=None,
+        window_length=4,
+        polyorder=3,
         prominence=None,
         threshold=None,
         distance=None,
         height=None,
         min_region_width=2,
-        min_region_separation=50,
+        min_region_separation=2,
         converged_spectrum_form="average",
         cmap_name="jet",
         make_colorbar=True,
@@ -810,8 +811,12 @@ class ECOpticalPlotter(SECPlotter):
             wlmax (float): maximum wavelength to consider. 900 nm by default
             conv_limt (float): the limit for convergence of spectra. Set to 0.01 by default.
             convergence_metric (str) : the choice of distance algorithm to pass to pdist. Correlation by default.
-            smooth_distances (int) : the number of points to use for smoothing for the distance array used to find similar spectra.
-            smooth_spectra (int) :
+            smooth_distances (bool) : whether to smooth the distance array (used to find
+                similar spectra) with a Savitzky-Golay filter before peak-finding.
+            window_length (int) : the window length to pass to the Savitzky-Golay
+                filter when smooth_distances is True. 4 by default.
+            polyorder (int) : the polynomial order to pass to the Savitzky-Golay
+                filter when smooth_distances is True. 3 by default.
             prominence (float): To be passed to find_peaks. How far the peak protrudes from the rest
             threshold (float) : To be passed to find_peaks. The required threshold of peaks, the vertical distance to its neighboring samples
             distance (float) : To be passed to find_peaks. The required minimum horizontal distance in samples between neighbouring peaks. Smaller peaks are removed first until the condition is met.
@@ -840,7 +845,8 @@ class ECOpticalPlotter(SECPlotter):
                 conv_limit=conv_limit,
                 convergence_metric=convergence_metric,
                 smooth_distances=smooth_distances,
-                smooth_spectra=smooth_spectra,
+                window_length=window_length,
+                polyorder=polyorder,
                 prominence=prominence,
                 threshold=threshold,
                 distance=distance,
