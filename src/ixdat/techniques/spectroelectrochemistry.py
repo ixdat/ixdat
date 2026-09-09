@@ -458,6 +458,14 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
         return Spectrum.from_field(dOD_diff_field)
 
+    @staticmethod
+    def _check_direction(direction):
+        """Raise ValueError unless direction is 0 (anodic), 1 (cathodic), or None."""
+        if direction is not None and direction not in (0, 1):
+            raise ValueError(
+                "direction must be 0 (anodic), 1 (cathodic), or None (full cycle)"
+            )
+
     def get_dOD_cycle(
         self,
         J_name="cycle",
@@ -481,6 +489,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is full cycle. Full cycle by default.
         Returns ValueSeries: The dOD value of the spectrum at wl.
         """
+        self._check_direction(direction)
         measurement = self
         # get cycle values
         cycle_series = measurement[J_name]
@@ -601,10 +610,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             step (int): the step size for difference spectra. 1 by default
         Returns ValueSeries: The difference dOD value of the spectra in the cycle.
         """
-        if direction is not None and direction not in [0, 1]:
-            raise ValueError(
-                "direction must be 0 (anodic), 1 (cathodic), or None (full cycle)"
-            )
+        self._check_direction(direction)
 
         if step < 1 and step is not None:
             raise ValueError("Step must be a positive integer")
