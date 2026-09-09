@@ -688,8 +688,14 @@ class ECOpticalPlotter(SECPlotter):
                 step=step,
         )
         
-        if denoise==True:
-            dOD_finite_diff=dOD_finite_diff.denoise_spectra(denoise_method=denoise_method, PCA_explained_variance=PCA_explained_variance, sg_window=sg_window, sg_poly_order=sg_poly_order)
+        if denoise:
+            dOD_finite_diff = measurement.denoise_spectra(
+                spectra_field=dOD_finite_diff,
+                denoise_method=denoise_method,
+                PCA_explained_variance=PCA_explained_variance,
+                sg_window=sg_window,
+                sg_poly_order=sg_poly_order,
+            )
         
         return super().plot_waterfall_vs(
             measurement=measurement,
