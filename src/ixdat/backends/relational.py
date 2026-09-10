@@ -215,8 +215,8 @@ def linker_table_schemas(cls):
     New relationships state ``many`` directly. Older ``extra_linkers`` declarations
     keep their established rule: an id attribute ending in ``_ids`` contains a list.
     """
-    many_by_table = {
-        relationship.storage_table: relationship.many
+    many_tables = {
+        relationship.storage_table
         for relationship in cls.get_relationships().values()
         if relationship.many
     }
@@ -226,7 +226,7 @@ def linker_table_schemas(cls):
             cls.table_name,
             linked_table,
             id_attr,
-            many=many_by_table.get(table_name, id_attr.endswith("_ids")),
+            many=table_name in many_tables or id_attr.endswith("_ids"),
         )
         for table_name, (linked_table, id_attr) in cls.get_extra_linkers().items()
     ]

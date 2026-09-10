@@ -426,6 +426,17 @@ class TestSQLiteBackend:
         with pytest.raises(DataBaseError):
             Measurement.get(999)
 
+    def test_load_obj_data_rejects_wrong_object_or_missing_row(self, sqlite_backend):
+        with pytest.raises(TypeError, match="only accepts DataSeries"):
+            sqlite_backend.load_obj_data(Measurement(name="wrong type"))
+
+        DataSeries(name="existing", unit_name="V", data=np.array([1.0])).save()
+        missing_series = DataSeries(name="missing", unit_name="V", data=None)
+        missing_series.set_backend(sqlite_backend)
+        missing_series.set_id(999)
+        with pytest.raises(DataBaseError, match="no row with id=999"):
+            sqlite_backend.load_obj_data(missing_series)
+
     def test_update_with_force(self, sqlite_backend):
         series = DataSeries(name="before", unit_name="V", data=np.array([1.0]))
         i = series.save()

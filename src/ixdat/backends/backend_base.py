@@ -51,7 +51,7 @@ class BackendBase:
         return self is other
 
     def _dereference(self, value):
-        """Return the local integer from a ``(backend, id)`` reference."""
+        """Return the local id from a ``(backend, id)`` reference."""
         if (
             isinstance(value, tuple)
             and len(value) == 2

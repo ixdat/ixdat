@@ -141,6 +141,8 @@ class SQLiteBackend(BackendBase):
             # insert a row, anything it points to already has its id. Doing all
             # inserts/updates on one connection makes them one transaction: if
             # anything below fails, SQLite rolls every row in "plan" back.
+            # sqlite3.Connection manages that transaction here; using `self`
+            # instead would call SQLiteBackend.__exit__() and close the backend.
             with self.connection as connection:
                 for planned_obj, action in plan:
                     if action == "skip":
@@ -417,18 +419,26 @@ class SQLiteBackend(BackendBase):
 
     def load_obj_data(self, obj):
         """Return the value stored in an object's lazy ``data`` column."""
+        from ..data_series import DataSeries
+
+        if not isinstance(obj, DataSeries):
+            raise TypeError(
+                "SQLiteBackend.load_obj_data() only accepts DataSeries objects, "
+                f"got {type(obj).__name__}."
+            )
         main_schema = relational.main_table_schema(type(obj))
         data_column = next(
-            (column for column in main_schema.data_columns if column.name == "data"),
-            None,
+            column for column in main_schema.data_columns if column.name == "data"
         )
-        if data_column is None:
-            return None
         row = self.connection.execute(
             _select_sql(main_schema.name, ["data"]) + ' WHERE "id" = ?',
             (obj.id,),
         ).fetchone()
-        return self._decode(data_column, row[0]) if row else None
+        if row is None:
+            raise DataBaseError(
+                f"{self} has no row with id={obj.id} in table '{main_schema.name}'"
+            )
+        return self._decode(data_column, row[0])
 
     def contains(self, table_name, i):
         """Check if id `i` is already a principle key in the table named `table_name`"""
