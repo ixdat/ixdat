@@ -52,53 +52,8 @@ readers
   detect whether the x axis is 2-theta or Q-space (with units).
   `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
 
-- The ``OceanViewTimeSeriesReader`` (reader="oceanview") gained an
-  ``average_every`` option: rows are averaged in groups of that size as they
-  are parsed, reducing the size of the resulting series. Defaults to 1
-  (every row kept). A group smaller than ``average_every`` left over at the
-  end of the file is still averaged and kept, not dropped.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
 techniques
 ^^^^^^^^^^
-
-- ``CyclicVoltammogram.redefine_cycle`` gained a ``turning_point`` option:
-  with ``turning_point=True``, cycles are defined by reversals in the
-  direction of the potential sweep (detected from the sign of dU/dt)
-  instead of by crossing a fixed ``start_potential``. ``redox`` selects
-  which reversals count (``True`` for negative-to-positive, ``False`` for
-  positive-to-negative, ``None`` for either); ``N_points`` and ``N_sep``
-  control how many consistent points must follow a candidate reversal and
-  how far apart two reversals must be to both register.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
-- ``"CV-Optical"`` is now a registered technique combination
-  (``TECHNIQUE_CLASSES``), so ``cv + optical_spectrum_series`` (where
-  ``cv`` is a ``CyclicVoltammogram``) produces an ``ECOpticalMeasurement``
-  directly, the same as ``ec + optical_spectrum_series`` already did for a
-  plain ``ECMeasurement``.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
-- ``ECOpticalMeasurement.get_dOD_cycle`` can now split a cycle into its
-  anodic/cathodic halves (``direction=0``/``1``) using the same
-  turning-point detection as ``redefine_cycle``, instead of only a fixed
-  ``start_potential``-based split. ``get_dOD_difference_spectra``,
-  ``get_dOD_cycle_noise``, and ``get_convergent_spectra`` accept the same
-  ``direction``/``N_points`` and pass them through.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
-- ``ECOpticalMeasurement.denoise_spectra`` now takes an explicit
-  ``spectra_field`` (defaulting to the measurement's own spectra) instead
-  of always denoising ``self``, so it can be called on a measurement with
-  any ``Field`` of spectral data, e.g. the output of
-  ``get_dOD_difference_spectra``. It also gained a ``normalise`` option.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
-- ``get_convergent_spectra``'s ``smooth_distances`` is now a bool (use a
-  Savitzky-Golay filter on the adjacent-distance array or not) rather than
-  a filter size; the new ``window_length``/``polyorder`` control the
-  filter. ``get_convergent_spectra`` also gained a ``normalise`` option.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 - New ``NMRSpectrum`` and ``NMRSpectrumSeries`` classes (technique ``"NMR"``
   / ``"NMR_spectra"``) and ``FIDSpectrum`` class (technique ``"FID"``) added
@@ -126,27 +81,6 @@ plotters
   plotter for ``XRDSpectrum``. It plots intensity vs x and, when error data is present
   (i.e. for .xye files), overlays a shaded y+/-e band.
   `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
-
-- New ``ECOpticalPlotter.plot_wavelengths_vs_cv``: plots tracked wavelengths'
-  dO.D. against potential on one axis, with the CV current on a twinned
-  right-hand axis, alongside the existing two-panel
-  ``plot_wavelengths_vs_potential``.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
-- ``ECOpticalPlotter.plot_dOD_difference_spectra`` gained ``denoise``,
-  ``denoise_method``, ``PCA_explained_variance``, ``sg_window``, and
-  ``sg_poly_order`` to optionally denoise the difference spectra (via
-  ``denoise_spectra``) before plotting them.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
-
-- ``plot_waterfall_cycle``, ``plot_dOD_cycle_diff``, and
-  ``plot_dOD_difference_spectra`` accept the new ``N_points`` (passed
-  through to the underlying ``get_dOD_cycle``/``get_dOD_difference_spectra``
-  calls); ``plot_convergent_spectra`` accepts the new
-  ``window_length``/``polyorder`` (see the ``get_convergent_spectra``
-  entry above), and its ``min_region_separation`` default changed from 50
-  to 2 to match ``get_convergent_spectra``.
-  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 tools
 ^^^^^
