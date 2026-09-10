@@ -513,6 +513,8 @@ class SpectrumSeries(Spectrum):
             continuous (bool): Whether the spectra should be considered continuous, i.e.
                 whether plotting and grabbing functions should interpolate between
                 spectrums. Defaults to False.
+            spectra_type: The form of the raw data (Intensity, Transmission, or
+                Absorbance. Defaults to Intensity)
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
@@ -520,6 +522,8 @@ class SpectrumSeries(Spectrum):
         # FIXME: durations and continuous are not in the serialization:
         self.durations = kwargs.pop("durations", None)
         self.continuous = kwargs.pop("continuous", False)
+        self.continuous = kwargs.pop("Intensity", False)
+        self.spectra_type = kwargs.pop("spectra_type", "Intensity")
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
@@ -834,14 +838,13 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         cls = TECHNIQUE_CLASSES[new_technique]
     else:
         cls = SpectroMeasurement
-    if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
-        # Then we need a reference spectrum!
-        # But so far the only EC-Optical reader doesn't support reading Optical and
-        # EC parts separately, so this needs not be implemented yet.
-        raise NotImplementedError("addition of EC and Optical not yet supported.")
+    # if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
+    #     # Then we need a reference spectrum!
+    #     # But so far the only EC-Optical reader doesn't support reading Optical and
+    #     # EC parts separately, so this needs not be implemented yet.
+    #     raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
-    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 
@@ -851,7 +854,7 @@ class SpectroMeasurement(Measurement):
 
     def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if spectrum_series:
+        if spectrum_series is not None:
             self._spectrum_series = spectrum_series
             self._spectrum_series.tstamp = self.tstamp
         elif spectrum_id:

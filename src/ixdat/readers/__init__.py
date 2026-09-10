@@ -11,6 +11,7 @@ from .ixdat_csv import IxdatCSVReader, IxdatSpectrumReader
 # potentiostats
 from .biologic import BiologicReader
 from .autolab import NovaASCIIReader
+
 from .ivium import IviumDatasetReader
 from .chi import CHInstrumentsTXTReader
 from .nordic import NordicTDMSReader
@@ -44,14 +45,17 @@ from .qexafs import QexafsDATReader, B18TRXRFReader
 # ftir
 from .opus_ftir import OpusFTIRReader
 
+# optical
+from .oceanview import OceanViewTimeSeriesReader
+from .andor import AndorKineticsCSVReader
+
 # asimov
 from .asimov import AsimovReader
 
 # nmr
 from .bruker import BrukerNMRReader
 
-
-# Measruement.read() looks for readers here:
+# Measurement.read() looks for readers here:
 
 READER_CLASSES = {
     "ixdat": IxdatCSVReader,
@@ -85,5 +89,7 @@ SPECTRUM_READER_CLASSES = {
     "xrdxy": XRDXYReader,
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
+    "oceanview": OceanViewTimeSeriesReader,
+    "andor": AndorKineticsCSVReader,
     "bruker": BrukerNMRReader,
 }

@@ -209,6 +209,10 @@ class SpectrumSeriesPlotter(MPLPlotter):
         make_colorbar=True,
         t=None,
         t_name=None,
+        xlim=None,
+        ylim=None,
+        tspan=None,
+        norm=None,
     ):
         """Plot a SpectrumSeries as spectra colored by the time at which they are taken
 
@@ -221,11 +225,12 @@ class SpectrumSeriesPlotter(MPLPlotter):
                 spectrum_series.field
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
 
-            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
+            tspan (iterable): The span of the time data to plot
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
@@ -233,10 +238,21 @@ class SpectrumSeriesPlotter(MPLPlotter):
         data = field.data
         x = field.axes_series[1].data
         t = t if t is not None else field.axes_series[0].t
+        time = field.axes_series[0].t
+        if tspan is not None:
+            mask = (time >= tspan[0]) & (time <= tspan[1])
+            time = time[mask]
+            data = data[mask]
+            if t is not None:
+                t = t[mask]
+
         t_name = t_name or field.axes_series[0].name
 
-        cmap = mpl.cm.get_cmap(cmap_name)
-        norm = mpl.colors.Normalize(vmin=np.min(t), vmax=np.max(t))
+        cmap = plt.get_cmap(cmap_name)
+        if norm is None:
+            norm = mpl.colors.Normalize(vmin=np.min(t), vmax=np.max(t))
+        else:
+            norm = norm
 
         if not ax:
             ax = self.new_ax()
@@ -252,6 +268,11 @@ class SpectrumSeriesPlotter(MPLPlotter):
         if make_colorbar:
             cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
             cb.set_label(t_name)
+        if xlim:
+            ax.set_xlim(xlim)
+
+        if ylim:
+            ax.set_ylim(ylim)
 
         return ax
 
@@ -492,6 +513,11 @@ class SpectroMeasurementPlotter(MPLPlotter):
         ax=None,
         cmap_name="jet",
         make_colorbar=True,
+        xlim=None,
+        ylim=None,
+        tspan=None,
+        t=None,
+        norm=None,
     ):
         """Plot a SpectrumSeries as spectra colored by the value at which they are taken
 
@@ -514,6 +540,8 @@ class SpectroMeasurementPlotter(MPLPlotter):
             v = tseries.t
             if hasattr(measurement, "t_str") and measurement.t_str:
                 v_name = measurement.t_str
+        elif t is not None:
+            v = t
         else:
             v = measurement.grab_for_t(vs, t=tseries.t)
 
@@ -525,6 +553,10 @@ class SpectroMeasurementPlotter(MPLPlotter):
             make_colorbar=make_colorbar,
             t=v,
             t_name=v_name,
+            xlim=xlim,
+            ylim=ylim,
+            tspan=tspan,
+            norm=norm,
         )
 
     def plot_stacked_spectra_vs(
