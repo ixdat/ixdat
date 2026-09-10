@@ -103,10 +103,10 @@ class CyclicVoltammogram(ECMeasurement):
                 # Either direction
                 turning_indices = np.where(sign[:-1] != sign[1:])[0] + 1
 
-            if len(turning_indices) > 1:
+            if len(turning_indices) >= 1:
                 valid_indices = []
 
-                for idx in turning_indices[1:]:
+                for idx in turning_indices:
                     if valid_indices and idx - valid_indices[-1] < N_sep:
                         continue
                     window_end = idx + N_points

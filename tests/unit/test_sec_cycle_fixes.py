@@ -122,14 +122,7 @@ def read_ec_optical_fixture():
 
 
 def test_redefine_cycle_turning_point_counts_reversals():
-    """Four sweep legs (3 reversals) should register as extra cycles.
-
-    Note: redefine_cycle's turning_point mode always skips the first
-    detected reversal (`for idx in turning_indices[1:]`), unlike the
-    equivalent loop in get_dOD_cycle, which does not skip it. That's a
-    real inconsistency worth raising separately; this test pins the
-    current, actual behavior rather than the naive expectation.
-    """
+    """Four sweep legs (3 reversals) should register as three extra cycles."""
     v = np.concatenate(
         [
             np.linspace(0, 1, 10),
@@ -141,8 +134,7 @@ def test_redefine_cycle_turning_point_counts_reversals():
     cv = make_triangular_cv(v)
     cv.redefine_cycle(turning_point=True, redox=None, N_points=3, N_sep=5)
 
-    # 3 reversals detected, but the first is always skipped -> 2 register.
-    assert sorted(set(cv["cycle"].data.tolist())) == [0.0, 1.0, 2.0]
+    assert sorted(set(cv["cycle"].data.tolist())) == [0.0, 1.0, 2.0, 3.0]
 
 
 def test_redefine_cycle_turning_point_redox_none_default_does_not_crash():
