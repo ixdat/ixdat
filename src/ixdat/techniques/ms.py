@@ -321,7 +321,6 @@ class MSSpectrumSeries(SpectrumSeries):
 
 
 class MSSpectroMeasurement(MSMeasurement, SpectroMeasurement):
-    extra_column_attrs = SpectroMeasurement.extra_column_attrs
     default_plotter = MSSpectroPlotter
     default_exporter = MSSpectroExporter
 

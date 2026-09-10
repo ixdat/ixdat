@@ -14,7 +14,7 @@ to the use of "persons" and "people" as distinct plurals of the word "person". W
 
 import warnings
 import numpy as np
-from .db import Saveable, fill_object_list, PlaceHolderObject
+from .db import Relationship, Saveable, fill_object_list, PlaceHolderObject
 from .data_series import DataSeries, TimeSeries, Field, time_shifted, append_series
 from .exceptions import BuildError
 from .plotters.spectrum_plotter import SpectrumPlotter, SpectrumSeriesPlotter
@@ -46,9 +46,14 @@ class Spectrum(Saveable):
         "metadata",
         "tstamp",
         "sample_name",
-        "field_id",
     }
-    child_attrs = ["fields"]
+    column_types = {
+        "technique": str,
+        "metadata": dict,
+        "tstamp": float,
+        "sample_name": str,
+    }
+    relationships = {"field": Relationship("data_series", "field_id")}
     essential_series_names = []
 
     def __init__(
@@ -74,8 +79,8 @@ class Spectrum(Saveable):
             reader (Reader): The reader, if read from file
             tstamp (float): The unix epoch timestamp of the spectrum
             field (Field): The Field containing the data (x, y, and tstamp)
-            field_id (id): The id in the data_series table of the Field with the data,
-                if the field is not yet loaded from backend.
+            field_id (id or tuple): A local id or ``(backend, id)`` reference for the
+                Field, if it is not yet loaded.
             duration (float): Optional. The duration of the spectrum measurement in [s]
         """
         super().__init__()
@@ -180,9 +185,7 @@ class Spectrum(Saveable):
         """The data-containing objects that need to be saved when the spectrum is saved.
 
         For a field to be correctly saved and loaded, its axes_series must be saved
-        first. So there are three series in the data_objects to return
-        FIXME: with backend-specifying id's, field could check for itself whether
-        FIXME:  its axes_series are already in the database.
+        first. So there are three series in the data_objects to return.
         """
         return self.series_list
 
@@ -264,8 +267,8 @@ class Spectrum(Saveable):
 
     @property
     def field_id(self):
-        """The id of the field"""
-        return self.field.id
+        """The backend-aware identity of the field."""
+        return self.field.short_identity
 
     @property
     def xseries(self):
@@ -360,8 +363,20 @@ class MultiSpectrum(Saveable):
         "tstamp",
         "sample_name",
     }
-    extra_linkers = {"multispectrum_fields": {"data_series", "field_ids"}}
-    child_attrs = ["fields"]
+    column_types = {
+        "technique": str,
+        "metadata": dict,
+        "tstamp": float,
+        "sample_name": str,
+    }
+    relationships = {
+        "fields": Relationship(
+            "data_series",
+            "field_ids",
+            many=True,
+            storage_table="multispectrum_fields",
+        )
+    }
 
     def __init__(
         self,
@@ -383,7 +398,7 @@ class MultiSpectrum(Saveable):
             sample_name (str): The sample name
             metadata (dict): Free-form spectrum metadata. Must be json-compatible.
             fields (list of Field): The Fields containing the data (x, y)
-            field_ids (list of int): The id's of Fields if available from the backend.
+            field_ids (list): Local ids or ``(backend, id)`` references for Fields.
         """
         super().__init__()
         self.name = name
@@ -413,10 +428,16 @@ class MultiSpectrum(Saveable):
         return self._fields
 
     @property
+    def field_ids(self):
+        """List of the id's of the multi-spectrum's fields"""
+        return [field.short_identity for field in self.fields]
+
+    @property
     def xseries(self):
         """The shared xseries of all the spectra in the multi-spectrum"""
         if not self._xseries:
-            self._xseries = self._fields[0].axes_series[0]
+            # note: `self.fields`, unlike `self._fields`, loads any placeholders:
+            self._xseries = self.fields[0].axes_series[0]
         return self._xseries
 
     @property
@@ -846,8 +867,11 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
 
 
 class SpectroMeasurement(Measurement):
-    child_attrs = ["spectrum_series_list"] + Measurement.child_attrs
-    extra_column_attrs = {"spectro_measurements": {"spectrum_id"}}
+    relationships = {
+        "spectrum_series": Relationship(
+            "spectrums", "spectrum_id", storage_table="spectro_measurements"
+        )
+    }
 
     def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -869,13 +893,6 @@ class SpectroMeasurement(Measurement):
             self._spectrum_series = self._spectrum_series.get_object()
             self._spectrum_series.tstamp = self.tstamp
         return self._spectrum_series
-
-    # FIXME: The attribute below is needed in order to correctly
-    #   pass the spectrum_series between objects using its id,
-    #   because "child_attrs" only works on lists.
-    @property
-    def spectrum_series_list(self):
-        return [self.spectrum_series]
 
     @property
     def spectrum_id(self):

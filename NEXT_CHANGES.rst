@@ -88,3 +88,30 @@ tools
 - New ``to_jsonable`` function in ``ixdat.tools``: recursively converts numpy
   arrays, numpy scalars, and byte strings into JSON-safe Python primitives.
   `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
+
+database
+^^^^^^^^
+
+- ``SQLiteBackend`` stores ixdat objects in one local SQLite file using Python's
+  built-in ``sqlite3`` module. The schema is derived from ``Saveable`` metadata by
+  the database-independent ``ixdat.backends.relational`` module, continuing the
+  table-definition work in
+  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_. Saves are transactional,
+  relationships use foreign keys, arrays remain lazy, and existing tables receive
+  safe additive migrations. String-only object arrays from pandas are stored as
+  native NumPy Unicode arrays without enabling pickle.
+
+- ``Saveable`` gained optional ``column_types`` and ``column_references`` metadata.
+  Classes declare Python value types, and relational backends map them to their
+  storage types. Extension columns, linkers, types, and references merge over class
+  ancestry, so multiply-inheriting classes retain each parent's tables without
+  repeating columns.
+
+- ``Saveable.load(name)`` now returns the newest exact name match on the memory,
+  directory, and SQLite backends. Explicit-backend loads preserve the active
+  database and keep lazy children and arrays connected to their source backend.
+
+- Persistence fixes cover existing table metadata, lazy ``MultiSpectrum`` fields,
+  ``MSCalibration``, ``MSBackgroundSet``, and ``ECOpticalMeasurement`` references.
+  ``development_scripts/demo_sqlite_backend.py`` demonstrates the complete backend
+  workflow on repository test data.

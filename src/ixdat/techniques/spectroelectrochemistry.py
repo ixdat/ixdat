@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
-from ..db import PlaceHolderObject
+from ..db import PlaceHolderObject, Relationship
 from ..spectra import Spectrum, SpectroMeasurement
 from ..data_series import Field, ValueSeries
 from ..exporters import SECExporter
@@ -58,8 +58,11 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
     default_plotter = ECOpticalPlotter
 
-    extra_linkers = SpectroECMeasurement.extra_linkers.copy()
-    extra_linkers.update({"ec_optical_measurements": ("spectra", "ref_id")})
+    relationships = {
+        "reference_spectrum": Relationship(
+            "spectrums", "ref_id", storage_table="ec_optical_measurements"
+        )
+    }
 
     def __init__(self, reference_spectrum=None, ref_id=None, **kwargs):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
@@ -68,6 +71,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             self._reference_spectrum = reference_spectrum
         elif ref_id:
             self._reference_spectrum = PlaceHolderObject(ref_id, cls=Spectrum)
+        else:
+            # a reference spectrum can also be set later, with set_reference_spectrum:
+            self._reference_spectrum = None
         self.tracked_wavelengths = []
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
@@ -80,6 +86,13 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         if isinstance(self._reference_spectrum, PlaceHolderObject):
             self._reference_spectrum = self._reference_spectrum.get_object()
         return self._reference_spectrum
+
+    @property
+    def ref_id(self):
+        """The id of the reference spectrum, or None if there is none"""
+        if not self._reference_spectrum:
+            return None
+        return self.reference_spectrum.short_identity
 
     def set_reference_spectrum(
         self,

@@ -79,10 +79,11 @@ class ECMeasurement(Measurement):
     """
 
     extra_column_attrs = {
-        "ec_meaurements": {
+        "ec_measurements": {
             "ec_technique",
         }
     }
+    column_types = {"ec_technique": str}
     control_series_name = "raw_potential"
     essential_series_names = ("t", "raw_potential", "raw_current")
     selection_series_names = ("file_number", "loop_number", "cycle number", "Ns")
@@ -112,12 +113,11 @@ class ECMeasurement(Measurement):
         Kwargs, passed on to `Measurement.__init__` (see :class:`.Measurement`):
             metadata (dict): Free-form measurement metadata. Must be json-compatible.
             technique (str): The measurement technique
-            s_ids (list of int): The id's of the measurement's DataSeries, if
-                to be loaded (instead of given directly in series_list)
+            s_ids (list): Local ids or ``(backend, id)`` references for the
+                measurement's DataSeries.
             series_list (list of DataSeries): The measurement's DataSeries
-            m_ids (list of int): The id's of the component measurements, if to be
-                loaded. None unless this is a combined measurement (typically
-                corresponding to more than one file).
+            m_ids (list): Local ids or ``(backend, id)`` references for component
+                measurements. None unless this is a combined measurement.
             component_measurements (list of Measurements): The measurements of which
                 this measurement is a combination
             reader (Reader): The file reader (None unless read from a file)
