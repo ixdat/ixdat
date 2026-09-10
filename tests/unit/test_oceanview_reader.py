@@ -312,3 +312,91 @@ def test_placeholder_rows_are_read_in_header_mode(tmp_path):
 
     assert optical.tstamp == unix_time(2026, 8, 5, 12, 0, 0, 0, 2)
     np.testing.assert_allclose(optical.t, [0.0, 2.0])
+
+
+# --- average_every ----------------------------------------------------------
+
+
+def write_oceanview_file_with_values(
+    directory, name, rows, header="Wed Aug 05 12:00:00 CEST 2026"
+):
+    """Write an OceanView export whose rows are (stamp, [v1, v2, v3]) pairs."""
+    path = directory / name
+    header_line = f"Date: {header}\n" if header else ""
+    lines = "\n".join(
+        f"{stamp}\t" + "\t".join(str(v) for v in values) for stamp, values in rows
+    )
+    path.write_text(
+        f"Data from {name} Node\n"
+        f"{header_line}"
+        "User: ixdat\n"
+        ">>>>>Begin Spectral Data<<<<<\n"
+        "400.0\t450.0\t500.0\n"
+        f"{lines}\n"
+    )
+    return path
+
+
+def test_average_every_one_matches_unaveraged_reading(tmp_path):
+    """average_every=1 (the default) must reproduce the unaveraged reading exactly."""
+    rows = [
+        ("2026-08-05 12:00:00.000000", [1.0, 2.0, 3.0]),
+        ("2026-08-05 12:00:01.000000", [4.0, 5.0, 6.0]),
+        ("2026-08-05 12:00:02.000000", [7.0, 8.0, 9.0]),
+    ]
+    path = write_oceanview_file_with_values(tmp_path, "average_every_1.txt", rows)
+
+    unaveraged = Spectrum.read(path, reader="oceanview")
+    averaged = Spectrum.read(path, reader="oceanview", average_every=1)
+
+    np.testing.assert_allclose(averaged.field.data, unaveraged.field.data)
+    np.testing.assert_allclose(averaged.t, unaveraged.t)
+    assert averaged.tstamp == unaveraged.tstamp
+
+
+def test_average_every_groups_rows_correctly(tmp_path):
+    """Rows are averaged in groups, and the group's time is the mean row offset."""
+    rows = [
+        ("2026-08-05 12:00:00.000000", [1.0, 2.0, 3.0]),
+        ("2026-08-05 12:00:01.000000", [4.0, 5.0, 6.0]),
+        ("2026-08-05 12:00:02.000000", [7.0, 8.0, 9.0]),
+        ("2026-08-05 12:00:03.000000", [10.0, 11.0, 12.0]),
+    ]
+    path = write_oceanview_file_with_values(tmp_path, "average_every_2.txt", rows)
+
+    optical = Spectrum.read(path, reader="oceanview", average_every=2)
+
+    # rows 0-1 average to [2.5, 3.5, 4.5] at t=0.5; rows 2-3 to [8.5, 9.5, 10.5] at t=2.5
+    np.testing.assert_allclose(optical.field.data, [[2.5, 3.5, 4.5], [8.5, 9.5, 10.5]])
+    np.testing.assert_allclose(optical.t, [0.5, 2.5])
+
+
+def test_average_every_keeps_a_leftover_partial_group(tmp_path):
+    """A group smaller than average_every at the end of the file is still kept."""
+    rows = [
+        ("2026-08-05 12:00:00.000000", [1.0, 2.0, 3.0]),
+        ("2026-08-05 12:00:01.000000", [4.0, 5.0, 6.0]),
+        ("2026-08-05 12:00:02.000000", [7.0, 8.0, 9.0]),
+    ]
+    path = write_oceanview_file_with_values(tmp_path, "average_every_leftover.txt", rows)
+
+    optical = Spectrum.read(path, reader="oceanview", average_every=2)
+
+    # rows 0-1 average normally; the leftover row 2 is kept as its own group.
+    np.testing.assert_allclose(optical.field.data, [[2.5, 3.5, 4.5], [7.0, 8.0, 9.0]])
+    np.testing.assert_allclose(optical.t, [0.5, 2.0])
+
+
+def test_average_every_relative_times_correct_across_midnight(tmp_path):
+    """Averaged row times must stay correct even when a group straddles midnight."""
+    rows = [
+        ("2026-08-05 23:59:59.000000", [1.0, 1.0, 1.0]),
+        ("2026-08-06 00:00:01.000000", [3.0, 3.0, 3.0]),
+    ]
+    path = write_oceanview_file_with_values(tmp_path, "average_every_midnight.txt", rows)
+
+    optical = Spectrum.read(path, reader="oceanview", average_every=2)
+
+    # naive clock-time averaging would not see the two-second gap across midnight
+    np.testing.assert_allclose(optical.field.data, [[2.0, 2.0, 2.0]])
+    np.testing.assert_allclose(optical.t, [1.0])

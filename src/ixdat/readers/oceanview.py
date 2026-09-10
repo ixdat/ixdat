@@ -46,6 +46,11 @@ class OceanViewTimeSeriesReader:
             either "header" (default) or "spectrum". See below.
         assume_timezone: the timezone to use when the file does not state one
             this reader can interpret. See below.
+        average_every: average this many consecutive rows into one spectrum
+            as they are read, to reduce the size of the resulting series.
+            1 (default) keeps every row unaveraged. A group of fewer than
+            `average_every` rows left over at the end of the file is still
+            averaged and kept, not dropped.
         cls: target SpectrumSeries subclass (defaults to OpticalSpectrumSeries)
 
     On ``tstamp_source``:
@@ -81,6 +86,7 @@ class OceanViewTimeSeriesReader:
         boxcar_width=None,  # boxcar width for data smoothing. Width is 1 by default.
         tstamp_source="header",
         assume_timezone=None,
+        average_every=1,
         cls=OpticalSpectrumSeries,
     ):
         path_to_file = Path(path_to_file)
@@ -141,8 +147,20 @@ class OceanViewTimeSeriesReader:
             )
 
         # ---- Parse spectra and relative times ----
+        # Rows are averaged in groups of `average_every` as they are parsed,
+        # so the full-resolution matrix never has to be held in memory. The
+        # relative time of an averaged row is the mean of its rows' offsets
+        # from the first row -- computed from the parsed datetimes, not from
+        # a bare time-of-day, so it stays correct across midnight.
         spectra = []
+        rel_times = []
         row_datetimes = []
+
+        n_wavelengths = len(wavelengths)
+        spectra_sum = np.zeros(n_wavelengths, dtype=np.float64)
+        rel_time_sum = 0.0
+        count = 0
+
         for row_number, ln in enumerate(data_lines, start=1):
 
             # Robust handling of separators
@@ -160,7 +178,6 @@ class OceanViewTimeSeriesReader:
             row_datetimes.append(row_datetime)
             vals = [float(v.replace(",", ".")) for v in vals.split()]
 
-            n_wavelengths = len(wavelengths)
             if len(vals) < n_wavelengths:
                 raise ValueError(
                     f"Row {row_number} of the spectral data in "
@@ -169,7 +186,25 @@ class OceanViewTimeSeriesReader:
                 )
             # Take the last N, so an extra leading column cannot shift the
             # spectrum against the wavelength axis.
-            spectra.append(vals[-n_wavelengths:])
+            vals = vals[-n_wavelengths:]
+
+            # Naive difference: no timezone needed, correct across midnight.
+            rel_sec = (row_datetime - row_datetimes[0]).total_seconds()
+
+            spectra_sum += vals
+            rel_time_sum += rel_sec
+            count += 1
+
+            if count == average_every:
+                spectra.append(spectra_sum / average_every)
+                rel_times.append(rel_time_sum / average_every)
+                # Reset
+                spectra_sum.fill(0)
+                rel_time_sum = 0.0
+                count = 0
+        if count > 0:
+            spectra.append(spectra_sum / count)
+            rel_times.append(rel_time_sum / count)
 
         y_matrix = np.stack(spectra)
 
@@ -183,10 +218,7 @@ class OceanViewTimeSeriesReader:
             axis=1,
         )
 
-        # Naive differences: no timezone needed, correct across midnight.
-        rel_times = np.array(
-            [(dt - row_datetimes[0]).total_seconds() for dt in row_datetimes]
-        )
+        rel_times = np.array(rel_times)
 
         # ---- Resolve the starting timestamp ----
         tstamp_first = self._resolve_tstamp(

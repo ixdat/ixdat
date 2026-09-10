@@ -513,7 +513,8 @@ class SpectrumSeries(Spectrum):
             continuous (bool): Whether the spectra should be considered continuous, i.e.
                 whether plotting and grabbing functions should interpolate between
                 spectrums. Defaults to False.
-            spectra_type: The form of the raw data (Intensity, Transmission, or Absorbance. Defaults to Intensity)
+            spectra_type: The form of the raw data (Intensity, Transmission, or
+                Absorbance. Defaults to Intensity)
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
