@@ -223,6 +223,27 @@ def test_get_dOD_cycle_rejects_invalid_direction():
         ec_optical.get_dOD_cycle(cycle_number=0, direction=5)
 
 
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda m: m.get_dOD_difference_spectra(cycle_number=0, direction=0),
+        lambda m: m.get_dOD_cycle_noise(cycle_1=0, cycle_2=0, direction=0),
+    ],
+)
+def test_direction_split_does_not_need_an_explicit_n_points(call):
+    """Regression test: get_dOD_difference_spectra and get_dOD_cycle_noise used
+    to default N_points to None and forward it straight into get_dOD_cycle,
+    which raised TypeError ('<' not supported between int and NoneType) the
+    moment direction was 0 or 1 without an explicit N_points. The array needs
+    to be long enough either side of the turning point for get_dOD_cycle's own
+    default (N_points=10) to find it.
+    """
+    v = np.concatenate([np.linspace(0, 1, 15), np.linspace(1, 0, 15)])
+    ec_optical = make_ec_optical_with_cycle(v, cycle=np.zeros(30))
+
+    call(ec_optical)  # must not raise TypeError
+
+
 # --- end-to-end path on real fixture data ---------------------------------
 
 
@@ -265,3 +286,16 @@ def test_plot_convergent_spectra_no_longer_takes_smooth_spectra():
 
     with pytest.raises(TypeError):
         ec_optical.plot_convergent_spectra(converge_output=converge, smooth_spectra=5)
+
+
+def test_get_convergent_spectra_handles_no_convergent_region():
+    """Regression test: with normalise=True (the default), zero convergent
+    regions used to raise AxisError (np.min(empty_array, axis=1)) instead of
+    returning an empty result."""
+    ec_optical = read_ec_optical_fixture()
+
+    converge = ec_optical.get_convergent_spectra(
+        cycle_number=0, conv_limit=-1  # impossible to satisfy -> zero regions
+    )
+
+    assert len(converge[1]) == 0

@@ -593,7 +593,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         wlmax=None,
         step=1,
         cycle_field=None,
-        N_points=None,
+        N_points=10,
     ):
         """Return a ValueSeries of dOD difference spectra for a specific cycle.
         If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
@@ -854,7 +854,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             timespans.append((start_time, end_time))
             potentialspans.append((potentials_array[0], potentials_array[-1]))
 
-        if normalise:
+        if normalise and len(convergent_spectra) > 0:
             convergent_spectra = np.asarray(convergent_spectra)
             # Select wavelength range
             min_vals = np.min(convergent_spectra, axis=1)
@@ -903,7 +903,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         t_ref2=None,
         index_ref2=None,
         direction=None,
-        N_points=None,
+        N_points=10,
     ):
         """Takes an ECOpticalMeasurement and returns the irreversible changes in
         absorbance between the two cycles.
