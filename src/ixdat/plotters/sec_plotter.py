@@ -452,6 +452,8 @@ class ECOpticalPlotter(SECPlotter):
             fig, ax = plt.subplots()
             ax_current = ax.twinx()
             axes = ax, ax_current
+        else:
+            ax, ax_current = axes
 
         cmap = plt.get_cmap(cmap_name)
         norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))

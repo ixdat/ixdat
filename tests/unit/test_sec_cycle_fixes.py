@@ -299,3 +299,20 @@ def test_get_convergent_spectra_handles_no_convergent_region():
     )
 
     assert len(converge[1]) == 0
+
+
+def test_plot_wavelengths_vs_cv_accepts_caller_supplied_axes():
+    """Regression test: plot_wavelengths_vs_cv only unpacked ax/ax_current when
+    axes was falsy, so passing axes= explicitly (as the parameter is documented
+    to support, e.g. to place the plot in a caller's own subplot grid) raised
+    UnboundLocalError on ax_current."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    ec_optical = read_ec_optical_fixture()
+    fig, ax = plt.subplots()
+    axes = ec_optical.plot_wavelengths_vs_cv(wavelengths=["w650"], axes=(ax, ax.twinx()))
+    assert axes[0] is ax
+    plt.close(fig)
