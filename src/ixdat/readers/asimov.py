@@ -1,4 +1,4 @@
-"""Reader for ixdat measurements stored in Asimov dataset versions."""
+"""Reader for ixdat objects stored as parsed Asimov project-file payloads."""
 
 import os
 from dataclasses import dataclass, fields
@@ -8,7 +8,7 @@ import numpy as np
 import requests
 
 from ..auth import KeycloakDeviceTokenProvider
-from ..data_series import DataSeries, TimeSeries, ValueSeries, Field
+from ..data_series import DataSeries, SERIES_CLASSES
 from ..measurement_base import Measurement
 from ..spectra import Spectrum, SpectrumSeries
 from ..tools import request_with_retries
@@ -111,9 +111,9 @@ ASIMOV_CONFIG = AsimovConfig.from_env()
 
 
 class AsimovReader:
-    """Read a remote dataset version from Asimov into an ixdat object.
+    """Read a remote project file or bundle parse result into an ixdat object.
 
-    Typical use only needs the dataset id: ``Measurement.read(<id>,
+    Typical use only needs the project file or bundle id: ``Measurement.read(<id>,
     reader="asimov")``. The first read opens a browser tab where you log
     in once; later reads reuse a cached token.
 
@@ -159,8 +159,7 @@ class AsimovReader:
                 read_timeout=self.config.read_timeout,
             )
 
-        self.dataset = None
-        self.dataset_version = None
+        self.payload_envelope = None
         self._session = requests.Session()
         self._session.trust_env = False
 
@@ -168,73 +167,130 @@ class AsimovReader:
         self,
         id,
         cls=None,
-        version=None,
-        version_id=None,
         force_login=False,
         **kwargs,
     ):
-        """Read a dataset version from Asimov as an ixdat object.
+        """Read an ixdat payload from Asimov.
 
         Args:
-            id (str): Asimov dataset id (UUID string).
+            id (str): Asimov project-file or project-file-bundle id (UUID string).
             cls (class, optional): Class to instantiate (Measurement, Spectrum, etc.).
                 If None, auto-detected from the payload's object_type field.
-            version (int, optional): Version number to select.
-            version_id (str, optional): Dataset-version UUID to select.
             force_login (bool): Force fresh Keycloak device login.
             kwargs: Extra key/value pairs merged into the object dict.
         """
-        dataset_id = str(id)
+        asimov_id = str(id)
         headers = self._build_auth_headers(force_login=force_login)
 
-        dataset = self._get_json(f"datasets/{dataset_id}", headers=headers)
-        versions = self._get_json(
-            "dataset-versions",
-            headers=headers,
-            params={"dataset_id": dataset_id},
-        )
-        dataset_version = self._select_dataset_version(
-            versions, version=version, version_id=version_id
-        )
-
-        payload = dataset_version.get("payload_json")
-        if not payload and dataset_version.get("payload_uri"):
+        payload_envelope = self._get_ixdat_payload_envelope(asimov_id, headers=headers)
+        payload = payload_envelope.get("payload_json")
+        if not payload and payload_envelope.get("payload_uri"):
             payload = self._load_payload_uri(
-                dataset_version["payload_uri"], headers=headers
+                payload_envelope["payload_uri"], headers=headers
             )
         if not payload:
             raise ValueError(
-                f"Dataset version {dataset_version.get('id')} has no "
+                f"Asimov parsed payload response for {asimov_id} has no "
                 "payload_json or payload_uri."
             )
 
-        self.dataset = dataset
-        self.dataset_version = dataset_version
+        self.payload_envelope = payload_envelope
 
-        # Inject Asimov provenance (dataset versioning) into metadata
+        # Inject Asimov provenance from the native project-file/bundle envelope.
         meta = dict(payload.get("metadata") or {})
         meta["asimov"] = {
-            "dataset_id": dataset.get("id"),
-            "dataset_kind": dataset.get("kind"),
-            "dataset_label": dataset.get("label"),
-            "dataset_version_id": dataset_version.get("id"),
-            "dataset_version": dataset_version.get("version"),
-            "dataset_version_created_at": dataset_version.get("created_at"),
-            "parser_name": dataset_version.get("parser_name"),
-            "ixdat_version": dataset_version.get("ixdat_version"),
+            "project_file_id": payload_envelope.get("project_file_id"),
+            "bundle_id": payload_envelope.get("bundle_id"),
+            "filename": payload_envelope.get("filename"),
+            "name": payload_envelope.get("name"),
+            "parser_name": payload_envelope.get("parser_name"),
+            "created_at": payload_envelope.get("created_at"),
+            "ixdat_version": payload_envelope.get("ixdat_version"),
         }
 
         d = {**payload, "metadata": meta}
         if not d.get("name"):
-            d["name"] = dataset.get("label") or str(dataset.get("id"))
+            d["name"] = (
+                payload_envelope.get("filename")
+                or payload_envelope.get("name")
+                or payload_envelope.get("project_file_id")
+                or payload_envelope.get("bundle_id")
+                or asimov_id
+            )
 
-        if cls is None:
-            object_type = d.get("object_type", "measurement")
-            cls = OBJECT_TYPE_CLASSES.get(object_type, Measurement)
+        object_type = d.get("object_type", "measurement")
+        self._check_requested_class_matches_object_type(
+            requested_class=cls, object_type=object_type, asimov_id=asimov_id
+        )
 
-        return cls.from_dict(self._build_kwargs(d, reader=self, **kwargs))
+        return self._build_object(d, cls=cls, reader=self, **kwargs)
 
-    def _build_kwargs(self, dct, **kwargs):
+    @staticmethod
+    def _check_requested_class_matches_object_type(
+        requested_class, object_type, asimov_id
+    ):
+        """Raise a clear error for the wrong read entrypoint."""
+        if requested_class is None:
+            return
+
+        if object_type == "measurement":
+            expected_cls = Measurement
+            recommended_read = "Measurement.read"
+            compatible = issubclass(requested_class, Measurement)
+        elif object_type == "spectrum":
+            expected_cls = Spectrum
+            recommended_read = "Spectrum.read"
+            compatible = issubclass(requested_class, Spectrum) and not issubclass(
+                requested_class, SpectrumSeries
+            )
+        elif object_type == "spectrum_series":
+            expected_cls = SpectrumSeries
+            recommended_read = "Spectrum.read or SpectrumSeries.read"
+            compatible = issubclass(requested_class, Spectrum)
+        else:
+            raise ValueError(
+                f"Asimov payload {asimov_id} has unsupported "
+                f"object_type={object_type!r}. "
+                f"Supported object types are {sorted(OBJECT_TYPE_CLASSES)}."
+            )
+
+        if compatible:
+            return
+
+        raise ValueError(
+            f"Asimov payload {asimov_id} contains a {expected_cls.__name__} payload "
+            f"(object_type={object_type!r}), but {requested_class.__name__}.read(..., "
+            "reader='asimov') requested an incompatible ixdat object type. "
+            f"Use {recommended_read}(..., reader='asimov') for this payload instead."
+        )
+
+    def _get_ixdat_payload_envelope(self, asimov_id, headers):
+        """Return the native Asimov ixdat-payload envelope for a file or bundle."""
+        try:
+            return self._get_json(
+                f"project-files/{asimov_id}/ixdat-payload", headers=headers
+            )
+        except RuntimeError as exc:
+            if not self._is_http_status(exc, 404):
+                raise
+
+        try:
+            return self._get_json(
+                f"project-file-bundles/{asimov_id}/ixdat-payload", headers=headers
+            )
+        except RuntimeError as exc:
+            if self._is_http_status(exc, 404):
+                raise ValueError(
+                    f"No Asimov project file or project file bundle with id={asimov_id}."
+                ) from exc
+            raise
+
+    @staticmethod
+    def _is_http_status(exc, status_code):
+        """Return True if a request RuntimeError mentions an HTTP status code."""
+        return f"HTTP {status_code}" in str(exc)
+
+    def _build_kwargs(self, dct, object_class=None, **kwargs):
         """Translate an Asimov payload into kwargs for cls.from_dict().
         Measurements need an absolute tstamp; Spectrum / SpectrumSeries
         accept tstamp=None natively, so we don't enforce it for them.
@@ -284,7 +340,82 @@ class AsimovReader:
                 obj["durations"] = dct.get("durations")
                 obj["continuous"] = dct.get("continuous", False)
 
+        for key, value in dct.items():
+            # A nested dict with object_type is a complete ixdat object payload,
+            # such as a reference_spectrum or spectrum_series inside a Measurement.
+            # Build it recursively without caring what the attribute is called.
+            if key not in obj and isinstance(value, dict) and "object_type" in value:
+                obj[key] = self._build_object(value, reader=self)
+            # Some ixdat attributes are lists of child objects, for example
+            # component_measurements. Hydrate only the list entries that declare
+            # object_type and leave ordinary scalar/list metadata untouched.
+            elif (
+                key not in obj
+                and isinstance(value, list)
+                and any(isinstance(v, dict) and "object_type" in v for v in value)
+            ):
+                obj[key] = [
+                    self._build_object(v, reader=self)
+                    if isinstance(v, dict) and "object_type" in v
+                    else v
+                    for v in value
+                ]
+            # If a nested dict has the shape of an ixdat object but omits
+            # object_type, the payload is ambiguous. ASIMOV should add object_type
+            # rather than ixdat guessing from field names or data shape.
+            elif (
+                key not in obj
+                and isinstance(value, dict)
+                and "object_type" not in value
+                and ("series_list" in value or "field" in value)
+            ):
+                raise ValueError(
+                    f"Asimov payload field {key!r} is missing 'object_type'. "
+                    "Nested ixdat objects must declare object_type so ixdat can "
+                    "reconstruct them without key-specific reader logic."
+                )
+            else:
+                # Everything else is ordinary payload metadata or an unsupported
+                # auxiliary shape. It is ignored here unless ixdat declares it as a
+                # serializable constructor field in the block below.
+                pass
+
+        for key in self._get_serializable_attrs(dct, object_class):
+            if key not in obj and key in dct:
+                obj[key] = dct[key]
+
         return obj
+
+    @staticmethod
+    def _get_serializable_attrs(dct, object_class=None):
+        """Return ixdat-declared constructor fields relevant to a payload."""
+        if object_class is None:
+            return set()
+        serializable_attrs = set(object_class.get_all_column_attrs())
+
+        technique = dct.get("technique")
+        if technique:
+            from ..techniques import TECHNIQUE_CLASSES
+
+            technique_class = TECHNIQUE_CLASSES.get(technique)
+            if technique_class and issubclass(technique_class, object_class):
+                serializable_attrs.update(technique_class.get_all_column_attrs())
+
+        return serializable_attrs
+
+    def _build_object(self, dct, cls=None, **kwargs):
+        """Build an ixdat Measurement, Spectrum, or SpectrumSeries from a payload."""
+        object_type = dct.get("object_type", "measurement")
+        if cls is None:
+            cls = OBJECT_TYPE_CLASSES.get(object_type)
+            if cls is None:
+                raise ValueError(
+                    f"Asimov payload has unsupported object_type={object_type!r}. "
+                    f"Supported object types are {sorted(OBJECT_TYPE_CLASSES)}."
+                )
+        if cls is Spectrum and object_type == "spectrum_series":
+            cls = SpectrumSeries
+        return cls.from_dict(self._build_kwargs(dct, object_class=cls, **kwargs))
 
     @staticmethod
     def _build_series(dct, key_map=None):
@@ -294,72 +425,35 @@ class AsimovReader:
         the entry comes from a Measurement's series_list.
         """
         kind = dct.get("series_type", "series")
-        name = dct["name"]
-        unit_name = dct["unit_name"]
-        data = np.asarray(dct["data"])
-
-        if kind == "tseries":
-            if dct.get("tstamp") is None:
-                raise ValueError(
-                    f"Asimov tseries '{name}' is missing 'tstamp'. ixdat requires "
-                    "an absolute timestamp on every TimeSeries."
-                )
-            return TimeSeries(
-                name=name, unit_name=unit_name, data=data, tstamp=dct["tstamp"]
+        series_cls = SERIES_CLASSES.get(kind)
+        if series_cls is None:
+            raise ValueError(
+                f"Asimov series '{dct.get('name')}' has unsupported "
+                f"series_type={kind!r}. Supported series types are "
+                f"{sorted(SERIES_CLASSES)}."
             )
-        if kind in ("vseries", "constantvalue"):
-            ts = None
-            if key_map and "tseries_key" in dct:
-                ts = key_map.get(dct["tseries_key"])
-            return ValueSeries(name=name, unit_name=unit_name, data=data, tseries=ts)
-        if kind == "field":
-            # axes_keys references axes already built from the shared series_list;
-            # axes_series is the inline form where axes are embedded in the payload
-            # directly (standalone Spectrum / SpectrumSeries with no series_list).
-            if "axes_keys" in dct and key_map:
-                axes = [key_map[k] for k in dct["axes_keys"]]
-            else:
-                # No key_map means axes are not in a shared series_list, so they
-                # must be embedded inline under axes_series.
-                axes = [
-                    AsimovReader._build_series(a, key_map)
-                    for a in dct.get("axes_series", [])
-                ]
-            return Field(name=name, unit_name=unit_name, data=data, axes_series=axes)
+        serializable_attrs = set(series_cls.get_all_column_attrs())
+        series_dict = {
+            key: value for key, value in dct.items() if key in serializable_attrs
+        }
+        series_dict["series_type"] = kind
+        series_dict["data"] = np.asarray(series_dict["data"])
 
-        return DataSeries(name=name, unit_name=unit_name, data=data)
+        if kind == "tseries" and dct.get("tstamp") is None:
+            raise ValueError(
+                f"Asimov tseries '{dct.get('name')}' is missing 'tstamp'. "
+                "ixdat requires an absolute timestamp on every TimeSeries."
+            )
+        if "tseries_key" in dct and key_map:
+            series_dict["tseries"] = key_map[dct["tseries_key"]]
+        if "axes_keys" in dct and key_map:
+            series_dict["axes_series"] = [key_map[k] for k in dct["axes_keys"]]
+        elif "axes_series" in dct:
+            series_dict["axes_series"] = [
+                AsimovReader._build_series(axis, key_map) for axis in dct["axes_series"]
+            ]
 
-    def _select_dataset_version(self, versions, version=None, version_id=None):
-        """Return the dataset version dict to load.
-
-        A dataset in Asimov can have multiple versions: each time data is
-        re-processed or re-uploaded, a new version is created while older
-        ones are kept for provenance (so you can always trace back to exactly
-        what data was used in a given analysis). In practice you almost always
-        want the latest version, which is the default when neither ``version``
-        nor ``version_id`` is given.
-
-        Args:
-            versions (list): List of version dicts returned by the API.
-            version (int, optional): Version number to select (1-based).
-            version_id (str, optional): Exact version UUID to select.
-        """
-        if not isinstance(versions, list) or not versions:
-            raise ValueError("No dataset versions returned from Asimov API.")
-        if version_id is not None:
-            for v in versions:
-                if v.get("id") == version_id:
-                    return v
-            raise ValueError(f"No dataset version with id={version_id}.")
-        if version is not None:
-            for v in versions:
-                if v.get("version") == version:
-                    return v
-            raise ValueError(f"No dataset version with version={version}.")
-        # Asimov returns created_at as an ISO 8601 string (e.g. "2024-06-01T12:00:00Z").
-        # Lexicographic sorting of ISO 8601 strings is equivalent to chronological
-        # sorting, so reverse=True gives the most recently created version first.
-        return sorted(versions, key=lambda v: v.get("created_at", ""), reverse=True)[0]
+        return DataSeries.from_dict(series_dict)
 
     def _build_auth_headers(self, force_login=False):
         """Return the HTTP Authorization header dict for an API request.
@@ -380,7 +474,7 @@ class AsimovReader:
     def _load_payload_uri(self, payload_uri, headers):
         """Fetch and return a payload stored at a URI rather than inline.
 
-        Large datasets are sometimes stored outside the main API response
+        Large payloads are sometimes stored outside the main API response
         and referenced by a URI. This method resolves relative URIs against
         the base URL and downloads the payload JSON.
         """
