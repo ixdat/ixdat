@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 from ixdat import Spectrum
 from ixdat.readers.bruker import ACQUS_KEYS, PROCS_KEYS
 
-
 DATA_DIR = (
     Path(__file__).parent.parent.parent
     / "test_data"

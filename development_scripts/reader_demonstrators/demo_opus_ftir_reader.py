@@ -4,7 +4,8 @@ Created on Thu Dec  7 16:20:40 2023
 
 @author: Søren
 """
-from pathlib import Path
+
+from tools_for_demos import DEMO_DATA_DIR
 from ixdat import Spectrum, Measurement
 from matplotlib import pyplot as plt
 
@@ -12,7 +13,9 @@ plt.close("all")
 
 
 data_dir = (
-    Path.home() / "Dropbox/WORKSPACES/PEOPLE_ICL/Matthew/opus_ftir/DPT files for Soren"
+    DEMO_DATA_DIR
+    / "opus_ftir/dpt_from_Matthew"
+    # Path.home() / "Dropbox/WORKSPACES/PEOPLE_ICL/Matthew/opus_ftir/DPT files for Soren"
 )
 
 
@@ -24,7 +27,9 @@ ftir = Spectrum.read(
 )
 
 ftir.heat_plot()  # heat plot
-ftir.plot_waterfall()  # waterfall plot
+if False:
+    # FIXME: AttributeError: module 'matplotlib.cm' has no attribute 'get_cmap'
+    ftir.plot_waterfall()  # waterfall plot
 ftir.plot(
     dt=1000,
     xspan=[1000, 1500],

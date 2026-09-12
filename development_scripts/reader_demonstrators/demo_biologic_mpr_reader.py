@@ -1,12 +1,15 @@
-from pathlib import Path
+from tools_for_demos import DEMO_DATA_DIR
 from ixdat import Measurement
 
-for data_dir in [
-    Path.home() / "Dropbox/ixdat_resources/test_data/biologic/17J04_Pt_isotope_exchange",
-    Path.home() / "Dropbox/ixdat_resources/test_data/biologic/22I27_London",
-    Path.home() / "Dropbox/ixdat_resources/test_data/biologic/22K14_Tempo",
+combined_measurement_list = []
+
+for folder in [
+    "17J04_Pt_isotope_exchange",
+    "22I27_London",
+    "22K14_Tempo",
 ]:
     combined_meas = None
+    data_dir = DEMO_DATA_DIR / "biologic" / folder
 
     for file in data_dir.iterdir():
         if not file.suffix == ".mpr":
@@ -14,7 +17,7 @@ for data_dir in [
         meas = Measurement.read(file, reader="biologic")
         print(meas)
         print("... was read successfully!\n\n")
-        meas.plot()
+        # meas.plot()
         if combined_meas:
             combined_meas = combined_meas + meas
         else:
@@ -22,3 +25,5 @@ for data_dir in [
 
     combined_meas.plot()
     combined_meas.plot(J_name="selector")
+
+    combined_measurement_list.append(combined_meas)

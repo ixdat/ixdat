@@ -2,8 +2,7 @@
 
 from ixdat import Measurement
 
-
-if True:  # test back-compatability with the ixdat v0p1 online on the tutorials page
+if False:  # test back-compatability with the ixdat v0p1 online on the tutorials page
     meas = Measurement.read_url(
         "https://raw.githubusercontent.com/ixdat/tutorials/"
         + "ixdat_v0p1/loading_appending_and_saving/co_strip.csv",

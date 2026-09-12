@@ -1,9 +1,9 @@
 """Sandbox script for use in the development of the qexafs reader"""
 
-from pathlib import Path
+from tools_for_demos import DEMO_DATA_DIR
 from ixdat import Spectrum, Measurement
 
-data_dir = Path.home() / "Dropbox/ixdat_resources/test_data/qexafs/constant potential"
+data_dir = DEMO_DATA_DIR / "qexafs/constant potential"
 
 if True:
     xas = Spectrum.read(
