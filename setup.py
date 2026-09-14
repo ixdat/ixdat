@@ -67,5 +67,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=read("requirements.txt").split("\n"),
+    extras_require={"plotly": ["plotly>=5.21"]},
     python_requires=">=3.6",
 )

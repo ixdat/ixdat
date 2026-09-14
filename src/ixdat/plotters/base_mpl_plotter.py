@@ -4,6 +4,22 @@ from collections import defaultdict
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+from matplotlib import transforms
+
+
+def _place_y_axis_offset_text_inside(ax):
+    """Place scientific-notation scale text inside the top of an axis."""
+    offset_text = ax.yaxis.get_offset_text()
+    vertical_transform = transforms.offset_copy(
+        transforms.IdentityTransform(),
+        fig=ax.figure,
+        y=-(ax.yaxis.OFFSETTEXTPAD + 2),
+        units="points",
+    )
+    offset_text.set_transform(
+        transforms.blended_transform_factory(ax.transAxes, vertical_transform)
+    )
+    offset_text.set_verticalalignment("top")
 
 
 class MPLPlotter:
@@ -58,26 +74,26 @@ class MPLPlotter:
         if emphasis == "top":
             gs = gridspec.GridSpec(5, 1, figure=fig)
             # gs.update(hspace=0.025)
-            axes = [plt.subplot(gs[0:3, 0])]
-            axes += [plt.subplot(gs[3:5, 0])]
+            axes = [fig.add_subplot(gs[0:3, 0])]
+            axes += [fig.add_subplot(gs[3:5, 0], sharex=axes[0])]
         elif emphasis == "bottom":
             gs = gridspec.GridSpec(5, 1, figure=fig)
             # gs.update(hspace=0.025)
-            axes = [plt.subplot(gs[0:2, 0])]
-            axes += [plt.subplot(gs[2:5, 0])]
+            axes = [fig.add_subplot(gs[0:2, 0])]
+            axes += [fig.add_subplot(gs[2:5, 0], sharex=axes[0])]
         else:
             gs = gridspec.GridSpec(6, 1, figure=fig)
             # gs.update(hspace=0.025)
-            axes = [plt.subplot(gs[0:3, 0])]
-            axes += [plt.subplot(gs[3:6, 0])]
+            axes = [fig.add_subplot(gs[0:3, 0])]
+            axes += [fig.add_subplot(gs[3:6, 0], sharex=axes[0])]
 
         if interactive:
             self._axis_for_range_selection = set(axes)
 
-        axes[0].xaxis.set_label_position("top")
         axes[0].tick_params(
-            axis="x", top=True, bottom=False, labeltop=True, labelbottom=False
+            axis="x", top=False, bottom=False, labeltop=False, labelbottom=False
         )
+        axes[0].xaxis.label.set_visible(False)
 
         if n_bottom == 2 or n_top == 2:
             axes += [None, None]
@@ -85,6 +101,10 @@ class MPLPlotter:
             axes[2] = axes[0].twinx()
         if n_bottom == 2:
             axes[3] = axes[1].twinx()
+
+        for ax in (axes[1], axes[3] if len(axes) > 3 else None):
+            if ax is not None:
+                _place_y_axis_offset_text_inside(ax)
 
         return axes
 
@@ -101,25 +121,25 @@ class MPLPlotter:
         Returns list of axes: top left, middle left, bottom left(, top right, middle
             right, bottom right)
         """
-        # Necessary to avoid deleting an open figure, I don't know why
-        self.new_ax(interactive=interactive)
-
-        gs = gridspec.GridSpec(12, 1)
+        fig = plt.figure()
+        gs = gridspec.GridSpec(12, 1, figure=fig)
         # gs.update(hspace=0.025)
-        axes = [plt.subplot(gs[0:4, 0])]
-        axes += [plt.subplot(gs[4:8, 0])]
-        axes += [plt.subplot(gs[8:12, 0])]
+        axes = [fig.add_subplot(gs[0:4, 0])]
+        axes += [fig.add_subplot(gs[4:8, 0], sharex=axes[0])]
+        axes += [fig.add_subplot(gs[8:12, 0], sharex=axes[0])]
 
         if interactive:
             self._axis_for_range_selection = set(axes)
+            fig.canvas.mpl_connect("button_press_event", self.onclick)
 
-        axes[0].xaxis.set_label_position("top")
         axes[0].tick_params(
-            axis="x", top=True, bottom=False, labeltop=True, labelbottom=False
+            axis="x", top=False, bottom=False, labeltop=False, labelbottom=False
         )
+        axes[0].xaxis.label.set_visible(False)
         axes[1].tick_params(
             axis="x", top=True, bottom=True, labeltop=False, labelbottom=False
         )
+        axes[1].xaxis.label.set_visible(False)
 
         if n_bottom == 2 or n_middle == 2 or n_top == 2:
             axes += [None, None, None]
@@ -129,6 +149,11 @@ class MPLPlotter:
             axes[4] = axes[1].twinx()
         if n_bottom == 2:
             axes[5] = axes[2].twinx()
+
+        lower_axes = axes[1:3] + (axes[4:6] if len(axes) > 3 else [])
+        for ax in lower_axes:
+            if ax is not None:
+                _place_y_axis_offset_text_inside(ax)
 
         return axes
 
