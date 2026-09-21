@@ -140,6 +140,10 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
     i_start = 0
     i_finish = 0
     n_sweep = 0
+    
+    
+    
+    
 
     the_next_starts = [np.argmax(mask) for mask in the_masks]
     section_id = int(np.argmin(the_next_starts))

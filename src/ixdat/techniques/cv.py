@@ -5,9 +5,12 @@ from ..exceptions import BuildError, SeriesNotFoundError
 from ..calculators.scan_rate_tools import (
     tspan_passing_through,
     find_signed_sections,
+    calc_sharp_v_scan
 )
 from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
 from ..tools import deprecate
+
+from scipy.signal import find_peaks
 
 
 class CyclicVoltammogram(ECMeasurement):
@@ -60,9 +63,9 @@ class CyclicVoltammogram(ECMeasurement):
         return super().__getitem__(key)
 
     def redefine_cycle(
-        self, start_potential=None, redox=None, N_points=5, turning_point=False, N_sep=10
+        self, start_potential=None, redox=None, N_points=5, turning_point=False, N_sep=10, v_scan_res=None, res_points=None
     ):
-        """Build `cycle` which iterates when passing through start_potential
+        """Build `cycle` which iterates when passing through start_potential, or a turning point
 
         Args:
             start_potential (float): The potential in [V] at which the cycle counter will
@@ -75,21 +78,48 @@ class CyclicVoltammogram(ECMeasurement):
                 needs to be above (redox=True) or below (redox=False) the
                 start_potential for the new cycle to register.
                 turning_point (bool): If True, define cycles using changes in
-            the direction of the potential sweep instead of a fixed
-            potential.
+                the direction of the potential sweep instead of a fixed
+                potential.
+            res_points (int): to be passed to calc_sharp_v. The resolution in data points,
+            i.e. the spacing used in the slope equation v_scan = (v2 - v1) / (t2 - t1)
         """
         self.start_potential = start_potential
         self.redox = redox
         if turning_point:
 
-            t = self.t
             v = self.U
             N = len(v)
+            time = self.t
+            
+            #Find point where potential first crosses start potential, if given as an argument as well as turning_point
+            if start_potential:
+                crossing = np.where(
+                    (
+                            (v[:-1] < start_potential) &
+                            (v[1:] >= start_potential)
+                    )
+                    |
+                    (
+                            (v[:-1] > start_potential) &
+                            (v[1:] <= start_potential)
+                    )
+                )[0]
+                if len(crossing) == 0:
+                    raise ValueError(
+                        f"No crossing of "
+                        f"{start_potential} V found."
+                    )
+                start_idx = crossing[0] + 1
+                # define cycle vector
+                cycle_vec = np.full(N, np.nan)
+            
+                #define cycle 0
+                cycle_vec[:start_idx] = 0
 
-            # Calculate dU/dt
-            dUdt = np.gradient(v, t)
-
-            sign = np.sign(dUdt)
+            
+            scan_rate=calc_sharp_v_scan(time, v, res_points=res_points)
+            # Find direction of sweeps
+            sign=np.sign(scan_rate)
 
             if redox is True:
                 # Negative -> positive
@@ -110,7 +140,7 @@ class CyclicVoltammogram(ECMeasurement):
                     if valid_indices and idx - valid_indices[-1] < N_sep:
                         continue
                     window_end = idx + N_points
-                    next_points = dUdt[idx:window_end]
+                    next_points = scan_rate[idx:window_end]
 
                     if len(next_points) > 0:
                         if redox is True:
