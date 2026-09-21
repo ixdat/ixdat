@@ -396,6 +396,20 @@ def test_spectrum_series_read_explains_spectrum_payload_mismatch(monkeypatch):
     assert "Spectrum.read" in message
 
 
+def test_nmr_spectrum_read_rejects_spectrum_series_payload(monkeypatch):
+    payload = {
+        "object_type": "spectrum_series",
+        "name": "nmr-series",
+        "technique": "NMR_spectra",
+    }
+    session = FakeQueuedSession([make_json_response(make_payload_envelope(payload))])
+    monkeypatch.setenv("ASIMOV_ACCESS_TOKEN", "dummy")
+    monkeypatch.setattr("ixdat.readers.asimov.requests.Session", lambda: session)
+
+    with pytest.raises(ValueError, match="incompatible ixdat object type"):
+        NMRSpectrum.read("dataset-id", reader="asimov")
+
+
 def test_asimov_nmr_spectrum_uses_nmr_subclass_and_plotter(monkeypatch):
     x = np.linspace(15, -5, 50)
     y = np.sin(x)

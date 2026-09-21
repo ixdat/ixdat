@@ -233,36 +233,42 @@ class AsimovReader:
         if requested_class is None:
             return
 
-        if object_type == "measurement":
-            expected_cls = Measurement
-            recommended_read = "Measurement.read"
-            compatible = issubclass(requested_class, Measurement)
-        elif object_type == "spectrum":
-            expected_cls = Spectrum
-            recommended_read = "Spectrum.read"
-            compatible = issubclass(requested_class, Spectrum) and not issubclass(
-                requested_class, SpectrumSeries
-            )
-        elif object_type == "spectrum_series":
-            expected_cls = SpectrumSeries
-            recommended_read = "Spectrum.read or SpectrumSeries.read"
-            compatible = issubclass(requested_class, Spectrum)
-        else:
+        if object_type not in OBJECT_TYPE_CLASSES:
             raise ValueError(
                 f"Asimov payload {asimov_id} has unsupported "
                 f"object_type={object_type!r}. "
                 f"Supported object types are {sorted(OBJECT_TYPE_CLASSES)}."
             )
 
-        if compatible:
+        requested_type = AsimovReader._get_object_type(requested_class)
+        if object_type == requested_type or (
+            requested_class is Spectrum and object_type == "spectrum_series"
+        ):
             return
 
+        expected_cls = OBJECT_TYPE_CLASSES[object_type]
+        recommended_read = {
+            "measurement": "Measurement.read",
+            "spectrum": "Spectrum.read",
+            "spectrum_series": "Spectrum.read or SpectrumSeries.read",
+        }[object_type]
         raise ValueError(
             f"Asimov payload {asimov_id} contains a {expected_cls.__name__} payload "
             f"(object_type={object_type!r}), but {requested_class.__name__}.read(..., "
             "reader='asimov') requested an incompatible ixdat object type. "
             f"Use {recommended_read}(..., reader='asimov') for this payload instead."
         )
+
+    @staticmethod
+    def _get_object_type(requested_class):
+        """Return the payload type corresponding to an ixdat class."""
+        if issubclass(requested_class, SpectrumSeries):
+            return "spectrum_series"
+        if issubclass(requested_class, Spectrum):
+            return "spectrum"
+        if issubclass(requested_class, Measurement):
+            return "measurement"
+        return None
 
     def _get_ixdat_payload_envelope(self, asimov_id, headers):
         """Return the native Asimov ixdat-payload envelope for a file or bundle."""
