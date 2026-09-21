@@ -82,8 +82,8 @@ class OceanViewTimeSeriesReader:
         self,
         path_to_file,
         name=None,
-        spectra_type=None,  # spectra type is Intensity by default
-        boxcar_width=None,  # boxcar width for data smoothing. Width is 1 by default.
+        spectra_type="Intensity",  # spectra type is Intensity by default
+        boxcar_width=1,  # boxcar width for data smoothing. Width is 1 by default.
         tstamp_source="header",
         assume_timezone=None,
         average_every=1,
@@ -209,9 +209,7 @@ class OceanViewTimeSeriesReader:
         y_matrix = np.stack(spectra)
 
         # ---- Apply smoothing ----
-        if boxcar_width is None:
-            boxcar_width = 1
-
+        
         y_matrix_smoothed = uniform_filter1d(
             y_matrix,
             size=boxcar_width,
@@ -221,20 +219,28 @@ class OceanViewTimeSeriesReader:
         rel_times = np.array(rel_times)
 
         # ---- Resolve the starting timestamp ----
-        tstamp_first = self._resolve_tstamp(
-            tstamp_source=tstamp_source,
-            dt_header=dt_header,
-            dt_first_row=row_datetimes[0],
-            tzinfo=tzinfo,
-            path_to_file=path_to_file,
-        )
+        tstamp_header = dt_header.replace(tzinfo=tzinfo).timestamp()   
+        tstamp_first = row_datetimes[0].replace(tzinfo=tzinfo).timestamp()
+        if tstamp_first < 24 * 60 * 60:    # epoch in any timezone
+            if tstamp_source == "spectrum":
+                raise ValueError("Timestamp is incorrect")  # the demo script tests for this.
+                warnings.warn(
+                    f"{path_to_file} saved without correct absolute times. Using the header"
+                    " as an approximation, but alignment may be a few seconds off."
+                )
+            t_zero = tstamp_header
+        elif tstamp_source == "header":
+            t_zero = tstamp_header
+            rel_times += tstamp_first - tstamp_header
+        else:
+            t_zero = tstamp_first
 
         # ---- Wrap into ixdat objects ----
         xseries = DataSeries(name="wavelength", unit_name="nm", data=wavelengths)
         # The same tstamp goes on the TimeSeries and on the SpectrumSeries
         # below; if they disagree, ixdat shifts the relative times to match.
         tseries = TimeSeries(
-            name="time", unit_name="s", data=rel_times, tstamp=tstamp_first
+            name="time", unit_name="s", data=rel_times, tstamp=t_zero
         )
 
         if spectra_type == "Transmission":
@@ -270,40 +276,7 @@ class OceanViewTimeSeriesReader:
         )
         return uvvis_series
 
-    # -------- Timestamp resolution --------
-    def _resolve_tstamp(
-        self,
-        tstamp_source,
-        dt_header,
-        dt_first_row,
-        tzinfo,
-        path_to_file,
-    ):
-        """Return the Unix timestamp to anchor the time axis to."""
-        if tstamp_source == "header":
-            if dt_header is None:
-                raise ValueError(
-                    f"{path_to_file.name} has no 'Date:' line, so there is no "
-                    "header timestamp to anchor the time axis to. Read it with "
-                    "tstamp_source='spectrum', which uses the timestamp on the "
-                    "first data row."
-                )
-            return self._localise(dt_header, tzinfo, "The header date", path_to_file)
-
-        if dt_first_row.year <= PLACEHOLDER_YEAR:
-            raise ValueError(
-                f"The spectral data rows in {path_to_file.name} are stamped "
-                f"{dt_first_row:%Y-%m-%d %H:%M:%S}, which is the 1970-01-01 "
-                "placeholder OceanView writes when no real acquisition date "
-                "was recorded. Using it would place the optical data in 1970 "
-                "and misalign it with the EC data. This file requires "
-                "tstamp_source='header'."
-            )
-
-        return self._localise(
-            dt_first_row, tzinfo, "The first spectrum timestamp", path_to_file
-        )
-
+   
     # -------- Timezone --------
     def _resolve_timezone(self, tz_text, assume_timezone, path_to_file):
         """Return the tzinfo for this file's naive times, or None if unknown.
