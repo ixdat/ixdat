@@ -297,9 +297,16 @@ class AsimovReader:
         return f"HTTP {status_code}" in str(exc)
 
     def _build_kwargs(self, dct, object_class=None, **kwargs):
-        """Translate an Asimov payload into kwargs for cls.from_dict().
-        Measurements need an absolute tstamp; Spectrum / SpectrumSeries
-        accept tstamp=None natively, so we don't enforce it for them.
+        """Translate an Asimov payload into kwargs for an ixdat object's from_dict().
+
+        Args:
+            dct (dict): The Asimov payload to translate.
+            object_class (class, optional): The ixdat class whose declared
+                constructor fields may be copied from the payload.
+            **kwargs: Extra values to pass to the object's from_dict().
+
+        Measurements need an absolute tstamp; Spectrum and SpectrumSeries
+        accept tstamp=None, so it is not required for them.
         """
         if "series_list" in dct and dct.get("tstamp") is None:
             raise ValueError(
