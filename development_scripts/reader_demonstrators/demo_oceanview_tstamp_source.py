@@ -6,12 +6,11 @@ before the first spectrum is actually acquired, so the two disagree by the time
 it takes to open the file and start capturing.
 
 `tstamp_source="header"` (the default) anchors the time axis to the header.
-`tstamp_source="spectrum"` anchors it to the first spectrum's own timestamp,
-which matters when aligning the optical data against another instrument.
+`tstamp_source="spectrum"` anchors it to the first spectrum's own timestamp.
 
-Not every file can use "spectrum": older exports stamp their rows with the
-1970-01-01 placeholder rather than a real date. The reader detects that and
-refuses, rather than placing the measurement in 1970.
+Not every file can use "spectrum": a bug in some version of OceanView results in a 
+timestamp of 1970-01-01. The reader detects that and refuses, rather than placing the
+measurement in 1970.
 
 This script uses the two OceanView fixtures in test_data/oceanview_sec/ to show
 both behaviours.
