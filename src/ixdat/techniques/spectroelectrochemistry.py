@@ -55,6 +55,13 @@ class ECXASMeasurement(SpectroECMeasurement):
 class OpticalSpectrumSeries(SpectrumSeries):
     """Optical Spectrum Series"""
 
+     def __init__(self, *args, **kwargs):
+        """Initiate an Optical Spectrum Series, as an addition to the spectrum series 
+        spectra_type: The form of the raw data (Intensity, Transmission, or Absorbance. Defaults to Intensity)
+        """
+         self.spectra_type = kwargs.pop("spectra_type", "Intensity")
+         
+
     def average_spectra(
         self,
         average_number=10,
@@ -111,7 +118,7 @@ class OpticalSpectrumSeries(SpectrumSeries):
             tstamp=tseries.tstamp,
             field=averaged_spectra_field,
             continuous=True,
-            spectra_type=spectrum.spectra_type,
+            spectra_type=self.spectra_type,
         )
 
         return averaged_uvvis_series
@@ -141,7 +148,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         SpectroECMeasurement.__init__(self, **kwargs)
 
         if spectra_type is None:
-            spectra_type = self.spectrum_series.spectra_type
+            spectra_type = self.OpticalSpectrumSeries.spectra_type
         self.spectra_type = spectra_type
 
         if reference_spectrum:
