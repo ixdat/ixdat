@@ -513,8 +513,6 @@ class SpectrumSeries(Spectrum):
             continuous (bool): Whether the spectra should be considered continuous, i.e.
                 whether plotting and grabbing functions should interpolate between
                 spectrums. Defaults to False.
-            spectra_type: The form of the raw data (Intensity, Transmission, or
-                Absorbance. Defaults to Intensity)
         """
         if "technique" not in kwargs:
             kwargs["technique"] = "spectra"
@@ -523,7 +521,6 @@ class SpectrumSeries(Spectrum):
         self.durations = kwargs.pop("durations", None)
         self.continuous = kwargs.pop("continuous", False)
         self.continuous = kwargs.pop("Intensity", False)
-        self.spectra_type = kwargs.pop("spectra_type", "Intensity")
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot
