@@ -520,7 +520,6 @@ class SpectrumSeries(Spectrum):
         # FIXME: durations and continuous are not in the serialization:
         self.durations = kwargs.pop("durations", None)
         self.continuous = kwargs.pop("continuous", False)
-        self.continuous = kwargs.pop("Intensity", False)
         super().__init__(*args, **kwargs)
         self.plotter = SpectrumSeriesPlotter(spectrum_series=self)
         self.heat_plot = self.plotter.heat_plot

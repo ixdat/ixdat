@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone, tzinfo as TzInfo
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d
+import warnings
 
 from ..data_series import DataSeries, TimeSeries, Field
 from ..spectra import SpectrumSeries

@@ -60,6 +60,7 @@ class OpticalSpectrumSeries(SpectrumSeries):
        spectra_type: The form of the raw data (Intensity, Transmission, or Absorbance. Defaults to Intensity)
        """
        self.spectra_type = kwargs.pop("spectra_type", "Intensity")
+       super().__init__(*args, **kwargs)
         
 
     def average_spectra(
