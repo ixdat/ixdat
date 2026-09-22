@@ -10,6 +10,7 @@ from ..plotters import SECPlotter, ECOpticalPlotter
 from scipy.spatial.distance import pdist, squareform
 from scipy.signal import find_peaks
 import copy
+import warnings
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
@@ -63,7 +64,7 @@ class OpticalSpectrumSeries(SpectrumSeries):
        super().__init__(*args, **kwargs)
         
 
-    def average_spectra(
+    def calc_average_spectra(
         self,
         average_number=10,
         field=None,
@@ -149,13 +150,15 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         SpectroECMeasurement.__init__(self, **kwargs)
 
         if spectra_type is None:
-            spectra_type = self.OpticalSpectrumSeries.spectra_type
+            spectra_type = self.spectrum_series.spectra_type
         self.spectra_type = spectra_type
 
         if reference_spectrum:
             self._reference_spectrum = reference_spectrum
         elif ref_id:
             self._reference_spectrum = PlaceHolderObject(ref_id, cls=Spectrum)
+        else:
+            self._reference_spectrum = None #Sometimes the user may want to not provide a reference spectrum, e.g for transmission or absorption data
         self.tracked_wavelengths = []
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
@@ -194,9 +197,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             V_ref (float): The potential to use as the reference spectrum. This will
                 only work if the potential is monotonically increasing.
         """
-        if t_ref is not None and spectrum is None:
+        if t_ref and not spectrum:
             spectrum = self.get_spectrum(t=t_ref)
-        if V_ref is not None and spectrum is None:
+        if V_ref and not spectrum:
             spectrum = self.get_spectrum(V=V_ref)
         if spectrum is None:
             raise ValueError("must provide a spectrum, t_ref, or V_ref!")
@@ -220,9 +223,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             V_ref (float): The potential to use as the reference spectrum. This will
                 only work if the potential is monotonically increasing.
         """
-        if t_range is not None and spectrum is None:
+        if t_range and not spectrum:
             spectrum = self.get_spectrum(t=t_range)
-        if V_ref is not None and spectrum is None:
+        if V_ref and not spectrum:
             spectrum = self.get_spectrum(V=V_ref)
         if spectrum is None:
             raise ValueError("must provide a spectrum, t_ref, or V_ref!")
@@ -242,7 +245,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         """Calculate the optical density with respect to a reference
 
         Provide at most one of V_ref, t_ref, or index. If none are provided the default
-        reference spectrum (self.reference_spectrum) will be used.
+        reference spectrum (self.reference_spectrum) will be used. If the default reference
+        spectrum is missing, the function wil raise a Value error for intensity data, or 
+        assume an unknown pre-set reference for absorption or transmission data.
 
         Args:
             V_ref (float): The potential at which to get the reference spectrum
@@ -251,24 +256,47 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         Return Field: the delta optical density spanning time and wavelength
         """
         counts = self.spectra.data
-
-        # Check what form data is in. By default it is Intensity
-        if self.spectra_type == "Absorption":
-            dOD = counts
-        elif self.spectra_type == "Transmission":
-            counts_decimal = counts / 100
-            counts_decimal[counts_decimal == 0] = np.nan
-            dOD = -np.log10(counts_decimal)
+        ref=None
+        #---- Check form of data and reference. Note that:
+            #(1) If no reference is given and data is in intensity 
+            #    form, the dOD cannot be calculated
+            #(2) Absorption and Transmission data are already referenced to some 
+            #    unknown reference point, presumably set during data collection. 
+            #    If no reference  is given, it is assumed that the user 
+            #    wants to maintain this unknown reference point.
+            #(3) If a reference  is given, the dOD is given relative to 
+            #    this reference point.
+        if V_ref or t_ref or index_ref:
+            ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
+        elif self.reference_spectrum:
+            ref = self.reference_spectrum
+        if not ref:
+            if self.spectra_type=="Intensity":
+                raise ValueError("For intensity data, a reference must be provided to find the optical density")
+            if self.spectra_type == "Absorption":
+                warnings.warn("Absorption set as optical data type and no reference is given. Optical density referred to an unknown reference.")
+                dOD = counts
+            if self.spectra_type == "Transmission":
+                warnings.warn("Transmission set as optical data type and no reference is given. Optical density referred to an unknown reference.")
+                spec_decimal = counts / 100
+                spec_decimal[spec_decimal == 0] = np.nan
+                dOD = -np.log10(spec_decimal)
         else:
-            if V_ref is not None or t_ref is not None:
-                ref_spec = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
-            else:
-                ref_spec = self.reference_spectrum
-            ref = ref_spec.y
-            counts[counts == 0] = np.nan
-            ref[ref == 0] = np.nan
-            ratio = counts / ref
-            dOD = -np.log10(ratio)
+            if self.spectra_type=="Intensity" or self.spectra_type=="Transmission":
+                ratio = np.divide(
+                    counts,
+                    ref.y,
+                    out=np.full_like(counts, np.nan),
+                    where=(abs(counts) > 0) & (abs(ref.y) > 0),
+                )
+                dOD = -np.log10(ratio)
+            if self.spectra_type=="Absorption":
+                dOD = np.divide(
+                    counts,
+                    ref.y,
+                    out = np.full_like(counts, np.nan),
+                    where = abs(ref.y)>0
+                    )
 
         dOD = np.ma.masked_invalid(dOD)
         dOD_series = Field(
@@ -353,7 +381,10 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
         Provide exactly one of V, t, and index, and at most one of V_ref, t_ref, and
         index_ref. For V and V_ref to work, the potential in the measurement must be
-        monotonically increasing.
+        monotonically increasing. If none of V_ref, t_ref, or index_ref are provided the default
+        reference spectrum (self.reference_spectrum) will be used. If the default reference
+        spectrum is missing, the function wil raise a Value error for intensity data, or 
+        assume an unknown pre-set reference for absorption or transmission data.
 
         Args:
             V (float): The potential at which to get the spectrum.
@@ -367,26 +398,47 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         """
 
         spectrum = self.get_spectrum(V=V, t=t, index=index)
-        # Check what form data is in. By default it is Intensity
-        if self.spectra_type is not None and self.spectra_type != "Intensity":
+        spectrum_ref=None
+        #---- Check form of data and reference spectrum. Note that:
+            #(1) If no reference spectrum is given and data is in intensity 
+            #    form, the dOD cannot be calculated
+            #(2) Absorption and Transmission data are already referenced to some 
+            #    unknown reference point, presumably set during data collection. 
+            #    If no reference spectrum is given, it is assumed that the user 
+            #    wants to maintain this unknown reference point.
+            #(3) If a reference spectrum is given, the dOD is given relative to 
+            #    this reference point.
+        if V_ref or t_ref or index_ref:
+            spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
+        elif self.reference_spectrum:
+            spectrum_ref = self.reference_spectrum
+        if not spectrum_ref:
+            if self.spectra_type=="Intensity":
+                raise ValueError("For intensity data, a reference spectrum must be provided to find the optical density")
             if self.spectra_type == "Absorption":
+                warnings.warn("Absorption set as optical data type and no reference spectrum is given. Optical density referred to an unknown reference.")
                 dOD = spectrum.y
-            elif self.spectra_type == "Transmission":
+            if self.spectra_type == "Transmission":
+                warnings.warn("Transmission set as optical data type and no reference spectrum is given. Optical density referred to an unknown reference.")
                 spec_decimal = spectrum.y / 100
                 spec_decimal[spec_decimal == 0] = np.nan
                 dOD = -np.log10(spec_decimal)
         else:
-            if V_ref is not None or t_ref is not None or index_ref is not None:
-                spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
-            else:
-                spectrum_ref = self.reference_spectrum
-            ratio = np.divide(
-                spectrum.y,
-                spectrum_ref.y,
-                out=np.full_like(spectrum.y, np.nan),
-                where=(spectrum.y > 0) & (spectrum_ref.y > 0),
-            )
-            dOD = -np.log10(ratio)
+            if self.spectra_type=="Intensity" or self.spectra_type=="Transmission":
+                ratio = np.divide(
+                    spectrum.y,
+                    spectrum_ref.y,
+                    out=np.full_like(spectrum.y, np.nan),
+                    where=(abs(spectrum.y) > 0) & (abs(spectrum_ref.y) > 0),
+                )
+                dOD = -np.log10(ratio)
+            if self.spectra_type=="Absorption":
+                dOD = np.divide(
+                    spectrum.y,
+                    spectrum_ref.y,
+                    out = np.full_like(spectrum.y, np.nan),
+                    where = abs(spectrum_ref.y)>0
+                    )
 
         dOD = np.ma.masked_invalid(dOD)
 
