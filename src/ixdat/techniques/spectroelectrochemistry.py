@@ -152,6 +152,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         if spectra_type is None:
             spectra_type = self.spectrum_series.spectra_type
         self.spectra_type = spectra_type
+        self.ref_id = ref_id
 
         if reference_spectrum:
             self._reference_spectrum = reference_spectrum
@@ -460,43 +461,43 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         index_ref=None,
         normalise=True,
         step=1,
-        wlmin=None,
-        wlmax=None,
+        wlrange=None,
     ):
-        """Return the difference of two delta optical density Spectra given a point and
-        reference point (the one at the given point, and the next one measured).
+        """Returns the difference of two delta optical density Spectra (the inital one at the
+        given point defined by V, t, or index, and the second one which is "step" indices 
+        further on in time). Both spectra are referenced to the same reference point, although 
+        this naturally cancels out.
 
         Provide exactly one of V, t, and index, and at most one of V_ref, t_ref, and
         index_ref. For V and V_ref to work, the potential in the measurement must be
         monotonically increasing.
 
         Args:
-            V (float): The potential at which to get the spectrum.
-            t (float): The time at which to get the spectrum
-            index (int): The index of the spectrum
+            V (float): The potential at which to get the initial spectrum.
+            t (float): The time at which to get the inital spectrum
+            index (int): The index of the inital spectrum
             V_ref (float): The potential at which to get the reference spectrum
             t_ref (float): The time at which to get the reference spectrum
             index_ref (int): The index of the reference spectrum
             normalise (bool): Whether or not to normalise spectra. Defaults to true
+            step (int): the step size (in indices) that the second spectrum is 
+                        further on in time from the inital spectrum
+            wlrange (tuple): The range of wavelengths to consider for normalisation
         Return:
              Spectrum: The difference dOD spectrum as a field.
         """
         measurement = self
         t_spec = measurement.spectra.axes_series[0].t
-        if index is None:
-            if t is not None:
+        if not index:
+            if t:
                 index = int(np.argmin(np.abs(t_spec - t)))
-            elif V is not None:
+            elif V:
                 index = int(np.argmin(np.abs(self.U - V)))
             else:
                 raise ValueError("Need one of t, V, or index.")
-
-        wl = measurement.wavelength.data
-        if wlmin is None:
-            wlmin = np.min(wl)
-        if wlmax is None:
-            wlmax = np.max(wl)
-        mask = (wl >= wlmin) & (wl <= wlmax)
+        
+        if index + step <0 or index + step > len(measurement.data):
+            raise ValueError("The chosen step size results in an index which is beyond the extent of the data")
 
         dOD1 = measurement.get_dOD_spectrum(
             index=index, V_ref=V_ref, t_ref=t_ref, index_ref=index_ref
@@ -508,8 +509,12 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         dOD_diff = dOD2.y - dOD1.y
 
         if normalise:
+            # trim data to ignore regions outside of range of interest before normalising
+            wl = measurement.wavelength.data
+            if wlrange is None:
+                wlrange=(np.min(wl), np.max(wl))
+            mask = (wl >= wlrange[0]) & (wl <=  wlrange[1])
             dOD_diff_max = np.max((np.abs(dOD_diff[mask])))
-            print(dOD_diff_max)
             dOD_diff = dOD_diff / dOD_diff_max
 
         dOD_diff_field = Field(
@@ -649,8 +654,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         index_ref=None,
         direction=None,
         normalise=True,
-        wlmin=None,
-        wlmax=None,
+        wlrange=None,
         step=1,
         cycle_field=None,
         N_points=10,
@@ -668,15 +672,16 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             direction (0, 1): the scan direction. 0 = anodic, 1 = cathodic, nothing is
                 full cycle. Full cycle by default.
             normalise (bool): Whether or not to normalise spectra. Defaults to true
-            wlmin (float): minimum wavelength to consider
-            wlmax (float): maximum wavelength to consider
-            step (int): the step size for difference spectra. 1 by default
+            step (int): the step size (in indices) between successive spectra
+            wlrange (tuple): The range of wavelengths to consider for normalisation
         Returns ValueSeries: The difference dOD value of the spectra in the cycle.
         """
         self._check_direction(direction)
+        measurement=self
 
-        if step < 1 and step is not None:
+        if step < 1 or step>len(measurement.data) and step is not None:
             raise ValueError("Step must be a positive integer")
+        
 
         measurement = self
         if cycle_field is not None:
@@ -692,22 +697,18 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                 N_points=N_points,
             )
 
-        wl = dOD_cycle.axes_series[1].data
-
-        # trim data to ignore regions outside of detection range before normalising
-        if wlmin is None:
-            wlmin = np.min(wl)
-        if wlmax is None:
-            wlmax = np.max(wl)
-
+        
         dOD_diff = dOD_cycle.data[step::step] - dOD_cycle.data[0:-step:step]
 
         dOD_diff = np.array(dOD_diff)
 
         if normalise:
-            # Select wavelength range
-            wl_range = (wl >= wlmin) & (wl <= wlmax)
-            max_vals = np.max(dOD_diff[:, wl_range], axis=1)
+            # trim data to ignore regions outside of detection range before normalising
+            wl = dOD_cycle.axes_series[1].data
+            if wlrange is None:
+                wlrange=(np.min(wl), np.max(wl))
+            mask = (wl >= wlrange[0]) & (wl <=  wlrange[1])
+            max_vals = np.max(dOD_diff[mask], axis=1)
             dOD_diff = dOD_diff / max_vals[:, np.newaxis]
             dOD_diff = np.ma.masked_invalid(dOD_diff)
 

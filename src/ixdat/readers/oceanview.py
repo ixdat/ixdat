@@ -103,6 +103,7 @@ class OceanViewTimeSeriesReader:
         start_idx=None
         spectra = []
         rel_times = []
+        durations = []
         row_datetimes = []
         rel_time_sum = 0.0
         count = 0
@@ -204,8 +205,11 @@ class OceanViewTimeSeriesReader:
             )
                                                    
         y_matrix = np.stack(spectra)
-        
         rel_times = np.array(rel_times)
+        durations = np.diff(
+            rel_times,
+            append=rel_times[-1] + (rel_times[-1] - rel_times[-2])
+            )
         
         # ---- Apply smoothing ----
         
@@ -270,6 +274,7 @@ class OceanViewTimeSeriesReader:
             field=field,
             continuous=True,
             spectra_type=spectra_type,
+            durations=durations
         )
         return uvvis_series
 
