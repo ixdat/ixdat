@@ -103,6 +103,21 @@ class Spectrum(Saveable):
         self.export = self.exporter.export
 
     @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Return a spectrum object of the right technique class.
+
+        This mirrors :meth:`Measurement.from_dict`: a serialized spectrum carries
+        its technique, and that is enough to reconstruct the registered
+        technique-specific subclass, including its plotter/exporter behavior.
+        """
+        from .techniques import TECHNIQUE_CLASSES
+
+        technique_class = TECHNIQUE_CLASSES.get(obj_as_dict.get("technique"))
+        if technique_class and issubclass(technique_class, cls):
+            return technique_class(**obj_as_dict)
+        return cls(**obj_as_dict)
+
+    @classmethod
     def read(cls, path_to_file, reader, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader
 

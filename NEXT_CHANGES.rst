@@ -33,6 +33,13 @@ readers
   from the payload.
   `PR #198 <https://github.com/ixdat/ixdat/pull/198>`_
 
+- The ``AsimovReader`` (reader="asimov") now uses ASIMOV's native project-file and
+  project-file-bundle ixdat payload endpoints, supports ``Spectrum.read`` and
+  ``SpectrumSeries`` payloads, and gives clearer errors when the requested ixdat class
+  does not match the payload ``object_type``. Nested ixdat objects in ASIMOV payloads
+  must declare ``object_type`` so ixdat can reconstruct them generically.
+  `Issue #206 <https://github.com/ixdat/ixdat/issues/206>`_
+
 - The ``BrukerNMRReader`` (reader="bruker") has been added for reading Bruker
   TopSpin 1D NMR experiment folders. It uses the optional ``nmrglue`` package
   to parse the ``acqus`` parameter file and the processed real spectrum from
