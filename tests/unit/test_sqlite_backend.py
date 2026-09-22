@@ -24,7 +24,7 @@ from ixdat.db import (
     change_database,
     same_short_identity,
 )
-from ixdat.exceptions import DataBaseError
+from ixdat.exceptions import DataBaseError, DeprecationError
 from ixdat.measurement_base import Calculator
 from ixdat.calculators.ec_calculators import ECCalibration
 from ixdat.calculators.ms_calculators import MSCalibration, MSCalResult
@@ -771,14 +771,18 @@ def test_memory_backend_load_by_name():
         backend.load(DataSeries, "no series has this name")
 
 
-def test_load_data_takes_a_backend_and_deprecates_db(sqlite_backend):
-    """`load_data(db=...)` used to take a DataBase; it now takes a backend"""
+def test_load_data_takes_a_backend_and_hard_deprecates_db(sqlite_backend):
+    """`load_data(db=...)` used to take a DataBase; it now takes a backend.
+
+    `db` was last supported in 0.3.0 and became hard deprecated in 0.4.0, so
+    passing it now raises rather than warns.
+    """
     series = DataSeries(name="s", unit_name="V", data=np.array([1.0, 2.0]))
     loaded = DataSeries.get(series.save())
     assert np.array_equal(loaded.load_data(), [1.0, 2.0])
     assert np.array_equal(loaded.load_data(sqlite_backend), [1.0, 2.0])
-    with pytest.deprecated_call():
-        assert np.array_equal(loaded.load_data(db=sqlite_backend), [1.0, 2.0])
+    with pytest.raises(DeprecationError):
+        loaded.load_data(db=sqlite_backend)
 
 
 def test_directory_load_uses_exact_unescaped_name(tmp_path):
