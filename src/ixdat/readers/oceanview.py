@@ -60,9 +60,7 @@ class OceanViewTimeSeriesReader:
         refined with the millisecond field of the filename if one is present.
         A file with no ``Date:`` line has no header timestamp, and says so.
 
-        "spectrum" anchors it to the first data row's own timestamp. OceanView
-        writes the header 1-3 s before acquisition starts, so the header value
-        runs early; that matters when aligning against another instrument.
+        "spectrum" anchors it to the first data row's own timestamp.
         Rows carrying the 1970-01-01 placeholder cannot be used, and say so.
 
     On timezones:
