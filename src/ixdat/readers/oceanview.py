@@ -106,7 +106,7 @@ class OceanViewTimeSeriesReader:
         durations = []
         row_datetimes = []
         rel_time_sum = 0.0
-        count = 0
+        count = 1 #intiialise count to 1, otherwise will average average_every+1 spectra
 
         with open(path_to_file, encoding="utf-8", errors="ignore") as f:
            
@@ -193,8 +193,8 @@ class OceanViewTimeSeriesReader:
                         # Reset
                         spectra_sum.fill(0)
                         rel_time_sum = 0.0
-                        count = 0
-                if count > 0: # This averages the last (<average every) lines of data
+                        count = 1
+                if count > 1: # This averages the last (<average every) lines of data
                     spectra.append(spectra_sum / count)
                     rel_times.append(rel_time_sum / count)
          
