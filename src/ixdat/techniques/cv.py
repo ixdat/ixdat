@@ -10,7 +10,8 @@ from ..calculators.scan_rate_tools import (
 from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
 from ..tools import deprecate
 
-from scipy.signal import find_peaks
+import warnings
+
 
 
 class CyclicVoltammogram(ECMeasurement):
@@ -71,9 +72,12 @@ class CyclicVoltammogram(ECMeasurement):
             start_potential (float): The potential in [V] at which the cycle counter will
                 iterate. If start_potential is not given, the cycle is just the
                 `selector` inherited from ECMeasurement shifted to start at 0.
-            redox (bool): True (or 1) for anodic, False (or 0) for cathodic. The
-                direction in which the potential is scanning through start_potential to
-                trigger an iteration of `cycle`.
+            redox (bool): True (or 1) for anodic, False (or 0) for cathodic. If selecting via start_potential only, 
+                this is the direction in which the potential is scanning through start_potential to
+                trigger an iteration of `cycle`. For turning_points, a new cycle will iterate if the scan rate after the turning point
+                matches the redox direction. If redox is neither true nor false and turning_points is 
+                true, the cycle selector will iterate at every turning point. This can then defacto be used
+                to select anodic or cathodic sweeps. If turning_points is false, a redox direction must be selected.
             N_points (int): If turning_point is False, this is the number of consecutive 
                 points for which the potential needs to be above (redox=True) or below 
                 (redox=False) the start_potential for the new cycle to register. If turning_point
@@ -129,6 +133,7 @@ class CyclicVoltammogram(ECMeasurement):
                 cycle_vec[:start_idx] = 0
             else:
                 start_idx = 0
+                
             
             scan_rate=calc_sharp_v_scan(time, v, res_points=res_points)
             # Potential holds are likely to be noisy and oscillate around zero. Use rate_threshold to naively find areas of potential holds
@@ -147,6 +152,7 @@ class CyclicVoltammogram(ECMeasurement):
 
             else:
                 # Either direction
+                warnings.warn("No redox direction selected. Cycles will iterate at every turning point.")
                 turning_indices = np.where(sign[:-1] != sign[1:])[0]
                 
             #Each cycle should have only 1 turning index. If there are multiple, this is due to noise.
@@ -205,7 +211,7 @@ class CyclicVoltammogram(ECMeasurement):
             turning_indices = np.asarray(valid_indices)
 
 
-            for c, idx in enumerate(turning_indices, start=1):
+            for c, idx in enumerate(turning_indices, start=start_idx):
                 cycle_vec[idx:] = c
 
             new_cycle_series = ValueSeries(
@@ -229,6 +235,8 @@ class CyclicVoltammogram(ECMeasurement):
             n = 0
             N = len(self.t)
             v = self.U
+            if redox==None:
+                raise ValueError("Redox direction must be selected if utilising potential as cycle indicator")
             if not redox:
                 # easiest way to reverse directions is to use the same > < operators
                 # but negate the arguments

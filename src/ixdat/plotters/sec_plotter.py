@@ -326,6 +326,7 @@ class ECOpticalPlotter(SECPlotter):
         ax=None,
         V_ref=None,
         t_ref=None,
+        index_ref=None,
         cmap_name="jet",
         make_colorbar=True,
         xlim=None,
@@ -354,10 +355,10 @@ class ECOpticalPlotter(SECPlotter):
         """
 
         measurement = measurement or self.measurement
-        dOD = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref)
+        dOD = measurement.calc_dOD(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
 
         return super().plot_waterfall_vs(
-            measurement=self.measurement,
+            measurement=measurement,
             field=dOD,
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
@@ -529,65 +530,6 @@ class ECOpticalPlotter(SECPlotter):
         )
         return axes
 
-    def plot_waterfall_cycle(
-        self,
-        *,
-        measurement=None,
-        J_name="cycle",
-        cycle_number=None,
-        V_ref=None,
-        t_ref=None,
-        index_ref=None,
-        cmap_name="jet",
-        make_colorbar=True,
-        ax=None,
-        xlim=None,
-        ylim=None,
-        tspan=None,
-        direction=None,
-        N_points=10,
-        **kwargs,
-    ):
-        """Plot one cycle of an SECMeasurement as spectra colored based on potential.
-
-        At most one of V_ref and t_ref should be given, and if neither are
-        given the measurement's default reference_spectrum is used to calculate the
-        optical density.
-
-        This uses :func:`~spectrum_plotter.SpectrumSeriesPlotter.plot_waterfall()`
-
-        Args:
-            measurement (Measurement): The measurement to be plotted, if different from
-                self.measurement
-            J_name (str): Name of the cycle series
-            cycle_number (int) : the cycle to be plotted
-            V_ref (float) : reference spectrum potential
-            t_ref (float) : reference spectrum time
-            **kwargs: Additional key-word argumetns passed on to plot_waterfall
-        """
-        measurement = measurement or self.measurement
-        # get cycle values
-        dOD_one_cycle = measurement.get_dOD_cycle(
-            J_name=J_name,
-            V_ref=V_ref,
-            t_ref=t_ref,
-            index_ref=index_ref,
-            cycle_number=cycle_number,
-            direction=direction,
-            N_points=N_points,
-        )
-
-        return super().plot_waterfall_vs(
-            measurement=measurement,
-            field=dOD_one_cycle,
-            cmap_name=cmap_name,
-            make_colorbar=make_colorbar,
-            ax=ax,
-            vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
-            tspan=tspan,
-        )
 
     def plot_dOD_cycle_diff(
         self,

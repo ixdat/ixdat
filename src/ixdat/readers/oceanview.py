@@ -103,10 +103,9 @@ class OceanViewTimeSeriesReader:
         start_idx=None
         spectra = []
         rel_times = []
-        durations = []
         row_datetimes = []
         rel_time_sum = 0.0
-        count = 1 #intiialise count to 1, otherwise will average average_every+1 spectra
+        count = 0
 
         with open(path_to_file, encoding="utf-8", errors="ignore") as f:
            
@@ -193,10 +192,10 @@ class OceanViewTimeSeriesReader:
                         # Reset
                         spectra_sum.fill(0)
                         rel_time_sum = 0.0
-                        count = 1
-                if count > 1: # This averages the last (<average every) lines of data
-                    spectra.append(spectra_sum / count)
-                    rel_times.append(rel_time_sum / count)
+                        count = 0
+            if count > 0: # This averages the last (<average every) lines of data
+                spectra.append(spectra_sum / count)
+                rel_times.append(rel_time_sum / count)
          
         if not spectra:
             raise ValueError(
@@ -206,11 +205,9 @@ class OceanViewTimeSeriesReader:
                                                    
         y_matrix = np.stack(spectra)
         rel_times = np.array(rel_times)
-        durations = np.diff(
-            rel_times,
-            append=rel_times[-1] + (rel_times[-1] - rel_times[-2])
-            )
-        
+        durations = np.empty_like(rel_times)
+        durations[0] = rel_times[0]
+        durations[1:] = np.diff(rel_times)
         # ---- Apply smoothing ----
         
         y_matrix_smoothed = uniform_filter1d(
@@ -270,7 +267,7 @@ class OceanViewTimeSeriesReader:
             name=name,
             reader=self,
             technique="Optical",
-            tstamp=tstamp_first,
+            tstamp=t_zero,
             field=field,
             continuous=True,
             spectra_type=spectra_type,
