@@ -3,12 +3,13 @@
 import warnings
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 import requests
 from packaging import version
 
 from ixdat.exceptions import DeprecationError
-from ixdat.tools import deprecate, request_with_retries
+from ixdat.tools import deprecate, request_with_retries, trapezoid
 
 # Standard arguments for deprecate
 DEPRECATE_STANDARD_ARGS = {
@@ -241,3 +242,11 @@ class TestDeprecate:
             message = str(warning.message)
 
         return message
+
+
+def test_trapezoid_integrates_without_deprecation_warning():
+    """trapezoid() integrates like np.trapz and raises no NumPy DeprecationWarning."""
+    x = np.linspace(0, 2, 201)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        assert trapezoid(x**2, x) == pytest.approx(8 / 3, rel=1e-4)
