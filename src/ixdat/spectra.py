@@ -103,6 +103,21 @@ class Spectrum(Saveable):
         self.export = self.exporter.export
 
     @classmethod
+    def from_dict(cls, obj_as_dict):
+        """Return a spectrum object of the right technique class.
+
+        This mirrors :meth:`Measurement.from_dict`: a serialized spectrum carries
+        its technique, and that is enough to reconstruct the registered
+        technique-specific subclass, including its plotter/exporter behavior.
+        """
+        from .techniques import TECHNIQUE_CLASSES
+
+        technique_class = TECHNIQUE_CLASSES.get(obj_as_dict.get("technique"))
+        if technique_class and issubclass(technique_class, cls):
+            return technique_class(**obj_as_dict)
+        return cls(**obj_as_dict)
+
+    @classmethod
     def read(cls, path_to_file, reader, **kwargs):
         """Return a Measurement object from parsing a file with the specified reader
 
@@ -712,7 +727,9 @@ class SpectrumSeries(Spectrum):
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
             if self.durations is not None and len(self.durations) > 0:
                 spectrum_as_dict["duration"] = self.durations[key]
-            return cls.from_dict(spectrum_as_dict)
+            # `cls` is chosen above. Spectrum.from_dict would pick a class from the
+            # series' technique again and could return a SpectrumSeries.
+            return cls(**spectrum_as_dict)
 
         elif isinstance(key, slice):
             # Convert the slice to a list of integers, get the spectra with the code
@@ -862,7 +879,6 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
-    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 

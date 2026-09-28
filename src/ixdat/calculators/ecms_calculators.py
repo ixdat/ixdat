@@ -22,7 +22,7 @@ from ..data_series import ValueSeries, TimeSeries
 from ..exceptions import TechniqueError, QuantificationError
 from ..plugins import plugins
 from ..plotters.plotting_tools import calc_linear_background
-from ..tools import deprecate
+from ..tools import deprecate, trapezoid
 
 
 class ECMSCalibration(Calculator):
@@ -406,7 +406,6 @@ class ECMSImpulseResponse(Calculator):
             Additional keyword arguments are passed on to ECMSImpulseResponse.__init__
         Return ECMSImpulseResponse
         """
-        print("Generating `ECMSImpulseResponse` from measurement.")
         if type(tspan_bg[0]) is not list:
             t_kernel, kernel = measurement.grab_flux(
                 mol=mol, tspan=tspan, tspan_bg=tspan_bg
@@ -416,7 +415,7 @@ class ECMSImpulseResponse(Calculator):
             bg = calc_linear_background(t_kernel, kernel_raw, tspans=tspan_bg)
             kernel = kernel_raw - bg
         if norm:
-            area = np.trapz(kernel, t_kernel)
+            area = trapezoid(kernel, t_kernel)
             kernel = kernel / area
         return cls(mol, t_kernel, kernel, ir_type="measured", **kwargs)
 
@@ -541,7 +540,7 @@ class ECMSImpulseResponse(Calculator):
         if (
             norm
         ):  # normalize the kernel intensity to the total area under the ImpulseResponse
-            area = np.trapz(kernel, t_kernel)
+            area = trapezoid(kernel, t_kernel)
             kernel = kernel / area
         return cls(
             mol,

@@ -86,4 +86,5 @@ SPECTRUM_READER_CLASSES = {
     "qexafs": QexafsDATReader,
     "opus_ftir": OpusFTIRReader,
     "bruker": BrukerNMRReader,
+    "asimov": AsimovReader,
 }

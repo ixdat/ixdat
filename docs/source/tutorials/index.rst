@@ -149,5 +149,8 @@ Development scripts
 For developers:
 
 The basics of importing and plotting from each reader are demonstrated in
-the **development_scripts/reader_demonstrators** folder of the repository:
-https://github.com/ixdat/ixdat/tree/main/development_scripts/reader_demonstrators/
+the ``ixdat.demos.readers`` package, in the **src/ixdat/demos/readers** folder of the
+repository: https://github.com/ixdat/ixdat/tree/main/src/ixdat/demos/readers/
+
+Most demos need the demo data, which ``python -m ixdat.demos.download`` downloads
+(requires ``pip install pooch``).

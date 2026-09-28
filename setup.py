@@ -61,6 +61,7 @@ setuptools.setup(
     url="https://github.com/ixdat/ixdat",
     packages=PACKAGES,
     package_dir={"": "src"},
+    package_data={"ixdat.demos": ["demo_data.ini"]},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

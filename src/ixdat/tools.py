@@ -534,6 +534,19 @@ def to_jsonable(obj):
     return obj
 
 
+def trapezoid(y, x=None):
+    """Integrate y over x with the trapezoidal rule.
+
+    NumPy 2.0 renamed `np.trapz` to `np.trapezoid`. This uses whichever the installed
+    NumPy has, since ixdat supports NumPy versions from before and after the rename.
+    """
+    try:
+        integrate = np.trapezoid
+    except AttributeError:  # NumPy < 2.0
+        integrate = np.trapz
+    return integrate(y, x)
+
+
 if __name__ == "__main__":
     t0 = time.time()
     print(tstamp_to_string(t0))

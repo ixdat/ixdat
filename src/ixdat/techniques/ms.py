@@ -8,7 +8,7 @@ from ..spectra import Spectrum, SpectrumSeries, SpectroMeasurement
 from ..plotters import MSPlotter, MSSpectroPlotter
 from ..plotters.ms_plotter import STANDARD_COLORS
 from ..exporters import MSExporter, MSSpectroExporter
-from ..tools import deprecate
+from ..tools import deprecate, trapezoid
 from ..plugins import plugins
 from ..calculators.ms_calculators import (
     MSCalResult,
@@ -186,7 +186,7 @@ class MSMeasurement(Measurement):
             if ax == "new":
                 fig, ax = self.plotter.new_ax()
             ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mass], alpha=0.2)
-        return np.trapz(S - S_bg, t)
+        return trapezoid(S - S_bg, t)
 
     def integrate_flux(self, mol, tspan, tspan_bg, ax=None):
 
@@ -213,7 +213,7 @@ class MSMeasurement(Measurement):
             if ax == "new":
                 fig, ax = self.plotter.new_ax()
             ax.fill_between(t, S_bg, S, color=STANDARD_COLORS[mol], alpha=0.2)
-        return np.trapz(S - S_bg, t)
+        return trapezoid(S - S_bg, t)
 
     @property
     def mass_list(self):

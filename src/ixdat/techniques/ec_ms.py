@@ -37,12 +37,17 @@ class ECMSMeasurement(ECMeasurement, MSMeasurement):
         return [self.t[0], self.t[-1]]
 
     def as_cv(self):
+        """Return an ECMSCyclicVoltammogram with the EC and MS data of self.
+
+        Mass spectra (of an ECMSSpectroMeasurement) are left out.
+        """
         self_as_dict = self.as_dict()
 
         # FIXME: The following lines are only necessary because
         #  PlaceHolderObject.get_object isn't able to find things in the MemoryBackend
         del self_as_dict["s_ids"]
         self_as_dict["series_list"] = self.series_list
+        self_as_dict.pop("spectrum_id", None)
 
         ecms_cv = ECMSCyclicVoltammogram.from_dict(self_as_dict)
 

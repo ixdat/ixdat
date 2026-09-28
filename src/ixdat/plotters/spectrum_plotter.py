@@ -235,7 +235,7 @@ class SpectrumSeriesPlotter(MPLPlotter):
         t = t if t is not None else field.axes_series[0].t
         t_name = t_name or field.axes_series[0].name
 
-        cmap = mpl.cm.get_cmap(cmap_name)
+        cmap = plt.get_cmap(cmap_name)
         norm = mpl.colors.Normalize(vmin=np.min(t), vmax=np.max(t))
 
         if not ax:

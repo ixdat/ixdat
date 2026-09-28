@@ -3,6 +3,7 @@
 import matplotlib as mpl
 from . import ECPlotter, SpectrumSeriesPlotter, SpectroMeasurementPlotter
 from ..exceptions import SeriesNotFoundError
+from matplotlib import pyplot as plt
 
 
 class SECPlotter(SpectroMeasurementPlotter):
@@ -370,7 +371,7 @@ class ECOpticalPlotter(SECPlotter):
         measurement = measurement or self.measurement
         wavelengths = wavelengths or measurement.tracked_wavelengths
 
-        cmap = mpl.cm.get_cmap(cmap_name)
+        cmap = plt.get_cmap(cmap_name)
         norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
 
         if not axes:
@@ -418,7 +419,7 @@ class ECOpticalPlotter(SECPlotter):
         measurement = measurement or self.measurement
         wavelengths = wavelengths or measurement.tracked_wavelengths
 
-        cmap = mpl.cm.get_cmap(cmap_name)
+        cmap = plt.get_cmap(cmap_name)
         norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
 
         if not axes:

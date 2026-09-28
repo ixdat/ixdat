@@ -23,7 +23,8 @@ regular_expressions = {
     "unit": r"/ \[(.+)\]",
     "aux_file": r"'(.*)' in file: '(.*)'",
 }
-bad_keys = ("time_step",)
+# keys in the header which are not passed on to the measurement
+bad_keys = ("time_step", "ixdat version", "backend_name")
 
 
 class IxdatCSVReader:

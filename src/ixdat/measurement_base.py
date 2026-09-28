@@ -33,7 +33,7 @@ from .projects.lablogs import LabLog
 from .exporters.csv_exporter import CSVExporter
 from .plotters.value_plotter import ValuePlotter
 from .exceptions import BuildError, SeriesNotFoundError, TechniqueError, ReadError
-from .tools import tstamp_to_string, deprecate
+from .tools import tstamp_to_string, deprecate, trapezoid
 
 
 class Measurement(Saveable):
@@ -1064,7 +1064,7 @@ class Measurement(Saveable):
                 t, v, np.zeros(t.shape), where=v < 0, color="g", alpha=0.1, hatch="//"
             )
 
-        return np.trapz(v, t)
+        return trapezoid(v, t)
 
     @property
     def t(self):

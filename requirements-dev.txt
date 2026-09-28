@@ -12,3 +12,4 @@ setuputils3
 tox
 invoke
 python-dateutil  # For timezone handling in tests
+pooch  # for downloading the demo data of ixdat.demos
