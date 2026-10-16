@@ -179,8 +179,152 @@ class SECPlotter(SpectroMeasurementPlotter):
 
     def plot_stacked_spectra(self, **kwargs):
         kwargs.update(vs="potential")
-        return super().plot_stacked_spectra_vs(**kwargs)
+        ax = super().plot_stacked_spectra_vs(**kwargs)
+        
+        return ax
+    
+class ECFTIRPlotter(SECPlotter):
+    def plot_measurement(
+        self,
+        *,
+        measurement=None,
+        tspan=None,
+        wavenumber_span=None,
+        axes=None,
+        index_ref=None,
+        V_ref=None,
+        t_ref=None,
+        cmap_name="inferno",
+        make_colorbar=False,
+        max_threshold=None,
+        min_threshold=None,
+        **kwargs,
+    ):
+        """Plot an ECFTIRMeasurement in two panels with time as x-asis.
 
+        The top panel is a heat plot with wavenumber on y-axis and color representing
+        spectrum. At most one of index_ref, V_ref and t_ref should be given, and if neither are
+        given the measurement's default reference_spectrum is used to calculate the
+        relative spectra
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            tspan (timespan): The timespan of data to keep for the measurement.
+            wlspan (iterable): The wavelength span of spectral data to plot
+            axes (list of mpl.Axis): The axes to plot on. axes[0] is for the heat
+                plot, axes[1] for potential, and axes[2] for current. The axes are
+                optional and a new set of axes, where axes[1] and axes[2] are twinned on
+                x, are generated if not provided.
+            index_ref (int): Spectrum index to use as reference for calculating relative spectra
+            V_ref (float): Potential to use as reference for calculating relative spectra
+            t_ref (float): Time to use as a reference for calculating relative spectra
+            cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
+            make_colorbar (bool): Whether to make a colorbar.
+                FIXME: colorbar at present misaligns axes
+            max_threshold (float): Maximum value to display.
+                Values above are set to max_threshold.
+            min_threshold (float): Minimum value to display.
+                Values below are set to min_threshold.
+            kwargs: Additional key-word arguments are passed on to
+                ECPlotter.plot_measurement().
+
+        Returns:
+            list of Axes: axes=[spectra, potential, None, current]
+                axes[0] is the top axis with the heat map of the spectra
+                axes[1] is the bottom left axis with electrochemical potential
+                axes[2] is None (this is where a top right axis would go)
+                axes[3] is the bottom right axis with electrode current
+        """
+        measurement = measurement or self.measurement
+        relative_spectra = measurement.apply_reference(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+
+        axes= super().plot_measurement(
+            measurement=measurement,
+            tspan=tspan,
+            xspan=wavenumber_span,
+            axes=axes,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            field=relative_spectra,
+            max_threshold=max_threshold,
+            min_threshold=min_threshold,
+            **kwargs,
+        )
+        
+        #axes[0].invert_xaxis()
+        
+        return axes
+    
+    def plot_waterfall(
+        self,
+        *,
+        measurement=None,
+        ax=None,
+        V_ref=None,
+        t_ref=None,
+        index_ref=None,
+        cmap_name="jet",
+        make_colorbar=True,
+        xlim=None,
+        ylim=None,
+        tspan=None,
+        boxcar=None,
+    ):
+        """Plot an ECFTIRMeasurement as spectra colored based on potential.
+
+        At most one of index_ref, V_ref and t_ref should be given, and if none are
+        given the measurement's default reference_spectrum is used to calculate the
+        relative spectra.
+
+        This uses :func:`~spectrum_plotter.SpectrumSeriesPlotter.plot_waterfall()`
+
+        Args:
+            measurement (Measurement): The measurement to be plotted, if different from
+                self.measurement
+            ax (matplotlib Axis): The axes to plot on. A new one is made by default.
+            V_ref (float): potential to use as reference for calculating optical density
+            t_ref (float): time to use as a reference for calculating optical density
+            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
+                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
+            make_colorbar (bool): Whether to make a colorbar.
+            boxcar = boxcar filter size. By default it is one.
+        """
+
+        measurement = measurement or self.measurement
+        relative_spectra = measurement.apply_reference(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+        
+        
+
+        ax= super().plot_waterfall_vs(
+            measurement=measurement,
+            field=relative_spectra,
+            cmap_name=cmap_name,
+            make_colorbar=make_colorbar,
+            ax=ax,
+            vs=measurement.U_name,
+            xlim=xlim,
+            ylim=ylim,
+            tspan=tspan,
+        )
+        
+        ax.invert_xaxis
+        
+        return ax
+    
+    def plot_stacked_spectra(self, measurement=None, V_ref=None, t_ref=None, index_ref=None, vs=None, **kwargs):
+        kwargs.update(vs=vs)
+        measurement = measurement or self.measurement
+        relative_spectra = measurement.apply_reference(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+        ax = super().plot_stacked_spectra_vs(
+        field=relative_spectra,
+        **kwargs
+        )
+    
+        ax.invert_xaxis()
+    
+        return ax
 
 class ECOpticalPlotter(SECPlotter):
     def plot_measurement(
@@ -190,6 +334,7 @@ class ECOpticalPlotter(SECPlotter):
         tspan=None,
         wlspan=None,
         axes=None,
+        index_ref=None,
         V_ref=None,
         t_ref=None,
         cmap_name="inferno",
@@ -625,29 +770,30 @@ class ECOpticalPlotter(SECPlotter):
     def plot_dOD_difference_spectra(
         self,
         *,
+        cmap_name="jet",
+        make_colorbar=True,
         measurement=None,
         diff_spectra=None,
-        J_name="cycle",
-        cycle_number=None,
         V_ref=None,
         t_ref=None,
         index_ref=None,
-        direction=None,
         normalise=True,
-        cmap_name="jet",
-        make_colorbar=True,
-        ax=None,
-        xlim=None,
-        ylim=None,
-        tspan=None,
-        wlmin=None,
-        wlmax=None,
-        step=None,
+        t=None,
+        V=None,
+        index=None,
+        dt=None,
+        dV=None,
+        dIndex=None,
+        wlrange=None,
         denoise=False,
         denoise_method=None,
         PCA_explained_variance=None,
         sg_window=None,
         sg_poly_order=None,
+        ax=None,
+        xlim=None,
+        ylim=None,
+        tspan=None,
     ):
         """Plot the finite difference spectra between U and delta U (delta U defined by
         the time resolution of the data collection)
