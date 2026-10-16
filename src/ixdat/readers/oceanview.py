@@ -3,7 +3,7 @@
 from pathlib import Path
 import re
 from datetime import datetime, timedelta, timezone, tzinfo as TzInfo
-
+from .reading_tools import timestamp_string_to_tstamp
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 import warnings
@@ -219,6 +219,7 @@ class OceanViewTimeSeriesReader:
         # ---- Resolve the starting timestamp ----
         tstamp_header = dt_header.replace(tzinfo=tzinfo).timestamp()   
         tstamp_first = row_datetimes[0].replace(tzinfo=tzinfo).timestamp()
+        
         if tstamp_first < 24 * 60 * 60:    # epoch in any timezone
             if tstamp_source == "spectrum":
                 raise ValueError("Timestamp is incorrect")  # the demo script tests for this.

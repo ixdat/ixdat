@@ -902,21 +902,18 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
     def get_dOD_cycle_noise(
         self,
-        J_name="cycle",
-        cycle_1=None,
-        cycle_2=None,
-        V_ref1=None,
-        t_ref1=None,
-        index_ref1=None,
-        V_ref2=None,
-        t_ref2=None,
-        index_ref2=None,
-        direction=None,
-        N_points=10,
+        c_name="cycle",
+        cycle_1=1,
+        cycle_2=2,
+        V_ref=None,
+        t_ref=None,
+        index_ref=None,
     ):
         """Takes an ECOpticalMeasurement and returns the irreversible changes in
         absorbance between the two cycles.
         Used to check for system stability.
+        Exactly one of V_ref, t_ref, or index_ref should be supplied. If none are supplied,
+        the default reference spectrum is used.
 
         Args:
             J_name (str): Name of the cycle series
@@ -933,36 +930,21 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
         measurement = self
 
-        if cycle_1 is None:
-            cycle_1 = 1
-        if cycle_2 is None:
-            cycle_2 = 2
-
         # Get optical data for the two cycles:
 
-        dOD_cycle_1 = measurement.get_dOD_cycle(
-            J_name=J_name,
-            V_ref=V_ref1,
-            t_ref=t_ref1,
-            index_ref=index_ref1,
-            cycle_number=cycle_1,
-            direction=direction,
-            N_points=N_points,
-        )
-        dOD_cycle_2 = measurement.get_dOD_cycle(
-            J_name=J_name,
-            V_ref=V_ref2,
-            t_ref=t_ref2,
-            index_ref=index_ref2,
-            cycle_number=cycle_2,
-            direction=direction,
-            N_points=N_points,
-        )
+        cycle1=measurement.select(cycle=cycle_1)
+        cycle2=measurement.select(cycle=cycle_2)
+        if not V_ref and not t_ref and not index_ref:
+            cycle1.set_reference_spectrum(measurement.reference_spectrum)
+            cycle2.set_reference_spectrum(measurement.reference_spectrum)
+        dODcycle1=cycle1.calc_dOD(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+        dODcycle2=cycle2.calc_dOD(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+
 
         # Make sure fields contain same number of points
 
-        t1 = dOD_cycle_1.axes_series[0].t
-        t2 = dOD_cycle_2.axes_series[0].t
+        t1 = cycle1.spectra.axes_series[0].data
+        t2 = cycle2.spectra.axes_series[0].data
 
         # convert to relative cycle time and normalise
         t1_norm = (t1 - t1[0]) / (t1[-1] - t1[0])
@@ -970,82 +952,93 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
         interp = interp1d(
             t2_norm,
-            dOD_cycle_2.data,
+            dODcycle2.data,
             axis=0,
             kind="linear",
             bounds_error=False,
             fill_value=np.nan,
         )
 
-        dOD_cycle_2_interp = interp(t1_norm)
+        cycle2_dOD_interp = interp(t1_norm)
 
-        difference = (dOD_cycle_2_interp - dOD_cycle_1.data) * 1000
+        difference = (cycle2_dOD_interp - dODcycle1.data) * 1000
 
         diff_field = Field(
-            name="Irreversible ΔA (mOD)",
-            unit_name="",
+            name="Irreversible ΔA",
+            unit_name="mOD",
             data=difference,
-            axes_series=dOD_cycle_1.axes_series,
+            axes_series=cycle1.spectra.axes_series,
         )
 
         return diff_field
 
     def fit_convergent_spectra(
         self,
-        cycle_data=None,
-        converged_data=None,
-        wlmin=400,
-        wlmax=900,
+        raw_spectra=None,
+        converged_spectra=None,
+        V_ref=None,
+        t_ref=None,
+        index_ref=None,
+        wlrange=None,
         bounds_bool=False,
         noise_bound=0,
     ):
         """Return a ValueSeries of fitting coefficients for a set of convergent spectra
-        found for a measurement.
-        cycle_data and converged_data must be provided
+        found for a measurement. Raw_data and converged_data must be provided
+        Exactly one of V_ref, t_ref, or index_ref should be supplied. If none are supplied,
+        the default reference spectrum is used.
             Note: If data is too noisy, it may not meet convergence criterion.
             Note 2: Ensure wlmin and wlmax are consistent between fit_convergent_spectra
                 and get_convergent_spectra
 
         Args:
-            cycle_data=output of get_dOD_cycle
-            converged_data=output of get_convergent_spectra
-            wlmin (float): minimum wavelength to consider. 400nm by default.
-            wlmax (float): maximum wavelength to consider. 900 nm by default
+            raw_sprectra = measurement object containing the raw spectroelectrochemical data of interest.
+            converged_spectra = Field containing the set of convergent spectra for the spectroelectrochemical 
+                data of interest. This is the zeroth output of "get_convergent_spectra"
             bounds_bool (bool) : switch to apply a physicality constraint such that the
                 components must increase as the spectral intensity is always increasing
-                                The strictness of this constraint removes some
-                                    flexibility so in real data one might relax it to say
-                                    that the next component can only be the noise
-                                        threshold
-                                    below the previous component.
-                                False by default
+                The strictness of this constraint removes some flexibility so in real 
+                data one might relax it to say that the next component can only be the noise
+                threshold below the previous component. False by default
             noise_bound (float) : the noise bound of the system. 0 by default
+            V_ref (float): The potential at which to get the reference spectrum
+            t_ref (float): The time at which to get the reference spectrum
+            index_ref (int): The index of the reference spectrum
         Returns: The set of fitting coefficients, the reconstructed spectra from the fit,
             and the residuals for the spectra
         """
         from scipy.optimize import lsq_linear
 
-        if cycle_data is None or converged_data is None:
+        if raw_spectra is None or converged_spectra is None:
             raise ValueError("Cycle_data and converged_data must be provided")
 
         # make sure axes match
-        cycle = cycle_data.data
-        cycle = np.ma.filled(cycle_data.data, 0)  # NaN will break lsq
-        wl = cycle_data.axes_series[1].data
-        wl_range = (wl >= wlmin) & (wl <= wlmax)
-        cycle = cycle[:, wl_range]
-        wl = wl[wl_range]
+        raw_spectra = raw_spectra.calc_dOD(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+        t = raw_spectra.axes_series[0]
+        wl_series=raw_spectra.axes_series[1]
 
-        converged_spectra_field = converged_data[0]
+        raw_spectra = np.ma.filled(raw_spectra.data, 0)  # NaN will break lsq
+        wl = converged_spectra[0][0]
+        if wlrange:
+            wlmin=wlrange[0]
+            wlmax=wlrange[1]
+        else:
+            wlmin=wl[0]
+            wlmax=wl[-1]
+        wl_mask = (wl >= wlmin) & (wl <= wlmax)
+        raw_spectra = raw_spectra.data[:, wl_mask]
+        wl = wl[wl_mask]
+
+        converged_spectra_field = converged_spectra[0]
         converged_spectra = np.array(converged_spectra_field.data)
 
         converged_spectra = np.ma.filled(converged_spectra, 0)  # NaN will break lsq
         coefficients = []
 
-        for i, spectrum in enumerate(cycle):
+        for i, spectrum in enumerate(raw_spectra):
             # if i>0 the lower bound of each component is the fit results of the previous
             # iteration
-            if bounds_bool:
+            if bounds_bool is True:
                 if i > 0:
                     bounds = (
                         np.asarray(coefficients[i - 1]) - noise_bound / 1000,
@@ -1053,7 +1046,6 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                     )
                 else:
                     bounds = (0, np.inf)
-                # print("bounds=", bounds)
                 result = lsq_linear(converged_spectra.T, spectrum, bounds=bounds)
 
             else:
@@ -1066,33 +1058,36 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             data=coefficients,
             name=r"Fitting coefficients",
             unit_name="(arb. units)",
-            tseries=cycle_data.axes_series[0],
+            tseries=raw_spectra.axes_series[0],
         )
 
         # get reconstructed spectra
 
         reconstructed = coefficients @ converged_spectra
 
-        wl_series = copy.copy(cycle_data.axes_series[1])
-        wl_series._data = wl_series.data[wl_range]
+        new_wl_series = DataSeries(
+            name=wl_series.name + "with reduced wavelength mask applied",
+            unit=wl_series.unit,
+            data=wl_series[wl_mask],
+        )
 
         reconstructed_field = Field(
-            name="Reconstructed ΔA (OD)",
-            unit_name="",
+            name="Reconstructed ΔA",
+            unit_name="OD",
             data=reconstructed,
-            axes_series=(cycle_data.axes_series[0], wl_series),
+            axes_series=(t, new_wl_series),
         )
 
         # get residuals
 
-        residuals = cycle - reconstructed
+        residuals = raw_spectra - reconstructed
         residuals = residuals * 1000
 
         residuals_field = Field(
             name="ΔA residuals (mOD)",
             unit_name="",
             data=residuals,
-            axes_series=(cycle_data.axes_series[0], wl_series),
+            axes_series=(t, new_wl_series),
         )
 
         return coefficients_valueseries, reconstructed_field, residuals_field
