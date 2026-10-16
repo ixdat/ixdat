@@ -794,6 +794,7 @@ class ECOpticalPlotter(SECPlotter):
         xlim=None,
         ylim=None,
         tspan=None,
+        interpolate=True
     ):
         """Plot the finite difference spectra between U and delta U (delta U defined by
         the time resolution of the data collection)
@@ -824,16 +825,15 @@ class ECOpticalPlotter(SECPlotter):
             dOD_finite_diff = diff_spectra
         else:
             dOD_finite_diff = measurement.get_dOD_difference_spectra(
-                J_name=J_name,
-                cycle_number=cycle_number,
-                V_ref=V_ref,
-                t_ref=t_ref,
-                index_ref=index_ref,
-                direction=direction,
                 normalise=normalise,
-                wlmin=wlmin,
-                wlmax=wlmax,
-                step=step,
+                t=t,
+                V=V,
+                index=index,
+                dt=dt,
+                dV=dV,
+                dIndex=dIndex,
+                wlrange=wlrange,
+                interpolate=interpolate,
             )
 
         if denoise:
