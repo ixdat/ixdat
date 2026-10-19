@@ -159,3 +159,19 @@ def test_plot_wavelengths_vs_potential_accepts_caller_supplied_axes():
     )
     assert axes[0] is ax
     plt.close(fig)
+
+
+@pytest.mark.parametrize(
+    "method", ["plot_wavelengths", "plot_wavelengths_vs_potential"]
+)
+def test_plot_methods_bound_on_main_still_work_with_a_deprecation_warning(method):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    ec_optical = read_ec_optical_fixture()
+    with pytest.warns(DeprecationWarning, match="plotter"):
+        axes = getattr(ec_optical, method)(wavelengths=["w650"])
+    assert len(axes[0].get_lines()) == 1
+    plt.close("all")

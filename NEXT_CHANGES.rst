@@ -74,11 +74,17 @@ plotters
   spectra, the fit and its residuals, and the change between two cycles.
   `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
-- ``ECOpticalMeasurement`` only has ``plot_waterfall`` as its own plotting method, next
-  to the general ``plot_measurement`` and ``plot_vs_potential``. Use the plotter for the
-  others, e.g. ``sec.plotter.plot_wavelengths()`` instead of ``sec.plot_wavelengths()``.
-  ``plot_wavelengths_vs_potential(coplot=True)`` plots the CV on the same axis. The SEC
+- ``plot_wavelengths_vs_potential(coplot=True)`` plots the CV on the same axis. The SEC
   heat plots take ``zspan=[min, max]``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+
+API changes
+^^^^^^^^^^^
+
+- ``ECOpticalMeasurement.plot_wavelengths`` and
+  ``ECOpticalMeasurement.plot_wavelengths_vs_potential`` are deprecated, to be removed in
+  0.5.0. Use the plotter instead, e.g. ``sec.plotter.plot_wavelengths()``.
+  ``plot_waterfall`` stays on the measurement.
   `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 bug fixes

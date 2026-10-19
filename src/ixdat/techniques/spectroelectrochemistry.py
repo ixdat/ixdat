@@ -7,6 +7,7 @@ from ..spectra import Spectrum, SpectroMeasurement, SpectrumSeries
 from ..data_series import Field, ValueSeries, TimeSeries
 from ..exporters import SECExporter
 from ..plotters import SECPlotter, ECOpticalPlotter
+from ..tools import deprecate
 import warnings
 
 
@@ -169,9 +170,28 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             self._reference_spectrum = None
         self.tracked_wavelengths = []
         # Other plots are available via self.plotter, e.g.
-        # self.plotter.plot_wavelengths()
+        # self.plotter.plot_dOD_difference_spectra()
         self.plot_waterfall = self.plotter.plot_waterfall
         self.technique = "EC-Optical"
+
+    @deprecate(
+        "0.4.0",
+        "Use `plotter.plot_wavelengths()` instead.",
+        remove_release="0.5.0",
+    )
+    def plot_wavelengths(self, **kwargs):
+        """Plot dOD at specific wavelengths. See ECOpticalPlotter.plot_wavelengths"""
+        return self.plotter.plot_wavelengths(**kwargs)
+
+    @deprecate(
+        "0.4.0",
+        "Use `plotter.plot_wavelengths_vs_potential()` instead.",
+        remove_release="0.5.0",
+    )
+    def plot_wavelengths_vs_potential(self, **kwargs):
+        """Plot dOD at specific wavelengths vs potential. See
+        ECOpticalPlotter.plot_wavelengths_vs_potential"""
+        return self.plotter.plot_wavelengths_vs_potential(**kwargs)
 
     def cut(self, tspan, t_zero=None):
         """Select the portion of the data in a given tspan, keeping the reference.
