@@ -7,16 +7,15 @@ data.
 
 Set IXDAT_DEMO_REAL_DATA_DIR to the unzipped IrOx_SEC_benchmark.zip (a real
 multi-cycle EC-optical recording on IrOx, too large to commit to the repo)
-to instead run the full analysis on one anodic sweep, as subplots of one figure:
-one cycle per sweep, the dOD waterfall, smoothed difference spectra, converged
-spectra and the fit, and wavelength tracking.
+to instead run the full analysis on one anodic sweep, as one figure read row by
+row: the measurement, one sweep, finding the transitions, and checking the fit.
 """
 
 import os
 from pathlib import Path
 
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import numpy as np
 
 from ixdat import Measurement, Spectrum
 from ixdat.calculators.sec_calculators import Denoiser, SpectrumDeconvolutor
@@ -120,100 +119,132 @@ def read_real_measurement(data_dir):
 
 
 def demo_real_data_analysis():
-    """Run the SEC analysis on one anodic sweep of the real data, as one figure."""
+    """Run the SEC analysis on the real data, as one figure read row by row:
+
+    1. The measurement: dOD, potential, and tracked wavelengths vs time.
+    2. One anodic sweep: its dOD vs potential, and its difference spectra.
+    3. Finding the transitions: where the difference spectra stop changing shape,
+       the converged spectra there, and how much of each the sweep contains.
+    4. Checking the fit: the reconstructed spectra, the residuals, and measured vs
+       fitted dOD at three wavelengths.
+    """
     cv, optical = read_real_measurement(REAL_DATA_DIR)
-
-    fig = plt.figure(figsize=(30, 20))
-    gs = gridspec.GridSpec(4, 4, figure=fig)
-
-    def cell(row, col):
-        return fig.add_subplot(gs[row, col])
-
-    ax = cell(0, 0)
-    cv.plot_measurement(J_name="cycle", axes=[ax, ax.twinx()])
-    ax.set_title("Echem, before turning-point cycles")
+    wavelengths = ["w450", "w600", "w800"]
 
     # A new cycle each time the sweep turns, so each cycle is one sweep
     cv.redefine_cycle(turning_point=True, res_points=10)
-    ax = cell(1, 0)
-    cv.plot_measurement(J_name="cycle", axes=[ax, ax.twinx()])
-    ax.set_title("Echem, one cycle per sweep")
-
     sec = cv + optical
 
-    ax_heat, ax_pot = cell(2, 0), cell(3, 0)
+    fig, axes = plt.subplots(4, 3, figsize=(20, 20))
+    for row, title in enumerate(
+        [
+            "1. The measurement",
+            "2. One anodic sweep",
+            "3. Finding the transitions",
+            "4. Checking the fit",
+        ]
+    ):
+        axes[row, 0].annotate(
+            title,
+            xy=(-0.3, 0.5),
+            xycoords="axes fraction",
+            rotation=90,
+            va="center",
+            fontsize=16,
+        )
+
+    print("1. the measurement")
     sec.plot_measurement(
         wlspan=[400, 900],
         min_threshold=0,
         max_threshold=0.25,
-        axes=[ax_heat, ax_pot, None, ax_pot.twinx()],
+        J_name="cycle",
+        axes=[axes[0, 0], axes[0, 1], None, axes[0, 1].twinx()],
     )
-    ax_heat.set_title("Full EC-optical dataset")
+    axes[0, 0].set_title("1a. dOD vs time (no reference)")
+    axes[0, 1].set_title("1b. Potential and cycle number vs time")
+    for wl_str in wavelengths:
+        sec.track_wavelength(float(wl_str[1:]))
+        t, y = sec.grab(wl_str)
+        axes[0, 2].plot(t, y, label=wl_str)
+    axes[0, 2].set_xlabel("time / [s]")
+    axes[0, 2].set_ylabel("dOD")
+    axes[0, 2].legend()
+    axes[0, 2].set_title("1c. Tracked wavelengths vs time")
 
-    print("selecting one anodic sweep")
+    print("2. one anodic sweep, referenced to its start at 0.66 V")
     sweep = sec.select(cycle=5)
-    # Reference the sweep to its start, at 0.66 V
     sweep.set_reference_spectrum(spectrum=sweep.spectrum_series[0])
+    sweep.plot_waterfall(ax=axes[1, 0], xlim=(400, 900), ylim=(-0.02, 0.25))
+    axes[1, 0].set_title("2a. dOD spectra, colored by potential")
+    sweep.plot_wavelengths_vs_cv(
+        wavelengths=wavelengths, axes=(axes[1, 1], axes[1, 1].twinx())
+    )
+    axes[1, 1].set_title("2b. Tracked wavelengths and current vs potential")
 
-    ax = cell(0, 1)
-    sweep.plot_waterfall(ax=ax, xlim=(400, 900), ylim=(-0.02, 0.25))
-    ax.set_title("Anodic sweep, dOD waterfall")
-
-    print("difference spectra every 20 mV, smoothed")
+    # Difference spectra every 20 mV, smoothed over 21 wavelengths
     sweep.dOD_calculator.Vstep = 0.02
     sweep.dOD_calculator.xspan = [400, 900]
     sweep.add_calculator(Denoiser(denoise_method="Savitzky-Golay", sg_window=21))
     diff_smooth = sweep["dOD>diff>smooth"]
-    ax = cell(1, 1)
-    sweep.plot_dOD_difference_spectra(field=diff_smooth, xlim=(400, 900), ax=ax)
-    ax.set_title("Anodic sweep, smoothed dOD difference spectra")
+    sweep.plot_dOD_difference_spectra(
+        field=diff_smooth, xlim=(400, 900), ax=axes[1, 2]
+    )
+    axes[1, 2].set_title("2c. Smoothed difference spectra (normalised)")
 
-    print("finding converged spectra and fitting the sweep")
+    print("3. finding the transitions")
+    conv_limit = 0.1
     decon = SpectrumDeconvolutor.from_spectromeasurement(
         sweep,
         field_name="dOD>diff>smooth",
         xspan=[400, 900],
-        conv_limit=0.1,
+        conv_limit=conv_limit,
         min_region_separation=6,
     )
     print(f"converged spectra at {decon.potentialspans}")
     sweep.add_calculator(decon)
 
-    ax = cell(2, 1)
-    ax.plot(decon.adjacent_distances)
-    ax.axhline(0.1, color="k", linestyle="--")
-    ax.set_xlabel("difference spectrum")
-    ax.set_ylabel("distance to next")
-    ax.set_title("Anodic sweep, adjacent-spectra distances")
-
-    ax = cell(3, 1)
-    sweep.plot_converged_spectra(ax=ax)
-    ax.set_title("Anodic sweep, converged spectra")
-
-    ax = cell(0, 2)
-    sweep.plot_fit_reconstruction(ax=ax, xlim=(400, 900))
-    ax.set_title("Anodic sweep, fit reconstruction")
-
-    ax_top, ax_bottom = cell(1, 2), cell(2, 2)
-    sweep.plot_fit_and_residuals(axes=[ax_top, ax_bottom])
-    ax_top.set_title("Anodic sweep, fit coefficients and residuals")
-
-    ax = cell(3, 2)
-    sweep.plot_wavelengths_vs_cv(
-        wavelengths=["w450", "w600", "w800"], axes=(ax, ax.twinx())
+    tseries = diff_smooth.axes_series[0]
+    U_diff = sweep.grab_for_t(
+        "potential", t=tseries.t + tseries.tstamp - sweep.tstamp
     )
-    ax.set_title("Anodic sweep, wavelengths vs potential")
+    axes[2, 0].plot(U_diff[:-1], decon.adjacent_distances)
+    axes[2, 0].axhline(conv_limit, color="k", linestyle="--", label="conv_limit")
+    for span in decon.potentialspans:
+        axes[2, 0].axvspan(*span, color="gainsboro")
+    axes[2, 0].set_xlabel(sweep.U_name)
+    axes[2, 0].set_ylabel("distance to next difference spectrum")
+    axes[2, 0].legend()
+    axes[2, 0].set_title("3a. Convergent regions (grey)")
+    sweep.plot_converged_spectra(ax=axes[2, 1])
+    axes[2, 1].set_title("3b. Converged spectra (normalised)")
+    sweep.plot_fit_and_residuals(axes=[axes[2, 2], axes[3, 1]], xlim=(400, 900))
+    axes[2, 2].set_title("3c. Fit coefficient of each converged spectrum")
 
-    print("tracking wavelengths across the full dataset")
-    ax_top, ax_bottom = cell(0, 3), cell(1, 3)
-    sec.plot_wavelengths(
-        wavelengths=["w450", "w600", "w800"],
-        axes=[ax_top, ax_bottom, None, ax_bottom.twinx()],
+    print("4. checking the fit")
+    sweep.plot_fit_reconstruction(ax=axes[3, 0], xlim=(400, 900), ylim=(-0.02, 0.25))
+    axes[3, 0].set_title("4a. Reconstructed dOD spectra (compare 2a)")
+    axes[3, 1].set_title("4b. Residuals / [mOD]")
+    measured = sweep["dOD"]
+    fitted = sweep["reconstructed"]
+    U = sweep.grab_for_t(
+        "potential",
+        t=measured.axes_series[0].t + measured.axes_series[0].tstamp - sweep.tstamp,
     )
-    ax_top.set_title("Tracked wavelengths vs time")
+    for wl_str, color in zip(wavelengths, ["C0", "C1", "C2"]):
+        wl = float(wl_str[1:])
+        i_meas = np.argmin(np.abs(measured.axes_series[1].data - wl))
+        i_fit = np.argmin(np.abs(fitted.axes_series[1].data - wl))
+        axes[3, 2].plot(U, measured.data[:, i_meas], color=color, label=wl_str)
+        axes[3, 2].plot(U, fitted.data[:, i_fit], color="k", linestyle="--")
+    axes[3, 2].plot([], [], color="k", linestyle="--", label="fit")
+    axes[3, 2].set_xlabel(sweep.U_name)
+    axes[3, 2].set_ylabel("dOD")
+    axes[3, 2].legend()
+    axes[3, 2].set_title("4c. Measured and fitted dOD vs potential")
 
-    fig.suptitle("SEC analysis of one anodic sweep on IrOx", fontsize=16)
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.suptitle("SEC analysis of IrOx: one anodic sweep", fontsize=18)
+    fig.tight_layout(rect=(0.03, 0, 1, 0.98))
 
 
 def main():
