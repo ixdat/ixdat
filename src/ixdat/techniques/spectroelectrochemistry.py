@@ -135,6 +135,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
     """
 
     default_plotter = ECOpticalPlotter
+    built_in_calculator_types = SpectroECMeasurement.built_in_calculator_types + [
+        "dOD_calculator"
+    ]
 
     extra_linkers = SpectroECMeasurement.extra_linkers.copy()
     extra_linkers.update({"ec_optical_measurements": ("spectra", "ref_id")})
@@ -171,6 +174,20 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
         self.technique = "EC-Optical"
 
+    def cut(self, tspan, t_zero=None):
+        """Select the portion of the data in a given tspan, keeping the reference.
+
+        See :func:`~spectra.SpectroMeasurement.cut`
+        """
+        cut_measurement = super().cut(tspan, t_zero=t_zero)
+        cut_measurement._reference_spectrum = self.reference_spectrum
+        return cut_measurement
+
+    @property
+    def dOD_calculator(self):
+        """The DeltaODCalculator providing "dOD" and ">diff" lookups"""
+        return self.calculators["dOD_calculator"]
+
     @property
     def reference_spectrum(self):
         """The reference spectrum which will by default be used to calculate dOD"""
@@ -196,13 +213,14 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             V_ref (float): The potential to use as the reference spectrum. This will
                 only work if the potential is monotonically increasing.
         """
-        if t_ref and not spectrum:
+        if t_ref is not None and spectrum is None:
             spectrum = self.get_spectrum(t=t_ref)
-        if V_ref and not spectrum:
+        if V_ref is not None and spectrum is None:
             spectrum = self.get_spectrum(V=V_ref)
         if spectrum is None:
             raise ValueError("must provide a spectrum, t_ref, or V_ref!")
         self._reference_spectrum = spectrum
+        self.clear_cache()  # cached dOD is calculated with the old reference
 
     def set_reference_spectrum_through_t_range(
         self,
@@ -243,10 +261,8 @@ class ECOpticalMeasurement(SpectroECMeasurement):
     def calc_dOD(self, V_ref=None, t_ref=None, index_ref=None):
         """Calculate the optical density with respect to a reference
 
-        Provide at most one of V_ref, t_ref, or index. If none are provided the default
-        reference spectrum (self.reference_spectrum) will be used. If the default reference
-        spectrum is missing, the function wil raise a Value error for intensity data, or 
-        assume an unknown pre-set reference for absorption or transmission data.
+        See :func:`~calculators.sec_calculators.DeltaODCalculator.calc_dOD`. With no
+        reference arguments, this is the same as `self["dOD"]`.
 
         Args:
             V_ref (float): The potential at which to get the reference spectrum
@@ -254,57 +270,11 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             index_ref (int): The index of the reference spectrum
         Return Field: the delta optical density spanning time and wavelength
         """
-        counts = self.spectra.data
-        ref=None
-        #---- Check form of data and reference. Note that:
-            #(1) If no reference is given and data is in intensity 
-            #    form, the dOD cannot be calculated
-            #(2) Absorption and Transmission data are already referenced to some 
-            #    unknown reference point, presumably set during data collection. 
-            #    If no reference  is given, it is assumed that the user 
-            #    wants to maintain this unknown reference point.
-            #(3) If a reference  is given, the dOD is given relative to 
-            #    this reference point.
-        if V_ref is not None or t_ref is not None or index_ref is not None:
-            ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
-        elif self.reference_spectrum:
-            ref = self.reference_spectrum
-        if not ref:
-            if self.spectra_type=="Intensity":
-                raise ValueError("For intensity data, a reference must be provided to find the optical density")
-            if self.spectra_type == "Absorption":
-                warnings.warn("Absorption set as optical data type and no reference is given. Optical density referred to an unknown reference.")
-                dOD = counts
-            if self.spectra_type == "Transmission":
-                warnings.warn("Transmission set as optical data type and no reference is given. Optical density referred to an unknown reference.")
-                spec_decimal = counts / 100
-                spec_decimal[spec_decimal == 0] = np.nan
-                dOD = -np.log10(spec_decimal)
-        else:
-            if self.spectra_type=="Intensity" or self.spectra_type=="Transmission":
-                ratio = np.divide(
-                    counts,
-                    ref.y,
-                    out=np.full_like(counts, np.nan),
-                    where=(abs(counts) > 0) & (abs(ref.y) > 0),
-                )
-                dOD = -np.log10(ratio)
-            if self.spectra_type=="Absorption":
-                dOD = np.divide(
-                    counts,
-                    ref.y,
-                    out = np.full_like(counts, np.nan),
-                    where = abs(ref.y)>0
-                    )
-
-        dOD = np.ma.masked_invalid(dOD)
-        dOD_series = Field(
-            name=r"$\Delta$ O.D.",
-            unit_name="",
-            axes_series=self.spectra.axes_series,
-            data=dOD,
+        if V_ref is None and t_ref is None and index_ref is None:
+            return self["dOD"]
+        return self.dOD_calculator.calc_dOD(
+            self, V_ref=V_ref, t_ref=t_ref, index_ref=index_ref
         )
-        return dOD_series
 
     def get_spectrum(self, V=None, t=None, index=None, name=None, interpolate=True):
         """Return the Spectrum at a given potential V, time t, or index
