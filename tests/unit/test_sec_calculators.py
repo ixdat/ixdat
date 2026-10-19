@@ -290,7 +290,7 @@ def test_denoiser_round_trip_through_as_dict():
     assert repr(copy) == repr(calc)
 
 
-def two_transition_sec(n=81, noise=1e-4, seed=0):
+def two_transition_sec(n=81, noise=1e-4, seed=0, n_dead=0):
     """Return a sec with two redox transitions, at 0.3 V and 0.7 V, and their shapes.
 
     Each transition has its own Gaussian spectrum. The intensity is referenced to the
@@ -306,6 +306,10 @@ def two_transition_sec(n=81, noise=1e-4, seed=0):
         [1 / (1 + np.exp(-(potential - U0) / 0.03)) for U0 in (0.3, 0.7)]
     )
     dOD = completion.T @ shapes
+    intensity = 10 ** (-dOD) * (1 + noise * rng.standard_normal(dOD.shape))
+    # The first n_dead wavelengths read negative counts in one spectrum, as dead or
+    # over-subtracted pixels do
+    intensity[n // 2, :n_dead] = -1
     t = np.arange(float(n))
     ec_tseries = TimeSeries(name="time", unit_name="s", data=t, tstamp=TSTAMP)
     ec = ECMeasurement(
@@ -326,7 +330,7 @@ def two_transition_sec(n=81, noise=1e-4, seed=0):
         field=Field(
             name="intensity",
             unit_name="counts",
-            data=10 ** (-dOD) * (1 + noise * rng.standard_normal(dOD.shape)),
+            data=intensity,
             axes_series=[opt_tseries, DataSeries("wavelength", "nm", wl)],
         ),
         continuous=True,
@@ -549,3 +553,13 @@ def test_step_smaller_than_spacing_warns():
     sec.set_reference_spectrum(t_ref=0)
     with pytest.warns(UserWarning, match="smaller than the spacing"):
         sec.dOD_calculator.calc_diff(sec, Vstep=0.05)
+
+
+def test_deconvolutor_leaves_out_nan_wavelengths():
+    sec, _ = two_transition_sec(n_dead=10)
+    sec.dOD_calculator.idx_step = 1
+    decon = SpectrumDeconvolutor.from_spectromeasurement(sec, min_region_width=1)
+    assert len(decon.wavelength) == 91
+    sec.add_calculator(decon)
+    assert not np.any(np.ma.getmaskarray(sec["residuals"].data))
+    assert np.max(np.abs(sec["residuals"].data)) < 5

@@ -840,9 +840,15 @@ class SpectrumDeconvolutor(Calculator):
             spectra_field = measurement[field_name]
 
         wl = spectra_field.axes_series[1].data
-        mask = get_x_mask(wl, xspan)
-        spectra = np.ma.filled(np.ma.asarray(spectra_field.data, dtype=float), 0)
-        spectra = spectra[:, mask]
+        data = np.ma.filled(np.ma.asarray(spectra_field.data, dtype=float), np.nan)
+        # Leave out wavelengths with NaN in any spectrum, e.g. where the counts are
+        # zero or negative.
+        mask = get_x_mask(wl, xspan) & np.all(np.isfinite(data), axis=0)
+        if not np.any(mask):
+            raise ValueError(
+                f"{field_name} has no wavelengths in xspan={xspan} without NaN."
+            )
+        spectra = data[:, mask]
 
         # The distance between each pair of spectra. For the correlation metric:
         #   1 - (u - mean(u)) . (v - mean(v)) / (|u - mean(u)| |v - mean(v)|)
@@ -953,12 +959,24 @@ class SpectrumDeconvolutor(Calculator):
         field = measurement[self.field_name]
         tseries, xseries = field.axes_series
 
-        wl_mask = get_x_mask(self.wavelength, self.xspan)
-        wl = self.wavelength[wl_mask]
-        converged = np.ma.filled(self.converged_data[:, wl_mask], 0)  # NaN breaks lsq
-        data = np.ma.filled(np.ma.asarray(field.data, dtype=float), 0)
+        data = np.ma.filled(np.ma.asarray(field.data, dtype=float), np.nan)
         # Put the measured spectra on the wavelengths of the converged spectra
-        spectra = interp1d(xseries.data, data, axis=1)(wl)
+        spectra = interp1d(xseries.data, data, axis=1)(self.wavelength)
+        # Fit only wavelengths within xspan where all spectra are finite, since NaN
+        # breaks the least-squares fit.
+        wl_mask = (
+            get_x_mask(self.wavelength, self.xspan)
+            & np.all(np.isfinite(spectra), axis=0)
+            & np.all(np.isfinite(self.converged_data), axis=0)
+        )
+        if not np.any(wl_mask):
+            raise ValueError(
+                f"{self.field_name} has no wavelengths in common with the converged"
+                " spectra without NaN."
+            )
+        wl = self.wavelength[wl_mask]
+        converged = self.converged_data[:, wl_mask]
+        spectra = spectra[:, wl_mask]
 
         coefficients = []
         for i, spectrum in enumerate(spectra):
