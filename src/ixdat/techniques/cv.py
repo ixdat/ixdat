@@ -66,162 +66,93 @@ class CyclicVoltammogram(ECMeasurement):
         redox=None,
         N_points=5,
         turning_point=False,
-        N_sep=10,
+        v_scan_res=5e-4,
         res_points=10,
-        rate_threshold=0.0005,
-        N_points_threshold=1,
     ):
-        """Build `cycle` which iterates when passing through start_potential, or a turning point
+        """Build `cycle`, which iterates when passing through start_potential, or when
+        a new potential sweep starts.
 
         Args:
             start_potential (float): The potential in [V] at which the cycle counter will
-                iterate. If start_potential is not given, the cycle is just the
-                `selector` inherited from ECMeasurement shifted to start at 0.
-            redox (bool): True (or 1) for anodic, False (or 0) for cathodic. If selecting via start_potential only, 
-                this is the direction in which the potential is scanning through start_potential to
-                trigger an iteration of `cycle`. For turning_points, a new cycle will iterate if the scan rate after the turning point
-                matches the redox direction. If redox is neither true nor false and turning_points is 
-                true, the cycle selector will iterate at every turning point. This can then defacto be used
-                to select anodic or cathodic sweeps. If turning_points is false, a redox direction must be selected.
-            N_points (int): If turning_point is False, this is the number of consecutive 
-                points for which the potential needs to be above (redox=True) or below 
-                (redox=False) the start_potential for the new cycle to register. If turning_point
-                is True, this is the number of consecutive points after a detected turning
-                point for which the scan rate turning point must be greater than the rate_threshold 
-                (redox=True) or lower than the negative of the rate_threshold (redox=False), 
-                or the same sign as the point directly after turning point
-            turning_point (bool): If True, define cycles using changes in
-                the direction of the potential sweep instead of a fixed
-                potential.
-            N_sep (int) : The number of indices by which the turning points must be separated. 10 by default.
-            res_points (int): The spacing in data points used to calculate the scan
-                rate, passed to `calc_sharp_v_scan`. 10 by default.
-            rate_threshold (float) : the threshold magnitude in scan rate to accept for turning point
-                validity. 0.5 mV/s by default.
-            N_points_threshold (float) : Must be a value between 0 and 1. If data is noisy, this can be
-                invoked to soften the requirement of N_points so that a fraction of them must meet the 
-                requirements. For example, if 8 of 10 points meet the requirement but there are 2 noisy
-                data points, the turning point will still be accepted.            
+                iterate. If neither start_potential nor turning_point is given, the
+                cycle is just the `selector` inherited from ECMeasurement shifted to
+                start at 0. With turning_point, cycle 1 starts where the potential
+                first passes through start_potential.
+            redox (bool): True (or 1) for anodic, False (or 0) for cathodic.
+                Without turning_point, the direction in which the potential is
+                scanning through start_potential to trigger an iteration of `cycle`.
+                This is then required.
+                With turning_point, a new cycle starts only at anodic (True) or
+                cathodic (False) sweeps. If None (default), every sweep starts a new
+                cycle, so that each cycle is one sweep.
+            N_points (int): The number of consecutive points for which the potential
+                needs to be above (redox=True) or below (redox=False) the
+                start_potential for the new cycle to register. Not used with
+                turning_point.
+            turning_point (bool): If True, start a new cycle at the start of each
+                potential sweep, as found by
+                :meth:`~ixdat.techniques.cv.CyclicVoltammogram.get_timed_sweeps`.
+                Holds belong to the cycle before them.
+            v_scan_res (float): With turning_point, the minimum scan rate in [V/s]
+                considered different from zero. 5e-4 V/s (0.5 mV/s) by default.
+                Increase it for noisy potential, and decrease it for slow scans.
+            res_points (int): With turning_point, the spacing in data points used to
+                calculate the scan rate, and the minimum number of points in a
+                sweep. 10 by default.
         """
         self.start_potential = start_potential
         self.redox = redox
         if turning_point:
-
             v = self.U
-            N = len(v)
-            time = self.t
-            
+            scan_rate = calc_sharp_v_scan(self.t, v, res_points=res_points)
+            sweeps = find_signed_sections(
+                scan_rate, x_res=v_scan_res, res_points=res_points
+            )
+            if redox is None:
+                sweep_types = {"positive", "negative"}
+            elif redox:
+                sweep_types = {"positive"}
+            else:
+                sweep_types = {"negative"}
+            sweep_starts = []
+            for n, ((i_start, _), sweep_type) in enumerate(sweeps):
+                if sweep_type not in sweep_types or i_start == 0:
+                    # A sweep starting at the first point continues cycle 0
+                    continue
+                # The sections are found from the scan rate, which looks res_points
+                # ahead and behind, so a sweep's start can be off from the vertex or
+                # hold before it. From res_points into the sweep, step back as long
+                # as the potential keeps going against the sweep direction. Where it
+                # stops is the vertex, or the end of the hold.
+                sign = 1 if sweep_type == "positive" else -1
+                i_start = min(i_start + res_points, len(v) - 1)
+                while i_start > 0 and sign * (v[i_start] - v[i_start - 1]) > 0:
+                    i_start -= 1
+                sweep_starts.append(i_start)
+
             # Cycle 0 is everything before the first new cycle starts
-            cycle_vec = np.zeros(N)
-            
-            #Find point where potential first crosses start potential, if given as an argument as well as turning_point
-            if start_potential is not None:
-                crossing = np.where(
-                    (
-                            (v[:-1] < start_potential) &
-                            (v[1:] >= start_potential)
-                    )
-                    |
-                    (
-                            (v[:-1] > start_potential) &
-                            (v[1:] <= start_potential)
-                    )
-                )[0]
-                if len(crossing) == 0:
-                    raise ValueError(
-                        f"No crossing of "
-                        f"{start_potential} V found."
-                    )
-                start_idx = crossing[0] + 1
-
-            else:
-                start_idx = 0
-                
-            
-            scan_rate=calc_sharp_v_scan(time, v, res_points=res_points)
-            # Potential holds are likely to be noisy and oscillate around zero. Use rate_threshold to naively find areas of potential holds
-            # as a first check.
-            sign = np.zeros_like(scan_rate)
-            sign[scan_rate>rate_threshold] = 1 
-            sign[scan_rate<-rate_threshold] = -1
-            
-            if redox is True:
-                # Negative -> positive
-                turning_indices = np.where((sign[:-1] <= 0) & (sign[1:] > 0))[0]
-
-            elif redox is False:
-                # Positive -> negative
-                turning_indices = np.where((sign[:-1] >= 0) & (sign[1:] < 0))[0]
-
-            else:
-                # Either direction: a new cycle at every turning point
-                turning_indices = np.where(sign[:-1] != sign[1:])[0]
-                
-            #Each cycle should have only 1 turning index. If there are multiple, this is due to noise.
-            #This section checks that the following N_points all have either a positive (for anodic sweep)
-            #or negative (for cathodic sweep) sign. If redox is not given, the code check that all the signs
-            #for the indices directly after the turning point are the same.
-            #The N_sep variable is used to check that the valid turning points are not closer together than
-            #the user defined separation of N_sep
-            if len(turning_indices) >= 1:
-                valid_indices = []
-                sign_checked_indices = []
-                separation_clusters = []
-
-                for idx in turning_indices:
-                    signcheck=False
-                    # Don't accept turning points before the chosen start
-                    if idx < start_idx:
-                        continue
-                    window_end = idx +1 + N_points
-                    next_points = scan_rate[idx+1:window_end]
-                    if len(next_points) > 0:
-                        if redox is True:
-                            same_sign = next_points > rate_threshold
-                        elif redox is False:
-                            same_sign = next_points < -rate_threshold
-                        else:
-                            same_sign = np.sign(next_points) == sign[idx+1]
-                        
-                        if same_sign is not None:
-                            if N_points_threshold<0 or N_points_threshold>1:
-                                raise ValueError("N_points_threshold must be value between 0 and 1")
-                            fraction_correct=np.mean(same_sign)
-                            if fraction_correct>=N_points_threshold:
-                                #valid_indices.append(idx)
-                                signcheck=True
-                        if signcheck:
-                            sign_checked_indices.append(idx)
-                if len(sign_checked_indices)==0:
-                    raise ValueError("No valid turning points found")
-                # Only loop over turning points that passed sign check to check for separation. Cluster indices that are too close together.
-                # First point is included in the first cluster by default
-                cluster = [sign_checked_indices[0]]
-                for idx in sign_checked_indices[1:]:
-                    if idx-cluster[-1]<N_sep:
-                        cluster.append(idx)
-                    else:
-                        separation_clusters.append(cluster)
-                        cluster = [idx]
-                #Get the final cluster
-                separation_clusters.append(cluster)
-                
-                #Choose the best turning point in this cluster. The best turning point is the one with the smallest scan rate.
-                for cluster in separation_clusters:
-                    valid_indices.append(cluster[np.argmin(scan_rate[cluster])])             
-                
-            else:
-                raise ValueError("No valid turning points found")
-            turning_indices = np.asarray(valid_indices)
-
-            # With start_potential, cycle 1 starts at the crossing. Each valid
-            # turning point after that starts the next cycle.
+            cycle_vec = np.zeros(len(v))
             first_cycle = 0
             if start_potential is not None:
+                passing = np.flatnonzero(
+                    ((v[:-1] < start_potential) & (v[1:] >= start_potential))
+                    | ((v[:-1] > start_potential) & (v[1:] <= start_potential))
+                )
+                if len(passing) == 0:
+                    raise ValueError(f"The potential never passes {start_potential} V")
+                i_passing = passing[0] + 1
+                # With start_potential, cycle 1 starts where it is passed
                 first_cycle = 1
-                cycle_vec[start_idx:] = first_cycle
-            for c, idx in enumerate(turning_indices, start=first_cycle + 1):
-                cycle_vec[idx:] = c
+                cycle_vec[i_passing:] = first_cycle
+                sweep_starts = [i for i in sweep_starts if i > i_passing]
+
+            if not sweep_starts:
+                raise ValueError(
+                    "No valid turning points found. For noisy or slow scans, try"
+                    " changing v_scan_res or res_points."
+                )
+            for c, i_start in enumerate(sweep_starts, start=first_cycle + 1):
+                cycle_vec[i_start:] = c
 
             new_cycle_series = ValueSeries(
                 name="cycle",
@@ -245,7 +176,9 @@ class CyclicVoltammogram(ECMeasurement):
             N = len(self.t)
             v = self.U
             if redox is None:
-                raise ValueError("Redox direction must be selected if utilising potential as cycle indicator")
+                raise ValueError(
+                    "redox must be True or False when cycles start at start_potential"
+                )
             if not redox:
                 # easiest way to reverse directions is to use the same > < operators
                 # but negate the arguments

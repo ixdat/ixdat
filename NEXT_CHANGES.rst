@@ -42,8 +42,11 @@ techniques
   spectrum, so that e.g. ``sec.select(cycle=1)["dOD"]`` works.
   `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
-- ``CyclicVoltammogram.redefine_cycle(turning_point=True)`` starts a new cycle each
-  time the potential sweep changes direction.
+- ``CyclicVoltammogram.redefine_cycle(turning_point=True)`` starts a new cycle at the
+  start of each potential sweep, so that each cycle is one sweep. With ``redox=True`` or
+  ``False``, only anodic or cathodic sweeps start a new cycle. Sweeps are found with the
+  same tools as ``get_timed_sweeps``, and set with its ``v_scan_res`` and
+  ``res_points``.
   `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 calculators
@@ -71,6 +74,10 @@ plotters
 
 bug fixes
 ^^^^^^^^^
+
+- ``find_signed_sections``, and so ``get_timed_sweeps``, no longer splits a noisy hold
+  into many short sections. Sections shorter than ``res_points`` are merged into their
+  neighbours. `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 - Indexing a ``SpectrumSeries`` returns a single spectrum again. Since 0.4.0 it could
   return a series. `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_

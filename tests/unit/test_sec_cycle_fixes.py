@@ -72,7 +72,7 @@ def read_ec_optical_fixture():
 def test_redefine_cycle_turning_point_counts_reversals():
     """Four sweep legs (3 reversals) give cycles 0 to 3."""
     cv = make_triangular_cv(FOUR_LEGS)
-    cv.redefine_cycle(turning_point=True, N_points=3, N_sep=5, res_points=2)
+    cv.redefine_cycle(turning_point=True, res_points=2)
 
     cycle = cv["cycle"].data
     assert sorted(set(cycle.tolist())) == [0.0, 1.0, 2.0, 3.0]
@@ -82,9 +82,7 @@ def test_redefine_cycle_turning_point_counts_reversals():
 
 def test_redefine_cycle_turning_point_redox_true_counts_only_upward_turns():
     cv = make_triangular_cv(FOUR_LEGS)
-    cv.redefine_cycle(
-        turning_point=True, redox=True, N_points=3, N_sep=5, res_points=2
-    )
+    cv.redefine_cycle(turning_point=True, redox=True, res_points=2)
 
     # only the reversal from down to up, around index 20, starts a new cycle
     cycle = cv["cycle"].data
@@ -95,9 +93,7 @@ def test_redefine_cycle_turning_point_redox_true_counts_only_upward_turns():
 def test_redefine_cycle_turning_point_after_start_potential():
     """Cycle 1 starts where the potential first crosses start_potential."""
     cv = make_triangular_cv(FOUR_LEGS)
-    cv.redefine_cycle(
-        turning_point=True, start_potential=0.5, N_points=3, N_sep=5, res_points=2
-    )
+    cv.redefine_cycle(turning_point=True, start_potential=0.5, res_points=2)
 
     cycle = cv["cycle"].data
     assert cycle[0] == 0

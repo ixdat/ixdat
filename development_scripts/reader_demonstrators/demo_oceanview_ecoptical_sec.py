@@ -132,7 +132,7 @@ def demo_real_data_analysis():
     wavelengths = ["w450", "w600", "w800"]
 
     # A new cycle each time the sweep turns, so each cycle is one sweep
-    cv.redefine_cycle(turning_point=True, res_points=10)
+    cv.redefine_cycle(turning_point=True)
     sec = cv + optical
 
     # One subfigure per row, so each row gets its own heading. Constrained layout
