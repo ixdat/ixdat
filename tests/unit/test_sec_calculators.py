@@ -410,3 +410,42 @@ def test_deconvolutor_round_trip_through_as_dict():
     np.testing.assert_allclose(copy.converged_data, decon.converged_data)
     np.testing.assert_allclose(copy.wavelength, decon.wavelength)
     assert copy.potentialspans == decon.potentialspans
+
+
+@pytest.fixture
+def deconvoluted_sec():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    sec, _ = two_transition_sec()
+    sec.dOD_calculator.idx_step = 1
+    decon = SpectrumDeconvolutor.from_spectromeasurement(sec, min_region_width=1)
+    sec.add_calculator(decon)
+    return sec
+
+
+def test_plot_dOD_difference_spectra(deconvoluted_sec):
+    ax = deconvoluted_sec.plot_dOD_difference_spectra()
+    assert len(ax.get_lines()) == 80
+
+
+def test_plot_converged_spectra(deconvoluted_sec):
+    ax = deconvoluted_sec.plot_converged_spectra()
+    assert len(ax.get_lines()) == 2
+
+
+def test_plot_fit_and_residuals(deconvoluted_sec):
+    axes = deconvoluted_sec.plot_fit_and_residuals()
+    assert len(axes[0].get_lines()) == 2
+    assert len(axes[1].get_lines()) == 81
+
+
+def test_plot_fit_reconstruction(deconvoluted_sec):
+    ax = deconvoluted_sec.plot_fit_reconstruction()
+    assert len(ax.get_lines()) == 81
+
+
+def test_plotting_without_deconvolutor_explains_what_to_do():
+    sec, _ = two_transition_sec()
+    with pytest.raises(ValueError, match="add_calculator"):
+        sec.plot_converged_spectra()
