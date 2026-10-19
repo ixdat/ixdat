@@ -36,6 +36,49 @@ def normalise_spectra(spectra, x, xspan=None):
     return spectra / max_vals[:, np.newaxis]
 
 
+def calc_cycle_difference(measurement, cycle_1=1, cycle_2=2, c_name="cycle"):
+    """Return the change in dOD from one cycle to another, to check for stability.
+
+    Both cycles are selected from the measurement and their dOD is calculated with
+    the measurement's reference spectrum. The dOD of `cycle_2` is interpolated onto
+    the times of `cycle_1`, with each cycle's time scaled from 0 at its start to 1 at
+    its end, and the dOD of `cycle_1` is subtracted. A reversible system gives zero.
+
+    Args:
+        measurement (ECOpticalMeasurement): The measurement with both cycles
+        cycle_1 (int): The first cycle. Defaults to 1.
+        cycle_2 (int): The second cycle. Defaults to 2.
+        c_name (str): The name of the cycle series. Defaults to "cycle".
+    Return Field: The dOD of cycle_2 minus that of cycle_1 in [mOD], on the time and
+        wavelength axes of cycle_1
+    """
+    cycle1 = measurement.select(**{c_name: cycle_1})
+    cycle2 = measurement.select(**{c_name: cycle_2})
+    dOD1 = cycle1["dOD"]
+    dOD2 = cycle2["dOD"]
+
+    # Scale each cycle's time to [0, 1], so the cycles can be compared point by point
+    t1 = dOD1.axes_series[0].t
+    t2 = dOD2.axes_series[0].t
+    t1_norm = (t1 - t1[0]) / (t1[-1] - t1[0])
+    t2_norm = (t2 - t2[0]) / (t2[-1] - t2[0])
+    dOD2_interp = interp1d(
+        t2_norm,
+        np.ma.filled(np.ma.asarray(dOD2.data, dtype=float), np.nan),
+        axis=0,
+        bounds_error=False,
+        fill_value=np.nan,
+    )(t1_norm)
+    difference = (dOD2_interp - dOD1.data) * 1000
+
+    return Field(
+        name="Irreversible ΔA",
+        unit_name="mOD",
+        data=np.ma.masked_invalid(difference),
+        axes_series=dOD1.axes_series,
+    )
+
+
 class DeltaODCalculator(Calculator):
     """Calculator for change in optical density (dOD) and its finite difference.
 

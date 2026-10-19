@@ -8,6 +8,7 @@ from ixdat.calculators.sec_calculators import (
     DeltaODCalculator,
     Denoiser,
     SpectrumDeconvolutor,
+    calc_cycle_difference,
 )
 from ixdat.data_series import DataSeries, Field, TimeSeries, ValueSeries
 from ixdat.techniques import ECMeasurement
@@ -449,3 +450,68 @@ def test_plotting_without_deconvolutor_explains_what_to_do():
     sec, _ = two_transition_sec()
     with pytest.raises(ValueError, match="add_calculator"):
         sec.plot_converged_spectra()
+
+
+def two_cycle_sec(drift=0.0):
+    """Return a sec with two triangle-wave cycles of 21 spectra each.
+
+    The dOD follows the potential, plus `drift` OD in the second cycle.
+    """
+    sweep = np.concatenate([np.linspace(0, 1, 11), np.linspace(0.9, 0, 10)])
+    potential = np.concatenate([sweep, sweep])
+    cycle = np.repeat([1.0, 2.0], len(sweep))
+    dOD = np.outer(potential + drift * (cycle - 1), [1.0, 2.0, 3.0])
+    t = np.arange(float(len(potential)))
+    ec_tseries = TimeSeries(name="time", unit_name="s", data=t, tstamp=TSTAMP)
+    ec = ECMeasurement(
+        name="ec",
+        technique="EC",
+        tstamp=TSTAMP,
+        series_list=[
+            ec_tseries,
+            ValueSeries("raw_potential", "V", potential, tseries=ec_tseries),
+            ValueSeries("raw_current", "mA", np.zeros_like(t), tseries=ec_tseries),
+            ValueSeries("cycle", "", cycle, tseries=ec_tseries),
+        ],
+    )
+    opt_tseries = TimeSeries(name="time", unit_name="s", data=t, tstamp=TSTAMP)
+    optical = OpticalSpectrumSeries(
+        name="optical",
+        technique="Optical",
+        tstamp=TSTAMP,
+        field=Field(
+            name="intensity",
+            unit_name="counts",
+            data=10 ** (-dOD),
+            axes_series=[opt_tseries, DataSeries("wavelength", "nm", WL)],
+        ),
+        continuous=True,
+        spectra_type="Intensity",
+    )
+    sec = ec + optical
+    sec.set_reference_spectrum(t_ref=0)
+    return sec
+
+
+def test_identical_cycles_give_zero_difference():
+    diff = calc_cycle_difference(two_cycle_sec())
+    assert diff.unit_name == "mOD"
+    assert diff.data.shape[1] == 3
+    np.testing.assert_allclose(diff.data, 0, atol=1e-9)
+
+
+def test_cycle_difference_shows_drift_in_mOD():
+    diff = calc_cycle_difference(two_cycle_sec(drift=0.01))
+    expected = np.tile([10.0, 20.0, 30.0], (len(diff.data), 1))
+    np.testing.assert_allclose(diff.data, expected)
+
+
+def test_plot_dOD_cycle_diff():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    sec = two_cycle_sec(drift=0.01)
+    ax = sec.plotter.plot_dOD_cycle_diff(
+        upper_noise_bound=1, lower_noise_bound=-1
+    )
+    assert len(ax.get_lines()) == len(calc_cycle_difference(sec).data)
