@@ -515,3 +515,20 @@ def test_plot_dOD_cycle_diff():
         upper_noise_bound=1, lower_noise_bound=-1
     )
     assert len(ax.get_lines()) == len(calc_cycle_difference(sec).data)
+
+
+@pytest.mark.parametrize("width", [0, 150])
+def test_track_wavelength_matches_dOD(width):
+    sec = make_sec()
+    sec.set_reference_spectrum(t_ref=0)
+    w500 = sec.track_wavelength(500, width=width)
+    np.testing.assert_allclose(w500.data, expected_dOD()[:, 1])
+    assert "w500" in sec.tracked_wavelengths
+    np.testing.assert_allclose(sec["w500"].data, w500.data)
+
+
+def test_track_wavelength_with_explicit_reference_on_absorption():
+    absorbance = expected_dOD() + 0.5
+    sec = make_sec(spectra_type="Absorption", data=absorbance)
+    w600 = sec.track_wavelength(600, width=0, index_ref=0)
+    np.testing.assert_allclose(w600.data, expected_dOD()[:, 2])

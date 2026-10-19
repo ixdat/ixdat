@@ -429,9 +429,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
 
         The caching adds wl_str to the SECMeasurement's data series, where
             wl_str = "w" + int(wl)
-            This is dOD. The raw is also added as wl_str + "_raw".
+            This is dOD. The raw is also added as wl_str + " raw".
         So, to get the raw counts for a specific wavelength, call this function and
-            then use __getitem__, as in: sec_meas[wl_str + "_raw"]
+            then use __getitem__, as in: sec_meas[wl_str + " raw"]
         If V_ref, t_ref, or index_ref are provided, they specify what to reference dOD
             to. Otherwise, dOD is referenced to the SECMeasurement's reference_spectrum.
 
@@ -446,38 +446,26 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             index_ref (int): The index of the reference spectrum
         Returns ValueSeries: The dOD value of the spectrum at wl.
         """
-        if self.spectra_type is None or self.spectra_type == "Intensity":
-            if V_ref is not None or t_ref is not None or index_ref is not None:
-                spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref)
-            else:
-                spectrum_ref = self.reference_spectrum
+        dOD = self.calc_dOD(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref).data
+        counts = self.spectra.data
         x = self.wl
         if width:  # averaging
             wl_mask = np.logical_and(wl - width / 2 < x, x < wl + width / 2)
-            counts_wl = np.mean(self.spectra.data[:, wl_mask], axis=1)
-            if self.spectra_type is None or self.spectra_type == "Intensity":
-                counts_ref = np.mean(spectrum_ref.y[wl_mask])
-
+            counts_wl = np.mean(counts[:, wl_mask], axis=1)
+            dOD_wl = np.ma.filled(np.mean(dOD[:, wl_mask], axis=1), np.nan)
         else:  # interpolation
-            if self.spectra_type is None or self.spectra_type == "Intensity":
-                counts_ref = np.interp(wl, spectrum_ref.x, spectrum_ref.y)
-            counts_wl = []
-            for counts_i in self.spectra.data:
-                c = np.interp(wl, x, counts_i)
-                counts_wl.append(c)
-            counts_wl = np.array(counts_wl)
-        if self.spectra_type == "Absorption":
-            dOD_wl = counts_wl
-        elif self.spectra_type == "Transmission":
-            counts_wl_dec = counts_wl / 100
-            dOD_wl = -np.log10(counts_wl_dec)
-        else:
-            dOD_wl = -np.log10(counts_wl / counts_ref)
+            counts_wl = np.array([np.interp(wl, x, c) for c in counts])
+            dOD_wl = np.array(
+                [np.interp(wl, x, d) for d in np.ma.filled(dOD, np.nan)]
+            )
         raw_name = f"w{int(wl)} raw"
         dOD_name = f"w{int(wl)}"
         tseries = self.spectra.axes_series[0]
         raw_vseries = ValueSeries(
-            name=raw_name, unit_name="counts", data=counts_wl, tseries=tseries
+            name=raw_name,
+            unit_name=self.spectra.unit_name,
+            data=counts_wl,
+            tseries=tseries,
         )
         dOD_vseries = ValueSeries(
             name=dOD_name, unit_name="", data=dOD_wl, tseries=tseries
