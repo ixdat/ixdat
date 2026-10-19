@@ -29,7 +29,8 @@ behavior in mind.
 
 Plots of SEC are made by the  :ref:`SECPlotter <sec-plotter>`. These are either heat plots
 (``plot_measurement`` and ``plot_vs_potential``) or coplotted cross-sections (``plot_waterfall``
-and ``plot_wavelengths``). :ref:`Exporting SEC data <sec-exporter>` results in a master file with
+and ``plotter.plot_wavelengths``). Most plotting methods are reached through the
+measurement's plotter, e.g. ``sec.plotter.plot_wavelengths()``. :ref:`Exporting SEC data <sec-exporter>` results in a master file with
 the EC data and any tracked wavelengths and two auxiliary files with (i) the
 spectrum series and (ii) the reference spectrum.
 
@@ -84,11 +85,11 @@ An example on one anodic sweep::
     >>> sweep = sec.select(cycle=1)
     >>> sweep.dOD_calculator.Vstep = 0.005  # 5 mV between difference spectra
     >>> sweep.add_calculator(Denoiser(denoise_method="Savitzky-Golay"))
-    >>> sweep.plot_dOD_difference_spectra(field=sweep["dOD>diff>smooth"])
+    >>> sweep.plotter.plot_dOD_difference_spectra(field=sweep["dOD>diff>smooth"])
     >>> decon = SpectrumDeconvolutor.from_spectromeasurement(sweep, xspan=[400, 900])
     >>> sweep.add_calculator(decon)
-    >>> sweep.plot_converged_spectra()
-    >>> sweep.plot_fit_and_residuals()
+    >>> sweep.plotter.plot_converged_spectra()
+    >>> sweep.plotter.plot_fit_and_residuals()
 
 The calculators are saved together with the measurement. A ``SpectrumDeconvolutor`` can
 also be added to another measurement, to fit it with the same converged spectra.

@@ -209,8 +209,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         make_colorbar=True,
         t=None,
         t_name=None,
-        xlim=None,
-        ylim=None,
         tspan=None,
         norm=None,
     ):
@@ -231,6 +229,8 @@ class SpectrumSeriesPlotter(MPLPlotter):
             t (numpy array): Time data to use if not the data in spectrum_series
             t_name (str): Name of time variable if not the one in spectrum_series
             tspan (iterable): The span of the time data to plot
+            norm (matplotlib.colors.Normalize): The color scale for t. Defaults to
+                the range of t.
         """
         spectrum_series = spectrum_series or self.spectrum_series
         field = field or spectrum_series.field
@@ -238,21 +238,17 @@ class SpectrumSeriesPlotter(MPLPlotter):
         data = field.data
         x = field.axes_series[1].data
         t = t if t is not None else field.axes_series[0].t
-        time = field.axes_series[0].t
         if tspan is not None:
+            time = field.axes_series[0].t
             mask = (time >= tspan[0]) & (time <= tspan[1])
-            time = time[mask]
             data = data[mask]
-            if t is not None:
-                t = t[mask]
+            t = t[mask]
 
         t_name = t_name or field.axes_series[0].name
 
         cmap = plt.get_cmap(cmap_name)
         if norm is None:
             norm = mpl.colors.Normalize(vmin=np.min(t), vmax=np.max(t))
-        else:
-            norm = norm
 
         if not ax:
             ax = self.new_ax()
@@ -268,11 +264,6 @@ class SpectrumSeriesPlotter(MPLPlotter):
         if make_colorbar:
             cb = plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
             cb.set_label(t_name)
-        if xlim:
-            ax.set_xlim(xlim)
-
-        if ylim:
-            ax.set_ylim(ylim)
 
         return ax
 
@@ -513,8 +504,6 @@ class SpectroMeasurementPlotter(MPLPlotter):
         ax=None,
         cmap_name="jet",
         make_colorbar=True,
-        xlim=None,
-        ylim=None,
         tspan=None,
         t=None,
         norm=None,
@@ -553,8 +542,6 @@ class SpectroMeasurementPlotter(MPLPlotter):
             make_colorbar=make_colorbar,
             t=v,
             t_name=v_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
             norm=norm,
         )

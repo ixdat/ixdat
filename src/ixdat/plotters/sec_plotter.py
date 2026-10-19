@@ -28,8 +28,7 @@ class SECPlotter(SpectroMeasurementPlotter):
         cmap_name="inferno",
         make_colorbar=False,
         continuous=None,
-        max_threshold=None,
-        min_threshold=None,
+        zspan=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with time as x-asis.
@@ -61,10 +60,8 @@ class SECPlotter(SpectroMeasurementPlotter):
                 if available. If the duration is not available, each spectrum heat plot
                 extends to the start of the next one.
                 Defaults to `measurement.spectrum_series.continuous`.
-            max_threshold (float): Maximum value to display.
-                Values above are set to max_threshold.
-            min_threshold (float): Minimum value to display.
-                Values below are set to min_threshold.
+            zspan (iterable): [min, max] of the values to show in the heat plot.
+                Values outside are shown as min or max.
 
         Returns:
             list of Axes: axes=[spectra, potential, None, current]
@@ -96,8 +93,8 @@ class SECPlotter(SpectroMeasurementPlotter):
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             continuous=continuous,
-            max_threshold=max_threshold,
-            min_threshold=min_threshold,
+            min_threshold=zspan[0] if zspan is not None else None,
+            max_threshold=zspan[1] if zspan is not None else None,
         )
         if make_colorbar:
             pass  # TODO: adjust EC plot to be same width as heat plot despite colorbar.
@@ -196,8 +193,7 @@ class ECFTIRPlotter(SECPlotter):
         t_ref=None,
         cmap_name="inferno",
         make_colorbar=False,
-        max_threshold=None,
-        min_threshold=None,
+        zspan=None,
         **kwargs,
     ):
         """Plot an ECFTIRMeasurement in two panels with time as x-asis.
@@ -223,10 +219,8 @@ class ECFTIRPlotter(SECPlotter):
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present misaligns axes
-            max_threshold (float): Maximum value to display.
-                Values above are set to max_threshold.
-            min_threshold (float): Minimum value to display.
-                Values below are set to min_threshold.
+            zspan (iterable): [min, max] of the values to show in the heat plot.
+                Values outside are shown as min or max.
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
 
@@ -248,8 +242,7 @@ class ECFTIRPlotter(SECPlotter):
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             field=relative_spectra,
-            max_threshold=max_threshold,
-            min_threshold=min_threshold,
+            zspan=zspan,
             **kwargs,
         )
         
@@ -267,10 +260,7 @@ class ECFTIRPlotter(SECPlotter):
         index_ref=None,
         cmap_name="jet",
         make_colorbar=True,
-        xlim=None,
-        ylim=None,
         tspan=None,
-        boxcar=None,
     ):
         """Plot an ECFTIRMeasurement as spectra colored based on potential.
 
@@ -289,7 +279,6 @@ class ECFTIRPlotter(SECPlotter):
             cmap_name (str): The name of the colormap to use. Defaults to "jet", see
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
             make_colorbar (bool): Whether to make a colorbar.
-            boxcar = boxcar filter size. By default it is one.
         """
 
         measurement = measurement or self.measurement
@@ -304,8 +293,6 @@ class ECFTIRPlotter(SECPlotter):
             make_colorbar=make_colorbar,
             ax=ax,
             vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
         )
         
@@ -339,8 +326,7 @@ class ECOpticalPlotter(SECPlotter):
         t_ref=None,
         cmap_name="inferno",
         make_colorbar=False,
-        max_threshold=None,
-        min_threshold=None,
+        zspan=None,
         **kwargs,
     ):
         """Plot an SECMeasurement in two panels with time as x-asis.
@@ -365,10 +351,8 @@ class ECOpticalPlotter(SECPlotter):
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html#sequential
             make_colorbar (bool): Whether to make a colorbar.
                 FIXME: colorbar at present misaligns axes
-            max_threshold (float): Maximum value to display.
-                Values above are set to max_threshold.
-            min_threshold (float): Minimum value to display.
-                Values below are set to min_threshold.
+            zspan (iterable): [min, max] of the values to show in the heat plot.
+                Values outside are shown as min or max.
             kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_measurement().
 
@@ -390,8 +374,7 @@ class ECOpticalPlotter(SECPlotter):
             cmap_name=cmap_name,
             make_colorbar=make_colorbar,
             field=dOD_series,
-            max_threshold=max_threshold,
-            min_threshold=min_threshold,
+            zspan=zspan,
             **kwargs,
         )
 
@@ -474,10 +457,7 @@ class ECOpticalPlotter(SECPlotter):
         index_ref=None,
         cmap_name="jet",
         make_colorbar=True,
-        xlim=None,
-        ylim=None,
         tspan=None,
-        boxcar=None,
     ):
         """Plot an SECMeasurement as spectra colored based on potential.
 
@@ -496,7 +476,6 @@ class ECOpticalPlotter(SECPlotter):
             cmap_name (str): The name of the colormap to use. Defaults to "jet", see
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
             make_colorbar (bool): Whether to make a colorbar.
-            boxcar = boxcar filter size. By default it is one.
         """
 
         measurement = measurement or self.measurement
@@ -509,8 +488,6 @@ class ECOpticalPlotter(SECPlotter):
             make_colorbar=make_colorbar,
             ax=ax,
             vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
         )
 
@@ -564,67 +541,6 @@ class ECOpticalPlotter(SECPlotter):
         )
         return axes
 
-    def plot_wavelengths_vs_cv(
-        self,
-        *,
-        measurement=None,
-        wavelengths=None,
-        axes=None,
-        cmap_name="jet",
-        tspan=None,
-        cycle=None,
-        **kwargs,
-    ):
-        """Plot the dO.D. for specific wavelength vs potential on the left x axis, with
-        current on the right y axis.
-
-        Args:
-            measurement (Measurement): The measurement to be plotted, if different from
-                self.measurement
-            wavelengths (list of str): The names of the wavelengths to track as strings,
-                e.g. "w400" for 400 nm
-            axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
-            cmap_name (str): The name of the colormap to use. Defaults to "jet", see
-                https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
-            tspan (timespan): The timespan to plot
-            **kwargs: Additional key-word arguments are passed on to
-                ECPlotter.plot_measurement
-        """
-
-        measurement = measurement or self.measurement
-        wavelengths = wavelengths or measurement.tracked_wavelengths
-
-        if not axes:
-            fig, ax = plt.subplots()
-            ax_current = ax.twinx()
-            axes = ax, ax_current
-        else:
-            ax, ax_current = axes
-
-        cmap = plt.get_cmap(cmap_name)
-        norm = mpl.colors.Normalize(vmin=min(measurement.wl), vmax=max(measurement.wl))
-        t_v, v = measurement.grab("potential")
-
-        # Plot CV on right-hand axis
-        self.ec_plotter.plot_vs_potential(
-            measurement=measurement, ax=ax_current, tspan=tspan, **kwargs
-        )
-
-        for wl_str in wavelengths:
-            x = float(wl_str[1:])
-            try:
-                t, y = measurement.grab(wl_str, tspan=tspan)
-            except SeriesNotFoundError:
-                measurement.track_wavelength(x)
-                t, y = measurement.grab(wl_str, tspan=tspan)
-            v_interp = np.interp(t, t_v, v)
-            ax.plot(v_interp, y, color=cmap(norm(x)), label=wl_str)
-        ax.legend()
-        ax.set_xlabel(measurement.U_name)
-        ax.set_ylabel(r"$\Delta$O.D.")
-
-        return axes
-
     def plot_wavelengths_vs_potential(
         self,
         *,
@@ -633,19 +549,24 @@ class ECOpticalPlotter(SECPlotter):
         axes=None,
         cmap_name="jet",
         tspan=None,
+        coplot=False,
         **kwargs,
     ):
-        """Plot the dO.D. for specific wavelength in the top panel vs potential
+        """Plot the dO.D. for specific wavelengths vs potential, with the CV
 
         Args:
             measurement (Measurement): The measurement to be plotted, if different from
                 self.measurement
             wavelengths (list of str): The names of the wavelengths to track as strings,
                 e.g. "w400" for 400 nm
-            axes (list of Ax): The axes to plot on, defaults to new matplotlib axes
+            axes (list of Ax): The axes to plot on, defaults to new matplotlib axes.
+                axes[0] is for the wavelengths and axes[1] for the CV.
             cmap_name (str): The name of the colormap to use. Defaults to "jet", see
                 https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
             tspan (timespan): The timespan to plot
+            coplot (bool): If True, the new axes are one plot with the CV on a right
+                y-axis. By default the wavelengths are in a top panel and the CV in a
+                bottom panel.
             **kwargs: Additional key-word arguments are passed on to
                 ECPlotter.plot_vs_potential
         """
@@ -657,7 +578,11 @@ class ECOpticalPlotter(SECPlotter):
         t_v, v = measurement.grab(measurement.U_name)
 
         if not axes:
-            axes = self.new_two_panel_axes()
+            if coplot:
+                fig, ax = plt.subplots()
+                axes = [ax, ax.twinx()]
+            else:
+                axes = self.new_two_panel_axes()
         for wl_str in wavelengths:
             x = float(wl_str[1:])
             try:
@@ -669,12 +594,13 @@ class ECOpticalPlotter(SECPlotter):
             axes[0].plot(v_interp, y, color=cmap(norm(x)), label=wl_str)
         axes[0].legend()
         axes[0].set_ylabel(r"$\Delta$O.D.")
+        if coplot:
+            axes[0].set_xlabel(measurement.U_name)
 
         self.ec_plotter.plot_vs_potential(
             measurement=measurement, ax=axes[1], tspan=tspan, **kwargs
         )
         return axes
-
 
     def plot_dOD_cycle_diff(
         self,
@@ -687,8 +613,6 @@ class ECOpticalPlotter(SECPlotter):
         cmap_name="jet",
         make_colorbar=True,
         ax=None,
-        xlim=None,
-        ylim=None,
         tspan=None,
         upper_noise_bound=None,
         lower_noise_bound=None,
@@ -709,8 +633,6 @@ class ECOpticalPlotter(SECPlotter):
             cmap_name (str): The name of the colormap to use. Defaults to "jet".
             make_colorbar (bool): Whether to make a colorbar.
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
-            xlim (iterable): The wavelength limits of the plot
-            ylim (iterable): The y limits of the plot
             tspan (iterable): The timespan of the spectra to plot
             upper_noise_bound (float): Upper noise bound of the system in [mOD],
                 e.g. found by measuring a blank FTO substrate.
@@ -730,8 +652,6 @@ class ECOpticalPlotter(SECPlotter):
             make_colorbar=make_colorbar,
             ax=ax,
             vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
         )
         if upper_noise_bound is not None and lower_noise_bound is not None:
@@ -752,8 +672,6 @@ class ECOpticalPlotter(SECPlotter):
         cmap_name="jet",
         make_colorbar=True,
         ax=None,
-        xlim=None,
-        ylim=None,
         tspan=None,
     ):
         """Plot difference spectra colored by potential
@@ -771,8 +689,6 @@ class ECOpticalPlotter(SECPlotter):
             cmap_name (str): The name of the colormap to use. Defaults to "jet".
             make_colorbar (bool): Whether to make a colorbar.
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
-            xlim (iterable): The wavelength limits of the plot
-            ylim (iterable): The y limits of the plot
             tspan (iterable): The timespan of the spectra to plot
         """
         measurement = measurement or self.measurement
@@ -784,8 +700,6 @@ class ECOpticalPlotter(SECPlotter):
             make_colorbar=make_colorbar,
             ax=ax,
             vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
         )
 
@@ -808,8 +722,6 @@ class ECOpticalPlotter(SECPlotter):
         cmap_name="jet",
         make_colorbar=True,
         ax=None,
-        xlim=None,
-        ylim=None,
     ):
         """Plot the converged spectra of the measurement's SpectrumDeconvolutor
 
@@ -822,8 +734,6 @@ class ECOpticalPlotter(SECPlotter):
             cmap_name (str): The name of the colormap to use. Defaults to "jet".
             make_colorbar (bool): Whether to make a colorbar.
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
-            xlim (iterable): The wavelength limits of the plot
-            ylim (iterable): The y limits of the plot
         """
         measurement = measurement or self.measurement
         decon = self._get_deconvolutor(measurement)
@@ -840,8 +750,6 @@ class ECOpticalPlotter(SECPlotter):
             ax=ax,
             vs=measurement.U_name,
             t=np.array(potentials),
-            xlim=xlim,
-            ylim=ylim,
             norm=norm,
         )
 
@@ -852,8 +760,6 @@ class ECOpticalPlotter(SECPlotter):
         cmap_name="jet",
         make_colorbar=True,
         axes=None,
-        xlim=None,
-        ylim=None,
         tspan=None,
     ):
         """Plot the fit coefficients vs potential on top and the residuals below
@@ -870,8 +776,6 @@ class ECOpticalPlotter(SECPlotter):
             make_colorbar (bool): Whether to make a colorbar for the residuals.
             axes (list of Axis): [coefficients axis, residuals axis]. New ones are
                 made by default.
-            xlim (iterable): The wavelength limits of the residuals plot
-            ylim (iterable): The y limits of the residuals plot
             tspan (iterable): The timespan of the residuals to plot
         """
         measurement = measurement or self.measurement
@@ -906,8 +810,6 @@ class ECOpticalPlotter(SECPlotter):
             make_colorbar=make_colorbar,
             ax=axes[1],
             vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
         )
         if decon.noise_bound:
@@ -927,8 +829,6 @@ class ECOpticalPlotter(SECPlotter):
         cmap_name="jet",
         make_colorbar=True,
         ax=None,
-        xlim=None,
-        ylim=None,
         tspan=None,
     ):
         """Plot the spectra reconstructed by the SpectrumDeconvolutor's fit
@@ -939,8 +839,6 @@ class ECOpticalPlotter(SECPlotter):
             cmap_name (str): The name of the colormap to use. Defaults to "jet".
             make_colorbar (bool): Whether to make a colorbar.
             ax (matplotlib Axis): The axes to plot on. A new one is made by default.
-            xlim (iterable): The wavelength limits of the plot
-            ylim (iterable): The y limits of the plot
             tspan (iterable): The timespan of the spectra to plot
         """
         measurement = measurement or self.measurement
@@ -952,7 +850,5 @@ class ECOpticalPlotter(SECPlotter):
             make_colorbar=make_colorbar,
             ax=ax,
             vs=measurement.U_name,
-            xlim=xlim,
-            ylim=ylim,
             tspan=tspan,
         )

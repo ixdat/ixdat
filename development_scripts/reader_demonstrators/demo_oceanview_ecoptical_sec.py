@@ -77,17 +77,19 @@ def demo_small_fixture():
     title_current_figure("Waterfall")
 
     print("plotting wavelength tracking")
-    ec_optical.plot_wavelengths(wavelengths=["w650", "w800"], tspan=[55, 95])
+    ec_optical.plotter.plot_wavelengths(wavelengths=["w650", "w800"], tspan=[55, 95])
     title_current_figure("Wavelength tracking vs time")
 
     print("plotting wavelength tracking vs potential")
-    ec_optical.plot_wavelengths_vs_potential(
+    ec_optical.plotter.plot_wavelengths_vs_potential(
         wavelengths=["w650", "w800"], tspan=[55, 95]
     )
     title_current_figure("Wavelength tracking vs potential")
 
     print("plotting wavelength tracking vs potential, with current overlaid")
-    ec_optical.plot_wavelengths_vs_cv(wavelengths=["w650", "w800"], tspan=[55, 95])
+    ec_optical.plotter.plot_wavelengths_vs_potential(
+        wavelengths=["w650", "w800"], tspan=[55, 95], coplot=True
+    )
     title_current_figure("Wavelength tracking vs potential, with current")
 
 
@@ -151,7 +153,7 @@ def demo_real_data_analysis():
     ):
         row.suptitle(title, x=0.01, ha="left", fontsize=17, fontweight="bold")
 
-    # The same colors for each wavelength as plot_wavelengths_vs_cv uses
+    # The same colors for each wavelength as plot_wavelengths_vs_potential uses
     cmap = plt.get_cmap("jet")
     norm = plt.Normalize(vmin=min(sec.wl), vmax=max(sec.wl))
     colors = [cmap(norm(float(wl_str[1:]))) for wl_str in wavelengths]
@@ -159,8 +161,7 @@ def demo_real_data_analysis():
     print("1. the measurement")
     sec.plot_measurement(
         wlspan=[400, 900],
-        min_threshold=0,
-        max_threshold=0.25,
+        zspan=[0, 0.25],
         J_name="cycle",
         axes=[axes[0, 0], axes[0, 1], None, axes[0, 1].twinx()],
     )
@@ -178,9 +179,11 @@ def demo_real_data_analysis():
     print("2. one anodic sweep, referenced to its start at 0.66 V")
     sweep = sec.select(cycle=6)
     sweep.set_reference_spectrum(spectrum=sweep.spectrum_series[0])
-    sweep.plot_waterfall(ax=axes[1, 0], xlim=(400, 900), ylim=(-0.02, 0.25))
+    sweep.plot_waterfall(ax=axes[1, 0])
+    axes[1, 0].set_xlim(400, 900)
+    axes[1, 0].set_ylim(-0.02, 0.25)
     axes[1, 0].set_title("2a. dOD spectra, colored by potential")
-    sweep.plot_wavelengths_vs_cv(
+    sweep.plotter.plot_wavelengths_vs_potential(
         wavelengths=wavelengths, axes=(axes[1, 1], axes[1, 1].twinx())
     )
     axes[1, 1].set_title("2b. Tracked wavelengths and current vs potential")
@@ -190,9 +193,8 @@ def demo_real_data_analysis():
     sweep.dOD_calculator.xspan = [400, 900]
     sweep.add_calculator(Denoiser(denoise_method="Savitzky-Golay", sg_window=21))
     diff_smooth = sweep["dOD>diff>smooth"]
-    sweep.plot_dOD_difference_spectra(
-        field=diff_smooth, xlim=(400, 900), ax=axes[1, 2]
-    )
+    sweep.plotter.plot_dOD_difference_spectra(field=diff_smooth, ax=axes[1, 2])
+    axes[1, 2].set_xlim(400, 900)
     axes[1, 2].set_ylim(-1.1, 1.1)
     axes[1, 2].set_title("2c. Smoothed difference spectra (normalised)")
 
@@ -220,13 +222,16 @@ def demo_real_data_analysis():
     axes[2, 0].set_ylabel("distance to next difference spectrum")
     axes[2, 0].legend()
     axes[2, 0].set_title("3a. Convergent regions (grey)")
-    sweep.plot_converged_spectra(ax=axes[2, 1])
+    sweep.plotter.plot_converged_spectra(ax=axes[2, 1])
     axes[2, 1].set_title("3b. Converged spectra (normalised)")
-    sweep.plot_fit_and_residuals(axes=[axes[2, 2], axes[3, 1]], xlim=(400, 900))
+    sweep.plotter.plot_fit_and_residuals(axes=[axes[2, 2], axes[3, 1]])
+    axes[3, 1].set_xlim(400, 900)
     axes[2, 2].set_title("3c. Fit coefficient of each converged spectrum")
 
     print("4. checking the fit")
-    sweep.plot_fit_reconstruction(ax=axes[3, 0], xlim=(400, 900), ylim=(-0.02, 0.25))
+    sweep.plotter.plot_fit_reconstruction(ax=axes[3, 0])
+    axes[3, 0].set_xlim(400, 900)
+    axes[3, 0].set_ylim(-0.02, 0.25)
     axes[3, 0].set_title("4a. Reconstructed dOD spectra (compare 2a)")
     axes[3, 1].set_title("4b. Residuals / [mOD]")
     measured = sweep["dOD"]

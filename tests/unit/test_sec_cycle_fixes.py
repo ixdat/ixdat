@@ -129,8 +129,24 @@ def test_sec_pipeline_on_real_fixture():
     assert sweep["dOD>diff>smooth"].data.shape == diff.data.shape
 
 
-def test_plot_wavelengths_vs_cv_accepts_caller_supplied_axes():
-    """Passing axes= explicitly used to raise UnboundLocalError on ax_current."""
+@pytest.mark.parametrize("coplot", [False, True])
+def test_plot_wavelengths_vs_potential(coplot):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    ec_optical = read_ec_optical_fixture()
+    axes = ec_optical.plotter.plot_wavelengths_vs_potential(
+        wavelengths=["w650"], coplot=coplot
+    )
+    assert len(axes[0].get_lines()) == 1
+    # with coplot, the CV is on a twin of the same axis
+    assert (axes[1].get_shared_x_axes().joined(axes[0], axes[1])) == coplot
+    plt.close("all")
+
+
+def test_plot_wavelengths_vs_potential_accepts_caller_supplied_axes():
     import matplotlib
 
     matplotlib.use("Agg")
@@ -138,7 +154,7 @@ def test_plot_wavelengths_vs_cv_accepts_caller_supplied_axes():
 
     ec_optical = read_ec_optical_fixture()
     fig, ax = plt.subplots()
-    axes = ec_optical.plot_wavelengths_vs_cv(
+    axes = ec_optical.plotter.plot_wavelengths_vs_potential(
         wavelengths=["w650"], axes=(ax, ax.twinx())
     )
     assert axes[0] is ax

@@ -168,14 +168,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             # left out for transmission or absorption data.
             self._reference_spectrum = None
         self.tracked_wavelengths = []
+        # Other plots are available via self.plotter, e.g.
+        # self.plotter.plot_wavelengths()
         self.plot_waterfall = self.plotter.plot_waterfall
-        self.plot_wavelengths = self.plotter.plot_wavelengths
-        self.plot_dOD_difference_spectra = self.plotter.plot_dOD_difference_spectra
-        self.plot_converged_spectra = self.plotter.plot_converged_spectra
-        self.plot_fit_and_residuals = self.plotter.plot_fit_and_residuals
-        self.plot_fit_reconstruction = self.plotter.plot_fit_reconstruction
-        self.plot_wavelengths_vs_cv = self.plotter.plot_wavelengths_vs_cv
-        self.plot_wavelengths_vs_potential = self.plotter.plot_wavelengths_vs_potential
         self.technique = "EC-Optical"
 
     def cut(self, tspan, t_zero=None):

@@ -34,7 +34,7 @@ axes = sec_meas.plot_measurement(
 )
 # axes[0].get_figure().savefig("decay_vs_t.png")
 
-axes = sec_meas.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
+axes = sec_meas.plotter.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
 
 ax_w = sec_meas.plot_waterfall()
 
