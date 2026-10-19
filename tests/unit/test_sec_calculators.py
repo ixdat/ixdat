@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from ixdat.calculators import CALCULATOR_CLASSES
-from ixdat.calculators.sec_calculators import DeltaODCalculator
+from ixdat.calculators.sec_calculators import DeltaODCalculator, Denoiser
 from ixdat.data_series import DataSeries, Field, TimeSeries, ValueSeries
 from ixdat.techniques import ECMeasurement
 from ixdat.techniques.spectroelectrochemistry import (
@@ -199,4 +199,87 @@ def test_round_trip_through_as_dict():
     calc = DeltaODCalculator(normalise=False, xspan=[400, 600], Vstep=0.01)
     copy = DeltaODCalculator.from_dict(calc.as_dict())
     assert isinstance(copy, DeltaODCalculator)
+    assert repr(copy) == repr(calc)
+
+
+def noisy_sec(seed=0):
+    """Return a sec with many wavelengths: smooth spectra plus noise."""
+    rng = np.random.default_rng(seed)
+    wl = np.linspace(400, 900, 101)
+    smooth = np.outer(np.linspace(0.1, 1, N_SPECTRA), np.exp(-((wl - 650) / 80) ** 2))
+    return smooth, smooth + 0.01 * rng.standard_normal(smooth.shape), wl
+
+
+def field_of(data, wl, name="dOD"):
+    tseries = TimeSeries("time", "s", np.arange(float(len(data))), tstamp=TSTAMP)
+    return Field(
+        name=name,
+        unit_name="",
+        data=data,
+        axes_series=[tseries, DataSeries("wavelength", "nm", wl)],
+    )
+
+
+def test_savitzky_golay_reduces_noise():
+    smooth, noisy, wl = noisy_sec()
+    denoised = Denoiser(denoise_method="Savitzky-Golay", sg_window=11).denoise_spectra(
+        field_of(noisy, wl)
+    )
+    assert denoised.name == "dOD>smooth"
+    assert np.std(denoised.data - smooth) < 0.5 * np.std(noisy - smooth)
+
+
+def test_PCA_reduces_noise():
+    pytest.importorskip("sklearn")
+    smooth, noisy, wl = noisy_sec()
+    denoised = Denoiser(PCA_explained_variance=0.9).denoise_spectra(
+        field_of(noisy, wl)
+    )
+    assert np.std(denoised.data - smooth) < 0.5 * np.std(noisy - smooth)
+
+
+def test_unknown_denoise_method_raises():
+    _, noisy, wl = noisy_sec()
+    with pytest.raises(ValueError, match="denoise_method"):
+        Denoiser(denoise_method="magic").denoise_spectra(field_of(noisy, wl))
+
+
+def test_normalise_scales_to_unit_range():
+    _, noisy, wl = noisy_sec()
+    denoised = Denoiser(
+        denoise_method="Savitzky-Golay", sg_window=11, normalise=True
+    ).denoise_spectra(field_of(noisy, wl))
+    np.testing.assert_allclose(np.min(denoised.data, axis=1), 0, atol=1e-12)
+    np.testing.assert_allclose(np.max(denoised.data, axis=1), 1)
+
+
+def test_smooth_suffix_chains_with_diff():
+    sec = make_sec()
+    sec.set_reference_spectrum(t_ref=0)
+    sec.dOD_calculator.idx_step = 2
+    sec.add_calculator(
+        Denoiser(denoise_method="Savitzky-Golay", sg_window=3, sg_poly_order=1)
+    )
+    result = sec["dOD>diff>smooth"]
+    assert result.data.shape == sec["dOD>diff"].data.shape
+    # A linear filter leaves spectra linear in wavelength unchanged
+    np.testing.assert_allclose(result.data, sec["dOD>diff"].data)
+
+
+def test_measurement_denoise_spectra_uses_defaults_for_None():
+    _, noisy, wl = noisy_sec()
+    sec = make_sec()
+    denoised = sec.denoise_spectra(
+        spectra_field=field_of(noisy, wl),
+        denoise_method="Savitzky-Golay",
+        sg_window=None,
+        sg_poly_order=None,
+    )
+    assert denoised.data.shape == noisy.shape
+
+
+def test_denoiser_round_trip_through_as_dict():
+    calc = Denoiser(denoise_method="Savitzky-Golay", sg_window=7, xspan=[400, 800])
+    copy = Denoiser.from_dict(calc.as_dict())
+    assert isinstance(copy, Denoiser)
     assert repr(copy) == repr(calc)

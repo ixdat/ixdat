@@ -1131,79 +1131,53 @@ class ECOpticalMeasurement(SpectroECMeasurement):
     def denoise_spectra(
         self,
         spectra_field=None,
-        denoise_method="PCA",
-        PCA_explained_variance=0.99,
-        sg_window=10,
-        sg_poly_order=3,
-        normalise=False,
+        denoise_method=None,
+        PCA_explained_variance=None,
+        sg_window=None,
+        sg_poly_order=None,
+        normalise=None,
         wlmin=None,
         wlmax=None,
     ):
-        """Return a ValueSeries of denoised spectra for either a specific field
-        containing spectral data or for the spectra in a measurement.
+        """Return a field of denoised spectra, `self.spectra` by default.
+
+        See :func:`~calculators.sec_calculators.Denoiser.denoise_spectra`. Arguments
+        left as None take the `Denoiser` defaults. To look up denoised spectra
+        instead, add a `Denoiser` with `self.add_calculator` and use e.g.
+        `self["dOD>smooth"]`.
 
         Args:
-            spectra_field (str) : the field containing the data for denoising
-            denoise_method (str): The method to use for denoising spectra. PCA (principal
-                component analysis) by default. See
-                https://www.nature.com/articles/s41598-018-32713-7
-            PCA_n_components (float): The value of explained variance to pass to PCA.
-                0.99 by default (use the number of components such that the amount of
-                variance that needs to be explained is greater than 99%)
-            sg_window (int) : the window size to use for the Savitzky-Golay filter. 10 by
+            spectra_field (Field): The spectra to denoise. Defaults to self.spectra.
+            denoise_method (str): "PCA" (default) or "Savitzky-Golay"
+            PCA_explained_variance (float): The fraction of the variance that the
+                kept principal components must explain. 0.99 by default.
+            sg_window (int): The window length of the Savitzky-Golay filter. 10 by
                 default.
-            sg_poly_order (int) : the order of the polynomial used to fit the data in the
-                window. 3 by default.
-        Returns ValueSeries: The field containing denoised spectra.
+            sg_poly_order (int): The polynomial order of the Savitzky-Golay filter.
+                3 by default.
+            normalise (bool): Whether to scale each spectrum to [0, 1]. False by
+                default.
+            wlmin (float): The minimum wavelength in [nm] used for normalisation
+            wlmax (float): The maximum wavelength in [nm] used for normalisation
+        Return Field: The denoised spectra
         """
+        from ..calculators.sec_calculators import Denoiser
 
         if spectra_field is None:
             spectra_field = self.spectra
-
-        spectra = spectra_field.data
-
-        if denoise_method == "PCA":
-            from sklearn.decomposition import PCA
-
-            pca = PCA()
-            pca.fit(spectra)
-            explained_variance = np.cumsum(pca.explained_variance_ratio_)
-            components = np.argmax(explained_variance >= PCA_explained_variance) + 1
-
-            analysis = PCA(n_components=components)
-            scores = analysis.fit_transform(spectra)
-            spectra_denoised = analysis.inverse_transform(scores)
-
-        if denoise_method == "Savitzky-Golay":
-            from scipy.signal import savgol_filter
-
-            spectra_denoised = savgol_filter(
-                spectra, window_length=sg_window, polyorder=sg_poly_order, axis=1
-            )
-        if normalise:
-            # Select wavelength range
+        xspan = None
+        if wlmin is not None or wlmax is not None:
             wl = spectra_field.axes_series[1].data
-            # trim data to ignore regions outside of detection range before normalising
-            if wlmin is None:
-                wlmin = np.min(wl)
-            if wlmax is None:
-                wlmax = np.max(wl)
-            wl_range = (wl >= wlmin) & (wl <= wlmax)
-
-            min_vals = np.min(spectra_denoised[:, wl_range], axis=1)
-            max_vals = np.max(spectra_denoised[:, wl_range], axis=1)
-            ranges = max_vals - min_vals
-            ranges[ranges == 0] = np.nan
-            spectra_denoised = (spectra_denoised - min_vals[:, np.newaxis]) / ranges[
-                :, np.newaxis
+            xspan = [
+                wlmin if wlmin is not None else np.min(wl),
+                wlmax if wlmax is not None else np.max(wl),
             ]
-            spectra_denoised = np.ma.masked_invalid(spectra_denoised)
-
-        spectra_denoised = Field(
-            data=spectra_denoised,
-            name=r"$\Delta$ A (U-$\delta$U)(normalised, denoised)",
-            unit_name="",
-            axes_series=spectra_field.axes_series,
+        return Denoiser().denoise_spectra(
+            spectra_field,
+            denoise_method=denoise_method,
+            PCA_explained_variance=PCA_explained_variance,
+            sg_window=sg_window,
+            sg_poly_order=sg_poly_order,
+            normalise=normalise,
+            xspan=xspan,
         )
-
-        return spectra_denoised

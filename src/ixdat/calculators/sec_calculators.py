@@ -318,3 +318,192 @@ class DeltaODCalculator(Calculator):
             data=np.ma.masked_invalid(diff),
             axes_series=[diff_tseries, xseries],
         )
+
+
+class Denoiser(Calculator):
+    """Calculator for denoised spectra.
+
+    Provides keys ending in ">smooth", e.g. "dOD>smooth" or "dOD>diff>smooth": the
+    field named before ">smooth", denoised by principal component analysis (PCA) or a
+    Savitzky-Golay filter. See `denoise_spectra`.
+
+    Add it to a measurement with `measurement.add_calculator(Denoiser(...))`. A cached
+    lookup is not recalculated when the parameters change, so call
+    `measurement.clear_cache()` after changing them, or call `denoise_spectra`
+    directly.
+    """
+
+    calculator_type = "denoiser"
+    available_series_names = set()
+    available_suffixes = {">smooth"}
+    denoise_methods = ("PCA", "Savitzky-Golay")
+    extra_column_attrs = {
+        "denoisers": {
+            "denoise_method",
+            "PCA_explained_variance",
+            "sg_window",
+            "sg_poly_order",
+            "normalise",
+            "xspan",
+        }
+    }
+
+    def __init__(
+        self,
+        name=None,
+        technique=None,
+        tstamp=None,
+        measurement=None,
+        denoise_method="PCA",
+        PCA_explained_variance=0.99,
+        sg_window=10,
+        sg_poly_order=3,
+        normalise=False,
+        xspan=None,
+    ):
+        """Initiate a Denoiser
+
+        Args:
+            name (str): The name of the calculator
+            technique (str): The technique of the calculator
+            tstamp (float): The time at which the calculator is valid
+            measurement (SpectroMeasurement): Optional. The measurement to use by
+                default
+            denoise_method (str): "PCA" (principal component analysis, default) or
+                "Savitzky-Golay". For PCA, see
+                https://www.nature.com/articles/s41598-018-32713-7
+            PCA_explained_variance (float): The fraction of the variance that the
+                kept principal components must explain. 0.99 by default.
+            sg_window (int): The window length of the Savitzky-Golay filter, in
+                number of wavelengths. 10 by default.
+            sg_poly_order (int): The order of the polynomial fitted in each window of
+                the Savitzky-Golay filter. 3 by default.
+            normalise (bool): Whether to scale each denoised spectrum to the range
+                [0, 1] within `xspan`. False by default.
+            xspan (iterable): [wl_min, wl_max], the wavelength range in [nm] used
+                for normalisation. Defaults to the full range.
+        """
+        super().__init__(
+            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+        )
+        self.denoise_method = denoise_method
+        self.PCA_explained_variance = PCA_explained_variance
+        self.sg_window = sg_window
+        self.sg_poly_order = sg_poly_order
+        self.normalise = normalise
+        self.xspan = xspan
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(denoise_method={self.denoise_method!r}, "
+            f"PCA_explained_variance={self.PCA_explained_variance}, "
+            f"sg_window={self.sg_window}, sg_poly_order={self.sg_poly_order}, "
+            f"normalise={self.normalise}, xspan={self.xspan})"
+        )
+
+    def __add__(self, other):
+        """Adding a Denoiser replaces this one with the newer one."""
+        return other
+
+    def calculate_series(self, key, measurement=None):
+        """Return the denoised field for a key ending in ">smooth"."""
+        measurement = measurement or self.measurement
+        if key.endswith(">smooth"):
+            spectra_field = measurement[key.removesuffix(">smooth")]
+            return self.denoise_spectra(spectra_field, name=key)
+        raise QuantificationError(f"{self} can not calculate {key}")
+
+    def denoise_spectra(
+        self,
+        spectra_field,
+        denoise_method=None,
+        PCA_explained_variance=None,
+        sg_window=None,
+        sg_poly_order=None,
+        normalise=None,
+        xspan=None,
+        name=None,
+    ):
+        """Return a field of denoised spectra
+
+        Arguments left as None are taken from the calculator's attributes. Arguments
+        that are given update the calculator's attributes.
+
+        Args:
+            spectra_field (Field): The spectra to denoise, spanning time and
+                wavelength
+            denoise_method (str): "PCA" or "Savitzky-Golay"
+            PCA_explained_variance (float): The fraction of the variance that the
+                kept principal components must explain
+            sg_window (int): The window length of the Savitzky-Golay filter
+            sg_poly_order (int): The polynomial order of the Savitzky-Golay filter
+            normalise (bool): Whether to scale each spectrum to [0, 1] within xspan
+            xspan (iterable): [wl_min, wl_max] used for normalisation
+            name (str): The name of the returned field. Defaults to the name of
+                `spectra_field` with ">smooth" appended.
+        Return Field: The denoised spectra, with the axes of `spectra_field`
+        """
+        given = dict(
+            denoise_method=denoise_method,
+            PCA_explained_variance=PCA_explained_variance,
+            sg_window=sg_window,
+            sg_poly_order=sg_poly_order,
+            normalise=normalise,
+            xspan=xspan,
+        )
+        for attr, value in given.items():
+            if value is not None:
+                setattr(self, attr, value)
+
+        spectra = spectra_field.data
+
+        if self.denoise_method == "PCA":
+            try:
+                from sklearn.decomposition import PCA
+            except ImportError as e:
+                raise ImportError(
+                    "Denoising with PCA uses the scikit-learn package. Install it"
+                    " with `pip install scikit-learn` and try again, or use"
+                    ' denoise_method="Savitzky-Golay".'
+                    f"\noriginal error:\n{e}"
+                )
+            pca = PCA()
+            pca.fit(spectra)
+            explained_variance = np.cumsum(pca.explained_variance_ratio_)
+            components = (
+                np.argmax(explained_variance >= self.PCA_explained_variance) + 1
+            )
+            analysis = PCA(n_components=components)
+            scores = analysis.fit_transform(spectra)
+            spectra_denoised = analysis.inverse_transform(scores)
+        elif self.denoise_method == "Savitzky-Golay":
+            from scipy.signal import savgol_filter
+
+            spectra_denoised = savgol_filter(
+                spectra,
+                window_length=self.sg_window,
+                polyorder=self.sg_poly_order,
+                axis=1,
+            )
+        else:
+            raise ValueError(
+                f"denoise_method must be one of {self.denoise_methods},"
+                f" not {self.denoise_method!r}"
+            )
+
+        if self.normalise:
+            mask = get_x_mask(spectra_field.axes_series[1].data, self.xspan)
+            min_vals = np.min(spectra_denoised[:, mask], axis=1)
+            max_vals = np.max(spectra_denoised[:, mask], axis=1)
+            ranges = max_vals - min_vals
+            ranges[ranges == 0] = np.nan
+            spectra_denoised = (spectra_denoised - min_vals[:, np.newaxis]) / ranges[
+                :, np.newaxis
+            ]
+
+        return Field(
+            name=name or spectra_field.name + ">smooth",
+            unit_name="" if self.normalise else spectra_field.unit_name,
+            data=np.ma.masked_invalid(spectra_denoised),
+            axes_series=spectra_field.axes_series,
+        )
