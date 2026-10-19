@@ -6,7 +6,7 @@ from ..calculators.scan_rate_tools import (
     tspan_passing_through,
     find_signed_sections,
     merge_short_sections,
-    calc_sharp_v_scan
+    calc_sharp_v_scan,
 )
 from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
 from ..tools import deprecate

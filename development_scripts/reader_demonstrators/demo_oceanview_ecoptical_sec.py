@@ -211,9 +211,7 @@ def demo_real_data_analysis():
     sweep.add_calculator(decon)
 
     tseries = diff_smooth.axes_series[0]
-    U_diff = sweep.grab_for_t(
-        "potential", t=tseries.t + tseries.tstamp - sweep.tstamp
-    )
+    U_diff = sweep.grab_for_t("potential", t=tseries.t + tseries.tstamp - sweep.tstamp)
     axes[2, 0].plot(U_diff[:-1], decon.adjacent_distances)
     axes[2, 0].axhline(conv_limit, color="k", linestyle="--", label="conv_limit")
     for span in decon.potentialspans:

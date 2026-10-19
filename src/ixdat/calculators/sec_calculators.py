@@ -79,6 +79,56 @@ def calc_cycle_difference(measurement, cycle_1=1, cycle_2=2, c_name="cycle"):
     )
 
 
+def calc_dOD_values(y, y_ref, spectra_type):
+    """Return the change in optical density of spectra y with respect to y_ref
+
+    Args:
+        y (np.array): The spectra, 1-D for one spectrum or 2-D with one per row
+        y_ref (np.array): The reference spectrum, or None. Intensity data needs one.
+            Transmission and absorption data without one are taken as referenced to
+            the reference used during data collection.
+        spectra_type (str): "Intensity", "Transmission" (in %), or "Absorption"
+    Return np.ma.MaskedArray: The dOD, masked where it can't be calculated
+    """
+    if y_ref is None:
+        if spectra_type == "Absorption":
+            warnings.warn(
+                "Absorption data and no reference spectrum given. Optical density"
+                " is referred to the reference used during data collection."
+            )
+            dOD = y
+        elif spectra_type == "Transmission":
+            warnings.warn(
+                "Transmission data and no reference spectrum given. Optical"
+                " density is referred to the reference used during data"
+                " collection."
+            )
+            # Transmission is in percent
+            transmission = y / 100
+            transmission[transmission == 0] = np.nan
+            # Zero or negative values give NaN, which is masked below
+            with np.errstate(invalid="ignore"):
+                dOD = -np.log10(transmission)
+        else:
+            raise ValueError(
+                "For intensity data, a reference must be provided to find the"
+                " optical density"
+            )
+    elif spectra_type == "Absorption":
+        dOD = y - y_ref
+    else:  # Intensity or Transmission
+        ratio = np.divide(
+            y,
+            y_ref,
+            out=np.full_like(y, np.nan, dtype=float),
+            where=(abs(y) > 0) & (abs(y_ref) > 0),
+        )
+        # Negative ratios give NaN, which is masked below
+        with np.errstate(invalid="ignore"):
+            dOD = -np.log10(ratio)
+    return np.ma.masked_invalid(dOD)
+
+
 class DeltaODCalculator(Calculator):
     """Calculator for change in optical density (dOD) and its finite difference.
 
@@ -202,48 +252,14 @@ class DeltaODCalculator(Calculator):
         elif measurement.reference_spectrum is not None:
             ref = measurement.reference_spectrum
 
-        if ref is None:
-            if spectra_type == "Absorption":
-                warnings.warn(
-                    "Absorption data and no reference spectrum given. Optical density"
-                    " is referred to the reference used during data collection."
-                )
-                dOD = counts
-            elif spectra_type == "Transmission":
-                warnings.warn(
-                    "Transmission data and no reference spectrum given. Optical"
-                    " density is referred to the reference used during data"
-                    " collection."
-                )
-                # Transmission is in percent
-                transmission = counts / 100
-                transmission[transmission == 0] = np.nan
-                # Zero or negative values give NaN, which is masked below
-                with np.errstate(invalid="ignore"):
-                    dOD = -np.log10(transmission)
-            else:
-                raise ValueError(
-                    "For intensity data, a reference must be provided to find the"
-                    " optical density"
-                )
-        elif spectra_type == "Absorption":
-            dOD = counts - ref.y
-        else:  # Intensity or Transmission
-            ratio = np.divide(
-                counts,
-                ref.y,
-                out=np.full_like(counts, np.nan, dtype=float),
-                where=(abs(counts) > 0) & (abs(ref.y) > 0),
-            )
-            # Negative ratios give NaN, which is masked below
-            with np.errstate(invalid="ignore"):
-                dOD = -np.log10(ratio)
+        y_ref = ref.y if ref is not None else None
+        dOD = calc_dOD_values(counts, y_ref, spectra_type)
 
         return Field(
             name="dOD",
             unit_name="",
             axes_series=spectra.axes_series,
-            data=np.ma.masked_invalid(dOD),
+            data=dOD,
         )
 
     def calc_diff(
@@ -538,9 +554,7 @@ class Denoiser(Calculator):
             pca = PCA()
             pca.fit(spectra)
             explained_variance = np.cumsum(pca.explained_variance_ratio_)
-            components = (
-                np.argmax(explained_variance >= self.PCA_explained_variance) + 1
-            )
+            components = np.argmax(explained_variance >= self.PCA_explained_variance) + 1
             analysis = PCA(n_components=components)
             scores = analysis.fit_transform(spectra)
             spectra_denoised = analysis.inverse_transform(scores)
@@ -906,7 +920,8 @@ class SpectrumDeconvolutor(Calculator):
             tspan = (time[start] + t_offset, time[end] + t_offset)
             potentials = measurement.grab_for_t("potential", t=np.array(tspan))
             converged_spectra.append(spectra[start:end].mean(axis=0))
-            converged_times.append(time[start:end + 1].mean())
+            i_last = end + 1  # the time of the last difference spectrum's end
+            converged_times.append(time[start:i_last].mean())
             timespans.append(tspan)
             potentialspans.append((potentials[0], potentials[-1]))
 

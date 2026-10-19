@@ -161,9 +161,7 @@ def test_plot_wavelengths_vs_potential_accepts_caller_supplied_axes():
     plt.close(fig)
 
 
-@pytest.mark.parametrize(
-    "method", ["plot_wavelengths", "plot_wavelengths_vs_potential"]
-)
+@pytest.mark.parametrize("method", ["plot_wavelengths", "plot_wavelengths_vs_potential"])
 def test_plot_methods_bound_on_main_still_work_with_a_deprecation_warning(method):
     import matplotlib
 
@@ -175,3 +173,14 @@ def test_plot_methods_bound_on_main_still_work_with_a_deprecation_warning(method
         axes = getattr(ec_optical, method)(wavelengths=["w650"])
     assert len(axes[0].get_lines()) == 1
     plt.close("all")
+
+
+def test_scan_rate_calculator_direction():
+    # 50 points per sweep, since the scan rate looks 10 points ahead and behind
+    v = np.concatenate([np.linspace(0, 1, 50), np.linspace(1, 0, 50)])
+    cv = make_triangular_cv(v)
+    direction = cv["direction"]
+    assert direction.name == "direction"
+    assert direction.unit_name == ""
+    np.testing.assert_array_equal(direction.data, np.sign(cv["scan_rate"].data))
+    assert direction.data[25] == 1 and direction.data[75] == -1

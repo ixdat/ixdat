@@ -177,9 +177,10 @@ class SECPlotter(SpectroMeasurementPlotter):
     def plot_stacked_spectra(self, **kwargs):
         kwargs.update(vs="potential")
         ax = super().plot_stacked_spectra_vs(**kwargs)
-        
+
         return ax
-    
+
+
 class ECFTIRPlotter(SECPlotter):
     def plot_measurement(
         self,
@@ -199,8 +200,8 @@ class ECFTIRPlotter(SECPlotter):
         """Plot an ECFTIRMeasurement in two panels with time as x-asis.
 
         The top panel is a heat plot with wavenumber on y-axis and color representing
-        spectrum. At most one of index_ref, V_ref and t_ref should be given, and if neither are
-        given the measurement's default reference_spectrum is used to calculate the
+        spectrum. At most one of index_ref, V_ref and t_ref should be given, and if
+        neither are given the measurement's default reference_spectrum is used for the
         relative spectra
 
         Args:
@@ -212,7 +213,8 @@ class ECFTIRPlotter(SECPlotter):
                 plot, axes[1] for potential, and axes[2] for current. The axes are
                 optional and a new set of axes, where axes[1] and axes[2] are twinned on
                 x, are generated if not provided.
-            index_ref (int): Spectrum index to use as reference for calculating relative spectra
+            index_ref (int): Spectrum index to use as reference for calculating
+                relative spectra
             V_ref (float): Potential to use as reference for calculating relative spectra
             t_ref (float): Time to use as a reference for calculating relative spectra
             cmap_name (str): The name of the colormap to use. Defaults to "inferno", see
@@ -232,9 +234,11 @@ class ECFTIRPlotter(SECPlotter):
                 axes[3] is the bottom right axis with electrode current
         """
         measurement = measurement or self.measurement
-        relative_spectra = measurement.apply_reference(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
+        relative_spectra = measurement.apply_reference(
+            V_ref=V_ref, t_ref=t_ref, index_ref=index_ref
+        )
 
-        axes= super().plot_measurement(
+        axes = super().plot_measurement(
             measurement=measurement,
             tspan=tspan,
             xspan=wavenumber_span,
@@ -245,11 +249,11 @@ class ECFTIRPlotter(SECPlotter):
             zspan=zspan,
             **kwargs,
         )
-        
-        #axes[0].invert_xaxis()
-        
+
+        # axes[0].invert_xaxis()
+
         return axes
-    
+
     def plot_waterfall(
         self,
         *,
@@ -282,11 +286,11 @@ class ECFTIRPlotter(SECPlotter):
         """
 
         measurement = measurement or self.measurement
-        relative_spectra = measurement.apply_reference(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
-        
-        
+        relative_spectra = measurement.apply_reference(
+            V_ref=V_ref, t_ref=t_ref, index_ref=index_ref
+        )
 
-        ax= super().plot_waterfall_vs(
+        ax = super().plot_waterfall_vs(
             measurement=measurement,
             field=relative_spectra,
             cmap_name=cmap_name,
@@ -295,23 +299,25 @@ class ECFTIRPlotter(SECPlotter):
             vs=measurement.U_name,
             tspan=tspan,
         )
-        
+
         ax.invert_xaxis
-        
+
         return ax
-    
-    def plot_stacked_spectra(self, measurement=None, V_ref=None, t_ref=None, index_ref=None, vs=None, **kwargs):
+
+    def plot_stacked_spectra(
+        self, measurement=None, V_ref=None, t_ref=None, index_ref=None, vs=None, **kwargs
+    ):
         kwargs.update(vs=vs)
         measurement = measurement or self.measurement
-        relative_spectra = measurement.apply_reference(V_ref=V_ref, t_ref=t_ref, index_ref=index_ref)
-        ax = super().plot_stacked_spectra_vs(
-        field=relative_spectra,
-        **kwargs
+        relative_spectra = measurement.apply_reference(
+            V_ref=V_ref, t_ref=t_ref, index_ref=index_ref
         )
-    
+        ax = super().plot_stacked_spectra_vs(field=relative_spectra, **kwargs)
+
         ax.invert_xaxis()
-    
+
         return ax
+
 
 class ECOpticalPlotter(SECPlotter):
     def plot_measurement(

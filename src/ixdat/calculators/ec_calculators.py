@@ -8,8 +8,10 @@ from ..measurement_base import Calculator
 from ..data_series import ValueSeries
 from ..plotters.ec_plotter import EC_FANCY_NAMES
 from ..exceptions import QuantificationError
-from .scan_rate_tools import calc_sharp_v_scan
 import numpy as np
+
+from .scan_rate_tools import calc_sharp_v_scan
+
 
 class ECCalibration(Calculator):
     """An electrochemical calibration with RE_vs_RHE, A_el, and/or R_Ohm"""
@@ -132,24 +134,25 @@ class ScanRateCalculator:
     available_series_names = {"scan_rate", "direction"}
 
     def calculate_series(self, key, measurement, res_points=10):
-        """The scan rate as a ValueSeries"""
+        """The scan rate, or its sign as "direction", as a ValueSeries
+
+        "direction" is 1 during anodic sweeps, -1 during cathodic sweeps, and 0 where
+        the scan rate is exactly zero.
+        """
         if key not in self.available_series_names:
             raise QuantificationError(f"{self} can not calculate {key}")
         t, v = measurement.grab("potential")
         scan_rate_vec = calc_sharp_v_scan(t, v, res_points=res_points)
-        direction=np.sign(scan_rate_vec)
-        if key == "scan_rate":
-            scan_rate_series = ValueSeries(
-                name="scan_rate",
-                unit_name="V/s",  # TODO: unit = potential.unit / potential.tseries.unit
-                data=scan_rate_vec,
-                tseries=measurement.potential.tseries,
-            )
         if key == "direction":
-            scan_rate_series = ValueSeries(
-                name="scan_rate",
-                unit_name="V/s",  # TODO: unit = potential.unit / potential.tseries.unit
-                data=direction,
+            return ValueSeries(
+                name="direction",
+                unit_name="",
+                data=np.sign(scan_rate_vec),
                 tseries=measurement.potential.tseries,
             )
-        return scan_rate_series
+        return ValueSeries(
+            name="scan_rate",
+            unit_name="V/s",  # TODO: unit = potential.unit / potential.tseries.unit
+            data=scan_rate_vec,
+            tseries=measurement.potential.tseries,
+        )

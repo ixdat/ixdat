@@ -246,9 +246,7 @@ class OceanViewTimeSeriesReader:
         xseries = DataSeries(name="wavelength", unit_name="nm", data=wavelengths)
         # The same tstamp goes on the TimeSeries and on the SpectrumSeries
         # below; if they disagree, ixdat shifts the relative times to match.
-        tseries = TimeSeries(
-            name="time", unit_name="s", data=rel_times, tstamp=t_zero
-        )
+        tseries = TimeSeries(name="time", unit_name="s", data=rel_times, tstamp=t_zero)
 
         if spectra_type == "Transmission":
             field = Field(

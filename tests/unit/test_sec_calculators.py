@@ -211,7 +211,7 @@ def noisy_sec(seed=0):
     """Return a sec with many wavelengths: smooth spectra plus noise."""
     rng = np.random.default_rng(seed)
     wl = np.linspace(400, 900, 101)
-    smooth = np.outer(np.linspace(0.1, 1, N_SPECTRA), np.exp(-((wl - 650) / 80) ** 2))
+    smooth = np.outer(np.linspace(0.1, 1, N_SPECTRA), np.exp(-(((wl - 650) / 80) ** 2)))
     return smooth, smooth + 0.01 * rng.standard_normal(smooth.shape), wl
 
 
@@ -237,9 +237,7 @@ def test_savitzky_golay_reduces_noise():
 def test_PCA_reduces_noise():
     pytest.importorskip("sklearn")
     smooth, noisy, wl = noisy_sec()
-    denoised = Denoiser(PCA_explained_variance=0.9).denoise_spectra(
-        field_of(noisy, wl)
-    )
+    denoised = Denoiser(PCA_explained_variance=0.9).denoise_spectra(field_of(noisy, wl))
     assert np.std(denoised.data - smooth) < 0.5 * np.std(noisy - smooth)
 
 
@@ -299,7 +297,7 @@ def two_transition_sec(n=81, noise=1e-4, seed=0, n_dead=0):
     rng = np.random.default_rng(seed)
     wl = np.linspace(400, 900, 101)
     shapes = np.array(
-        [np.exp(-((wl - 500) / 40) ** 2), np.exp(-((wl - 750) / 40) ** 2)]
+        [np.exp(-(((wl - 500) / 40) ** 2)), np.exp(-(((wl - 750) / 40) ** 2))]
     )
     potential = np.linspace(0, 1, n)
     completion = np.array(
@@ -515,9 +513,7 @@ def test_plot_dOD_cycle_diff():
 
     matplotlib.use("Agg")
     sec = two_cycle_sec(drift=0.01)
-    ax = sec.plotter.plot_dOD_cycle_diff(
-        upper_noise_bound=1, lower_noise_bound=-1
-    )
+    ax = sec.plotter.plot_dOD_cycle_diff(upper_noise_bound=1, lower_noise_bound=-1)
     assert len(ax.get_lines()) == len(calc_cycle_difference(sec).data)
 
 
@@ -563,3 +559,15 @@ def test_deconvolutor_leaves_out_nan_wavelengths():
     sec.add_calculator(decon)
     assert not np.any(np.ma.getmaskarray(sec["residuals"].data))
     assert np.max(np.abs(sec["residuals"].data)) < 5
+
+
+@pytest.mark.parametrize("spectra_type", ["Intensity", "Absorption"])
+def test_get_dOD_spectrum_matches_calc_dOD(spectra_type):
+    if spectra_type == "Absorption":
+        sec = make_sec(spectra_type="Absorption", data=expected_dOD() + 0.5)
+    else:
+        sec = make_sec()
+    # index_ref=0 used to be ignored
+    spectrum = sec.get_dOD_spectrum(index=4, index_ref=0)
+    np.testing.assert_allclose(spectrum.y, expected_dOD()[4])
+    np.testing.assert_allclose(spectrum.y, sec.calc_dOD(index_ref=0).data[4])

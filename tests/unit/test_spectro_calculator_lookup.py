@@ -30,9 +30,7 @@ class DoublingCalculator(Calculator):
 
 def make_spectro_measurement():
     """Return a SpectroMeasurement with 4 spectra of 3 wavelengths and one value."""
-    tseries = TimeSeries(
-        name="time", unit_name="s", data=np.arange(4.0), tstamp=TSTAMP
-    )
+    tseries = TimeSeries(name="time", unit_name="s", data=np.arange(4.0), tstamp=TSTAMP)
     wavelength = DataSeries(
         name="wavelength", unit_name="nm", data=np.array([400.0, 500.0, 600.0])
     )
@@ -45,9 +43,7 @@ def make_spectro_measurement():
     spectrum_series = SpectrumSeries(
         name="spectra", tstamp=TSTAMP, field=field, continuous=True
     )
-    value = ValueSeries(
-        name="value", unit_name="", data=np.arange(4.0), tseries=tseries
-    )
+    value = ValueSeries(name="value", unit_name="", data=np.arange(4.0), tseries=tseries)
     return SpectroMeasurement(
         name="test",
         tstamp=TSTAMP,

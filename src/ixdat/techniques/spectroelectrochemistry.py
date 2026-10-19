@@ -8,7 +8,6 @@ from ..data_series import Field, ValueSeries, TimeSeries
 from ..exporters import SECExporter
 from ..plotters import SECPlotter, ECOpticalPlotter
 from ..tools import deprecate
-import warnings
 
 
 class SpectroECMeasurement(SpectroMeasurement, ECMeasurement):
@@ -58,12 +57,15 @@ class OpticalSpectrumSeries(SpectrumSeries):
     column_types = {"spectra_type": str}
 
     def __init__(self, *args, **kwargs):
-       """Initiate an Optical Spectrum Series, as an addition to the spectrum series 
-       spectra_type: The form of the raw data (Intensity, Transmission, or Absorbance. Defaults to Intensity)
-       """
-       self.spectra_type = kwargs.pop("spectra_type", "Intensity")
-       super().__init__(*args, **kwargs)
-        
+        """Initiate an Optical Spectrum Series
+
+        Args:
+            spectra_type (str): The form of the raw data: "Intensity" (default),
+                "Transmission" (in %), or "Absorption"
+            Other args and kwargs are passed on to SpectrumSeries
+        """
+        self.spectra_type = kwargs.pop("spectra_type", "Intensity")
+        super().__init__(*args, **kwargs)
 
     def calc_average_spectra(
         self,
@@ -331,9 +333,9 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         if V is not None:
             if interpolate:
                 V_spec = self.grab_for_t(
-                        self.U_name,
-                        t=self.spectra.axes_series[0].t,
-                    )
+                    self.U_name,
+                    t=self.spectra.axes_series[0].t,
+                )
                 counts_interpolater = interp1d(
                     V_spec, counts, axis=0, fill_value=end_spectra, bounds_error=False
                 )
@@ -350,12 +352,12 @@ class ECOpticalMeasurement(SpectroECMeasurement):
                     t_spec, counts, axis=0, fill_value=end_spectra, bounds_error=False
                 )
                 y = counts_interpolater(t)
-                
+
             else:
                 t_diff = np.abs(t_spec - t)
                 index = np.argmin(t_diff)
                 y = counts[index]
-                
+
             name = name or f"{self.spectra.name}_{t}s"
         else:
             raise ValueError("Need t or V or index to select a spectrum!")
@@ -376,16 +378,16 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         V_ref=None,
         t_ref=None,
         index_ref=None,
-        interpolate=True
+        interpolate=True,
     ):
         """Return the delta optical density Spectrum given a point and reference point.
 
         Provide exactly one of V, t, and index, and at most one of V_ref, t_ref, and
         index_ref. For V and V_ref to work, the potential in the measurement must be
-        monotonically increasing. If none of V_ref, t_ref, or index_ref are provided the default
-        reference spectrum (self.reference_spectrum) will be used. If the default reference
-        spectrum is missing, the function wil raise a Value error for intensity data, or 
-        assume an unknown pre-set reference for absorption or transmission data.
+        monotonically increasing. If none of V_ref, t_ref, or index_ref are provided,
+        the default reference spectrum (self.reference_spectrum) is used. Without any
+        reference, intensity data raises a ValueError, while absorption and
+        transmission data are taken as referenced during data collection.
 
         Args:
             V (float): The potential at which to get the spectrum.
@@ -400,50 +402,17 @@ class ECOpticalMeasurement(SpectroECMeasurement):
              Spectrum: The dOD spectrum. The data is (spectrum.x, spectrum.y)
         """
 
-        spectrum = self.get_spectrum(V=V, t=t, index=index, interpolate=interpolate)
-        spectrum_ref=None
-        #---- Check form of data and reference spectrum. Note that:
-            #(1) If no reference spectrum is given and data is in intensity 
-            #    form, the dOD cannot be calculated
-            #(2) Absorption and Transmission data are already referenced to some 
-            #    unknown reference point, presumably set during data collection. 
-            #    If no reference spectrum is given, it is assumed that the user 
-            #    wants to maintain this unknown reference point.
-            #(3) If a reference spectrum is given, the dOD is given relative to 
-            #    this reference point.
-        if V_ref or t_ref or index_ref:
-            spectrum_ref = self.get_spectrum(V=V_ref, t=t_ref, index=index_ref, interpolate=interpolate)
-        elif self.reference_spectrum:
-            spectrum_ref = self.reference_spectrum
-        if not spectrum_ref:
-            if self.spectra_type=="Intensity":
-                raise ValueError("For intensity data, a reference spectrum must be provided to find the optical density")
-            if self.spectra_type == "Absorption":
-                warnings.warn("Absorption set as optical data type and no reference spectrum is given. Optical density referred to an unknown reference.")
-                dOD = spectrum.y
-            if self.spectra_type == "Transmission":
-                warnings.warn("Transmission set as optical data type and no reference spectrum is given. Optical density referred to an unknown reference.")
-                spec_decimal = spectrum.y / 100
-                spec_decimal[spec_decimal == 0] = np.nan
-                dOD = -np.log10(spec_decimal)
-        else:
-            if self.spectra_type=="Intensity" or self.spectra_type=="Transmission":
-                ratio = np.divide(
-                    spectrum.y,
-                    spectrum_ref.y,
-                    out=np.full_like(spectrum.y, np.nan),
-                    where=(abs(spectrum.y) > 0) & (abs(spectrum_ref.y) > 0),
-                )
-                dOD = -np.log10(ratio)
-            if self.spectra_type=="Absorption":
-                dOD = np.divide(
-                    spectrum.y,
-                    spectrum_ref.y,
-                    out = np.full_like(spectrum.y, np.nan),
-                    where = abs(spectrum_ref.y)>0
-                    )
+        from ..calculators.sec_calculators import calc_dOD_values
 
-        dOD = np.ma.masked_invalid(dOD)
+        spectrum = self.get_spectrum(V=V, t=t, index=index, interpolate=interpolate)
+        if V_ref is not None or t_ref is not None or index_ref is not None:
+            spectrum_ref = self.get_spectrum(
+                V=V_ref, t=t_ref, index=index_ref, interpolate=interpolate
+            )
+        else:
+            spectrum_ref = self.reference_spectrum
+        y_ref = spectrum_ref.y if spectrum_ref is not None else None
+        dOD = calc_dOD_values(spectrum.y, y_ref, self.spectra_type)
 
         field = Field(
             data=dOD,
@@ -452,7 +421,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             axes_series=[self.wavelength],
         )
         return Spectrum.from_field(field, tstamp=self.tstamp)
-    
+
     def track_wavelength(self, wl, width=10, V_ref=None, t_ref=None, index_ref=None):
         """Return and cache a ValueSeries for the dOD for a specific wavelength.
 
@@ -484,9 +453,7 @@ class ECOpticalMeasurement(SpectroECMeasurement):
             dOD_wl = np.ma.filled(np.mean(dOD[:, wl_mask], axis=1), np.nan)
         else:  # interpolation
             counts_wl = np.array([np.interp(wl, x, c) for c in counts])
-            dOD_wl = np.array(
-                [np.interp(wl, x, d) for d in np.ma.filled(dOD, np.nan)]
-            )
+            dOD_wl = np.array([np.interp(wl, x, d) for d in np.ma.filled(dOD, np.nan)])
         raw_name = f"w{int(wl)} raw"
         dOD_name = f"w{int(wl)}"
         tseries = self.spectra.axes_series[0]

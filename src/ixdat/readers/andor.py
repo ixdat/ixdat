@@ -48,7 +48,7 @@ class AndorKineticsCSVReader:
 
         # ---------------- FIND DATA START ----------------
         data_start = None
-        for i, ln in enumerate(lines[:self.HEADER_SCAN_LINES]):
+        for i, ln in enumerate(lines[: self.HEADER_SCAN_LINES]):
             if self._row_starts_with_float(ln):
                 data_start = i
                 break
