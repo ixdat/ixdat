@@ -716,6 +716,10 @@ class SpectrumSeries(Spectrum):
         if isinstance(key, int):
             spectrum_as_dict = self.as_dict()
             del spectrum_as_dict["field_id"]
+            # Columns of the series class that the spectrum class doesn't have, e.g.
+            # OpticalSpectrumSeries.spectra_type, describe the series only:
+            for attr in self.get_all_column_attrs() - cls.get_all_column_attrs():
+                spectrum_as_dict.pop(attr, None)
             spectrum_as_dict["field"] = Field(
                 # note that it's important in some cases that the spectrum does not have
                 # the same name as the spectrum series:

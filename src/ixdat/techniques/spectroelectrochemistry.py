@@ -53,6 +53,9 @@ class ECXASMeasurement(SpectroECMeasurement):
 class OpticalSpectrumSeries(SpectrumSeries):
     """Optical Spectrum Series"""
 
+    extra_column_attrs = {"optical_spectrum_series": {"spectra_type"}}
+    column_types = {"spectra_type": str}
+
     def __init__(self, *args, **kwargs):
        """Initiate an Optical Spectrum Series, as an addition to the spectrum series 
        spectra_type: The form of the raw data (Intensity, Transmission, or Absorbance. Defaults to Intensity)

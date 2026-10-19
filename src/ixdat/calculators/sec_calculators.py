@@ -109,6 +109,7 @@ class DeltaODCalculator(Calculator):
             "interpolate",
         }
     }
+    column_types = {"xspan": list, "idx_step": int, "tstep": float, "Vstep": float}
 
     def __init__(
         self,
@@ -146,12 +147,13 @@ class DeltaODCalculator(Calculator):
         super().__init__(
             name=name, technique=technique, tstamp=tstamp, measurement=measurement
         )
-        self.normalise = normalise
+        # bool() because the sqlite backend returns booleans as 0 or 1
+        self.normalise = bool(normalise)
         self.xspan = xspan
         self.idx_step = idx_step
         self.tstep = tstep
         self.Vstep = Vstep
-        self.interpolate = interpolate
+        self.interpolate = bool(interpolate)
 
     def __repr__(self):
         return (
@@ -390,6 +392,13 @@ class Denoiser(Calculator):
             "xspan",
         }
     }
+    column_types = {
+        "denoise_method": str,
+        "PCA_explained_variance": float,
+        "sg_window": int,
+        "sg_poly_order": int,
+        "xspan": list,
+    }
 
     def __init__(
         self,
@@ -433,7 +442,7 @@ class Denoiser(Calculator):
         self.PCA_explained_variance = PCA_explained_variance
         self.sg_window = sg_window
         self.sg_poly_order = sg_poly_order
-        self.normalise = normalise
+        self.normalise = bool(normalise)
         self.xspan = xspan
 
     def __repr__(self):
@@ -584,6 +593,18 @@ class SpectrumDeconvolutor(Calculator):
             "potentialspans",
         }
     }
+    column_types = {
+        "converged_data": np.ndarray,
+        "wavelength": np.ndarray,
+        "converged_times": np.ndarray,
+        "converged_tstamp": float,
+        "field_name": str,
+        "xspan": list,
+        "noise_bound": float,
+        "adjacent_distances": np.ndarray,
+        "timespans": list,
+        "potentialspans": list,
+    }
 
     def __init__(
         self,
@@ -641,7 +662,7 @@ class SpectrumDeconvolutor(Calculator):
         self.converged_tstamp = converged_tstamp
         self.field_name = field_name
         self.xspan = xspan
-        self.bounds_bool = bounds_bool
+        self.bounds_bool = bool(bounds_bool)
         self.noise_bound = noise_bound
         self.adjacent_distances = adjacent_distances
         self.timespans = timespans
