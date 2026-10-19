@@ -170,7 +170,7 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
         else:
             i_start += res_points
 
-    return merge_short_sections(sections, res_points)
+    return sections
 
 
 def merge_short_sections(sections, min_points):

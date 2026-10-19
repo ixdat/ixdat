@@ -5,6 +5,7 @@ from ..exceptions import BuildError, SeriesNotFoundError
 from ..calculators.scan_rate_tools import (
     tspan_passing_through,
     find_signed_sections,
+    merge_short_sections,
     calc_sharp_v_scan
 )
 from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
@@ -81,7 +82,7 @@ class CyclicVoltammogram(ECMeasurement):
             redox (bool): True (or 1) for anodic, False (or 0) for cathodic.
                 Without turning_point, the direction in which the potential is
                 scanning through start_potential to trigger an iteration of `cycle`.
-                This is then required.
+                None counts as cathodic.
                 With turning_point, a new cycle starts only at anodic (True) or
                 cathodic (False) sweeps. If None (default), every sweep starts a new
                 cycle, so that each cycle is one sweep.
@@ -108,6 +109,9 @@ class CyclicVoltammogram(ECMeasurement):
             sweeps = find_signed_sections(
                 scan_rate, x_res=v_scan_res, res_points=res_points
             )
+            # Noise during a hold can give many short sections, each of which
+            # would start a new cycle
+            sweeps = merge_short_sections(sweeps, res_points)
             if redox is None:
                 sweep_types = {"positive", "negative"}
             elif redox:
@@ -175,10 +179,6 @@ class CyclicVoltammogram(ECMeasurement):
             n = 0
             N = len(self.t)
             v = self.U
-            if redox is None:
-                raise ValueError(
-                    "redox must be True or False when cycles start at start_potential"
-                )
             if not redox:
                 # easiest way to reverse directions is to use the same > < operators
                 # but negate the arguments
