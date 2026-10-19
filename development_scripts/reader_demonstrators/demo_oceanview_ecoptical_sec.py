@@ -5,12 +5,11 @@ fixture and a BioLogic EC fixture, combines them into an ECOpticalMeasurement, a
 shows the basic EC-optical plots. This part is self-contained and needs no external
 data.
 
-Set IXDAT_DEMO_REAL_DATA_DIR to a directory with echem/ and uv-vis/ subfolders (a
-real multi-cycle Ni(OH)2/KOH EC-optical recording, too large to commit to the repo)
-to instead run the full cycle-based analysis this feature was built for, all as
-subplots of one figure for cycle 4: turning-point cycles, anodic/cathodic
-waterfalls, wavelength tracking, and the convergent-spectra/fitting pipeline, using
-the same ROIs and parameters as the analysis this was developed against.
+Set IXDAT_DEMO_REAL_DATA_DIR to the unzipped IrOx_SEC_benchmark.zip (a real
+multi-cycle EC-optical recording on IrOx, too large to commit to the repo)
+to instead run the full analysis on one anodic sweep, as subplots of one figure:
+one cycle per sweep, the dOD waterfall, smoothed difference spectra, converged
+spectra and the fit, and wavelength tracking.
 """
 
 import os
@@ -20,6 +19,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
 from ixdat import Measurement, Spectrum
+from ixdat.calculators.sec_calculators import Denoiser, SpectrumDeconvolutor
 
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -93,180 +93,126 @@ def demo_small_fixture():
 
 
 def read_real_measurement(data_dir):
-    """Read the real multi-cycle CV and its optical data, and calibrate the CV.
+    """Read a real multi-cycle CV on IrOx and its optical spectra.
 
-    Expects data_dir/echem/01_CVs_04_CVA_C01.mpt and
-    data_dir/uv-vis/01_CVs_25msinteg_av4_QEP065181__0__09-54-15-000.txt.
+    Expects, as unzipped from IrOx_SEC_benchmark.zip:
+    data_dir/Data files/Data/6_CVs_repeat_new_baseline_new_alignment_03_CVA_C01.mpt
+    and data_dir/Data files/Data/
+    Ir_Ox_CV_benchmark_realigned_test_signal_Relative__0__14-52-00-835.txt
 
-    boxcar_width and average_every reduce the spectra to about 1s (1 mV, for this
-    scan's 1 mV/s rate) resolution -- the file itself is at 100 ms resolution
-    (25 ms integration, averaged 4x by OceanView), too fine to be worth keeping.
+    The spectra were saved in OceanView's "Relative" mode, i.e. as % transmission
+    relative to a background spectrum, so they are read as "Transmission".
+    average_every=2 halves the number of spectra while reading.
     """
-    data_dir = Path(data_dir)
+    data_dir = Path(data_dir) / "Data files" / "Data"
     optical = Spectrum.read(
-        data_dir / "uv-vis" / "01_CVs_25msinteg_av4_QEP065181__0__09-54-15-000.txt",
+        data_dir
+        / "Ir_Ox_CV_benchmark_realigned_test_signal_Relative__0__14-52-00-835.txt",
         reader="oceanview",
-        spectra_type="Intensity",
-        boxcar_width=50,
-        average_every=10,
+        spectra_type="Transmission",
+        average_every=2,
     )
     ec = Measurement.read(
-        data_dir / "echem" / "01_CVs_04_CVA_C01.mpt", reader="biologic"
+        data_dir / "6_CVs_repeat_new_baseline_new_alignment_03_CVA_C01.mpt",
+        reader="biologic",
     )
     return ec.as_cv(), optical
 
 
 def demo_real_data_analysis():
-    """Reproduce the cycle-based SEC analysis this feature was built for, as one
-    figure of subplots -- one representative cycle (4) rather than a cycle-to-cycle
-    comparison, so this stays a single cycle's worth of panels.
-    """
+    """Run the SEC analysis on one anodic sweep of the real data, as one figure."""
     cv, optical = read_real_measurement(REAL_DATA_DIR)
 
     fig = plt.figure(figsize=(30, 20))
-    gs = gridspec.GridSpec(4, 5, figure=fig)
+    gs = gridspec.GridSpec(4, 4, figure=fig)
 
     def cell(row, col):
         return fig.add_subplot(gs[row, col])
 
-    cv.calibrate(RE_vs_RHE=0.8663)
     ax = cell(0, 0)
     cv.plot_measurement(J_name="cycle", axes=[ax, ax.twinx()])
     ax.set_title("Echem, before turning-point cycles")
 
-    cv.redefine_cycle(turning_point=True, redox=True, N_points=5, N_sep=900)
+    # A new cycle each time the sweep turns, so each cycle is one sweep
+    cv.redefine_cycle(turning_point=True, res_points=10)
     ax = cell(1, 0)
     cv.plot_measurement(J_name="cycle", axes=[ax, ax.twinx()])
-    ax.set_title("Echem, turning-point cycles")
+    ax.set_title("Echem, one cycle per sweep")
 
-    cv.calibrate(R_Ohm=16.2)
-    ax = cell(2, 0)
-    cv.plot_measurement(axes=[ax, ax.twinx()])
-    ax.set_title("Echem, iR-compensated")
+    sec = cv + optical
 
-    ax = cell(3, 0)
-    cv[4].plot(ax=ax)
-    ax.set_title("Cycle 4 alone")
-
-    ec_optical = cv + optical
-    ec_optical.set_reference_spectrum(t_ref=ec_optical.t[0])
-
-    wl = ec_optical.wavelength.data
-    wl_mask = (wl >= 300) & (wl <= 900)
-
-    print("finding the start time of cycle 4, anodic and cathodic")
-    anodic_dod = ec_optical.get_dOD_cycle(cycle_number=4, direction=0, N_points=200)
-    anodic_start = anodic_dod.axes_series[0].data.min()
-    cathodic_dod = ec_optical.get_dOD_cycle(cycle_number=4, direction=1, N_points=200)
-    cathodic_start = cathodic_dod.axes_series[0].data.min()
-
-    print("plotting the anodic and cathodic waterfalls for cycle 4")
-    for row, direction, t_ref, label in (
-        (0, 0, anodic_start, "anodic"),
-        (1, 1, cathodic_start, "cathodic"),
-    ):
-        cycle_data = ec_optical.get_dOD_cycle(
-            t_ref=t_ref, cycle_number=4, direction=direction, N_points=200
-        ).data[:, wl_mask]
-        ax = cell(row, 1)
-        ec_optical.plot_waterfall_cycle(
-            t_ref=t_ref,
-            cycle_number=4,
-            xlim=(300, 900),
-            ylim=(cycle_data.min() - 0.01, cycle_data.max() + 0.01),
-            direction=direction,
-            N_points=200,
-            ax=ax,
-        )
-        ax.set_title(f"Cycle 4, {label} waterfall")
-
-    print("cycle 4: dOD difference spectra, convergent spectra, and fit")
-    diff_4 = ec_optical.get_dOD_difference_spectra(
-        cycle_number=4,
-        N_points=100,
-        wlmin=300,
-        wlmax=900,
-        step=5,
-        direction=0,
-        normalise=True,
-        t_ref=anodic_start,
-    )
-    ax = cell(2, 1)
-    ec_optical.plot_dOD_difference_spectra(
-        diff_spectra=diff_4, xlim=(350, 900), ylim=(0, 1), ax=ax
-    )
-    ax.set_title("Cycle 4, dOD difference spectra")
-
-    converge_4 = ec_optical.get_convergent_spectra(
-        diff_spectra_field=diff_4,
-        wlmin=300,
-        wlmax=900,
-        conv_limit=0.2,
-        converged_spectrum_form="average",
-        min_region_width=1,
-        min_region_separation=10,
-        smooth_distances=True,
-        window_length=20,
-    )
-    ax = cell(3, 1)
-    ax.plot(converge_4[2])
-    ax.set_title("Cycle 4, adjacent-spectra distances")
-
-    ax = cell(0, 2)
-    ec_optical.plot_convergent_spectra(converge_output=converge_4, ax=ax)
-    ax.set_title("Cycle 4, convergent spectra")
-
-    cycle_4 = ec_optical.get_dOD_cycle(
-        t_ref=anodic_start, cycle_number=4, direction=0, N_points=100
-    )
-    ax = cell(1, 2)
-    ec_optical.plot_fit_reconstruction(
-        cycle_data=cycle_4,
-        converged_data=converge_4,
-        noise_bound=10,
-        bounds_bool=True,
-        wlmin=300,
-        ax=ax,
-    )
-    ax.set_title("Cycle 4, fit reconstruction")
-
-    ax = cell(2, 2)
-    ec_optical.plot_wavelengths_vs_cv(
-        wavelengths=["w404", "w500", "w345"],
-        tspan=(anodic_start, cathodic_start),
-        axes=(ax, ax.twinx()),
-    )
-    ax.set_title("Cycle 4, wavelengths vs potential")
-
-    ax_heat, ax_pot = cell(0, 3), cell(1, 3)
-    ec_optical.plot(
-        wlspan=[300, 900],
-        min_threshold=-1.5,
-        max_threshold=1.5,
+    ax_heat, ax_pot = cell(2, 0), cell(3, 0)
+    sec.plot_measurement(
+        wlspan=[400, 900],
+        min_threshold=0,
+        max_threshold=0.25,
         axes=[ax_heat, ax_pot, None, ax_pot.twinx()],
     )
     ax_heat.set_title("Full EC-optical dataset")
 
-    ax_top, ax_bottom = cell(2, 3), cell(3, 3)
-    ec_optical.plot_fit_and_residuals(
-        cycle_data=cycle_4,
-        converged_data=converge_4,
-        noise_bound=10,
-        bounds_bool=True,
-        wlmin=300,
-        axes=[ax_top, ax_bottom],
+    print("selecting one anodic sweep")
+    sweep = sec.select(cycle=5)
+    # Reference the sweep to its start, at 0.66 V
+    sweep.set_reference_spectrum(spectrum=sweep.spectrum_series[0])
+
+    ax = cell(0, 1)
+    sweep.plot_waterfall(ax=ax, xlim=(400, 900), ylim=(-0.02, 0.25))
+    ax.set_title("Anodic sweep, dOD waterfall")
+
+    print("difference spectra every 20 mV, smoothed")
+    sweep.dOD_calculator.Vstep = 0.02
+    sweep.dOD_calculator.xspan = [400, 900]
+    sweep.add_calculator(Denoiser(denoise_method="Savitzky-Golay", sg_window=21))
+    diff_smooth = sweep["dOD>diff>smooth"]
+    ax = cell(1, 1)
+    sweep.plot_dOD_difference_spectra(field=diff_smooth, xlim=(400, 900), ax=ax)
+    ax.set_title("Anodic sweep, smoothed dOD difference spectra")
+
+    print("finding converged spectra and fitting the sweep")
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sweep,
+        field_name="dOD>diff>smooth",
+        xspan=[400, 900],
+        conv_limit=0.1,
+        min_region_separation=6,
     )
-    ax_top.set_title("Cycle 4, fit and residuals")
+    print(f"converged spectra at {decon.potentialspans}")
+    sweep.add_calculator(decon)
+
+    ax = cell(2, 1)
+    ax.plot(decon.adjacent_distances)
+    ax.axhline(0.1, color="k", linestyle="--")
+    ax.set_xlabel("difference spectrum")
+    ax.set_ylabel("distance to next")
+    ax.set_title("Anodic sweep, adjacent-spectra distances")
+
+    ax = cell(3, 1)
+    sweep.plot_converged_spectra(ax=ax)
+    ax.set_title("Anodic sweep, converged spectra")
+
+    ax = cell(0, 2)
+    sweep.plot_fit_reconstruction(ax=ax, xlim=(400, 900))
+    ax.set_title("Anodic sweep, fit reconstruction")
+
+    ax_top, ax_bottom = cell(1, 2), cell(2, 2)
+    sweep.plot_fit_and_residuals(axes=[ax_top, ax_bottom])
+    ax_top.set_title("Anodic sweep, fit coefficients and residuals")
+
+    ax = cell(3, 2)
+    sweep.plot_wavelengths_vs_cv(
+        wavelengths=["w450", "w600", "w800"], axes=(ax, ax.twinx())
+    )
+    ax.set_title("Anodic sweep, wavelengths vs potential")
 
     print("tracking wavelengths across the full dataset")
-    ax_top, ax_bottom = cell(0, 4), cell(1, 4)
-    ec_optical.plot_wavelengths(
-        wavelengths=["w404", "w500", "w345"],
+    ax_top, ax_bottom = cell(0, 3), cell(1, 3)
+    sec.plot_wavelengths(
+        wavelengths=["w450", "w600", "w800"],
         axes=[ax_top, ax_bottom, None, ax_bottom.twinx()],
     )
     ax_top.set_title("Tracked wavelengths vs time")
 
-    fig.suptitle("Cycle 4 SEC analysis", fontsize=16)
+    fig.suptitle("SEC analysis of one anodic sweep on IrOx", fontsize=16)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
 
 
@@ -276,10 +222,9 @@ def main():
     else:
         demo_small_fixture()
         print(
-            "\nSet IXDAT_DEMO_REAL_DATA_DIR to a directory with echem/ and uv-vis/ "
-            "subfolders to also run the full cycle-based analysis on real "
-            "multi-cycle data (turning-point cycles, waterfalls, cycle-to-cycle "
-            "comparison, and the convergent-spectra/fitting pipeline)."
+            "\nSet IXDAT_DEMO_REAL_DATA_DIR to the unzipped IrOx_SEC_benchmark.zip to"
+            " also run the full analysis on real multi-cycle data (one cycle per"
+            " sweep, difference spectra, converged spectra and the fit)."
         )
 
     plt.show()
