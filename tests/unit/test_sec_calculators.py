@@ -532,3 +532,20 @@ def test_track_wavelength_with_explicit_reference_on_absorption():
     sec = make_sec(spectra_type="Absorption", data=absorbance)
     w600 = sec.track_wavelength(600, width=0, index_ref=0)
     np.testing.assert_allclose(w600.data, expected_dOD()[:, 2])
+
+
+def test_denoiser_leaves_nan_wavelengths_alone():
+    smooth, noisy, wl = noisy_sec()
+    noisy[3, :5] = np.nan
+    denoised = Denoiser(denoise_method="Savitzky-Golay", sg_window=11).denoise_spectra(
+        field_of(noisy, wl)
+    )
+    assert np.all(np.ma.getmaskarray(denoised.data)[:, :5])
+    assert not np.any(np.ma.getmaskarray(denoised.data)[:, 5:])
+
+
+def test_step_smaller_than_spacing_warns():
+    sec = make_sec()
+    sec.set_reference_spectrum(t_ref=0)
+    with pytest.warns(UserWarning, match="smaller than the spacing"):
+        sec.dOD_calculator.calc_diff(sec, Vstep=0.05)

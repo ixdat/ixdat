@@ -104,12 +104,24 @@ def test_series_and_field_timestamps_agree(tstamp_source):
     )
 
     assert optical.tstamp == optical.field.axes_series[0].tstamp
-    assert optical.field.axes_series[0].data[0] == 0.0
+    if tstamp_source == "spectrum":
+        assert optical.field.axes_series[0].data[0] == 0.0
+
+
+def test_both_tstamp_sources_give_the_same_absolute_times():
+    """Only the zero point of t differs between the modes, not the absolute time."""
+    from_header = Spectrum.read(DATED_FIXTURE, reader="oceanview")
+    from_spectrum = Spectrum.read(
+        DATED_FIXTURE, reader="oceanview", tstamp_source="spectrum"
+    )
+    np.testing.assert_allclose(
+        from_header.t + from_header.tstamp, from_spectrum.t + from_spectrum.tstamp
+    )
 
 
 def test_placeholder_date_is_rejected_for_the_spectrum_source():
     """1970-01-01 is what OceanView writes when it has no real date."""
-    with pytest.raises(ValueError, match="1970-01-01 placeholder"):
+    with pytest.raises(ValueError, match="1970 placeholder"):
         Spectrum.read(FIXTURE, reader="oceanview", tstamp_source="spectrum")
 
 
@@ -295,7 +307,7 @@ def test_relative_times_are_correct_across_midnight(tmp_path):
         ],
     )
 
-    optical = Spectrum.read(path, reader="oceanview")
+    optical = Spectrum.read(path, reader="oceanview", tstamp_source="spectrum")
 
     np.testing.assert_allclose(optical.t, [0.0, 2.0, 4.0])
 
@@ -364,7 +376,9 @@ def test_average_every_groups_rows_correctly(tmp_path):
     ]
     path = write_oceanview_file_with_values(tmp_path, "average_every_2.txt", rows)
 
-    optical = Spectrum.read(path, reader="oceanview", average_every=2)
+    optical = Spectrum.read(
+        path, reader="oceanview", average_every=2, tstamp_source="spectrum"
+    )
 
     # rows 0-1 average to [2.5, 3.5, 4.5] at t=0.5; rows 2-3 to [8.5, 9.5, 10.5] at t=2.5
     np.testing.assert_allclose(optical.field.data, [[2.5, 3.5, 4.5], [8.5, 9.5, 10.5]])
@@ -380,7 +394,9 @@ def test_average_every_keeps_a_leftover_partial_group(tmp_path):
     ]
     path = write_oceanview_file_with_values(tmp_path, "average_every_leftover.txt", rows)
 
-    optical = Spectrum.read(path, reader="oceanview", average_every=2)
+    optical = Spectrum.read(
+        path, reader="oceanview", average_every=2, tstamp_source="spectrum"
+    )
 
     # rows 0-1 average normally; the leftover row 2 is kept as its own group.
     np.testing.assert_allclose(optical.field.data, [[2.5, 3.5, 4.5], [7.0, 8.0, 9.0]])
@@ -395,8 +411,67 @@ def test_average_every_relative_times_correct_across_midnight(tmp_path):
     ]
     path = write_oceanview_file_with_values(tmp_path, "average_every_midnight.txt", rows)
 
-    optical = Spectrum.read(path, reader="oceanview", average_every=2)
+    optical = Spectrum.read(
+        path, reader="oceanview", average_every=2, tstamp_source="spectrum"
+    )
 
     # naive clock-time averaging would not see the two-second gap across midnight
     np.testing.assert_allclose(optical.field.data, [[2.0, 2.0, 2.0]])
     np.testing.assert_allclose(optical.t, [1.0])
+
+
+def test_first_data_row_is_read(tmp_path):
+    stamps = [f"2026-08-05 12:00:0{i}.000000" for i in range(3)]
+    path = write_oceanview_file(tmp_path, "three_rows.txt", stamps)
+    optical = Spectrum.read(path, reader="oceanview")
+    assert optical.field.data.shape == (3, 3)
+
+
+def test_file_without_date_line_needs_spectrum_source(tmp_path):
+    path = write_oceanview_file(
+        tmp_path, "no_date.txt", ["2026-08-05 12:00:00.000000"], header=None
+    )
+    with pytest.raises(ValueError, match="no 'Date:' line"):
+        Spectrum.read(path, reader="oceanview", assume_timezone="+02:00")
+    optical = Spectrum.read(
+        path, reader="oceanview", tstamp_source="spectrum", assume_timezone="+02:00"
+    )
+    assert optical.tstamp == unix_time(2026, 8, 5, 12, 0, 0, 0, 2)
+
+
+def test_data_section_on_the_first_line(tmp_path):
+    path = tmp_path / "bare.txt"
+    path.write_text(
+        ">>>>>Begin Spectral Data<<<<<\n"
+        "400.0\t450.0\t500.0\n"
+        "2026-08-05 12:00:00.000000\t1.0\t2.0\t3.0\n"
+    )
+    optical = Spectrum.read(
+        path, reader="oceanview", tstamp_source="spectrum", assume_timezone="Z"
+    )
+    assert optical.field.data.shape == (1, 3)
+
+
+def test_placeholder_rows_warn_in_header_mode(tmp_path):
+    path = write_oceanview_file(
+        tmp_path,
+        "placeholder.txt",
+        ["1970-01-01 00:00:00.000000", "1970-01-01 00:00:02.000000"],
+    )
+    with pytest.warns(UserWarning, match="1970 placeholder"):
+        optical = Spectrum.read(path, reader="oceanview")
+    np.testing.assert_allclose(optical.t, [0.0, 2.0])
+
+
+def test_durations_are_the_time_between_spectra(tmp_path):
+    stamps = ["2026-08-05 12:00:00.000000", "2026-08-05 12:00:02.000000"]
+    path = write_oceanview_file(tmp_path, "durations.txt", stamps)
+    optical = Spectrum.read(path, reader="oceanview")
+    np.testing.assert_allclose(optical.durations, [2.0, 2.0])
+
+
+def test_missing_data_section_is_reported(tmp_path):
+    path = tmp_path / "header_only.txt"
+    path.write_text("Data from x Node\nDate: Wed Aug 05 12:00:00 CEST 2026\n")
+    with pytest.raises(ValueError, match="Begin Spectral Data"):
+        Spectrum.read(path, reader="oceanview")

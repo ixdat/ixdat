@@ -3,7 +3,6 @@
 from pathlib import Path
 import re
 from datetime import datetime, timedelta, timezone, tzinfo as TzInfo
-from .reading_tools import timestamp_string_to_tstamp
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 import warnings
@@ -95,144 +94,153 @@ class OceanViewTimeSeriesReader:
             raise ValueError(
                 f"tstamp_source must be 'header' or 'spectrum', not {tstamp_source!r}"
             )
-
         if not issubclass(cls, SpectrumSeries):
+            # Spectrum.read passes cls=Spectrum
             cls = OpticalSpectrumSeries
-            
+
         dt_header, tz_text = None, None
-        start_idx=None
+        wavelengths = None
+        first_row_datetime = None
         spectra = []
         rel_times = []
-        row_datetimes = []
         rel_time_sum = 0.0
         count = 0
 
         with open(path_to_file, encoding="utf-8", errors="ignore") as f:
-           
-            for i,ln in enumerate(f):  
-            # ---- Parse header for Date ----
-            # Read whatever tstamp_source says, so a bad header is reported in
-            # either mode. The date stays naive; the timezone is resolved below.
-                if i<40 and not start_idx and ln.lower().startswith("date:"):
-                    date_str = ln.split(":", 1)[1].strip()
-                    dt_header, tz_text = self._parse_header_date(date_str)
-                    # The data rows state no timezone either, so one is used for both.
-                    tzinfo = self._resolve_timezone(tz_text, assume_timezone, path_to_file)
-                    # ---- Refine with filename milliseconds if available ----
-                    # OceanView truncates the header to whole seconds.
-                    ms = self._parse_filename_time(path_to_file)  # int milliseconds
-                    if ms is not None and dt_header is not None:
-                        dt_header = dt_header.replace(microsecond=ms * 1000)
-                    continue
-                
-                # ---- Find Begin Spectral Data and parse wavelengths ----
-                if i<40 and re.search(r"begin\s+spectral\s+data", ln, flags=re.I):
-                    start_idx = i
-                    wl_line=next(f).strip()
-                    if not re.match(r"^\s*\d", wl_line):  # next line after begin spectral data should start with a number
-                        raise ValueError(
-                            f"Expected wavelength line after Begin Spectral Data, "
-                            f"but got: {wl_line!r}"
+            for i, ln in enumerate(f):
+                if wavelengths is None:
+                    # ---- Header ----
+                    if ln.lower().startswith("date:"):
+                        date_str = ln.split(":", 1)[1].strip()
+                        dt_header, tz_text = self._parse_header_date(date_str)
+                        # OceanView truncates the header to whole seconds. Refine
+                        # with the milliseconds in the filename, if there.
+                        ms = self._parse_filename_time(path_to_file)
+                        if ms is not None:
+                            dt_header = dt_header.replace(microsecond=ms * 1000)
+                    elif re.search(r"begin\s+spectral\s+data", ln, flags=re.I):
+                        # The next line has the wavelengths
+                        wl_line = next(f).strip()
+                        if not re.match(r"^\d", wl_line):
+                            raise ValueError(
+                                "Expected wavelength line after Begin Spectral Data,"
+                                f" but got: {wl_line!r}"
                             )
-                    wavelengths = self._parse_float_row(wl_line)
-                    if wavelengths.size == 0:
-                        raise ValueError("OceanView: wavelength line is empty or malformed")
-                    n_wavelengths = len(wavelengths)
-                    spectra_sum = np.zeros(n_wavelengths, dtype=np.float64)
+                        wavelengths = self._parse_float_row(wl_line)
+                        n_wavelengths = len(wavelengths)
+                        spectra_sum = np.zeros(n_wavelengths, dtype=np.float64)
+                    elif i >= 40:
+                        break  # no spectral data section in the header
                     continue
-                if i >=40 and start_idx is None:
-                    raise ValueError("No spectral data section found!")
-                    
-               
-                 # ---- Parse spectra and relative times ----
-                 # Rows are averaged in groups of `average_every` as they are parsed,
-                 # so the full-resolution matrix never has to be held in memory. The
-                 # relative time of an averaged row is the mean of its rows' offsets
-                 # from the first row -- computed from the parsed datetimes, not from
-                 # a bare time-of-day, so it stays correct across midnight.
-                
-                if start_idx and i >= start_idx+2 and ln.strip():
-                    # Robust handling of separators
-                    stamp_str, vals = self._split_stamp(ln)
 
-                    row_datetime = self._parse_row_datetime(stamp_str)
-                    
-                    if row_datetime is None:
-                        raise ValueError(
-                            f"Row {i} of the spectral data in "
-                            f"{path_to_file.name} is stamped {stamp_str!r}, which is "
-                            "not a full date and time. This reader needs a stamp like "
-                            "'2026-08-05 18:51:45.681484' on every row, so that "
-                            "relative times stay correct across midnight."
-                        )
-                    row_datetimes.append(row_datetime)
-                    
-                    vals = [float(v.replace(",", ".")) for v in vals.split()]
+                if not ln.strip():
+                    continue
 
-                    if len(vals) < n_wavelengths:
-                        raise ValueError(
-                            f"Row {i} of the spectral data in "
-                            f"{path_to_file.name} has {len(vals)} values, but the "
-                            f"wavelength axis has {n_wavelengths}."
-                        )
-                    # Take the last N, so an extra leading column cannot shift the
-                    # spectrum against the wavelength axis.
-                    vals = vals[-n_wavelengths:]
+                # ---- Spectra and relative times ----
+                # Rows are averaged in groups of `average_every` as they are read, so
+                # the full-resolution data is never held in memory. The relative
+                # time of an averaged row is the mean of its rows' offsets from the
+                # first row, calculated from full datetimes so that it stays correct
+                # across midnight.
+                stamp_str, vals = self._split_stamp(ln)
+                row_datetime = self._parse_row_datetime(stamp_str)
+                if row_datetime is None:
+                    raise ValueError(
+                        f"Line {i + 1} of {path_to_file.name} is stamped "
+                        f"{stamp_str!r}, which is not a full date and time. This "
+                        "reader needs a stamp like '2026-08-05 18:51:45.681484' on "
+                        "every row, so that relative times stay correct across "
+                        "midnight."
+                    )
+                if first_row_datetime is None:
+                    first_row_datetime = row_datetime
 
-                    # Naive difference: no timezone needed, correct across midnight.
-                    rel_sec = (row_datetime - row_datetimes[0]).total_seconds()
+                vals = [float(v.replace(",", ".")) for v in vals.split()]
+                if len(vals) < n_wavelengths:
+                    raise ValueError(
+                        f"Line {i + 1} of {path_to_file.name} has {len(vals)} "
+                        f"values, but the wavelength axis has {n_wavelengths}."
+                    )
+                # Take the last N, so an extra leading column cannot shift the
+                # spectrum against the wavelength axis.
+                vals = vals[-n_wavelengths:]
 
-                    spectra_sum += vals
-                    rel_time_sum += rel_sec
-                    count += 1
+                spectra_sum += vals
+                rel_time_sum += (row_datetime - first_row_datetime).total_seconds()
+                count += 1
+                if count == average_every:
+                    spectra.append(spectra_sum / count)
+                    rel_times.append(rel_time_sum / count)
+                    spectra_sum.fill(0)
+                    rel_time_sum = 0.0
+                    count = 0
 
-                    if count == average_every:
-                        spectra.append(spectra_sum / average_every)
-                        rel_times.append(rel_time_sum / average_every)
-                        # Reset
-                        spectra_sum.fill(0)
-                        rel_time_sum = 0.0
-                        count = 0
-            if count > 0: # This averages the last (<average every) lines of data
+            if count > 0:  # The last group of fewer than `average_every` rows
                 spectra.append(spectra_sum / count)
                 rel_times.append(rel_time_sum / count)
-         
+
+        if wavelengths is None:
+            raise ValueError(
+                f"OceanView: no 'Begin Spectral Data' line in the first 40 lines of"
+                f" {path_to_file.name}"
+            )
         if not spectra:
             raise ValueError(
                 f"OceanView: {path_to_file.name} has a spectral data section "
                 "but no spectra in it"
             )
-                                                   
+
         y_matrix = np.stack(spectra)
         rel_times = np.array(rel_times)
-        durations = np.empty_like(rel_times)
-        durations[0] = rel_times[0]
-        durations[1:] = np.diff(rel_times)
-        # ---- Apply smoothing ----
-        
-        y_matrix_smoothed = uniform_filter1d(
-            y_matrix,
-            size=boxcar_width,
-            axis=1,
-        )      
+        # The duration of each spectrum is the time to the next one. The last
+        # spectrum gets the same duration as the one before it.
+        durations = np.zeros(len(rel_times))
+        if len(rel_times) > 1:
+            durations[:-1] = np.diff(rel_times)
+            durations[-1] = durations[-2]
+
+        y_matrix_smoothed = uniform_filter1d(y_matrix, size=boxcar_width, axis=1)
 
         # ---- Resolve the starting timestamp ----
-        tstamp_header = dt_header.replace(tzinfo=tzinfo).timestamp()   
-        tstamp_first = row_datetimes[0].replace(tzinfo=tzinfo).timestamp()
-        
-        if tstamp_first < 24 * 60 * 60:    # epoch in any timezone
-            if tstamp_source == "spectrum":
-                raise ValueError("Timestamp is incorrect")  # the demo script tests for this.
-                warnings.warn(
-                    f"{path_to_file} saved without correct absolute times. Using the header"
-                    " as an approximation, but alignment may be a few seconds off."
-                )
-            t_zero = tstamp_header
+        # The header date and the data rows state no timezone, so one is used for
+        # both.
+        tzinfo = self._resolve_timezone(tz_text, assume_timezone, path_to_file)
+        tstamp_header = None
+        if dt_header is not None:
+            tstamp_header = self._localise(
+                dt_header, tzinfo, "The header date", path_to_file
+            )
         elif tstamp_source == "header":
+            raise ValueError(
+                f"{path_to_file.name} has no 'Date:' line, so there is no header"
+                ' timestamp. Use tstamp_source="spectrum" instead.'
+            )
+
+        if first_row_datetime.year == PLACEHOLDER_YEAR:
+            # OceanView sometimes saves the rows with a date in 1970. The relative
+            # times are still right, but the absolute time has to come from the
+            # header.
+            if tstamp_source == "spectrum" or tstamp_header is None:
+                raise ValueError(
+                    f"The rows of {path_to_file.name} are stamped with OceanView's"
+                    " 1970 placeholder date, so they can't give the absolute time."
+                    ' Use tstamp_source="header" instead.'
+                )
+            warnings.warn(
+                f"The rows of {path_to_file.name} are stamped with OceanView's 1970"
+                " placeholder date. Using the time in the header, which may be a few"
+                " seconds off."
+            )
             t_zero = tstamp_header
-            rel_times += tstamp_first - tstamp_header
         else:
-            t_zero = tstamp_first
+            tstamp_first = self._localise(
+                first_row_datetime, tzinfo, "The first data row", path_to_file
+            )
+            if tstamp_source == "header":
+                t_zero = tstamp_header
+                rel_times += tstamp_first - tstamp_header
+            else:
+                t_zero = tstamp_first
 
         # ---- Wrap into ixdat objects ----
         xseries = DataSeries(name="wavelength", unit_name="nm", data=wavelengths)
@@ -245,7 +253,7 @@ class OceanViewTimeSeriesReader:
         if spectra_type == "Transmission":
             field = Field(
                 name="transmission",
-                unit_name="a.u",
+                unit_name="%",
                 data=y_matrix_smoothed,
                 axes_series=[tseries, xseries],
             )
@@ -272,11 +280,10 @@ class OceanViewTimeSeriesReader:
             field=field,
             continuous=True,
             spectra_type=spectra_type,
-            durations=durations
+            durations=durations,
         )
         return uvvis_series
 
-   
     # -------- Timezone --------
     def _resolve_timezone(self, tz_text, assume_timezone, path_to_file):
         """Return the tzinfo for this file's naive times, or None if unknown.

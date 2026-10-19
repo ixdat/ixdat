@@ -342,6 +342,14 @@ class DeltaODCalculator(Calculator):
                 raise ValueError(
                     f"The step {step} is zero or larger than the range of the data."
                 )
+            spacing = np.median(np.abs(np.diff(x)))
+            if abs(step) < spacing:
+                warnings.warn(
+                    f"The step {abs(step)} is smaller than the spacing between the"
+                    f" measured spectra ({spacing:.3g}). Neighbouring difference"
+                    " spectra are then interpolated from the same two spectra and"
+                    " are the same. Use a step of at least the spacing."
+                )
             grid = np.arange(x[0], x[-1] + step / 1e6, step)
             kind = "linear" if self.interpolate else "nearest"
             sampled = interp1d(x, data, axis=0, kind=kind)(grid)
@@ -507,7 +515,11 @@ class Denoiser(Calculator):
             if value is not None:
                 setattr(self, attr, value)
 
-        spectra = spectra_field.data
+        data = np.ma.filled(np.ma.asarray(spectra_field.data, dtype=float), np.nan)
+        # Wavelengths with NaN in any spectrum (e.g. where the counts are zero or
+        # negative) would spread NaN to all others, so only the rest is denoised.
+        finite = np.all(np.isfinite(data), axis=0)
+        spectra = data[:, finite]
 
         if self.denoise_method == "PCA":
             try:
@@ -543,10 +555,14 @@ class Denoiser(Calculator):
                 f" not {self.denoise_method!r}"
             )
 
+        denoised = np.full_like(data, np.nan)
+        denoised[:, finite] = spectra_denoised
+        spectra_denoised = denoised
+
         if self.normalise:
             mask = get_x_mask(spectra_field.axes_series[1].data, self.xspan)
-            min_vals = np.min(spectra_denoised[:, mask], axis=1)
-            max_vals = np.max(spectra_denoised[:, mask], axis=1)
+            min_vals = np.nanmin(spectra_denoised[:, mask], axis=1)
+            max_vals = np.nanmax(spectra_denoised[:, mask], axis=1)
             ranges = max_vals - min_vals
             ranges[ranges == 0] = np.nan
             spectra_denoised = (spectra_denoised - min_vals[:, np.newaxis]) / ranges[
