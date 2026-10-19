@@ -727,7 +727,9 @@ class SpectrumSeries(Spectrum):
             data=new_y,
             axes_series=[new_tseries, self.xseries],
         )
-        new_durations = np.array(self.durations)[t_mask]
+        new_durations = (
+            np.array(self.durations)[t_mask] if self.durations is not None else None
+        )
         cut_spectrum_series_as_dict = self.as_dict()
         cut_spectrum_series_as_dict.update(
             field=new_field,
@@ -889,6 +891,8 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+        # Cached lookups of "spectra" and series calculated from it are now stale.
+        self.clear_cache()
 
     @property
     def continuous(self):
@@ -911,6 +915,17 @@ class SpectroMeasurement(Measurement):
         if isinstance(item, int) or isinstance(item, slice):
             return self.spectrum_series[item]
         return super().__getitem__(item)
+
+    def get_series(self, key):
+        """Find or build the data series or field corresponding to key
+
+        "spectra" and the name of the spectrum series' field return the field, so
+        that calculators can look up the spectral data. Other keys are looked up as
+        in :func:`~measurement_base.Measurement.get_series`.
+        """
+        if key in ("spectra", self.spectra.name):
+            return self.spectra
+        return super().get_series(key)
 
     def __add__(self, other):
         added_measurement = super().__add__(other)
