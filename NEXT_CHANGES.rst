@@ -94,3 +94,8 @@ bug fixes
   return a series. `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 - ``SpectrumSeries.cut`` works when the series has no ``durations``.
   `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+- ``requests`` is now a declared dependency. ixdat 0.4.0 imports it, so a clean
+  ``pip install ixdat`` failed on ``import ixdat``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+- Integration uses ``np.trapezoid``, falling back to ``np.trapz`` on NumPy < 2. NumPy 2.4
+  removed ``np.trapz``. `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
