@@ -7,7 +7,7 @@ class Sample(Saveable):
     """TODO: flush out this class"""
 
     table_name = "sample"
-    column_attrs = {"name": "name"}
+    column_attrs = {"name"}
 
     def __init__(self, name):
         """Initate the sample with its name"""

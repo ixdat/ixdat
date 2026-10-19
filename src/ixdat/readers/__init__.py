@@ -92,4 +92,5 @@ SPECTRUM_READER_CLASSES = {
     "oceanview": OceanViewTimeSeriesReader,
     "andor": AndorKineticsCSVReader,
     "bruker": BrukerNMRReader,
+    "asimov": AsimovReader,
 }

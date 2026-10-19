@@ -5,7 +5,7 @@ class LabLog(Saveable):
     """TODO: flush out this class"""
 
     table_name = "lablog"
-    column_attrs = {"name": "name"}
+    column_attrs = {"name"}
 
     def __init__(self, name, metadata=None, notes=None):
         """Initiate the lablog with its name, metadata, and notes"""

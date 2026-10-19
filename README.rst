@@ -124,11 +124,11 @@ Article repositories
 ``ixdat`` is shown in practice in a growing number of open repositories of data and analysis
 for academic publications:
 
-- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part I: Oxygen exchange via CO2 hydration**. `Electrochimica Acta, 374, 137842 <https://doi.org/10.1016/j.electacta.2021.137842>`_, **2021**.
+- Soren B. Scott, et al. **The low overpotential regime of acidic water oxidation** `Energy Environ. Sci., 2022, 15, 1977 <https://doi.org/10.1039/d1ee03914h>`_, (parts I and II) **2022**.
 
-  Repository: https://github.com/ScottSoren/pyCOox_public
+  Repository: https://codeberg.org/Energy-Conversion-Interfaces/article_LowOverpotentialRegime 
 
-- Soren B. Scott, et al.  **Tracking oxygen atoms in electrochemical CO oxidation –Part II: Lattice oxygen reactivity in oxides of Pt and Ir**. `Electrochimica Acta, 374, 137844 <https://doi.org/10.1016/j.electacta.2021.137844>`_, **2021**.
+- Soren B. Scott, et al. **Tracking oxygen atoms in electrochemical CO oxidation**. `Electrochimica Acta, 374, 137842 <https://doi.org/10.1016/j.electacta.2021.137842>`_, (parts I and II) **2021**.
 
   Repository: https://github.com/ScottSoren/pyCOox_public
 
@@ -146,5 +146,8 @@ Join us
 
 ``ixdat`` is free and open source software and we welcome input and new collaborators. Please help us improve ``ixdat``!
 
-Contact us (https://github.com/ixdat/ixdat/discussions or sbscott@ic.ac.uk) or just
-`get started developing <https://ixdat.readthedocs.io/en/latest/developing/index.html>`_.
+We appreciate Issues and Pull Requests. 
+
+We've also made a `development guide <https://ixdat.readthedocs.io/en/latest/developing/index.html>`_.
+
+Contact: sbs@chem.ku.dk

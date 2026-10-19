@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from .ec import ECMeasurement
-from ..db import PlaceHolderObject
+from ..db import PlaceHolderObject, Relationship
 from ..spectra import Spectrum, SpectroMeasurement, SpectrumSeries
 from ..data_series import Field, ValueSeries, TimeSeries
 from ..exporters import SECExporter
@@ -136,8 +136,11 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         "dOD_calculator"
     ]
 
-    extra_linkers = SpectroECMeasurement.extra_linkers.copy()
-    extra_linkers.update({"ec_optical_measurements": ("spectra", "ref_id")})
+    relationships = {
+        "reference_spectrum": Relationship(
+            "spectrums", "ref_id", storage_table="ec_optical_measurements"
+        )
+    }
 
     def __init__(
         self,
@@ -145,21 +148,22 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         ref_id=None,
         spectra_type=None,
         **kwargs,
-    ):  # Added in fix for reference spectrum issue
+    ):
         """Initialize an SEC measurement. All args and kwargs go to ECMeasurement."""
         SpectroECMeasurement.__init__(self, **kwargs)
 
         if spectra_type is None:
-            spectra_type = self.spectrum_series.spectra_type
+            spectra_type = getattr(self.spectrum_series, "spectra_type", "Intensity")
         self.spectra_type = spectra_type
-        self.ref_id = ref_id
 
         if reference_spectrum:
             self._reference_spectrum = reference_spectrum
         elif ref_id:
             self._reference_spectrum = PlaceHolderObject(ref_id, cls=Spectrum)
         else:
-            self._reference_spectrum = None #Sometimes the user may want to not provide a reference spectrum, e.g for transmission or absorption data
+            # A reference spectrum can be set later with set_reference_spectrum, or
+            # left out for transmission or absorption data.
+            self._reference_spectrum = None
         self.tracked_wavelengths = []
         self.plot_waterfall = self.plotter.plot_waterfall
         self.plot_wavelengths = self.plotter.plot_wavelengths
@@ -191,6 +195,13 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         if isinstance(self._reference_spectrum, PlaceHolderObject):
             self._reference_spectrum = self._reference_spectrum.get_object()
         return self._reference_spectrum
+
+    @property
+    def ref_id(self):
+        """The id of the reference spectrum, or None if there is none"""
+        if not self._reference_spectrum:
+            return None
+        return self.reference_spectrum.short_identity
 
     def set_reference_spectrum(
         self,

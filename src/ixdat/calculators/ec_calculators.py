@@ -16,6 +16,7 @@ class ECCalibration(Calculator):
 
     calculator_type = "EC calibration"
     extra_column_attrs = {"ec_calibration": {"RE_vs_RHE", "A_el", "R_Ohm"}}
+    column_types = {"RE_vs_RHE": float, "A_el": float, "R_Ohm": float}
     # TODO: https://github.com/ixdat/ixdat/pull/11#discussion_r677552828
 
     def __init__(
