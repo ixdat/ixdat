@@ -10,9 +10,6 @@ from ..calculators.scan_rate_tools import (
 from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
 from ..tools import deprecate
 
-import warnings
-
-
 
 class CyclicVoltammogram(ECMeasurement):
     """Class for cyclic voltammetry measurements.
@@ -151,8 +148,7 @@ class CyclicVoltammogram(ECMeasurement):
                 turning_indices = np.where((sign[:-1] >= 0) & (sign[1:] < 0))[0]
 
             else:
-                # Either direction
-                warnings.warn("No redox direction selected. Cycles will iterate at every turning point.")
+                # Either direction: a new cycle at every turning point
                 turning_indices = np.where(sign[:-1] != sign[1:])[0]
                 
             #Each cycle should have only 1 turning index. If there are multiple, this is due to noise.

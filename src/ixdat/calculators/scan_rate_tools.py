@@ -88,9 +88,11 @@ def calc_sharp_v_scan(t, v, res_points=10):
     v_scan_middle = (v_ahead - v_behind) / (t_ahead - t_behind)
     # ^ this is "softened" at the anodic and cathodic turns.
 
-    # We can "sharpen" it by selectively looking ahead and behind:
-    v_scan_behind = (v - v_behind) / (t - t_behind)
-    v_scan_ahead = (v_ahead - v) / (t_ahead - t)
+    # We can "sharpen" it by selectively looking ahead and behind. The padded ends
+    # divide 0 by 0, which numpy would warn about:
+    with np.errstate(divide="ignore", invalid="ignore"):
+        v_scan_behind = (v - v_behind) / (t - t_behind)
+        v_scan_ahead = (v_ahead - v) / (t_ahead - t)
 
     # but this gives problems right at the beginning, so set those to zeros
     v_scan_behind[:res_points] = np.zeros(res_points)
@@ -140,10 +142,6 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
     i_start = 0
     i_finish = 0
     n_sweep = 0
-    
-    
-    
-    
 
     the_next_starts = [np.argmax(mask) for mask in the_masks]
     section_id = int(np.argmin(the_next_starts))

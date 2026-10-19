@@ -135,23 +135,26 @@ def demo_real_data_analysis():
     cv.redefine_cycle(turning_point=True, res_points=10)
     sec = cv + optical
 
-    fig, axes = plt.subplots(4, 3, figsize=(20, 20))
-    for row, title in enumerate(
+    # One subfigure per row, so each row gets its own heading. Constrained layout
+    # makes room for the labels, twin axes, and colorbars.
+    fig = plt.figure(figsize=(21, 24), layout="constrained")
+    rows = fig.subfigures(4, 1, hspace=0.04)
+    axes = np.array([row.subplots(1, 3) for row in rows])
+    for row, title in zip(
+        rows,
         [
             "1. The measurement",
             "2. One anodic sweep",
             "3. Finding the transitions",
             "4. Checking the fit",
-        ]
+        ],
     ):
-        axes[row, 0].annotate(
-            title,
-            xy=(-0.3, 0.5),
-            xycoords="axes fraction",
-            rotation=90,
-            va="center",
-            fontsize=16,
-        )
+        row.suptitle(title, x=0.01, ha="left", fontsize=17, fontweight="bold")
+
+    # The same colors for each wavelength as plot_wavelengths_vs_cv uses
+    cmap = plt.get_cmap("jet")
+    norm = plt.Normalize(vmin=min(sec.wl), vmax=max(sec.wl))
+    colors = [cmap(norm(float(wl_str[1:]))) for wl_str in wavelengths]
 
     print("1. the measurement")
     sec.plot_measurement(
@@ -163,10 +166,10 @@ def demo_real_data_analysis():
     )
     axes[0, 0].set_title("1a. dOD vs time (no reference)")
     axes[0, 1].set_title("1b. Potential and cycle number vs time")
-    for wl_str in wavelengths:
+    for wl_str, color in zip(wavelengths, colors):
         sec.track_wavelength(float(wl_str[1:]))
         t, y = sec.grab(wl_str)
-        axes[0, 2].plot(t, y, label=wl_str)
+        axes[0, 2].plot(t, y, color=color, label=wl_str)
     axes[0, 2].set_xlabel("time / [s]")
     axes[0, 2].set_ylabel("dOD")
     axes[0, 2].legend()
@@ -190,6 +193,7 @@ def demo_real_data_analysis():
     sweep.plot_dOD_difference_spectra(
         field=diff_smooth, xlim=(400, 900), ax=axes[1, 2]
     )
+    axes[1, 2].set_ylim(-1.1, 1.1)
     axes[1, 2].set_title("2c. Smoothed difference spectra (normalised)")
 
     print("3. finding the transitions")
@@ -231,7 +235,7 @@ def demo_real_data_analysis():
         "potential",
         t=measured.axes_series[0].t + measured.axes_series[0].tstamp - sweep.tstamp,
     )
-    for wl_str, color in zip(wavelengths, ["C0", "C1", "C2"]):
+    for wl_str, color in zip(wavelengths, colors):
         wl = float(wl_str[1:])
         i_meas = np.argmin(np.abs(measured.axes_series[1].data - wl))
         i_fit = np.argmin(np.abs(fitted.axes_series[1].data - wl))
@@ -243,8 +247,7 @@ def demo_real_data_analysis():
     axes[3, 2].legend()
     axes[3, 2].set_title("4c. Measured and fitted dOD vs potential")
 
-    fig.suptitle("SEC analysis of IrOx: one anodic sweep", fontsize=18)
-    fig.tight_layout(rect=(0.03, 0, 1, 0.98))
+    fig.suptitle("SEC analysis of IrOx: one anodic sweep", fontsize=20)
 
 
 def main():

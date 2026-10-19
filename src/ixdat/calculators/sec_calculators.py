@@ -218,7 +218,9 @@ class DeltaODCalculator(Calculator):
                 # Transmission is in percent
                 transmission = counts / 100
                 transmission[transmission == 0] = np.nan
-                dOD = -np.log10(transmission)
+                # Zero or negative values give NaN, which is masked below
+                with np.errstate(invalid="ignore"):
+                    dOD = -np.log10(transmission)
             else:
                 raise ValueError(
                     "For intensity data, a reference must be provided to find the"
@@ -233,7 +235,9 @@ class DeltaODCalculator(Calculator):
                 out=np.full_like(counts, np.nan, dtype=float),
                 where=(abs(counts) > 0) & (abs(ref.y) > 0),
             )
-            dOD = -np.log10(ratio)
+            # Negative ratios give NaN, which is masked below
+            with np.errstate(invalid="ignore"):
+                dOD = -np.log10(ratio)
 
         return Field(
             name="dOD",
