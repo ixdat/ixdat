@@ -61,7 +61,15 @@ class CyclicVoltammogram(ECMeasurement):
         return super().__getitem__(key)
 
     def redefine_cycle(
-        self, start_potential=None, redox=None, N_points=5, turning_point=False, N_sep=10, res_points=None, rate_threshold=0.0005, N_points_threshold=1
+        self,
+        start_potential=None,
+        redox=None,
+        N_points=5,
+        turning_point=False,
+        N_sep=10,
+        res_points=10,
+        rate_threshold=0.0005,
+        N_points_threshold=1,
     ):
         """Build `cycle` which iterates when passing through start_potential, or a turning point
 
@@ -86,8 +94,8 @@ class CyclicVoltammogram(ECMeasurement):
                 the direction of the potential sweep instead of a fixed
                 potential.
             N_sep (int) : The number of indices by which the turning points must be separated. 10 by default.
-            res_points (int): to be passed to calc_sharp_v. 10 by default in calc_sharp_v The resolution in data points,
-                i.e. the spacing used in the slope equation v_scan = (v2 - v1) / (t2 - t1)
+            res_points (int): The spacing in data points used to calculate the scan
+                rate, passed to `calc_sharp_v_scan`. 10 by default.
             rate_threshold (float) : the threshold magnitude in scan rate to accept for turning point
                 validity. 0.5 mV/s by default.
             N_points_threshold (float) : Must be a value between 0 and 1. If data is noisy, this can be
@@ -103,8 +111,8 @@ class CyclicVoltammogram(ECMeasurement):
             N = len(v)
             time = self.t
             
-            # define cycle vector
-            cycle_vec = np.full(N, np.nan)
+            # Cycle 0 is everything before the first new cycle starts
+            cycle_vec = np.zeros(N)
             
             #Find point where potential first crosses start potential, if given as an argument as well as turning_point
             if start_potential is not None:
@@ -126,8 +134,6 @@ class CyclicVoltammogram(ECMeasurement):
                     )
                 start_idx = crossing[0] + 1
 
-                #define cycle 0
-                cycle_vec[:start_idx] = 0
             else:
                 start_idx = 0
                 
@@ -204,10 +210,17 @@ class CyclicVoltammogram(ECMeasurement):
                 for cluster in separation_clusters:
                     valid_indices.append(cluster[np.argmin(scan_rate[cluster])])             
                 
+            else:
+                raise ValueError("No valid turning points found")
             turning_indices = np.asarray(valid_indices)
 
-
-            for c, idx in enumerate(turning_indices, start=start_idx):
+            # With start_potential, cycle 1 starts at the crossing. Each valid
+            # turning point after that starts the next cycle.
+            first_cycle = 0
+            if start_potential is not None:
+                first_cycle = 1
+                cycle_vec[start_idx:] = first_cycle
+            for c, idx in enumerate(turning_indices, start=first_cycle + 1):
                 cycle_vec[idx:] = c
 
             new_cycle_series = ValueSeries(
@@ -231,7 +244,7 @@ class CyclicVoltammogram(ECMeasurement):
             n = 0
             N = len(self.t)
             v = self.U
-            if redox==None:
+            if redox is None:
                 raise ValueError("Redox direction must be selected if utilising potential as cycle indicator")
             if not redox:
                 # easiest way to reverse directions is to use the same > < operators

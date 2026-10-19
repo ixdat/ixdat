@@ -176,7 +176,7 @@ def demo_real_data_analysis():
     axes[0, 2].set_title("1c. Tracked wavelengths vs time")
 
     print("2. one anodic sweep, referenced to its start at 0.66 V")
-    sweep = sec.select(cycle=5)
+    sweep = sec.select(cycle=6)
     sweep.set_reference_spectrum(spectrum=sweep.spectrum_series[0])
     sweep.plot_waterfall(ax=axes[1, 0], xlim=(400, 900), ylim=(-0.02, 0.25))
     axes[1, 0].set_title("2a. dOD spectra, colored by potential")
