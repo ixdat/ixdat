@@ -6,7 +6,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from ..measurement_base import Calculator
-from ..data_series import Field, TimeSeries
+from ..data_series import DataSeries, Field, TimeSeries, ValueSeries
 from ..exceptions import QuantificationError
 
 
@@ -507,3 +507,413 @@ class Denoiser(Calculator):
             data=np.ma.masked_invalid(spectra_denoised),
             axes_series=spectra_field.axes_series,
         )
+
+
+class SpectrumDeconvolutor(Calculator):
+    """Calculator that fits spectra as linear combinations of converged spectra.
+
+    Converged spectra are found where adjacent difference spectra stop changing,
+    e.g. where one redox transition is underway. Build the calculator from a
+    measurement with `from_spectromeasurement`, which finds the converged spectra and
+    stores them with the diagnostics of the search. Then add it to the same or
+    another measurement with `add_calculator` and look up:
+
+    - "coefficient_<i>": The fit coefficient of converged spectrum i vs time
+    - "reconstructed": The fitted spectra, spanning time and wavelength
+    - "residuals": The measured minus the fitted spectra in [mOD]
+
+    The fitted field is `field_name` ("dOD" by default) of the measurement.
+    """
+
+    calculator_type = "spectrum_deconvolutor"
+    extra_column_attrs = {
+        "spectrum_deconvolutors": {
+            "converged_data",
+            "wavelength",
+            "converged_times",
+            "converged_tstamp",
+            "field_name",
+            "xspan",
+            "bounds_bool",
+            "noise_bound",
+            "adjacent_distances",
+            "timespans",
+            "potentialspans",
+        }
+    }
+
+    def __init__(
+        self,
+        converged_data,
+        wavelength,
+        converged_times=None,
+        converged_tstamp=None,
+        name=None,
+        technique="EC-Optical",
+        tstamp=None,
+        measurement=None,
+        field_name="dOD",
+        xspan=None,
+        bounds_bool=False,
+        noise_bound=0,
+        adjacent_distances=None,
+        timespans=None,
+        potentialspans=None,
+    ):
+        """Initiate a SpectrumDeconvolutor
+
+        Args:
+            converged_data (np.array): 2-D array with one converged spectrum per row
+            wavelength (np.array): The wavelengths in [nm] of the converged spectra
+            converged_times (np.array): The times at which the converged spectra
+                occur, relative to `converged_tstamp`
+            converged_tstamp (float): The unix time corresponding to t=0 in
+                `converged_times`
+            name (str): The name of the calculator
+            technique (str): The technique of the calculator
+            tstamp (float): The time at which the calculator is valid
+            measurement (ECOpticalMeasurement): Optional. The measurement to use by
+                default
+            field_name (str): The field of the measurement to fit. Defaults to
+                "dOD".
+            xspan (iterable): [wl_min, wl_max], the wavelength range in [nm] of the
+                fit. Defaults to the range of `wavelength`.
+            bounds_bool (bool): Whether to constrain each coefficient to be at least
+                its value for the previous spectrum minus `noise_bound`, i.e. to
+                only increase in time. False by default.
+            noise_bound (float): The noise level in [mOD] allowed by the bounds. 0
+                by default.
+            adjacent_distances (np.array): Diagnostic from `from_spectromeasurement`:
+                the distance between each pair of adjacent difference spectra
+            timespans (list): Diagnostic: the timespan of each convergent region
+            potentialspans (list): Diagnostic: the potential span of each
+                convergent region
+        """
+        super().__init__(
+            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+        )
+        self.converged_data = np.asarray(converged_data)
+        self.wavelength = np.asarray(wavelength)
+        self.converged_times = converged_times
+        self.converged_tstamp = converged_tstamp
+        self.field_name = field_name
+        self.xspan = xspan
+        self.bounds_bool = bounds_bool
+        self.noise_bound = noise_bound
+        self.adjacent_distances = adjacent_distances
+        self.timespans = timespans
+        self.potentialspans = potentialspans
+        # Set by `deconvolute`:
+        self.coefficients = None
+        self.reconstructed_field = None
+        self.residuals_field = None
+        self._fitted_measurement = None
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"{len(self.converged_data)} converged spectra, "
+            f"field_name={self.field_name!r}, xspan={self.xspan})"
+        )
+
+    def __add__(self, other):
+        """Adding a SpectrumDeconvolutor replaces this one with the newer one."""
+        return other
+
+    @property
+    def available_series_names(self):
+        names = {f"coefficient_{i}" for i in range(len(self.converged_data))}
+        return names | {"reconstructed", "residuals"}
+
+    @property
+    def wavelength_series(self):
+        return DataSeries(name="wavelength", unit_name="nm", data=self.wavelength)
+
+    @property
+    def converged_spectra(self):
+        """The converged spectra as a Field spanning time and wavelength"""
+        times = self.converged_times
+        if times is None:
+            times = np.arange(len(self.converged_data), dtype=float)
+        tseries = TimeSeries(
+            name="time", unit_name="s", data=times, tstamp=self.converged_tstamp
+        )
+        return Field(
+            name="converged spectra",
+            unit_name="",
+            data=self.converged_data,
+            axes_series=[tseries, self.wavelength_series],
+        )
+
+    @property
+    def spectrum_list(self):
+        """The converged spectra as a list of Spectrum objects"""
+        from ..spectra import Spectrum
+
+        return [
+            Spectrum.from_field(
+                Field(
+                    name=f"converged spectrum {i}",
+                    unit_name="",
+                    data=y,
+                    axes_series=[self.wavelength_series],
+                ),
+                tstamp=self.converged_tstamp,
+            )
+            for i, y in enumerate(self.converged_data)
+        ]
+
+    @classmethod
+    def from_spectromeasurement(
+        cls,
+        measurement,
+        field_name="dOD>diff",
+        normalise=True,
+        xspan=None,
+        idx_step=None,
+        tstep=None,
+        Vstep=None,
+        conv_limit=0.01,
+        convergence_metric="correlation",
+        smooth_distances=False,
+        window_length=4,
+        polyorder=3,
+        prominence=None,
+        threshold=None,
+        distance=None,
+        height=None,
+        min_region_width=2,
+        min_region_separation=2,
+        n_start=3,
+        fit_field_name="dOD",
+        bounds_bool=False,
+        noise_bound=0,
+    ):
+        """Find the converged spectra of a measurement and return a deconvolutor
+
+        Converged spectra are found in the difference spectra `field_name`
+        ("dOD>diff" by default). If any of `idx_step`, `tstep`, `Vstep`, or
+        `normalise` and `xspan` are given, they are set on the measurement's
+        `dOD_calculator` first.
+
+        The distance between each pair of adjacent difference spectra is
+        calculated with scipy's pdist
+        (https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html).
+        With the default "correlation" metric, a distance of 0 means the two
+        spectra have the same shape, and 1 means they are uncorrelated. A
+        convergent region is a run of local minima of this distance below
+        `conv_limit`. Its converged spectrum is the average of the difference
+        spectra in the region. Noisy data may not meet the convergence criterion.
+
+        Args:
+            measurement (ECOpticalMeasurement): The measurement
+            field_name (str): The difference spectra to search. Defaults to
+                "dOD>diff".
+            normalise (bool): Whether to normalise the difference spectra and the
+                converged spectra to their maximum absolute value within `xspan`
+            xspan (iterable): [wl_min, wl_max], the wavelength range in [nm] to
+                consider. Spectra outside the detectable range would otherwise
+                break the convergence maths.
+            idx_step (int): The step in spectrum index of the difference spectra
+            tstep (float): The step in time in [s] of the difference spectra
+            Vstep (float): The step in potential in [V] of the difference spectra
+            conv_limit (float): The maximum distance between adjacent spectra for
+                convergence. Dimensionless. 0.01 by default.
+            convergence_metric (str): The distance metric passed to pdist.
+                "correlation" by default.
+            smooth_distances (bool): Whether to smooth the distances with a
+                Savitzky-Golay filter before finding their minima
+            window_length (int): The Savitzky-Golay window length. 4 by default.
+            polyorder (int): The Savitzky-Golay polynomial order. 3 by default.
+            prominence (float): Passed to scipy.signal.find_peaks: how far a
+                minimum must stand out from its surroundings
+            threshold (float): Passed to find_peaks: the required vertical distance
+                of a minimum to its neighbours
+            distance (float): Passed to find_peaks: the minimum number of samples
+                between neighbouring minima
+            height (float): Passed to find_peaks: the required depth of minima
+            min_region_width (int): The minimum number of minima in a convergent
+                region. 2 by default.
+            min_region_separation (int): The number of spectra separating two
+                convergent regions. 2 by default.
+            n_start (int): The number of first distances checked to decide whether
+                the first spectrum is a minimum. 3 by default.
+            fit_field_name (str): The field the deconvolutor fits. "dOD" by default.
+            bounds_bool (bool): See `__init__`
+            noise_bound (float): See `__init__`
+        Return SpectrumDeconvolutor: with the converged spectra and the diagnostics
+            `adjacent_distances`, `timespans`, and `potentialspans`
+        """
+        from scipy.spatial.distance import pdist, squareform
+        from scipy.signal import find_peaks
+
+        diff_settings = dict(idx_step=idx_step, tstep=tstep, Vstep=Vstep)
+        if any(v is not None for v in diff_settings.values()):
+            spectra_field = measurement.dOD_calculator.calc_diff(
+                measurement,
+                field_name=field_name.removesuffix(">diff"),
+                normalise=normalise,
+                xspan=xspan,
+                **diff_settings,
+            )
+        else:
+            spectra_field = measurement[field_name]
+
+        wl = spectra_field.axes_series[1].data
+        mask = get_x_mask(wl, xspan)
+        spectra = np.ma.filled(np.ma.asarray(spectra_field.data, dtype=float), 0)
+        spectra = spectra[:, mask]
+
+        # The distance between each pair of spectra. For the correlation metric:
+        #   1 - (u - mean(u)) . (v - mean(v)) / (|u - mean(u)| |v - mean(v)|)
+        distance_matrix = squareform(pdist(spectra, convergence_metric))
+        # Adjacent spectra are on the first off-diagonal
+        adjacent_distances = np.diag(distance_matrix, k=1)
+
+        if smooth_distances:
+            from scipy.signal import savgol_filter
+
+            adjacent_distances = savgol_filter(
+                adjacent_distances, window_length=window_length, polyorder=polyorder
+            )
+
+        # The minima of the distances, below the convergence limit
+        mins, _ = find_peaks(
+            -adjacent_distances,
+            prominence=prominence,
+            threshold=threshold,
+            distance=distance,
+            height=height,
+        )
+        mins = mins[adjacent_distances[mins] < conv_limit]
+
+        # find_peaks never returns the first point; check it separately
+        if len(adjacent_distances) >= n_start:
+            start_gradient = np.gradient(adjacent_distances[:n_start])
+            if adjacent_distances[0] < conv_limit and np.all(start_gradient > 0):
+                mins = np.insert(mins, 0, 0)
+
+        # Convergence persists over several spectra, more so for noisy data. Group
+        # the minima into regions and drop regions too narrow to be real.
+        regions = np.split(mins, np.where(np.diff(mins) > min_region_separation)[0] + 1)
+        regions = [r for r in regions if len(r) >= min_region_width]
+        if not regions:
+            raise ValueError(
+                f"No convergent regions found in {field_name} with"
+                f" conv_limit={conv_limit}. Try a larger conv_limit, a narrower"
+                " xspan, or a larger step between difference spectra."
+            )
+
+        tseries = spectra_field.axes_series[0]
+        time = tseries.t
+        t_offset = tseries.tstamp - measurement.tstamp
+        timespans = []
+        potentialspans = []
+        converged_times = []
+        converged_spectra = []
+        for r in regions:
+            start, end = r[0], r[-1] + 1
+            tspan = (time[start] + t_offset, time[end] + t_offset)
+            potentials = measurement.grab_for_t("potential", t=np.array(tspan))
+            converged_spectra.append(spectra[start:end].mean(axis=0))
+            converged_times.append(time[start:end + 1].mean())
+            timespans.append(tspan)
+            potentialspans.append((potentials[0], potentials[-1]))
+
+        converged_spectra = np.array(converged_spectra)
+        if normalise:
+            converged_spectra = normalise_spectra(converged_spectra, wl[mask])
+
+        return cls(
+            converged_data=converged_spectra,
+            wavelength=wl[mask],
+            converged_times=np.array(converged_times),
+            converged_tstamp=tseries.tstamp,
+            field_name=fit_field_name,
+            xspan=xspan,
+            bounds_bool=bounds_bool,
+            noise_bound=noise_bound,
+            adjacent_distances=adjacent_distances,
+            timespans=timespans,
+            potentialspans=potentialspans,
+        )
+
+    def calculate_series(self, key, measurement=None):
+        """Return a coefficient series, or the reconstructed or residual field."""
+        measurement = measurement or self.measurement
+        if measurement is self._fitted_measurement:
+            coefficients = self.coefficients
+        else:
+            coefficients = self.deconvolute(measurement)
+        if key == "reconstructed":
+            return self.reconstructed_field
+        if key == "residuals":
+            return self.residuals_field
+        if key.startswith("coefficient_"):
+            return coefficients[int(key.removeprefix("coefficient_"))]
+        raise QuantificationError(f"{self} can not calculate {key}")
+
+    def deconvolute(self, measurement=None):
+        """Fit each spectrum of the measurement as a sum of the converged spectra
+
+        The spectra of `self.field_name` are interpolated onto the wavelengths of
+        the converged spectra, within `self.xspan`, and fitted by linear least
+        squares (scipy.optimize.lsq_linear). The reconstructed spectra and the
+        residuals are stored as `self.reconstructed_field` and
+        `self.residuals_field`.
+
+        Args:
+            measurement (ECOpticalMeasurement): The measurement. Defaults to
+                self.measurement.
+        Return list of ValueSeries: The coefficient of each converged spectrum
+        """
+        from scipy.optimize import lsq_linear
+
+        measurement = measurement or self.measurement
+        field = measurement[self.field_name]
+        tseries, xseries = field.axes_series
+
+        wl_mask = get_x_mask(self.wavelength, self.xspan)
+        wl = self.wavelength[wl_mask]
+        converged = np.ma.filled(self.converged_data[:, wl_mask], 0)  # NaN breaks lsq
+        data = np.ma.filled(np.ma.asarray(field.data, dtype=float), 0)
+        # Put the measured spectra on the wavelengths of the converged spectra
+        spectra = interp1d(xseries.data, data, axis=1)(wl)
+
+        coefficients = []
+        for i, spectrum in enumerate(spectra):
+            if self.bounds_bool:
+                # The lower bound of each component is its previous value, minus
+                # the noise
+                lower = coefficients[i - 1] - self.noise_bound / 1000 if i else 0
+                result = lsq_linear(converged.T, spectrum, bounds=(lower, np.inf))
+            else:
+                result = lsq_linear(converged.T, spectrum)
+            coefficients.append(np.asarray(result.x))
+        coefficients = np.array(coefficients)
+
+        wl_series = DataSeries(name="wavelength", unit_name="nm", data=wl)
+        reconstructed = coefficients @ converged
+        self.coefficients = [
+            ValueSeries(
+                name=f"coefficient_{i}",
+                unit_name="",
+                data=c,
+                tseries=tseries,
+            )
+            for i, c in enumerate(coefficients.T)
+        ]
+        self._fitted_measurement = measurement
+        self.reconstructed_field = Field(
+            name="reconstructed",
+            unit_name=field.unit_name,
+            data=reconstructed,
+            axes_series=[tseries, wl_series],
+        )
+        self.residuals_field = Field(
+            name="residuals",
+            unit_name="mOD",
+            data=(spectra - reconstructed) * 1000,
+            axes_series=[tseries, wl_series],
+        )
+        return self.coefficients

@@ -4,7 +4,11 @@ import numpy as np
 import pytest
 
 from ixdat.calculators import CALCULATOR_CLASSES
-from ixdat.calculators.sec_calculators import DeltaODCalculator, Denoiser
+from ixdat.calculators.sec_calculators import (
+    DeltaODCalculator,
+    Denoiser,
+    SpectrumDeconvolutor,
+)
 from ixdat.data_series import DataSeries, Field, TimeSeries, ValueSeries
 from ixdat.techniques import ECMeasurement
 from ixdat.techniques.spectroelectrochemistry import (
@@ -283,3 +287,126 @@ def test_denoiser_round_trip_through_as_dict():
     copy = Denoiser.from_dict(calc.as_dict())
     assert isinstance(copy, Denoiser)
     assert repr(copy) == repr(calc)
+
+
+def two_transition_sec(n=81, noise=1e-4, seed=0):
+    """Return a sec with two redox transitions, at 0.3 V and 0.7 V, and their shapes.
+
+    Each transition has its own Gaussian spectrum. The intensity is referenced to the
+    first spectrum, where both transitions are (practically) not started.
+    """
+    rng = np.random.default_rng(seed)
+    wl = np.linspace(400, 900, 101)
+    shapes = np.array(
+        [np.exp(-((wl - 500) / 40) ** 2), np.exp(-((wl - 750) / 40) ** 2)]
+    )
+    potential = np.linspace(0, 1, n)
+    completion = np.array(
+        [1 / (1 + np.exp(-(potential - U0) / 0.03)) for U0 in (0.3, 0.7)]
+    )
+    dOD = completion.T @ shapes
+    t = np.arange(float(n))
+    ec_tseries = TimeSeries(name="time", unit_name="s", data=t, tstamp=TSTAMP)
+    ec = ECMeasurement(
+        name="ec",
+        technique="EC",
+        tstamp=TSTAMP,
+        series_list=[
+            ec_tseries,
+            ValueSeries("raw_potential", "V", potential, tseries=ec_tseries),
+            ValueSeries("raw_current", "mA", np.zeros_like(t), tseries=ec_tseries),
+        ],
+    )
+    opt_tseries = TimeSeries(name="time", unit_name="s", data=t, tstamp=TSTAMP)
+    optical = OpticalSpectrumSeries(
+        name="optical",
+        technique="Optical",
+        tstamp=TSTAMP,
+        field=Field(
+            name="intensity",
+            unit_name="counts",
+            data=10 ** (-dOD) * (1 + noise * rng.standard_normal(dOD.shape)),
+            axes_series=[opt_tseries, DataSeries("wavelength", "nm", wl)],
+        ),
+        continuous=True,
+        spectra_type="Intensity",
+    )
+    sec = ec + optical
+    sec.set_reference_spectrum(t_ref=0)
+    return sec, shapes
+
+
+def test_deconvolutor_finds_both_converged_spectra():
+    sec, shapes = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1
+    )
+    assert len(decon.converged_data) == 2
+    for converged, shape in zip(decon.converged_data, shapes):
+        assert np.corrcoef(converged, shape)[0, 1] > 0.999
+    lo, hi = decon.potentialspans
+    assert abs(np.mean(lo) - 0.3) < 0.05 and abs(np.mean(hi) - 0.7) < 0.05
+    assert len(decon.adjacent_distances) == 79
+    assert len(decon.spectrum_list) == 2
+
+
+def test_deconvolutor_lookup_reconstructs_the_dOD():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1
+    )
+    sec.add_calculator(decon)
+    coefficient_0 = sec["coefficient_0"]
+    assert isinstance(coefficient_0, ValueSeries)
+    assert coefficient_0.data.shape == (81,)
+    # The residuals are in mOD, on a signal of up to 1000 mOD
+    assert np.max(np.abs(sec["residuals"].data)) < 5
+    np.testing.assert_allclose(sec["reconstructed"].data, sec["dOD"].data, atol=5e-3)
+    # The first transition completes before the second starts
+    assert sec["coefficient_0"].data[40] > 10 * sec["coefficient_1"].data[40]
+
+
+def test_deconvolutor_fits_a_different_measurement():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1
+    )
+    other, _ = two_transition_sec(n=41)
+    coefficients = decon.deconvolute(other)
+    assert len(coefficients) == 2 and coefficients[0].data.shape == (41,)
+
+
+def test_deconvolutor_fits_on_its_own_wavelengths():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1, xspan=[450, 850]
+    )
+    assert decon.wavelength.min() >= 450 and decon.wavelength.max() <= 850
+    decon.deconvolute(sec)
+    assert decon.reconstructed_field.data.shape == (81, len(decon.wavelength))
+
+
+def test_deconvolutor_bounds_keep_coefficients_increasing():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1, bounds_bool=True
+    )
+    for coefficient in decon.deconvolute(sec):
+        assert np.all(np.diff(coefficient.data) >= -1e-9)
+
+
+def test_no_convergence_raises():
+    sec, _ = two_transition_sec()
+    with pytest.raises(ValueError, match="No convergent regions"):
+        SpectrumDeconvolutor.from_spectromeasurement(sec, idx_step=1, conv_limit=0)
+
+
+def test_deconvolutor_round_trip_through_as_dict():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1
+    )
+    copy = SpectrumDeconvolutor.from_dict(decon.as_dict())
+    np.testing.assert_allclose(copy.converged_data, decon.converged_data)
+    np.testing.assert_allclose(copy.wavelength, decon.wavelength)
+    assert copy.potentialspans == decon.potentialspans
