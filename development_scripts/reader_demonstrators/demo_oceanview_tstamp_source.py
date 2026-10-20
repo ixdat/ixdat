@@ -5,10 +5,12 @@ an absolute timestamp on every spectral data row. The header is written a beat
 before the first spectrum is actually acquired, so the two disagree by the time
 it takes to open the file and start capturing.
 
-`tstamp_source="header"` (the default) anchors the time axis to the header.
-`tstamp_source="spectrum"` anchors it to the first spectrum's own timestamp.
+`tstamp_source="header"` (the default) sets `tstamp` from the header, and `t` is
+measured from it. `tstamp_source="spectrum"` sets `tstamp` from the first data
+row, so `t` starts at 0. The absolute times (`tstamp + t`) are identical either
+way, so alignment with other data does not depend on the choice.
 
-Not every file can use "spectrum": a bug in some version of OceanView results in a 
+Not every file can use "spectrum": a bug in some version of OceanView results in a
 timestamp of 1970-01-01. The reader detects that and refuses, rather than placing the
 measurement in 1970.
 
@@ -61,8 +63,9 @@ def compare_tstamp_sources():
     print("  this file's header states BST, and BST is one hour ahead of UTC,")
     print("  so a header of 18:51 BST is shown above as 17:51 UTC")
     print()
-    print("  the header is written before acquisition starts, so 'spectrum'")
-    print("  places the data later, where the spectrometer says it belongs")
+    print(f"  first t, header   : {from_header.t[0]:.3f} s")
+    print(f"  first t, spectrum : {from_spectrum.t[0]:.3f} s")
+    print("  tstamp + t is the same for both, so the data lines up either way")
     return from_header, from_spectrum
 
 
@@ -100,9 +103,9 @@ def demonstrate_placeholder_rejection():
         raise AssertionError("expected the placeholder date to be rejected")
 
 
-def plot_the_offset(from_header, from_spectrum):
-    """Plot both results on the same time axis, measured from the header
-    timestamp."""
+def plot_absolute_time(from_header, from_spectrum):
+    """Plot both results against absolute time, measured from the header
+    timestamp. The two curves overlap."""
     wavelengths = from_header.field.axes_series[1].data
     index = len(wavelengths) // 2
     wavelength = wavelengths[index]
@@ -122,7 +125,7 @@ def plot_the_offset(from_header, from_spectrum):
     ax.set_xlabel("time / [s] measured from the header timestamp")
     ax.set_ylabel(f"intensity at {wavelength:.0f} nm / [a.u.]")
     ax.legend()
-    ax.set_title("the same spectra, anchored two ways")
+    ax.set_title("both tstamp sources give the same absolute time")
     return ax
 
 
@@ -146,8 +149,8 @@ def main():
     demonstrate_placeholder_rejection()
 
     print()
-    print("plotting the offset")
-    plot_the_offset(from_header, from_spectrum)
+    print("plotting both against absolute time")
+    plot_absolute_time(from_header, from_spectrum)
     plt.show()
 
 
