@@ -97,8 +97,7 @@ def read_real_measurement(data_dir):
     """Read a real multi-cycle CV on IrOx and its optical spectra.
 
     Expects the two files from the IrOx_SEC_demo folder on asimov in data_dir:
-    6_CVs_repeat_new_baseline_new_alignment_03_CVA_C01.mpt and
-    Ir_Ox_CV_benchmark_realigned_test_signal_Relative__0__14-52-00-835.txt
+    IrOx_SEC_demo_CV.mpt and IrOx_SEC_demo_transmission__0__14-52-00-835.txt
 
     The spectra were saved in OceanView's "Relative" mode, i.e. as % transmission
     relative to a background spectrum, so they are read as "Transmission".
@@ -106,14 +105,13 @@ def read_real_measurement(data_dir):
     """
     data_dir = Path(data_dir)
     optical = Spectrum.read(
-        data_dir
-        / "Ir_Ox_CV_benchmark_realigned_test_signal_Relative__0__14-52-00-835.txt",
+        data_dir / "IrOx_SEC_demo_transmission__0__14-52-00-835.txt",
         reader="oceanview",
         spectra_type="Transmission",
         average_every=2,
     )
     ec = Measurement.read(
-        data_dir / "6_CVs_repeat_new_baseline_new_alignment_03_CVA_C01.mpt",
+        data_dir / "IrOx_SEC_demo_CV.mpt",
         reader="biologic",
     )
     return ec.as_cv(), optical
