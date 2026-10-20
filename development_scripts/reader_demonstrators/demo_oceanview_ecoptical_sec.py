@@ -5,7 +5,7 @@ fixture and a BioLogic EC fixture, combines them into an ECOpticalMeasurement, a
 shows the basic EC-optical plots. This part is self-contained and needs no external
 data.
 
-Set IXDAT_DEMO_REAL_DATA_DIR to the unzipped IrOx_SEC_benchmark.zip (a real
+Set IXDAT_DEMO_REAL_DATA_DIR to the IrOx_SEC_demo folder from asimov (a real
 multi-cycle EC-optical recording on IrOx, too large to commit to the repo)
 to instead run the full analysis on one anodic sweep, as one figure read row by
 row: the measurement, one sweep, finding the transitions, and checking the fit.
@@ -96,16 +96,15 @@ def demo_small_fixture():
 def read_real_measurement(data_dir):
     """Read a real multi-cycle CV on IrOx and its optical spectra.
 
-    Expects, as unzipped from IrOx_SEC_benchmark.zip:
-    data_dir/Data files/Data/6_CVs_repeat_new_baseline_new_alignment_03_CVA_C01.mpt
-    and data_dir/Data files/Data/
+    Expects the two files from the IrOx_SEC_demo folder on asimov in data_dir:
+    6_CVs_repeat_new_baseline_new_alignment_03_CVA_C01.mpt and
     Ir_Ox_CV_benchmark_realigned_test_signal_Relative__0__14-52-00-835.txt
 
     The spectra were saved in OceanView's "Relative" mode, i.e. as % transmission
     relative to a background spectrum, so they are read as "Transmission".
     average_every=2 halves the number of spectra while reading.
     """
-    data_dir = Path(data_dir) / "Data files" / "Data"
+    data_dir = Path(data_dir)
     optical = Spectrum.read(
         data_dir
         / "Ir_Ox_CV_benchmark_realigned_test_signal_Relative__0__14-52-00-835.txt",
@@ -259,7 +258,7 @@ def main():
     else:
         demo_small_fixture()
         print(
-            "\nSet IXDAT_DEMO_REAL_DATA_DIR to the unzipped IrOx_SEC_benchmark.zip to"
+            "\nSet IXDAT_DEMO_REAL_DATA_DIR to the IrOx_SEC_demo folder from asimov to"
             " also run the full analysis on real multi-cycle data (one cycle per"
             " sweep, difference spectra, converged spectra and the fit)."
         )
