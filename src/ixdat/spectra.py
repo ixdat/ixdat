@@ -716,6 +716,10 @@ class SpectrumSeries(Spectrum):
         if isinstance(key, int):
             spectrum_as_dict = self.as_dict()
             del spectrum_as_dict["field_id"]
+            # Columns of the series class that the spectrum class doesn't have, e.g.
+            # OpticalSpectrumSeries.spectra_type, describe the series only:
+            for attr in self.get_all_column_attrs() - cls.get_all_column_attrs():
+                spectrum_as_dict.pop(attr, None)
             spectrum_as_dict["field"] = Field(
                 # note that it's important in some cases that the spectrum does not have
                 # the same name as the spectrum series:
@@ -727,7 +731,9 @@ class SpectrumSeries(Spectrum):
             spectrum_as_dict["tstamp"] = self.tstamp + self.t[key]
             if self.durations is not None and len(self.durations) > 0:
                 spectrum_as_dict["duration"] = self.durations[key]
-            return cls.from_dict(spectrum_as_dict)
+            # `cls` is chosen above. Spectrum.from_dict would pick a class from the
+            # series' technique again and could return a SpectrumSeries.
+            return cls(**spectrum_as_dict)
 
         elif isinstance(key, slice):
             # Convert the slice to a list of integers, get the spectra with the code
@@ -763,7 +769,9 @@ class SpectrumSeries(Spectrum):
             data=new_y,
             axes_series=[new_tseries, self.xseries],
         )
-        new_durations = np.array(self.durations)[t_mask]
+        new_durations = (
+            np.array(self.durations)[t_mask] if self.durations is not None else None
+        )
         cut_spectrum_series_as_dict = self.as_dict()
         cut_spectrum_series_as_dict.update(
             field=new_field,
@@ -870,14 +878,13 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         cls = TECHNIQUE_CLASSES[new_technique]
     else:
         cls = SpectroMeasurement
-    if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
-        # Then we need a reference spectrum!
-        # But so far the only EC-Optical reader doesn't support reading Optical and
-        # EC parts separately, so this needs not be implemented yet.
-        raise NotImplementedError("addition of EC and Optical not yet supported.")
+    # if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
+    #     # Then we need a reference spectrum!
+    #     # But so far the only EC-Optical reader doesn't support reading Optical and
+    #     # EC parts separately, so this needs not be implemented yet.
+    #     raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
-    print(new_technique)
     return cls.from_dict(obj_as_dict)
 
 
@@ -890,7 +897,7 @@ class SpectroMeasurement(Measurement):
 
     def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if spectrum_series:
+        if spectrum_series is not None:
             self._spectrum_series = spectrum_series
             self._spectrum_series.tstamp = self.tstamp
         elif spectrum_id:
@@ -922,6 +929,8 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+        # Cached lookups of "spectra" and series calculated from it are now stale.
+        self.clear_cache()
 
     @property
     def continuous(self):
@@ -944,6 +953,17 @@ class SpectroMeasurement(Measurement):
         if isinstance(item, int) or isinstance(item, slice):
             return self.spectrum_series[item]
         return super().__getitem__(item)
+
+    def get_series(self, key):
+        """Find or build the data series or field corresponding to key
+
+        "spectra" and the name of the spectrum series' field return the field, so
+        that calculators can look up the spectral data. Other keys are looked up as
+        in :func:`~measurement_base.Measurement.get_series`.
+        """
+        if key in ("spectra", self.spectra.name):
+            return self.spectra
+        return super().get_series(key)
 
     def __add__(self, other):
         added_measurement = super().__add__(other)
