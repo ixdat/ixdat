@@ -793,15 +793,42 @@ class SpectrumDeconvolutor(Calculator):
         ("dOD>diff" by default). If any of `idx_step`, `tstep`, `Vstep`, or
         `normalise` and `xspan` are given, they are set on the measurement's
         `dOD_calculator` first.
-
-        The distance between each pair of adjacent difference spectra is
+        
+        For details on the mathematical logic behind selecting convergent spectra, see:
+        Moss, Benjamin, et al. "Operando ultraviolet–visible optical spectroelectrochemistry of surfaces."
+        Nature Reviews Methods Primers 5.1 (2025): 73
+        
+        The contents of the mathematical logic is summarised below:
+        
+        For a set of absorbance spectra, there exists a potential region [U, U-dU] where the
+        UV-vis response is dominated by one redox transition. By plotting the spectrum at U minus
+        the spectrum at U-dU, and choosing dU carefully, we can see points of convergence where
+        successive spectra are still dominated by the same redox transition. dU must not be so large
+        that the convergence window is missed, nor so small that the difference spectra are dominated by
+        noise. The points where successive spectra become convergent are defined as places in the datset
+        where the difference spectra vary the minimum amount. 
+        
+        In order to quantify how much the difference spectra vary, we can use mathematical metrics to 
+        determine how similar a vector is to a reference vector. These can be methods such as Pearson's 
+        correlation, Euclidean distance, or cosine correlation. Such methods are common in spectroscopy 
+        techniques such as Raman and FTIR spectroscopy (see Mostafapour, Sara, et al. "Raman spectra
+        comparison: cautions and pitfalls of similarity metrics." Spectrochimica Acta Part A: Molecular 
+        and Biomolecular Spectroscopy 344 (2026): 126702 for a discussion on the pitfalls of various 
+        similarity detection techniques). The user is encouraged to consider which mathematical metric
+        makes the most sense for their data. By normalising the distance spectra to their maximum
+        value, we reduce variation from baseline shifts, but noise can still cause issues in determining
+        convergence.
+        
+        The similarity between each pair of adjacent difference spectra is
         calculated with scipy's pdist
         (https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html).
+        Using pdist, the user can select from a variety of different similarity metrics.
         With the default "correlation" metric, a distance of 0 means the two
         spectra have the same shape, and 1 means they are uncorrelated. A
         convergent region is a run of local minima of this distance below
         `conv_limit`. Its converged spectrum is the average of the difference
         spectra in the region. Noisy data may not meet the convergence criterion.
+        
 
         Args:
             measurement (ECOpticalMeasurement): The measurement
