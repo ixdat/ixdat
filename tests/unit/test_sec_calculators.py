@@ -404,6 +404,14 @@ def test_deconvolutor_finds_both_converged_spectra():
     assert len(decon.spectrum_list) == 2
 
 
+def test_deconvolutor_smooths_distances_with_default_window():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1, smooth_distances=True
+    )
+    assert len(decon.converged_data) == 2
+
+
 def test_deconvolutor_lookup_reconstructs_the_dOD():
     sec, _ = two_transition_sec()
     decon = SpectrumDeconvolutor.from_spectromeasurement(

@@ -19,7 +19,7 @@ class DoublingCalculator(Calculator):
     available_suffixes = {">double"}
 
     def calculate_series(self, key, measurement=None):
-        field = measurement[key.removesuffix(">double")]
+        field = measurement[key[: -len(">double")]]
         return Field(
             name=key,
             unit_name=field.unit_name,

@@ -225,7 +225,7 @@ class DeltaODCalculator(Calculator):
         if key == "dOD":
             return self.calc_dOD(measurement)
         if key.endswith(">diff"):
-            return self.calc_diff(measurement, field_name=key.removesuffix(">diff"))
+            return self.calc_diff(measurement, field_name=key[: -len(">diff")])
         raise QuantificationError(f"{self} can not calculate {key}")
 
     def calc_dOD(self, measurement=None, V_ref=None, t_ref=None, index_ref=None):
@@ -438,7 +438,7 @@ class Denoiser(Calculator):
         measurement=None,
         denoise_method="PCA",
         PCA_explained_variance=0.99,
-        sg_window=10,
+        sg_window=11,
         sg_poly_order=3,
         normalise=False,
         xspan=None,
@@ -457,7 +457,7 @@ class Denoiser(Calculator):
             PCA_explained_variance (float): The fraction of the variance that the
                 kept principal components must explain. 0.99 by default.
             sg_window (int): The window length of the Savitzky-Golay filter, in
-                number of wavelengths. 10 by default.
+                number of wavelengths. 11 by default.
             sg_poly_order (int): The order of the polynomial fitted in each window of
                 the Savitzky-Golay filter. 3 by default.
             normalise (bool): Whether to scale each denoised spectrum to the range
@@ -487,7 +487,7 @@ class Denoiser(Calculator):
         """Return the denoised field for a key ending in ">smooth"."""
         measurement = measurement or self.measurement
         if key.endswith(">smooth"):
-            spectra_field = measurement[key.removesuffix(">smooth")]
+            spectra_field = measurement[key[: -len(">smooth")]]
             return self.denoise_spectra(spectra_field, name=key)
         raise QuantificationError(f"{self} can not calculate {key}")
 
@@ -770,7 +770,7 @@ class SpectrumDeconvolutor(Calculator):
         conv_limit=0.01,
         convergence_metric="correlation",
         smooth_distances=False,
-        window_length=4,
+        window_length=5,
         polyorder=3,
         prominence=None,
         threshold=None,
@@ -817,7 +817,7 @@ class SpectrumDeconvolutor(Calculator):
                 "correlation" by default.
             smooth_distances (bool): Whether to smooth the distances with a
                 Savitzky-Golay filter before finding their minima
-            window_length (int): The Savitzky-Golay window length. 4 by default.
+            window_length (int): The Savitzky-Golay window length. 5 by default.
             polyorder (int): The Savitzky-Golay polynomial order. 3 by default.
             prominence (float): Passed to scipy.signal.find_peaks: how far a
                 minimum must stand out from its surroundings
@@ -842,7 +842,11 @@ class SpectrumDeconvolutor(Calculator):
         if any(v is not None for v in diff_settings.values()):
             spectra_field = measurement.dOD_calculator.calc_diff(
                 measurement,
-                field_name=field_name.removesuffix(">diff"),
+                field_name=(
+                    field_name[: -len(">diff")]
+                    if field_name.endswith(">diff")
+                    else field_name
+                ),
                 normalise=normalise,
                 xspan=xspan,
                 **diff_settings,
@@ -946,7 +950,7 @@ class SpectrumDeconvolutor(Calculator):
         if key == "residuals":
             return self.residuals_field
         if key.startswith("coefficient_"):
-            return coefficient_series_list[int(key.removeprefix("coefficient_"))]
+            return coefficient_series_list[int(key.split("_", 1)[1])]
         raise QuantificationError(f"{self} can not calculate {key}")
 
     def deconvolute(self, measurement=None):
