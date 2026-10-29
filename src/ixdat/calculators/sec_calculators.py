@@ -281,8 +281,9 @@ class DeltaODCalculator(Calculator):
         placed at the time of the later of the two.
 
         Arguments left as None are taken from the calculator's attributes. Arguments
-        that are given update the calculator's attributes. Exactly one of
-        `idx_step`, `tstep`, and `Vstep` must be set after this update.
+        that are given update the calculator's attributes. Providing a step replaces
+        the previous step selection and clears the other step settings. Exactly one
+        of `idx_step`, `tstep`, and `Vstep` must be set after this update.
 
         Args:
             measurement (ECOpticalMeasurement): The measurement. Defaults to
@@ -304,18 +305,16 @@ class DeltaODCalculator(Calculator):
         given = dict(
             normalise=normalise,
             xspan=xspan,
-            idx_step=idx_step,
-            tstep=tstep,
-            Vstep=Vstep,
             interpolate=interpolate,
         )
         for attr, value in given.items():
             if value is not None:
                 setattr(self, attr, value)
-        if any(given[k] is not None for k in ("idx_step", "tstep", "Vstep")):
-            # A newly given step replaces the steps set before.
-            for k in ("idx_step", "tstep", "Vstep"):
-                setattr(self, k, given[k])
+        given_steps = dict(idx_step=idx_step, tstep=tstep, Vstep=Vstep)
+        if any(value is not None for value in given_steps.values()):
+            # Include None to clear the previous step selection.
+            for attr, value in given_steps.items():
+                setattr(self, attr, value)
 
         steps = {
             k: getattr(self, k)
