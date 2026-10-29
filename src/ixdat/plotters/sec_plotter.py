@@ -786,9 +786,8 @@ class ECOpticalPlotter(SECPlotter):
         """
         measurement = measurement or self.measurement
         decon = self._get_deconvolutor(measurement)
-        n_converged = len(decon.converged_data)
-        coefficients = [measurement[f"coefficient_{i}"] for i in range(n_converged)]
-        residuals = measurement["residuals"]
+        residuals = decon.calculate_series("residuals", measurement=measurement)
+        coefficient_series_list = decon.coefficient_series_list
         redox_potentials = [np.mean(span) for span in decon.potentialspans]
 
         if not axes:
@@ -799,7 +798,9 @@ class ECOpticalPlotter(SECPlotter):
             vmin=np.min(full_potentials), vmax=np.max(full_potentials)
         )
         cmap = mpl.colormaps[cmap_name]
-        for coefficient, redox_potential in zip(coefficients, redox_potentials):
+        for coefficient, redox_potential in zip(
+            coefficient_series_list, redox_potentials
+        ):
             t = coefficient.tseries.t + coefficient.tseries.tstamp - measurement.tstamp
             axes[0].plot(
                 measurement.grab_for_t(measurement.U_name, t=t),

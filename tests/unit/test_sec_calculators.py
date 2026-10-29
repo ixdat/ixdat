@@ -493,6 +493,28 @@ def test_plot_fit_and_residuals(deconvoluted_sec):
     assert len(axes[1].get_lines()) == 81
 
 
+def test_plot_fit_after_fitting_another_measurement(deconvoluted_sec):
+    import matplotlib.pyplot as plt
+
+    sec = deconvoluted_sec
+    expected_coefficients = [sec[f"coefficient_{i}"].data for i in range(2)]
+    expected_residuals = sec["residuals"].data
+    decon = sec.calculators["spectrum_deconvolutor"]
+    other, _ = two_transition_sec(n=41)
+    decon.deconvolute(other)
+
+    try:
+        axes = sec.plotter.plot_fit_and_residuals()
+        np.testing.assert_allclose(
+            [line.get_ydata() for line in axes[0].get_lines()], expected_coefficients
+        )
+        np.testing.assert_allclose(
+            [line.get_ydata() for line in axes[1].get_lines()], expected_residuals
+        )
+    finally:
+        plt.close("all")
+
+
 def test_plot_fit_reconstruction(deconvoluted_sec):
     ax = deconvoluted_sec.plotter.plot_fit_reconstruction()
     assert len(ax.get_lines()) == 81
