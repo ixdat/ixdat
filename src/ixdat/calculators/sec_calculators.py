@@ -480,10 +480,6 @@ class Denoiser(Calculator):
             f"normalise={self.normalise}, xspan={self.xspan})"
         )
 
-    def __add__(self, other):
-        """Adding a Denoiser replaces this one with the newer one."""
-        return other
-
     def calculate_series(self, key, measurement=None):
         """Return the denoised field for a key ending in ">smooth"."""
         measurement = measurement or self.measurement
