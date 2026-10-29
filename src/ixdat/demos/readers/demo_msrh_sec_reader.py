@@ -80,7 +80,7 @@ def main(show=True):
         )
         ax.legend()
 
-        axes = sec_meas.plot_wavelengths_vs_potential(
+        axes = sec_meas.plotter.plot_wavelengths_vs_potential(
             wavelengths=["w460", "w600", "w850"]
         )
         axes[0].set_ylabel("intense!")

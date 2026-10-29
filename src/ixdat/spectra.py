@@ -716,6 +716,10 @@ class SpectrumSeries(Spectrum):
         if isinstance(key, int):
             spectrum_as_dict = self.as_dict()
             del spectrum_as_dict["field_id"]
+            # Columns of the series class that the spectrum class doesn't have, e.g.
+            # OpticalSpectrumSeries.spectra_type, describe the series only:
+            for attr in self.get_all_column_attrs() - cls.get_all_column_attrs():
+                spectrum_as_dict.pop(attr, None)
             spectrum_as_dict["field"] = Field(
                 # note that it's important in some cases that the spectrum does not have
                 # the same name as the spectrum series:
@@ -765,7 +769,9 @@ class SpectrumSeries(Spectrum):
             data=new_y,
             axes_series=[new_tseries, self.xseries],
         )
-        new_durations = np.array(self.durations)[t_mask]
+        new_durations = (
+            np.array(self.durations)[t_mask] if self.durations is not None else None
+        )
         cut_spectrum_series_as_dict = self.as_dict()
         cut_spectrum_series_as_dict.update(
             field=new_field,
@@ -778,6 +784,69 @@ class SpectrumSeries(Spectrum):
             else:
                 cut_spectrum_series.tstamp += t_zero
         return cut_spectrum_series
+
+    def calc_average_spectra(self, average_number=10, field=None):
+        """Return a SpectrumSeries averaging consecutive groups of spectra.
+
+        The result keeps the source class, technique, metadata, and continuous
+        setting. Each group's time is the mean of its spectra's times. Complete
+        groups are averaged; an incomplete trailing group is dropped.
+        When averaging self.field, any recorded durations are summed per group.
+
+        Args:
+            average_number (int): Number of spectra per group. Defaults to 10.
+                Must be positive and at most the number of spectra in the field.
+            field (Field): Optional spectral field to average. Defaults to
+                self.field. Its units, time axis, and x-axis are used in the result.
+        Returns SpectrumSeries: The averaged spectra, using the source subclass.
+        """
+        if not isinstance(average_number, (int, np.integer)) or average_number < 1:
+            raise ValueError("average_number must be a positive integer.")
+        spectra_field = field if field is not None else self.field
+        spectra = spectra_field.data
+        source_tseries, xseries = spectra_field.axes_series
+        n_groups = len(spectra) // average_number
+        if n_groups == 0:
+            raise ValueError(
+                f"average_number={average_number} exceeds the number of spectra"
+                f" ({len(spectra)})."
+            )
+        n_used = n_groups * average_number
+        averaged_spectra = (
+            spectra[:n_used]
+            .reshape(n_groups, average_number, spectra.shape[1])
+            .mean(axis=1)
+        )
+        averaged_time = (
+            source_tseries.data[:n_used].reshape(n_groups, average_number).mean(axis=1)
+        )
+        tseries = TimeSeries(
+            name=source_tseries.name,
+            unit_name=source_tseries.unit_name,
+            data=averaged_time,
+            tstamp=source_tseries.tstamp,
+        )
+        averaged_field = Field(
+            name=f"Averaged {spectra_field.name}",
+            unit_name=spectra_field.unit_name,
+            data=averaged_spectra,
+            axes_series=[tseries, xseries],
+        )
+        averaged_as_dict = self.as_dict(exclude=["field_id"])
+        averaged_as_dict.update(
+            name=averaged_field.name,
+            field=averaged_field,
+            tstamp=tseries.tstamp,
+            continuous=self.continuous,
+            reader=self.reader,
+        )
+        if field is None and self.durations is not None:
+            averaged_as_dict["durations"] = (
+                np.asarray(self.durations)[:n_used]
+                .reshape(n_groups, average_number)
+                .sum(axis=1)
+            )
+        return self.__class__(**averaged_as_dict)
 
     @property
     def y_average(self):
@@ -872,11 +941,11 @@ def add_spectrum_series_to_measurement(measurement, spectrum_series, **kwargs):
         cls = TECHNIQUE_CLASSES[new_technique]
     else:
         cls = SpectroMeasurement
-    if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
-        # Then we need a reference spectrum!
-        # But so far the only EC-Optical reader doesn't support reading Optical and
-        # EC parts separately, so this needs not be implemented yet.
-        raise NotImplementedError("addition of EC and Optical not yet supported.")
+    # if issubclass(cls, TECHNIQUE_CLASSES["EC-Optical"]):
+    #     # Then we need a reference spectrum!
+    #     # But so far the only EC-Optical reader doesn't support reading Optical and
+    #     # EC parts separately, so this needs not be implemented yet.
+    #     raise NotImplementedError("addition of EC and Optical not yet supported.")
 
     obj_as_dict.update(kwargs)
     return cls.from_dict(obj_as_dict)
@@ -891,7 +960,7 @@ class SpectroMeasurement(Measurement):
 
     def __init__(self, *args, spectrum_series=None, spectrum_id=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if spectrum_series:
+        if spectrum_series is not None:
             self._spectrum_series = spectrum_series
             self._spectrum_series.tstamp = self.tstamp
         elif spectrum_id:
@@ -923,6 +992,8 @@ class SpectroMeasurement(Measurement):
     def set_spectrum_series(self, spectrum_series):
         """(Re-)set the `spectrum_series` to a provided `spectrum_series`"""
         self._spectrum_series = spectrum_series
+        # Cached lookups of "spectra" and series calculated from it are now stale.
+        self.clear_cache()
 
     @property
     def continuous(self):
@@ -945,6 +1016,17 @@ class SpectroMeasurement(Measurement):
         if isinstance(item, int) or isinstance(item, slice):
             return self.spectrum_series[item]
         return super().__getitem__(item)
+
+    def get_series(self, key):
+        """Find or build the data series or field corresponding to key
+
+        "spectra" and the name of the spectrum series' field return the field, so
+        that calculators can look up the spectral data. Other keys are looked up as
+        in :func:`~measurement_base.Measurement.get_series`.
+        """
+        if key in ("spectra", self.spectra.name):
+            return self.spectra
+        return super().get_series(key)
 
     def __add__(self, other):
         added_measurement = super().__add__(other)

@@ -5,6 +5,8 @@ from ..exceptions import BuildError, SeriesNotFoundError
 from ..calculators.scan_rate_tools import (
     tspan_passing_through,
     find_signed_sections,
+    merge_short_sections,
+    calc_sharp_v_scan,
 )
 from ..plotters import CVDiffPlotter, get_color_from_cmap, add_colorbar
 from ..tools import deprecate
@@ -59,23 +61,111 @@ class CyclicVoltammogram(ECMeasurement):
             return self.select(key)
         return super().__getitem__(key)
 
-    def redefine_cycle(self, start_potential=None, redox=None, N_points=5):
-        """Build `cycle` which iterates when passing through start_potential
+    def redefine_cycle(
+        self,
+        start_potential=None,
+        redox=None,
+        N_points=5,
+        turning_point=False,
+        v_scan_res=5e-4,
+        res_points=10,
+    ):
+        """Build `cycle`, which iterates when passing through start_potential, or when
+        a new potential sweep starts.
 
         Args:
             start_potential (float): The potential in [V] at which the cycle counter will
-                iterate. If start_potential is not given, the cycle is just the
-                `selector` inherited from ECMeasurement shifted to start at 0.
-            redox (bool): True (or 1) for anodic, False (or 0) for cathodic. The
-                direction in which the potential is scanning through start_potential to
-                trigger an iteration of `cycle`.
+                iterate. If neither start_potential nor turning_point is given, the
+                cycle is just the `selector` inherited from ECMeasurement shifted to
+                start at 0. With turning_point, cycle 1 starts where the potential
+                first passes through start_potential.
+            redox (bool): True (or 1) for anodic, False (or 0) for cathodic.
+                Without turning_point, the direction in which the potential is
+                scanning through start_potential to trigger an iteration of `cycle`.
+                None counts as cathodic.
+                With turning_point, a new cycle starts only at anodic (True) or
+                cathodic (False) sweeps. If None (default), every sweep starts a new
+                cycle, so that each cycle is one sweep.
             N_points (int): The number of consecutive points for which the potential
                 needs to be above (redox=True) or below (redox=False) the
-                start_potential for the new cycle to register.
+                start_potential for the new cycle to register. Not used with
+                turning_point.
+            turning_point (bool): If True, start a new cycle at the start of each
+                potential sweep, as found by
+                :meth:`~ixdat.techniques.cv.CyclicVoltammogram.get_timed_sweeps`.
+                Holds belong to the cycle before them.
+            v_scan_res (float): With turning_point, the minimum scan rate in [V/s]
+                considered different from zero. 5e-4 V/s (0.5 mV/s) by default.
+                Increase it for noisy potential, and decrease it for slow scans.
+            res_points (int): With turning_point, the spacing in data points used to
+                calculate the scan rate, and the minimum number of points in a
+                sweep. 10 by default.
         """
         self.start_potential = start_potential
         self.redox = redox
-        if start_potential is None:
+        if turning_point:
+            v = self.U
+            scan_rate = calc_sharp_v_scan(self.t, v, res_points=res_points)
+            sweeps = find_signed_sections(
+                scan_rate, x_res=v_scan_res, res_points=res_points
+            )
+            # Noise during a hold can give many short sections, each of which
+            # would start a new cycle
+            sweeps = merge_short_sections(sweeps, res_points)
+            if redox is None:
+                sweep_types = {"positive", "negative"}
+            elif redox:
+                sweep_types = {"positive"}
+            else:
+                sweep_types = {"negative"}
+            sweep_starts = []
+            for n, ((i_start, _), sweep_type) in enumerate(sweeps):
+                if sweep_type not in sweep_types or i_start == 0:
+                    # A sweep starting at the first point continues cycle 0
+                    continue
+                # The sections are found from the scan rate, which looks res_points
+                # ahead and behind, so a sweep's start can be off from the vertex or
+                # hold before it. From res_points into the sweep, step back as long
+                # as the potential keeps going against the sweep direction. Where it
+                # stops is the vertex, or the end of the hold.
+                sign = 1 if sweep_type == "positive" else -1
+                i_start = min(i_start + res_points, len(v) - 1)
+                while i_start > 0 and sign * (v[i_start] - v[i_start - 1]) > 0:
+                    i_start -= 1
+                sweep_starts.append(i_start)
+
+            # Cycle 0 is everything before the first new cycle starts
+            cycle_vec = np.zeros(len(v))
+            first_cycle = 0
+            if start_potential is not None:
+                passing = np.flatnonzero(
+                    ((v[:-1] < start_potential) & (v[1:] >= start_potential))
+                    | ((v[:-1] > start_potential) & (v[1:] <= start_potential))
+                )
+                if len(passing) == 0:
+                    raise ValueError(f"The potential never passes {start_potential} V")
+                i_passing = passing[0] + 1
+                # With start_potential, cycle 1 starts where it is passed
+                first_cycle = 1
+                cycle_vec[i_passing:] = first_cycle
+                sweep_starts = [i for i in sweep_starts if i > i_passing]
+
+            if not sweep_starts:
+                raise ValueError(
+                    "No valid turning points found. For noisy or slow scans, try"
+                    " changing v_scan_res or res_points."
+                )
+            for c, i_start in enumerate(sweep_starts, start=first_cycle + 1):
+                cycle_vec[i_start:] = c
+
+            new_cycle_series = ValueSeries(
+                name="cycle",
+                unit_name="",
+                data=cycle_vec,
+                tseries=self.potential.tseries,
+            )
+
+        elif start_potential is None:
             old_cycle_series = self["cycle_number"]
             new_cycle_series = ValueSeries(
                 name="cycle",
@@ -342,6 +432,15 @@ class CyclicVoltammogram(ECMeasurement):
             ax, cmap_name, vmin=min(cycle_numbers), vmax=c_max, label="cycle number"
         )
         return ax
+
+    def as_ec(self):
+        """Convert self to an EC measurement"""
+        from .ec import ECMeasurement
+
+        ec_as_dict = self.as_dict()
+        ec_as_dict["technique"] = "EC"
+        # Note, this works perfectly! All needed information is in self_as_dict :)
+        return ECMeasurement.from_dict(ec_as_dict)
 
 
 class CyclicVoltammagram(CyclicVoltammogram):

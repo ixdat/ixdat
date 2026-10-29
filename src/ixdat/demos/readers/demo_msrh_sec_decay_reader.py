@@ -44,7 +44,7 @@ def main(show=True):
         make_colorbar=False,
     )
 
-    sec_meas.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
+    sec_meas.plotter.plot_wavelengths(wavelengths=["w500", "w600", "w700", "w800"])
     sec_meas.plot_waterfall()
 
     ax = sec_meas.get_spectrum(t=5).plot(color="k", label="resting")  # before pulse

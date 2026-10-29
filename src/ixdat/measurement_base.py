@@ -830,8 +830,9 @@ class Measurement(Saveable):
 
         See more detailed documentation under `__getitem__`, for which this is a
         helper method. This method (A) looks for a method for `key` in the measurement's
-        `series_constructors`; (B) requests its `calculator` for `key`; and if those
-        fail appends the data series that either (Ci) are returned by looking up the
+        `series_constructors`; (B) requests its `calculator` for `key` or for a key
+        ending in one of the calculator's `available_suffixes`; and if those fail
+        appends the data series that either (Ci) are returned by looking up the
         key's `aliases` or (Cii) have `key` as their name; and finally (D) check if the
         user was using a key with a suffix.
 
@@ -847,7 +848,10 @@ class Measurement(Saveable):
             key = key.removesuffix("-raw")
         else:
             for calculator in self.calculators.values():
-                if key in calculator.available_series_names:
+                suffixes = getattr(calculator, "available_suffixes", ())
+                if key in calculator.available_series_names or any(
+                    key.endswith(suffix) for suffix in suffixes
+                ):
                     series = calculator.calculate_series(key, measurement=self)
                     if series:
                         return series
@@ -1453,6 +1457,9 @@ class Calculator(Saveable):
 
     table_name = "calculator"
     calculator_type = None  # to be overwritten
+    # Key suffixes the calculator handles, e.g. {">diff"} for "dOD>diff". A lookup of
+    # a key ending in one of these goes to the calculator's `calculate_series`.
+    available_suffixes = set()
     column_attrs = {"name", "technique", "tstamp", "calculator_type"}
     column_types = {
         "technique": str,
