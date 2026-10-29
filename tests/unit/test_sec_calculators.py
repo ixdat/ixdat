@@ -239,6 +239,7 @@ def test_diff_works_on_a_selected_cut():
     sec = make_sec()
     sec.set_reference_spectrum(t_ref=0)
     cut = sec.cut(tspan=[3.5, 10.5])
+    assert cut.reference_spectrum is sec.reference_spectrum
     cut.dOD_calculator.idx_step = 1
     cut.dOD_calculator.normalise = False
     np.testing.assert_allclose(cut["dOD>diff"].data, np.tile([0.1, 0.2, 0.3], (6, 1)))
