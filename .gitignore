@@ -1,5 +1,7 @@
 
 # Big files from tests and docs prep
+development_scripts/**/*.sqlite
+demo_data/
 development_scripts/**/*.png
 development_scripts/**/*.svg
 development_scripts/**/*.csv

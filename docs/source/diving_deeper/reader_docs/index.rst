@@ -148,6 +148,28 @@ The ``msrh_sec`` module
 .. automodule:: ixdat.readers.msrh_sec
     :members:
 
+Optical spectra
+...............
+
+These readers return an ``OpticalSpectrumSeries``. Read the file with ``Spectrum.read``
+and add it to an electrochemistry measurement to get an ``ECOpticalMeasurement`` (see
+:ref:`sec`)::
+
+    >>> optical = Spectrum.read("my_oceanview_export.txt", reader="oceanview")
+    >>> sec = ec_meas + optical
+
+The ``oceanview`` module
+,,,,,,,,,,,,,,,,,,,,,,,,
+
+.. automodule:: ixdat.readers.oceanview
+    :members:
+
+The ``andor`` module
+,,,,,,,,,,,,,,,,,,,,
+
+.. automodule:: ixdat.readers.andor
+    :members:
+
 
 Other techniques
 ----------------

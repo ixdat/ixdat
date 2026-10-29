@@ -347,7 +347,6 @@ class BiologicReader:
         except Exception as e:
             e_galvani = e
         else:  # we're good!
-            print(f"read with `galvani`: {self.path_to_file}")
             return
 
         # Then, try with `eclabfiles`
@@ -364,7 +363,6 @@ class BiologicReader:
         except Exception as e:
             e_eclabfiles = e
         else:  # we're good!
-            print(f"read with `eclabfiles`: {self.path_to_file}")
             return
 
         raise ReadError(

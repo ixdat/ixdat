@@ -15,6 +15,7 @@ from .spectroelectrochemistry import (
     SpectroECMeasurement,
     ECXASMeasurement,
     ECOpticalMeasurement,
+    OpticalSpectrumSeries,
 )
 
 from .xrf import TRXRFMeasurement, ECTRXRFMeasurement
@@ -39,6 +40,7 @@ TECHNIQUE_CLASSES = {
     "MS_spectra": MSSpectrumSeries,
     "SEC": SpectroECMeasurement,
     "EC-Optical": ECOpticalMeasurement,
+    "CV-Optical": ECOpticalMeasurement,
     "EC-XAS": ECXASMeasurement,
     "MS-MS_spectra": MSSpectroMeasurement,
     "reactor": ReactorMeasurement,
@@ -46,6 +48,7 @@ TECHNIQUE_CLASSES = {
     "S-EC": SpectroECMeasurement,
     "EC-MS-MS_spectra": ECMSSpectroMeasurement,
     "FTIR": FTIRSpectrum,
+    "Optical": OpticalSpectrumSeries,
     "EC-FTIR": ECFTIRMeasurement,
     "NMR": NMRSpectrum,
     "NMR_spectra": NMRSpectrumSeries,

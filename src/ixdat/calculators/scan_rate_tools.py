@@ -88,9 +88,11 @@ def calc_sharp_v_scan(t, v, res_points=10):
     v_scan_middle = (v_ahead - v_behind) / (t_ahead - t_behind)
     # ^ this is "softened" at the anodic and cathodic turns.
 
-    # We can "sharpen" it by selectively looking ahead and behind:
-    v_scan_behind = (v - v_behind) / (t - t_behind)
-    v_scan_ahead = (v_ahead - v) / (t_ahead - t)
+    # We can "sharpen" it by selectively looking ahead and behind. The padded ends
+    # divide 0 by 0, which numpy would warn about:
+    with np.errstate(divide="ignore", invalid="ignore"):
+        v_scan_behind = (v - v_behind) / (t - t_behind)
+        v_scan_ahead = (v_ahead - v) / (t_ahead - t)
 
     # but this gives problems right at the beginning, so set those to zeros
     v_scan_behind[:res_points] = np.zeros(res_points)
@@ -169,6 +171,42 @@ def find_signed_sections(x, x_res=0.001, res_points=10):
             i_start += res_points
 
     return sections
+
+
+def merge_short_sections(sections, min_points):
+    """Merge sections shorter than min_points into their neighbours
+
+    A run of short sections, e.g. noise flipping the sign during a hold, becomes one
+    section. It is "zero" if it mixes types. If the run is itself shorter than
+    min_points, it joins the section before it. Neighbouring sections of the same
+    type are joined.
+
+    Args:
+        sections (list): ((i_start, i_finish), section_type) as returned by
+            find_signed_sections
+        min_points (int): The minimum number of points in a section
+    """
+    runs = []  # [i_start, i_finish, {section types}, is_short]
+    for (i_start, i_finish), section_type in sections:
+        is_short = i_finish - i_start < min_points
+        if runs and is_short and runs[-1][3]:
+            runs[-1][1] = i_finish
+            runs[-1][2].add(section_type)
+        else:
+            runs.append([i_start, i_finish, {section_type}, is_short])
+
+    merged = []
+    for i_start, i_finish, section_types, is_short in runs:
+        section_type = section_types.pop() if len(section_types) == 1 else "zero"
+        if merged and is_short and i_finish - i_start < min_points:
+            (previous_start, _), previous_type = merged[-1]
+            merged[-1] = ((previous_start, i_finish), previous_type)
+        elif merged and merged[-1][1] == section_type:
+            (previous_start, _), _ = merged[-1]
+            merged[-1] = ((previous_start, i_finish), section_type)
+        else:
+            merged.append(((i_start, i_finish), section_type))
+    return merged
 
 
 def calc_t_using_scan_rate(v, dvdt):

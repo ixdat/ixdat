@@ -11,107 +11,123 @@ links to relevant Issues, Discussions, and PR's on github with the following for
 `Issue #XX <https://github.com/ixdat/ixdat/issues/XX>`_
 `PR #XX <https://github.com/ixdat/ixdat/pull/XX>`_
 
-For ixdat 0.3.1
+For ixdat 0.4.1
 ===============
+
+development_scripts
+^^^^^^^^^^^^^^^^^^^
+
+- The demos have moved to the new ``ixdat.demos`` package, grouped like ixdat into
+  ``readers``, ``calculators`` and ``techniques``. Each demo has loader functions
+  which return its ixdat objects, an ``EXAMPLES`` dictionary of these loaders, and a
+  ``main(show=True)`` which plots the results and returns them as a dictionary. Other
+  scripts import the loaders, e.g.
+  ``from ixdat.demos.readers.demo_autolab_reader import load_single_file``.
+  The demo data is an archive on ERDA, given in ``ixdat/demos/demo_data.ini``.
+  ``python -m ixdat.demos.download`` downloads it with ``pooch``, checks its sha256
+  checksum and unzips it in ixdat's cache folder. ``get_demo_data_dir()`` returns the
+  demo data folder: the environment variable ``IXDAT_DEMO_DATA_DIR``, else
+  ``demo_data/`` in the repository root, else the downloaded folder.
+  ``development_scripts/run_all_demos.py`` runs every demo and lists the ones that
+  fail. ``development_scripts/save_all_demo_data_in_sqlite.py`` saves every demo
+  example in an SQLite file and shows its tables in a browser.
+  `PR #212 <https://github.com/ixdat/ixdat/pull/212>`_
 
 readers
 ^^^^^^^
 
-- The ``NordicTDMSReader`` (reader="nordic") has been added for reading the .tdms files
-  produced by Nordic potentiostat. It reads current, potential, and impedance, with units
-  taken directly from the TDMS channel properties (current is converted from A to mA to
-  follow ixdat convention). An ISO 8601 datetime is included in the measurement metadata.
-  If a ``*.EC_Macro`` file is present alongside the data file, the experiment sequence
-  (hardware control, gas, CV, and hold steps) is also parsed into the metadata.
-  `PR #167 <https://github.com/ixdat/ixdat/pull/167>`_
+- The ``OceanViewTimeSeriesReader`` (reader="oceanview") has been added for reading
+  time series of spectra exported by Ocean Insight's OceanView software. Read a file
+  with ``Spectrum.read(path, reader="oceanview")`` to get an ``OpticalSpectrumSeries``.
+  Use ``spectra_type`` to say whether the file has intensity (default), transmission,
+  or absorption data.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
-- The ``EChemDBReader`` (reader="echemdb") has been added in `PR #194 <https://github.com/ixdat/ixdat/pull/194>`_ for reading CV reference data from echemdb.org, a curated open-access repository for digitized electrochemical datasets.
-
-- The ``AsimovReader`` (reader="asimov") has been added for retrieving measurements,
-  spectra, and spectrum series from asimov.enci.dk via REST API. Authentication uses
-  the OAuth 2.0 Device Flow via Keycloak. The reader auto-detects the object type
-  from the payload.
-  `PR #198 <https://github.com/ixdat/ixdat/pull/198>`_
-
-- The ``BrukerNMRReader`` (reader="bruker") has been added for reading Bruker
-  TopSpin 1D NMR experiment folders. It uses the optional ``nmrglue`` package
-  to parse the ``acqus`` parameter file and the processed real spectrum from
-  ``pdata/<procno>/``, and returns an ``NMRSpectrum`` with a chemical-shift
-  axis in ppm. Pass ``processed=False`` to get the raw FID as a ``FIDSpectrum``
-  with a time axis in seconds reconstructed from ``SW_h``. Key acquisition
-  parameters (``PULPROG``, ``SOLVENT``, ``BF1``, ``NS``, ``TE``, ``DATE`` ...)
-  and processing parameters (``SI``, ``SF``, ``OFFSET`` ...) are lifted into
-  the spectrum's ``metadata``, and the full ``acqus``/``procs`` dictionaries
-  are preserved alongside. The constants ``ACQUS_KEYS`` and ``PROCS_KEYS`` are
-  public and can be imported from ``ixdat.readers.bruker``.
-  `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
-  
-- The ``XRDXYReader`` (reader="xrdxy") has been added for reading generic two- or
-  three-column powder diffraction text files (.xy, .xye, or similar). It handles
-  both whitespace- and comma-separated data, and scans comment and bare header lines to
-  detect whether the x axis is 2-theta or Q-space (with units).
-  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
+- The ``AndorKineticsCSVReader`` (reader="andor") has been added for reading kinetic
+  series of spectra exported as .csv by Andor Solis. It also returns an
+  ``OpticalSpectrumSeries``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 techniques
 ^^^^^^^^^^
 
-- New ``NMRSpectrum`` and ``NMRSpectrumSeries`` classes (technique ``"NMR"``
-  / ``"NMR_spectra"``) and ``FIDSpectrum`` class (technique ``"FID"``) added
-  in ``ixdat.techniques.nmr``, mirroring the ``FTIRSpectrum`` /
-  ``FTIRSpectrumSeries`` pattern. ``NMRSpectrum`` uses ``NMRPlotter`` which
-  inverts the x-axis to follow NMR convention (high ppm on the left).
-  ``FIDSpectrum`` uses a plain plotter for the time-domain signal.
-  `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
-  
-- ``XRDSpectrum`` (a ``MultiSpectrum`` subclass) has been added in ``techniques/xrd.py``
-  as the dedicated spectrum class for XRD data. The ``XRDXYReader`` returns it for all
-  .xy and .xye files. For .xye files the per-point intensity error is stored as a second
-  field alongside the intensity.
-  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
+- Adding an ``ECMeasurement`` or ``CyclicVoltammogram`` to an ``OpticalSpectrumSeries``
+  now gives an ``ECOpticalMeasurement``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+
+- ``ECOpticalMeasurement`` calculates dOD according to the ``spectra_type`` of its
+  spectra. For transmission and absorption data, a reference spectrum is optional.
+  The dOD is available as ``sec["dOD"]``, and ``select`` and ``cut`` keep the reference
+  spectrum, so that e.g. ``sec.select(cycle=1)["dOD"]`` works.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+
+- ``CyclicVoltammogram.redefine_cycle(turning_point=True)`` starts a new cycle at the
+  start of each potential sweep, so that each cycle is one sweep. With ``redox=True`` or
+  ``False``, only anodic or cathodic sweeps start a new cycle. Sweeps are found with the
+  same tools as ``get_timed_sweeps``, and set with its ``v_scan_res`` and
+  ``res_points``. The new ``merge_short_sections`` in
+  ``ixdat.calculators.scan_rate_tools`` keeps noise during a hold from starting new
+  cycles.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+
+- ``as_cv()`` of an ``ECMSSpectroMeasurement``, e.g. a zilien file with mass scans,
+  returns an ``ECMSCyclicVoltammogram`` with the EC and MS data and leaves out the mass
+  spectra. It raised a ``TechniqueError`` before.
+  `PR #212 <https://github.com/ixdat/ixdat/pull/212>`_
+
+calculators
+^^^^^^^^^^^
+
+- A calculator can now respond to the end of a series name. For example, the
+  calculator handling ``">smooth"`` returns a smoothed version of whatever comes
+  before it, so ``sec["dOD>diff>smooth"]`` is the smoothed ``sec["dOD>diff"]``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+
+- Three calculators for spectroelectrochemistry have been added in
+  ``ixdat.calculators.sec_calculators``. The ``DeltaODCalculator`` comes with every
+  ``ECOpticalMeasurement`` and gives ``sec["dOD"]`` and difference spectra
+  ``sec["dOD>diff"]``. The ``Denoiser`` gives denoised spectra, e.g.
+  ``sec["dOD>diff>smooth"]``. The ``SpectrumDeconvolutor`` finds the converged spectra
+  of a measurement and fits the dOD as a sum of them.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
 plotters
 ^^^^^^^^
 
-- New ``NMRPlotter`` in ``ixdat.plotters.nmr_plotter``: subclasses
-  ``SpectrumPlotter`` and inverts the x-axis so ``spec.plot()`` gives the
-  standard NMR view out of the box.
-  `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
-  
-- ``XRDSpectrumPlotter`` has been added in ``plotters/xrd_plotter.py`` as the default
-  plotter for ``XRDSpectrum``. It plots intensity vs x and, when error data is present
-  (i.e. for .xye files), overlays a shaded y+/-e band.
-  `PR #203 <https://github.com/ixdat/ixdat/pull/203>`_
+- ``ECOpticalPlotter`` has new methods for plotting difference spectra, converged
+  spectra, the fit and its residuals, and the change between two cycles.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
-tools
-^^^^^
+- ``plot_wavelengths_vs_potential(coplot=True)`` plots the CV on the same axis. The SEC
+  heat plots take ``zspan=[min, max]``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
-- New ``to_jsonable`` function in ``ixdat.tools``: recursively converts numpy
-  arrays, numpy scalars, and byte strings into JSON-safe Python primitives.
-  `PR #200 <https://github.com/ixdat/ixdat/pull/200>`_
+- The plotters get colormaps with ``plt.get_cmap``. Matplotlib 3.9 removed
+  ``mpl.cm.get_cmap``, which broke waterfall plots, colorbars, ``plot_cycles`` and the
+  SEC wavelength plots.
+  `PR #212 <https://github.com/ixdat/ixdat/pull/212>`_
 
-database
-^^^^^^^^
+API changes
+^^^^^^^^^^^
 
-- ``SQLiteBackend`` stores ixdat objects in one local SQLite file using Python's
-  built-in ``sqlite3`` module. The schema is derived from ``Saveable`` metadata by
-  the database-independent ``ixdat.backends.relational`` module, continuing the
-  table-definition work in
-  `PR #75 <https://github.com/ixdat/ixdat/pull/75>`_. Saves are transactional,
-  relationships use foreign keys, arrays remain lazy, and existing tables receive
-  safe additive migrations. String-only object arrays from pandas are stored as
-  native NumPy Unicode arrays without enabling pickle.
+- ``ECOpticalMeasurement.plot_wavelengths`` and
+  ``ECOpticalMeasurement.plot_wavelengths_vs_potential`` are deprecated, to be removed in
+  0.5.0. Use the plotter instead, e.g. ``sec.plotter.plot_wavelengths()``.
+  ``plot_waterfall`` stays on the measurement.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
 
-- ``Saveable`` gained optional ``column_types`` and ``column_references`` metadata.
-  Classes declare Python value types, and relational backends map them to their
-  storage types. Extension columns, linkers, types, and references merge over class
-  ancestry, so multiply-inheriting classes retain each parent's tables without
-  repeating columns.
+bug fixes
+^^^^^^^^^
 
-- ``Saveable.load(name)`` now returns the newest exact name match on the memory,
-  directory, and SQLite backends. Explicit-backend loads preserve the active
-  database and keep lazy children and arrays connected to their source backend.
-
-- Persistence fixes cover existing table metadata, lazy ``MultiSpectrum`` fields,
-  ``MSCalibration``, ``MSBackgroundSet``, and ``ECOpticalMeasurement`` references.
-  ``development_scripts/demo_sqlite_backend.py`` demonstrates the complete backend
-  workflow on repository test data.
+- Indexing a ``SpectrumSeries`` whose technique is registered to a
+  ``SpectrumSeries`` class returns a single ``Spectrum`` again. Since 0.4.0 it could
+  return a series.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_,
+  `PR #212 <https://github.com/ixdat/ixdat/pull/212>`_
+- ``SpectrumSeries.cut`` works when the series has no ``durations``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+- ``requests`` is now a declared dependency. ixdat 0.4.0 imports it, so a clean
+  ``pip install ixdat`` failed on ``import ixdat``.
+  `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+- Integration uses ``np.trapezoid``, falling back to ``np.trapz`` on NumPy < 2. NumPy 2.4
+  removed ``np.trapz``. `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_

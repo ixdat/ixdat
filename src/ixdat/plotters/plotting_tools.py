@@ -31,7 +31,7 @@ def get_color_from_cmap(x, cmap_name):
             See https://matplotlib.org/3.5.0/tutorials/colors/colormaps.html
     """
 
-    cmap = mpl.cm.get_cmap(cmap_name)
+    cmap = plt.get_cmap(cmap_name)
 
     rgba = cmap(x)
     return rgba
@@ -47,7 +47,7 @@ def add_colorbar(ax, cmap_name, vmin, vmax, label="intensity"):
     label (str): A label for the color bar (the name of the value represented by color)
     """
 
-    cmap = mpl.cm.get_cmap(cmap_name)
+    cmap = plt.get_cmap(cmap_name)
     norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
     cb = plt.colorbar(
         mpl.cm.ScalarMappable(norm=norm, cmap=cmap),

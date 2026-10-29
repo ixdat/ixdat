@@ -36,7 +36,7 @@ def processed_spectrum():
 
 @pytest.fixture(scope="module")
 def fid_spectrum():
-    return BrukerNMRReader().read(DATA_DIR, prefer_processed=False)
+    return BrukerNMRReader().read(DATA_DIR, processed=False)
 
 
 class TestBrukerNMRReaderProcessed:
@@ -111,11 +111,12 @@ class TestBrukerNMRReaderFidFallback:
     def test_fid_path_marked_unprocessed(self, fid_spectrum):
         assert fid_spectrum.metadata["processed"] is False
 
-    def test_fid_x_axis_is_index(self, fid_spectrum):
-        # Without an FT/reference we don't expose a ppm axis.
-        assert fid_spectrum.x_name == "point"
-        # DataSeries may store None as the empty string; accept either.
-        assert not fid_spectrum.xseries.unit_name
+    def test_fid_x_axis_is_time(self, fid_spectrum):
+        # Without an FT/reference we don't expose a ppm axis; the FID is
+        # plotted against time (computed from the dwell time), not a bare
+        # point index.
+        assert fid_spectrum.x_name == "time / s"
+        assert fid_spectrum.xseries.unit_name == "s"
 
     def test_fid_data_real_and_nonempty(self, fid_spectrum):
         y = fid_spectrum.y
