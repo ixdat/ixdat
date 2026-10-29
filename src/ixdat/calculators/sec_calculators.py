@@ -698,7 +698,7 @@ class SpectrumDeconvolutor(Calculator):
         self.timespans = timespans
         self.potentialspans = potentialspans
         # Set by `deconvolute`:
-        self.coefficients = None
+        self.coefficient_series_list = None
         self.reconstructed_field = None
         self.residuals_field = None
         self._fitted_measurement = None
@@ -938,15 +938,15 @@ class SpectrumDeconvolutor(Calculator):
         """Return a coefficient series, or the reconstructed or residual field."""
         measurement = measurement or self.measurement
         if measurement is self._fitted_measurement:
-            coefficients = self.coefficients
+            coefficient_series_list = self.coefficient_series_list
         else:
-            coefficients = self.deconvolute(measurement)
+            coefficient_series_list = self.deconvolute(measurement)
         if key == "reconstructed":
             return self.reconstructed_field
         if key == "residuals":
             return self.residuals_field
         if key.startswith("coefficient_"):
-            return coefficients[int(key.removeprefix("coefficient_"))]
+            return coefficient_series_list[int(key.removeprefix("coefficient_"))]
         raise QuantificationError(f"{self} can not calculate {key}")
 
     def deconvolute(self, measurement=None):
@@ -956,7 +956,8 @@ class SpectrumDeconvolutor(Calculator):
         the converged spectra, within `self.xspan`, and fitted by linear least
         squares (scipy.optimize.lsq_linear). The reconstructed spectra and the
         residuals are stored as `self.reconstructed_field` and
-        `self.residuals_field`.
+        `self.residuals_field`. The coefficient series are stored as
+        `self.coefficient_series_list`.
 
         Args:
             measurement (ECOpticalMeasurement): The measurement. Defaults to
@@ -1000,7 +1001,7 @@ class SpectrumDeconvolutor(Calculator):
 
         wl_series = DataSeries(name="wavelength", unit_name="nm", data=wl)
         reconstructed = coefficients @ converged
-        self.coefficients = [
+        self.coefficient_series_list = [
             ValueSeries(
                 name=f"coefficient_{i}",
                 unit_name="",
@@ -1022,4 +1023,4 @@ class SpectrumDeconvolutor(Calculator):
             data=(spectra - reconstructed) * 1000,
             axes_series=[tseries, wl_series],
         )
-        return self.coefficients
+        return self.coefficient_series_list
