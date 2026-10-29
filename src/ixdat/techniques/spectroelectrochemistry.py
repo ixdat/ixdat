@@ -4,7 +4,7 @@ from scipy.interpolate import interp1d
 from .ec import ECMeasurement
 from ..db import PlaceHolderObject, Relationship
 from ..spectra import Spectrum, SpectroMeasurement, SpectrumSeries
-from ..data_series import Field, ValueSeries, TimeSeries
+from ..data_series import Field, ValueSeries
 from ..exporters import SECExporter
 from ..plotters import SECPlotter, ECOpticalPlotter
 from ..tools import deprecate
@@ -66,67 +66,6 @@ class OpticalSpectrumSeries(SpectrumSeries):
         """
         self.spectra_type = kwargs.pop("spectra_type", "Intensity")
         super().__init__(*args, **kwargs)
-
-    def calc_average_spectra(
-        self,
-        average_number=10,
-        field=None,
-    ):
-        """Return a ValueSeries of averaged spectra for either an OpticalSpectrumSeries
-        or specific field containing spectral data.
-
-        Args:
-            average_number (int) : The number of spectra to average. 10 by default.
-            field (field) : The spectra data to average, if not included in the
-                measurement
-        Returns ValueSeries: An optical spectrum series containing averaged spectra
-        """
-        spectrum = self
-        averaged_spectra = []
-        averaged_time = []
-        if field is not None:
-            spectra_field = field
-            spectra = field.data
-            time = field.axes_series[0].data
-        else:
-            spectra_field = spectrum.field
-            spectra = spectra_field.data
-            time = spectra_field.axes_series[0].data
-
-        for index in range(0, len(spectra) - average_number, average_number):
-            window_end = index + average_number
-            averaged_spectra.append(spectra[index:window_end].mean(axis=0))
-            averaged_time.append(time[index:window_end].mean(axis=0))
-
-        averaged_spectra = np.array(averaged_spectra)
-        averaged_time = np.array(averaged_time)
-
-        tseries = TimeSeries(
-            name="time",
-            unit_name=spectra_field.axes_series[0].unit_name,
-            data=averaged_time,
-            tstamp=spectra_field.axes_series[0].tstamp,
-        )
-
-        averaged_spectra_field = Field(
-            data=averaged_spectra,
-            name=f"Averaged {spectra_field.name}",
-            unit_name="",
-            axes_series=[tseries, spectra_field.axes_series[1]],
-        )
-
-        cls = OpticalSpectrumSeries
-        averaged_uvvis_series = cls(
-            name=averaged_spectra_field.name,
-            reader=Spectrum,
-            technique="Optical",
-            tstamp=tseries.tstamp,
-            field=averaged_spectra_field,
-            continuous=True,
-            spectra_type=self.spectra_type,
-        )
-
-        return averaged_uvvis_series
 
 
 class ECOpticalMeasurement(SpectroECMeasurement):

@@ -785,6 +785,69 @@ class SpectrumSeries(Spectrum):
                 cut_spectrum_series.tstamp += t_zero
         return cut_spectrum_series
 
+    def calc_average_spectra(self, average_number=10, field=None):
+        """Return a SpectrumSeries averaging consecutive groups of spectra.
+
+        The result keeps the source class, technique, metadata, and continuous
+        setting. Each group's time is the mean of its spectra's times. Complete
+        groups are averaged; an incomplete trailing group is dropped.
+        When averaging self.field, any recorded durations are summed per group.
+
+        Args:
+            average_number (int): Number of spectra per group. Defaults to 10.
+                Must be positive and at most the number of spectra in the field.
+            field (Field): Optional spectral field to average. Defaults to
+                self.field. Its units, time axis, and x-axis are used in the result.
+        Returns SpectrumSeries: The averaged spectra, using the source subclass.
+        """
+        if not isinstance(average_number, (int, np.integer)) or average_number < 1:
+            raise ValueError("average_number must be a positive integer.")
+        spectra_field = field if field is not None else self.field
+        spectra = spectra_field.data
+        source_tseries, xseries = spectra_field.axes_series
+        n_groups = len(spectra) // average_number
+        if n_groups == 0:
+            raise ValueError(
+                f"average_number={average_number} exceeds the number of spectra"
+                f" ({len(spectra)})."
+            )
+        n_used = n_groups * average_number
+        averaged_spectra = (
+            spectra[:n_used]
+            .reshape(n_groups, average_number, spectra.shape[1])
+            .mean(axis=1)
+        )
+        averaged_time = (
+            source_tseries.data[:n_used].reshape(n_groups, average_number).mean(axis=1)
+        )
+        tseries = TimeSeries(
+            name=source_tseries.name,
+            unit_name=source_tseries.unit_name,
+            data=averaged_time,
+            tstamp=source_tseries.tstamp,
+        )
+        averaged_field = Field(
+            name=f"Averaged {spectra_field.name}",
+            unit_name=spectra_field.unit_name,
+            data=averaged_spectra,
+            axes_series=[tseries, xseries],
+        )
+        averaged_as_dict = self.as_dict(exclude=["field_id"])
+        averaged_as_dict.update(
+            name=averaged_field.name,
+            field=averaged_field,
+            tstamp=tseries.tstamp,
+            continuous=self.continuous,
+            reader=self.reader,
+        )
+        if field is None and self.durations is not None:
+            averaged_as_dict["durations"] = (
+                np.asarray(self.durations)[:n_used]
+                .reshape(n_groups, average_number)
+                .sum(axis=1)
+            )
+        return self.__class__(**averaged_as_dict)
+
     @property
     def y_average(self):
         """The y-data of the average spectrum"""
