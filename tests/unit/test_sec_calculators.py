@@ -89,6 +89,56 @@ def test_dOD_lookup_is_cached_until_the_reference_changes():
     np.testing.assert_allclose(sec["dOD"].data, expected_dOD() - expected_dOD()[-1])
 
 
+@pytest.mark.parametrize("t_range", [[1, 3], np.array([1, 3])])
+@pytest.mark.parametrize("spectrum_tstamp_offset", [0, 10])
+def test_time_range_reference_averages_spectra(t_range, spectrum_tstamp_offset):
+    # Intensities at t=1, 2, 3 s are 2, 3, 4 at every wavelength.
+    intensity = np.tile(np.arange(1.0, N_SPECTRA + 1)[:, np.newaxis], (1, len(WL)))
+    sec = make_sec(data=intensity)
+    sec.set_reference_spectrum(t_ref=0)
+    cached_dOD = sec["dOD"]
+    sec.spectrum_series.tstamp += spectrum_tstamp_offset
+
+    sec.set_reference_spectrum_through_t_range(t_range=t_range)
+
+    np.testing.assert_allclose(sec.reference_spectrum.y, [3, 3, 3])
+    assert sec.reference_spectrum.tstamp == TSTAMP + 2
+    assert sec.reference_spectrum.field.unit_name == "counts"
+    assert sec["dOD"] is not cached_dOD
+    np.testing.assert_allclose(sec["dOD"].data, -np.log10(intensity / 3))
+
+
+def test_time_range_reference_accepts_an_existing_spectrum():
+    sec = make_sec()
+    sec.set_reference_spectrum(t_ref=0)
+    cached_dOD = sec["dOD"]
+    reference = sec.spectrum_series[3]
+
+    sec.set_reference_spectrum_through_t_range(spectrum=reference, t_range=[1, 2])
+
+    assert sec.reference_spectrum is reference
+    assert sec["dOD"] is not cached_dOD
+
+
+def test_time_range_reference_accepts_zero_potential():
+    sec = make_sec()
+    sec.set_reference_spectrum_through_t_range(V_ref=0)
+    np.testing.assert_allclose(sec.reference_spectrum.y, [1, 1, 1])
+
+
+@pytest.mark.parametrize("t_range", [[1.1, 1.9], [20, 30]])
+def test_time_range_reference_without_spectra_raises(t_range):
+    sec = make_sec()
+    with pytest.raises(ValueError, match="No spectra in t_range"):
+        sec.set_reference_spectrum_through_t_range(t_range=t_range)
+
+
+def test_time_range_reference_requires_an_argument():
+    sec = make_sec()
+    with pytest.raises(ValueError, match="spectrum, t_range, or V_ref"):
+        sec.set_reference_spectrum_through_t_range()
+
+
 def test_intensity_without_reference_raises():
     sec = make_sec()
     with pytest.raises(ValueError, match="reference"):

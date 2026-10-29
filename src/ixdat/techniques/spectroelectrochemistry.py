@@ -256,25 +256,37 @@ class ECOpticalMeasurement(SpectroECMeasurement):
         t_range=None,
         V_ref=None,
     ):
-        """Set the spectrum used as the reference when calculating dOD.
+        """Set the reference spectrum, averaging spectra within a time range.
 
         Args:
-            spectrum (Spectrum or str): If a Spectrum is given, it becomes the reference
-                spectrum. The string "reference" can be given to make the reference
-                spectrum become (via the reference_spectrum property) one that the
-                measurement was loaded with (evt. for definition of wavelengths).
-            t_ref (float): The time (with respect to self.tstamp) to use as the
-                reference spectrum
-            V_ref (float): The potential to use as the reference spectrum. This will
-                only work if the potential is monotonically increasing.
+            spectrum (Spectrum): If given, it becomes the reference spectrum.
+            t_range (iterable): [t_start, t_end] in seconds relative to self.tstamp.
+                All recorded spectra within the range, including its endpoints, are
+                averaged. Used when spectrum is omitted. The range must contain at
+                least one spectrum.
+            V_ref (float): The potential at which to get the reference spectrum when
+                spectrum and t_range are omitted. The potential must be monotonically
+                increasing.
         """
-        if t_range and not spectrum:
-            spectrum = self.get_spectrum(t=t_range)
-        if V_ref and not spectrum:
+        if t_range is not None and spectrum is None:
+            spectra = self.spectra
+            tseries = spectra.axes_series[0]
+            t = tseries.t + tseries.tstamp - self.tstamp
+            mask = (t >= t_range[0]) & (t <= t_range[1])
+            if not np.any(mask):
+                raise ValueError(f"No spectra in t_range={t_range}.")
+            field = Field(
+                name=f"{spectra.name} averaged over {t_range}",
+                unit_name=spectra.unit_name,
+                data=spectra.data[mask].mean(axis=0),
+                axes_series=[self.wavelength],
+            )
+            spectrum = Spectrum.from_field(field, tstamp=self.tstamp + t[mask].mean())
+        if V_ref is not None and spectrum is None:
             spectrum = self.get_spectrum(V=V_ref)
         if spectrum is None:
-            raise ValueError("must provide a spectrum, t_ref, or V_ref!")
-        self._reference_spectrum = spectrum
+            raise ValueError("must provide a spectrum, t_range, or V_ref!")
+        self.set_reference_spectrum(spectrum=spectrum)
 
     @property
     def wavelength(self):
