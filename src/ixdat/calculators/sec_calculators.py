@@ -4,6 +4,9 @@ import warnings
 
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.optimize import lsq_linear
+from scipy.signal import find_peaks, savgol_filter
+from scipy.spatial.distance import pdist, squareform
 
 from ..measurement_base import Calculator
 from ..data_series import DataSeries, Field, TimeSeries, ValueSeries
@@ -554,8 +557,6 @@ class Denoiser(Calculator):
             scores = analysis.fit_transform(spectra)
             spectra_denoised = analysis.inverse_transform(scores)
         elif self.denoise_method == "Savitzky-Golay":
-            from scipy.signal import savgol_filter
-
             spectra_denoised = savgol_filter(
                 spectra,
                 window_length=self.sg_window,
@@ -837,9 +838,6 @@ class SpectrumDeconvolutor(Calculator):
         Return SpectrumDeconvolutor: with the converged spectra and the diagnostics
             `adjacent_distances`, `timespans`, and `potentialspans`
         """
-        from scipy.spatial.distance import pdist, squareform
-        from scipy.signal import find_peaks
-
         diff_settings = dict(idx_step=idx_step, tstep=tstep, Vstep=Vstep)
         if any(v is not None for v in diff_settings.values()):
             spectra_field = measurement.dOD_calculator.calc_diff(
@@ -870,8 +868,6 @@ class SpectrumDeconvolutor(Calculator):
         adjacent_distances = np.diag(distance_matrix, k=1)
 
         if smooth_distances:
-            from scipy.signal import savgol_filter
-
             adjacent_distances = savgol_filter(
                 adjacent_distances, window_length=window_length, polyorder=polyorder
             )
@@ -967,8 +963,6 @@ class SpectrumDeconvolutor(Calculator):
                 self.measurement.
         Return list of ValueSeries: The coefficient of each converged spectrum
         """
-        from scipy.optimize import lsq_linear
-
         measurement = measurement or self.measurement
         field = measurement[self.field_name]
         tseries, xseries = field.axes_series
