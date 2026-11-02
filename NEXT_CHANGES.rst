@@ -66,6 +66,8 @@ calculators
   ``sec["dOD>diff>smooth"]``. The ``SpectrumDeconvolutor`` finds the converged spectra
   of a measurement and fits the dOD as a sum of them.
   `PR #197 <https://github.com/ixdat/ixdat/pull/197>`_
+- Added more description to sec_calculators.py to improve understanding.
+  `PR #228 <https://https://github.com/ixdat/ixdat/pull/228>`_
 
 plotters
 ^^^^^^^^
