@@ -8,6 +8,7 @@ from pathlib import Path
 import warnings
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 from .reading_tools import timestamp_string_to_tstamp, series_list_from_dataframe
 from ..techniques import TECHNIQUE_CLASSES
@@ -145,7 +146,7 @@ class BiologicReader:
         # this is special to .mpr reading:
         self.df = None
 
-    def read(self, path_to_file, name=None, cls=ECMeasurement, **kwargs):
+    def read(self, path_to_file, name=None, cls=ECMeasurement, timezone=0, **kwargs):
         """Return an ECMeasurement with the data and metadata recorded in path_to_file
 
         This loops through the lines of the file, processing one at a time. For header
@@ -166,10 +167,12 @@ class BiologicReader:
             cls (Measurement subclass): The Measurement class to return an object of.
                 Defaults to `ECMeasurement` and should probably be a subclass thereof in
                 any case.
+            timezone: The hours between the timezone in which the data was collected and GMT (e.g. for data collected in Japan, timezone=9)
             **kwargs (dict): Key-word arguments are passed to cls.__init__
         """
         self.path_to_file = Path(path_to_file)
         self.measurement_name = name or self.path_to_file.name
+        self.timezone=timezone
         if issubclass(ECMeasurement, cls):
             cls = ECMeasurement
         self.measurement_class = cls
@@ -269,6 +272,11 @@ class BiologicReader:
                 self.tstamp = timestamp_string_to_tstamp(
                     self.timestamp_string, forms=BIOLOGIC_TIMESTAMP_FORMS
                 )
+                # Determine the analysing PC's UTC offset at the acquisition date
+                # Determine the PC's UTC offset at the acquisition time
+                dt = datetime.fromtimestamp(self.tstamp).astimezone()
+                pc_offset = dt.utcoffset().total_seconds() / 3600
+                self.tstamp += (pc_offset - self.timezone) * 3600
             return
         loop_match = re.search(regular_expressions["loop"], line)
         if loop_match:
