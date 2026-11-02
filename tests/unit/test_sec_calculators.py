@@ -89,6 +89,56 @@ def test_dOD_lookup_is_cached_until_the_reference_changes():
     np.testing.assert_allclose(sec["dOD"].data, expected_dOD() - expected_dOD()[-1])
 
 
+@pytest.mark.parametrize("t_range", [[1, 3], np.array([1, 3])])
+@pytest.mark.parametrize("spectrum_tstamp_offset", [0, 10])
+def test_time_range_reference_averages_spectra(t_range, spectrum_tstamp_offset):
+    # Intensities at t=1, 2, 3 s are 2, 3, 4 at every wavelength.
+    intensity = np.tile(np.arange(1.0, N_SPECTRA + 1)[:, np.newaxis], (1, len(WL)))
+    sec = make_sec(data=intensity)
+    sec.set_reference_spectrum(t_ref=0)
+    cached_dOD = sec["dOD"]
+    sec.spectrum_series.tstamp += spectrum_tstamp_offset
+
+    sec.set_reference_spectrum_through_t_range(t_range=t_range)
+
+    np.testing.assert_allclose(sec.reference_spectrum.y, [3, 3, 3])
+    assert sec.reference_spectrum.tstamp == TSTAMP + 2
+    assert sec.reference_spectrum.field.unit_name == "counts"
+    assert sec["dOD"] is not cached_dOD
+    np.testing.assert_allclose(sec["dOD"].data, -np.log10(intensity / 3))
+
+
+def test_time_range_reference_accepts_an_existing_spectrum():
+    sec = make_sec()
+    sec.set_reference_spectrum(t_ref=0)
+    cached_dOD = sec["dOD"]
+    reference = sec.spectrum_series[3]
+
+    sec.set_reference_spectrum_through_t_range(spectrum=reference, t_range=[1, 2])
+
+    assert sec.reference_spectrum is reference
+    assert sec["dOD"] is not cached_dOD
+
+
+def test_time_range_reference_accepts_zero_potential():
+    sec = make_sec()
+    sec.set_reference_spectrum_through_t_range(V_ref=0)
+    np.testing.assert_allclose(sec.reference_spectrum.y, [1, 1, 1])
+
+
+@pytest.mark.parametrize("t_range", [[1.1, 1.9], [20, 30]])
+def test_time_range_reference_without_spectra_raises(t_range):
+    sec = make_sec()
+    with pytest.raises(ValueError, match="No spectra in t_range"):
+        sec.set_reference_spectrum_through_t_range(t_range=t_range)
+
+
+def test_time_range_reference_requires_an_argument():
+    sec = make_sec()
+    with pytest.raises(ValueError, match="spectrum, t_range, or V_ref"):
+        sec.set_reference_spectrum_through_t_range()
+
+
 def test_intensity_without_reference_raises():
     sec = make_sec()
     with pytest.raises(ValueError, match="reference"):
@@ -189,6 +239,7 @@ def test_diff_works_on_a_selected_cut():
     sec = make_sec()
     sec.set_reference_spectrum(t_ref=0)
     cut = sec.cut(tspan=[3.5, 10.5])
+    assert cut.reference_spectrum is sec.reference_spectrum
     cut.dOD_calculator.idx_step = 1
     cut.dOD_calculator.normalise = False
     np.testing.assert_allclose(cut["dOD>diff"].data, np.tile([0.1, 0.2, 0.3], (6, 1)))
@@ -353,6 +404,14 @@ def test_deconvolutor_finds_both_converged_spectra():
     assert len(decon.spectrum_list) == 2
 
 
+def test_deconvolutor_smooths_distances_with_default_window():
+    sec, _ = two_transition_sec()
+    decon = SpectrumDeconvolutor.from_spectromeasurement(
+        sec, idx_step=1, min_region_width=1, smooth_distances=True
+    )
+    assert len(decon.converged_data) == 2
+
+
 def test_deconvolutor_lookup_reconstructs_the_dOD():
     sec, _ = two_transition_sec()
     decon = SpectrumDeconvolutor.from_spectromeasurement(
@@ -441,6 +500,28 @@ def test_plot_fit_and_residuals(deconvoluted_sec):
     axes = deconvoluted_sec.plotter.plot_fit_and_residuals()
     assert len(axes[0].get_lines()) == 2
     assert len(axes[1].get_lines()) == 81
+
+
+def test_plot_fit_after_fitting_another_measurement(deconvoluted_sec):
+    import matplotlib.pyplot as plt
+
+    sec = deconvoluted_sec
+    expected_coefficients = [sec[f"coefficient_{i}"].data for i in range(2)]
+    expected_residuals = sec["residuals"].data
+    decon = sec.calculators["spectrum_deconvolutor"]
+    other, _ = two_transition_sec(n=41)
+    decon.deconvolute(other)
+
+    try:
+        axes = sec.plotter.plot_fit_and_residuals()
+        np.testing.assert_allclose(
+            [line.get_ydata() for line in axes[0].get_lines()], expected_coefficients
+        )
+        np.testing.assert_allclose(
+            [line.get_ydata() for line in axes[1].get_lines()], expected_residuals
+        )
+    finally:
+        plt.close("all")
 
 
 def test_plot_fit_reconstruction(deconvoluted_sec):

@@ -8,7 +8,9 @@ These cover:
   difference spectra, denoising, and plotting.
 """
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import time
 
 import numpy as np
 import pytest
@@ -60,6 +62,15 @@ def read_ec_optical_fixture():
     """Read the EC and optical fixtures, one anodic sweep, and combine them."""
     optical = Spectrum.read(OPTICAL_FILE, reader="oceanview")
     ec = Measurement.read(EC_FILE, reader="biologic")
+    # The EC-Lab header has no timezone; this fixture was recorded in CEST.
+    ec_tstamp = (
+        datetime.strptime(ec.reader.timestamp_string, "%m/%d/%Y %H:%M:%S.%f")
+        .replace(tzinfo=timezone(timedelta(hours=2)))
+        .timestamp()
+    )
+    for tseries in ec.time_series:
+        tseries.tstamp = ec_tstamp
+    ec.tstamp = ec_tstamp
     ec_optical = ec.as_cv() + optical
     ec_optical.set_reference_spectrum(t_ref=55)
     return ec_optical
@@ -109,6 +120,22 @@ def test_redefine_cycle_turning_point_without_reversal_raises():
 
 
 # --- the EC-optical path on the committed fixtures ------------------------
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="Requires time.tzset")
+@pytest.mark.parametrize(
+    "host_timezone", ["UTC", "Europe/Copenhagen", "America/New_York"]
+)
+def test_fixture_alignment_is_independent_of_host_timezone(monkeypatch, host_timezone):
+    try:
+        with monkeypatch.context() as patch:
+            patch.setenv("TZ", host_timezone)
+            time.tzset()
+            ec_optical = read_ec_optical_fixture()
+            sweep = ec_optical.select(tspan=[55, 95])
+            assert sweep.spectra.data.shape[0] > 1
+    finally:
+        time.tzset()
 
 
 def test_sec_pipeline_on_real_fixture():

@@ -4,6 +4,9 @@ import warnings
 
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.optimize import lsq_linear
+from scipy.signal import find_peaks, savgol_filter
+from scipy.spatial.distance import pdist, squareform
 
 from ..measurement_base import Calculator
 from ..data_series import DataSeries, Field, TimeSeries, ValueSeries
@@ -222,7 +225,7 @@ class DeltaODCalculator(Calculator):
         if key == "dOD":
             return self.calc_dOD(measurement)
         if key.endswith(">diff"):
-            return self.calc_diff(measurement, field_name=key.removesuffix(">diff"))
+            return self.calc_diff(measurement, field_name=key[: -len(">diff")])
         raise QuantificationError(f"{self} can not calculate {key}")
 
     def calc_dOD(self, measurement=None, V_ref=None, t_ref=None, index_ref=None):
@@ -281,8 +284,9 @@ class DeltaODCalculator(Calculator):
         placed at the time of the later of the two.
 
         Arguments left as None are taken from the calculator's attributes. Arguments
-        that are given update the calculator's attributes. Exactly one of
-        `idx_step`, `tstep`, and `Vstep` must be set after this update.
+        that are given update the calculator's attributes. Providing a step replaces
+        the previous step selection and clears the other step settings. Exactly one
+        of `idx_step`, `tstep`, and `Vstep` must be set after this update.
 
         Args:
             measurement (ECOpticalMeasurement): The measurement. Defaults to
@@ -304,18 +308,16 @@ class DeltaODCalculator(Calculator):
         given = dict(
             normalise=normalise,
             xspan=xspan,
-            idx_step=idx_step,
-            tstep=tstep,
-            Vstep=Vstep,
             interpolate=interpolate,
         )
         for attr, value in given.items():
             if value is not None:
                 setattr(self, attr, value)
-        if any(given[k] is not None for k in ("idx_step", "tstep", "Vstep")):
-            # A newly given step replaces the steps set before.
-            for k in ("idx_step", "tstep", "Vstep"):
-                setattr(self, k, given[k])
+        given_steps = dict(idx_step=idx_step, tstep=tstep, Vstep=Vstep)
+        if any(value is not None for value in given_steps.values()):
+            # Include None to clear the previous step selection.
+            for attr, value in given_steps.items():
+                setattr(self, attr, value)
 
         steps = {
             k: getattr(self, k)
@@ -436,7 +438,7 @@ class Denoiser(Calculator):
         measurement=None,
         denoise_method="PCA",
         PCA_explained_variance=0.99,
-        sg_window=10,
+        sg_window=11,
         sg_poly_order=3,
         normalise=False,
         xspan=None,
@@ -455,7 +457,7 @@ class Denoiser(Calculator):
             PCA_explained_variance (float): The fraction of the variance that the
                 kept principal components must explain. 0.99 by default.
             sg_window (int): The window length of the Savitzky-Golay filter, in
-                number of wavelengths. 10 by default.
+                number of wavelengths. 11 by default.
             sg_poly_order (int): The order of the polynomial fitted in each window of
                 the Savitzky-Golay filter. 3 by default.
             normalise (bool): Whether to scale each denoised spectrum to the range
@@ -481,15 +483,11 @@ class Denoiser(Calculator):
             f"normalise={self.normalise}, xspan={self.xspan})"
         )
 
-    def __add__(self, other):
-        """Adding a Denoiser replaces this one with the newer one."""
-        return other
-
     def calculate_series(self, key, measurement=None):
         """Return the denoised field for a key ending in ">smooth"."""
         measurement = measurement or self.measurement
         if key.endswith(">smooth"):
-            spectra_field = measurement[key.removesuffix(">smooth")]
+            spectra_field = measurement[key[: -len(">smooth")]]
             return self.denoise_spectra(spectra_field, name=key)
         raise QuantificationError(f"{self} can not calculate {key}")
 
@@ -559,8 +557,6 @@ class Denoiser(Calculator):
             scores = analysis.fit_transform(spectra)
             spectra_denoised = analysis.inverse_transform(scores)
         elif self.denoise_method == "Savitzky-Golay":
-            from scipy.signal import savgol_filter
-
             spectra_denoised = savgol_filter(
                 spectra,
                 window_length=self.sg_window,
@@ -702,7 +698,7 @@ class SpectrumDeconvolutor(Calculator):
         self.timespans = timespans
         self.potentialspans = potentialspans
         # Set by `deconvolute`:
-        self.coefficients = None
+        self.coefficient_series_list = None
         self.reconstructed_field = None
         self.residuals_field = None
         self._fitted_measurement = None
@@ -774,7 +770,7 @@ class SpectrumDeconvolutor(Calculator):
         conv_limit=0.01,
         convergence_metric="correlation",
         smooth_distances=False,
-        window_length=4,
+        window_length=5,
         polyorder=3,
         prominence=None,
         threshold=None,
@@ -848,7 +844,7 @@ class SpectrumDeconvolutor(Calculator):
                 "correlation" by default.
             smooth_distances (bool): Whether to smooth the distances with a
                 Savitzky-Golay filter before finding their minima
-            window_length (int): The Savitzky-Golay window length. 4 by default.
+            window_length (int): The Savitzky-Golay window length. 5 by default.
             polyorder (int): The Savitzky-Golay polynomial order. 3 by default.
             prominence (float): Passed to scipy.signal.find_peaks: how far a
                 minimum must stand out from its surroundings
@@ -869,14 +865,15 @@ class SpectrumDeconvolutor(Calculator):
         Return SpectrumDeconvolutor: with the converged spectra and the diagnostics
             `adjacent_distances`, `timespans`, and `potentialspans`
         """
-        from scipy.spatial.distance import pdist, squareform
-        from scipy.signal import find_peaks
-
         diff_settings = dict(idx_step=idx_step, tstep=tstep, Vstep=Vstep)
         if any(v is not None for v in diff_settings.values()):
             spectra_field = measurement.dOD_calculator.calc_diff(
                 measurement,
-                field_name=field_name.removesuffix(">diff"),
+                field_name=(
+                    field_name[: -len(">diff")]
+                    if field_name.endswith(">diff")
+                    else field_name
+                ),
                 normalise=normalise,
                 xspan=xspan,
                 **diff_settings,
@@ -902,8 +899,6 @@ class SpectrumDeconvolutor(Calculator):
         adjacent_distances = np.diag(distance_matrix, k=1)
 
         if smooth_distances:
-            from scipy.signal import savgol_filter
-
             adjacent_distances = savgol_filter(
                 adjacent_distances, window_length=window_length, polyorder=polyorder
             )
@@ -974,15 +969,15 @@ class SpectrumDeconvolutor(Calculator):
         """Return a coefficient series, or the reconstructed or residual field."""
         measurement = measurement or self.measurement
         if measurement is self._fitted_measurement:
-            coefficients = self.coefficients
+            coefficient_series_list = self.coefficient_series_list
         else:
-            coefficients = self.deconvolute(measurement)
+            coefficient_series_list = self.deconvolute(measurement)
         if key == "reconstructed":
             return self.reconstructed_field
         if key == "residuals":
             return self.residuals_field
         if key.startswith("coefficient_"):
-            return coefficients[int(key.removeprefix("coefficient_"))]
+            return coefficient_series_list[int(key.split("_", 1)[1])]
         raise QuantificationError(f"{self} can not calculate {key}")
 
     def deconvolute(self, measurement=None):
@@ -992,15 +987,14 @@ class SpectrumDeconvolutor(Calculator):
         the converged spectra, within `self.xspan`, and fitted by linear least
         squares (scipy.optimize.lsq_linear). The reconstructed spectra and the
         residuals are stored as `self.reconstructed_field` and
-        `self.residuals_field`.
+        `self.residuals_field`. The coefficient series are stored as
+        `self.coefficient_series_list`.
 
         Args:
             measurement (ECOpticalMeasurement): The measurement. Defaults to
                 self.measurement.
         Return list of ValueSeries: The coefficient of each converged spectrum
         """
-        from scipy.optimize import lsq_linear
-
         measurement = measurement or self.measurement
         field = measurement[self.field_name]
         tseries, xseries = field.axes_series
@@ -1038,7 +1032,7 @@ class SpectrumDeconvolutor(Calculator):
 
         wl_series = DataSeries(name="wavelength", unit_name="nm", data=wl)
         reconstructed = coefficients @ converged
-        self.coefficients = [
+        self.coefficient_series_list = [
             ValueSeries(
                 name=f"coefficient_{i}",
                 unit_name="",
@@ -1060,4 +1054,4 @@ class SpectrumDeconvolutor(Calculator):
             data=(spectra - reconstructed) * 1000,
             axes_series=[tseries, wl_series],
         )
-        return self.coefficients
+        return self.coefficient_series_list
