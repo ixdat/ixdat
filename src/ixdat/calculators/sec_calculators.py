@@ -26,7 +26,8 @@ def get_x_mask(x, xspan=None):
 
 
 def normalise_spectra(spectra, x, xspan=None):
-    """Return each spectrum divided by its maximum absolute value within xspan.
+    """Return each spectrum divided by its maximum absolute value within xspan. The maxima are
+    found by ignoring any NaN values. Any zeros in the maxima are replaced by NaNs to avoid inf errors.
 
     Args:
         spectra (np.array): 2-D array with one spectrum per row
@@ -83,7 +84,11 @@ def calc_cycle_difference(measurement, cycle_1=1, cycle_2=2, c_name="cycle"):
 
 
 def calc_dOD_values(y, y_ref, spectra_type):
-    """Return the change in optical density of spectra y with respect to y_ref
+    """Return the change in optical density of spectra y with respect to y_ref. The intensity (I)
+    is related to absorption (A) and transmission (T) by:
+        T = I/I0, where I0 is the reference intensity
+        A = log(I/I0) = log(T)
+
 
     Args:
         y (np.array): The spectra, 1-D for one spectrum or 2-D with one per row
@@ -162,7 +167,12 @@ class DeltaODCalculator(Calculator):
             "interpolate",
         }
     }
-    column_types = {"xspan": list, "idx_step": int, "tstep": float, "Vstep": float}
+    column_types = {
+        "xspan": list,
+        "idx_step": int,
+        "tstep": float,
+        "Vstep": float,
+    }
 
     def __init__(
         self,
@@ -198,7 +208,10 @@ class DeltaODCalculator(Calculator):
                 True.
         """
         super().__init__(
-            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+            name=name,
+            technique=technique,
+            tstamp=tstamp,
+            measurement=measurement,
         )
         # bool() because the sqlite backend returns booleans as 0 or 1
         self.normalise = bool(normalise)
@@ -281,7 +294,8 @@ class DeltaODCalculator(Calculator):
         The spectra of the field named `field_name` are sampled at regular steps in
         index, time, or potential, starting from the first spectrum. Each difference
         spectrum is the sampled spectrum minus the one sampled a step earlier, and is
-        placed at the time of the later of the two.
+        placed at the time of the later of the two. The returned field is one shorter
+        in the time dimension.
 
         Arguments left as None are taken from the calculator's attributes. Arguments
         that are given update the calculator's attributes. Providing a step replaces
@@ -466,7 +480,10 @@ class Denoiser(Calculator):
                 for normalisation. Defaults to the full range.
         """
         super().__init__(
-            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+            name=name,
+            technique=technique,
+            tstamp=tstamp,
+            measurement=measurement,
         )
         self.denoise_method = denoise_method
         self.PCA_explained_variance = PCA_explained_variance
@@ -502,10 +519,59 @@ class Denoiser(Calculator):
         xspan=None,
         name=None,
     ):
-        """Return a field of denoised spectra
+        """Return a field of denoised spectra.
+
+        Sometimes spectra are too noisy, causing difficulties in finding convergent spectra.
+        The user can choose to apply either a Savitzky-Golay (savgol) filter or use principal
+        component analysis to denoise spectra.
+
+        See https://www.nature.com/articles/s41598-018-32713-7 for information about the pros and
+        cons of different spectral denoising techniques
+
+        On the Savitzky-Golay filter:
+            This can be applied to a single spectrum. A Savitzky-Golay filter uses a sliding window within which it fits a low degree
+            polynomial to the datapoints. The window must be larger than the polynomial order.
+            Lower order polynomials smooth data more, but risk removing real peaks. Higher order
+            polynomials preserve peaks better, but risk over-fitting noise. Larger windows increase
+            smoothing but risk flattening real features. This is quite a simple and intuitive
+            smoothing method, but may have limited signal-to-noise ratio gain.
+
+        On Principal Component Analysis:
+            This must be applied to a set of spectra. The basic idea behind principal component analysis
+            is to find vectors which can explain most of the spectral variation, and then neglect vectors
+            which explain the least amount of the spectral variation (noise). PCA looks at a set of spectra
+            in a dataset and finds the spectral shapes which explain most of the variation in spectra over
+            the dataset. Each spectrum can then be approximated as a linear combination of these spectral
+            shapes, or principal components. It does this by:
+                1. Standardising the data by subtracting the mean and dividing by the standard deviation.
+                This ensures that all the data is on the same scale.
+                2. Creating a covariance matrix of the spectra in a dataset. This shows if there is any
+                covariance between how much each of the datapoints in a spectrum vary from the mean with
+                respect to every other spectrum. A number close to zero means little covariance, and a number
+                close to 1 or -1 suggests they either increase or decrease together respectively. If datapoints
+                are not covariant, they are likely from noise.
+                3. Find the eigenvectors and eignevalues of this matrix. By definition, eignevectors are
+                orthogonal. Each eigenvector represents a principal component, and its eigenvalue (normalised
+                to the sum of all eigenvalues) represents how much that principal component can explain the
+                variance in a dataset. We can then order our principal components in descending order by how
+                much variance they explain.
+                4. Now we can decide how many principal components to keep. We do this by deciding how much of
+                the cumulative variance we want our principal components to explain (e.g. 96%), and thus reject
+                the components which come after this threshold (e.g. the final 4%)
+                5. Now we form a matrix of the eigenvectors that we are keeping. We can reconstruct our smoothed
+                dataset by multiplying the transpose of our original datset with the transpose of the matrix of
+                eigenvectors. The new dataset has lower dimensionality than the original, since we rejected
+                some eigenvectors to form our new eigenvector matrix.
+            The more eigenvectors you reject, and thus the more you reduce the dimensionality of the data, the more
+            features you remove. If you remove too many, you risk losing actual information, but if you remove too
+            few, you may not reduce the noise level significantly.
 
         Arguments left as None are taken from the calculator's attributes. Arguments
         that are given update the calculator's attributes.
+
+        Note that if there are any NaNs in the dataset, the denoising will ignore them. NaNs can arise due to
+        masking of 0 values to avoid a division by 0 error. This is to avoid the NaNs spreading across the whole
+        dataset
 
         Args:
             spectra_field (Field): The spectra to denoise, spanning time and
@@ -513,7 +579,8 @@ class Denoiser(Calculator):
             denoise_method (str): "PCA" or "Savitzky-Golay"
             PCA_explained_variance (float): The fraction of the variance that the
                 kept principal components must explain
-            sg_window (int): The window length of the Savitzky-Golay filter
+            sg_window (int): The window length of the Savitzky-Golay filter. Must be
+            larger than the polynomial order
             sg_poly_order (int): The polynomial order of the Savitzky-Golay filter
             normalise (bool): Whether to scale each spectrum to [0, 1] within xspan
             xspan (iterable): [wl_min, wl_max] used for normalisation
@@ -684,7 +751,10 @@ class SpectrumDeconvolutor(Calculator):
                 convergent region
         """
         super().__init__(
-            name=name, technique=technique, tstamp=tstamp, measurement=measurement
+            name=name,
+            technique=technique,
+            tstamp=tstamp,
+            measurement=measurement,
         )
         self.converged_data = np.asarray(converged_data)
         self.wavelength = np.asarray(wavelength)
@@ -730,7 +800,10 @@ class SpectrumDeconvolutor(Calculator):
         if times is None:
             times = np.arange(len(self.converged_data), dtype=float)
         tseries = TimeSeries(
-            name="time", unit_name="s", data=times, tstamp=self.converged_tstamp
+            name="time",
+            unit_name="s",
+            data=times,
+            tstamp=self.converged_tstamp,
         )
         return Field(
             name="converged spectra",
@@ -785,46 +858,57 @@ class SpectrumDeconvolutor(Calculator):
     ):
         """Find the converged spectra of a measurement and return a deconvolutor
 
-        Converged spectra are found in the difference spectra `field_name`
-        ("dOD>diff" by default). If any of `idx_step`, `tstep`, `Vstep`, or
-        `normalise` and `xspan` are given, they are set on the measurement's
-        `dOD_calculator` first.
-        
+        Converged spectra are found in the difference spectra `field_name` ("dOD>diff" by default).
+        If any of `idx_step`, `tstep`, `Vstep`, or `normalise` and `xspan` are given, they are set
+        on the measurement's `dOD_calculator` first.
+
         For details on the mathematical logic behind selecting convergent spectra, see:
         Moss, Benjamin, et al. "Operando ultraviolet–visible optical spectroelectrochemistry of surfaces."
         Nature Reviews Methods Primers 5.1 (2025): 73
-        
+
         The contents of the mathematical logic is summarised below:
-        
+
         For a set of absorbance spectra, there exists a potential region [U, U-dU] where the
         UV-vis response is dominated by one redox transition. By plotting the spectrum at U minus
         the spectrum at U-dU, and choosing dU carefully, we can see points of convergence where
         successive spectra are still dominated by the same redox transition. dU must not be so large
         that the convergence window is missed, nor so small that the difference spectra are dominated by
         noise. The points where successive spectra become convergent are defined as places in the datset
-        where the difference spectra vary the minimum amount. 
-        
-        In order to quantify how much the difference spectra vary, we can use mathematical metrics to 
-        determine how similar a vector is to a reference vector. These can be methods such as Pearson's 
-        correlation, Euclidean distance, or cosine correlation. Such methods are common in spectroscopy 
+        where the difference spectra vary the minimum amount.
+
+        In order to quantify how much the difference spectra vary, we can use mathematical metrics to
+        determine how similar a vector is to a reference vector. These can be methods such as Pearson's
+        correlation, Euclidean distance, or cosine correlation. Such methods are common in spectroscopy
         techniques such as Raman and FTIR spectroscopy (see Mostafapour, Sara, et al. "Raman spectra
-        comparison: cautions and pitfalls of similarity metrics." Spectrochimica Acta Part A: Molecular 
-        and Biomolecular Spectroscopy 344 (2026): 126702 for a discussion on the pitfalls of various 
+        comparison: cautions and pitfalls of similarity metrics." Spectrochimica Acta Part A: Molecular
+        and Biomolecular Spectroscopy 344 (2026): 126702 for a discussion on the pitfalls of various
         similarity detection techniques). The user is encouraged to consider which mathematical metric
         makes the most sense for their data. By normalising the distance spectra to their maximum
         value, we reduce variation from baseline shifts, but noise can still cause issues in determining
         convergence.
-        
-        The similarity between each pair of adjacent difference spectra is
-        calculated with scipy's pdist
+
+        The similarity between each pair of adjacent difference spectra is calculated with scipy's pdist
         (https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html).
-        Using pdist, the user can select from a variety of different similarity metrics.
-        With the default "correlation" metric, a distance of 0 means the two
-        spectra have the same shape, and 1 means they are uncorrelated. A
-        convergent region is a run of local minima of this distance below
-        `conv_limit`. Its converged spectrum is the average of the difference
-        spectra in the region. Noisy data may not meet the convergence criterion.
-        
+        Using pdist, the user can select from a variety of different similarity metrics. With the default
+        "correlation" metric, a distance of 0 means the two spectra have the same shape, and 1 means they
+        are uncorrelated. pdist returns a 1D array containing six unique pairwise distances. Therefore, if
+        we compare 4 vectors, we get a vector containing [d(0,1), d(0,2), d(0,3), d(1,2), d(1,3), d(2,3)].
+        What we need from this is a set containing the distances between adjacent spectra, i.e. [d(0,1), d(1,2), d(2,3)].
+        By using squareform, we transform the results from pdist to a symmetric nxn matrix with each entry
+        being d(i,j) and zero diagonal. From this, we use np.diag to select the first diagonal above the
+        main diagonal (i.e. where j=i+1) to extract adjacent distances.
+
+        Now,we define a convergent region as a run of local minima of this distance below `conv_limit`. We use
+        findpeaks to locate the minima in the adjacent distances matrix. If the adjacent distances vector is too
+        noisy, it can make it harder to find true minima. The user can therefor apply a savgol filter to the
+        adjacent distances vector to smooth out the values, and reduce the impact of noise.
+
+        If there are multiple spectra in a convergent region, we define the converged spectrum as average of the
+        difference spectra in the region.
+
+        Note that noisy data may not meet the convergence criterion. The user should consider changing the data
+        collection parameters or applying smoothing to the raw data before trying to find convergent spectra.
+
 
         Args:
             measurement (ECOpticalMeasurement): The measurement
@@ -900,7 +984,9 @@ class SpectrumDeconvolutor(Calculator):
 
         if smooth_distances:
             adjacent_distances = savgol_filter(
-                adjacent_distances, window_length=window_length, polyorder=polyorder
+                adjacent_distances,
+                window_length=window_length,
+                polyorder=polyorder,
             )
 
         # The minima of the distances, below the convergence limit
